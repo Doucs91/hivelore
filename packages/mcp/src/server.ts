@@ -1,0 +1,94 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { createContext, type CreateContextOptions, type HaiveContext } from "./context.js";
+import {
+  BootstrapProjectSaveInputSchema,
+  bootstrapProjectSave,
+  type BootstrapProjectSaveInput,
+} from "./tools/bootstrap-project-save.js";
+import {
+  GetProjectContextInputSchema,
+  getProjectContext,
+  type GetProjectContextInput,
+} from "./tools/get-project-context.js";
+import { MemListInputSchema, memList, type MemListInput } from "./tools/mem-list.js";
+import { MemSaveInputSchema, memSave, type MemSaveInput } from "./tools/mem-save.js";
+import {
+  MemSearchInputSchema,
+  memSearch,
+  type MemSearchInput,
+} from "./tools/mem-search.js";
+import {
+  BootstrapProjectArgsSchema,
+  bootstrapProjectPrompt,
+  type BootstrapProjectArgs,
+} from "./prompts/bootstrap-project.js";
+
+export const SERVER_NAME = "haive";
+export const SERVER_VERSION = "0.1.0";
+
+function jsonResult(data: unknown) {
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify(data, null, 2),
+      },
+    ],
+  };
+}
+
+export function createHaiveServer(
+  options: CreateContextOptions = {},
+): { server: McpServer; context: HaiveContext } {
+  const context = createContext(options);
+  const server = new McpServer(
+    { name: SERVER_NAME, version: SERVER_VERSION },
+    { capabilities: { tools: {}, prompts: {} } },
+  );
+
+  server.tool(
+    "mem_save",
+    "Save a new memory (default scope=personal). Use scope=team for shared memories.",
+    MemSaveInputSchema,
+    async (input: MemSaveInput) => jsonResult(await memSave(input, context)),
+  );
+
+  server.tool(
+    "mem_search",
+    "Search memories by substring across id, tags, and body. Optional filters by scope/type/module.",
+    MemSearchInputSchema,
+    async (input: MemSearchInput) => jsonResult(await memSearch(input, context)),
+  );
+
+  server.tool(
+    "mem_list",
+    "List memories with optional filters by scope/type/module/tag.",
+    MemListInputSchema,
+    async (input: MemListInput) => jsonResult(await memList(input, context)),
+  );
+
+  server.tool(
+    "get_project_context",
+    "Read the shared .ai/project-context.md (and optionally a module context).",
+    GetProjectContextInputSchema,
+    async (input: GetProjectContextInput) =>
+      jsonResult(await getProjectContext(input, context)),
+  );
+
+  server.tool(
+    "bootstrap_project_save",
+    "Persist a project (or module) context document analyzed by the AI client.",
+    BootstrapProjectSaveInputSchema,
+    async (input: BootstrapProjectSaveInput) =>
+      jsonResult(await bootstrapProjectSave(input, context)),
+  );
+
+  server.prompt(
+    "bootstrap_project",
+    "Instructions for the AI client to analyze the project and save the context.",
+    BootstrapProjectArgsSchema,
+    (args: BootstrapProjectArgs) => bootstrapProjectPrompt(args, context),
+  );
+
+  return { server, context };
+}

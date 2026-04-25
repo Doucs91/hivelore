@@ -14,7 +14,7 @@ Three problems hAIve solves:
 
 ## Status
 
-**v0.1 — Foundations (current)** — monorepo scaffolding, memory format, base CLI. No MCP server or embeddings yet.
+**v0.2 — MCP server (current)** — every v0.1 capability plus an MCP server that any MCP-compatible AI client can talk to (Claude Code, Cursor, Continue, Windsurf, VS Code, …). Embeddings and confidence levels arrive in v0.3.
 
 See [`PLAN.md`](./PLAN.md) for the full roadmap.
 
@@ -23,7 +23,8 @@ See [`PLAN.md`](./PLAN.md) for the full roadmap.
 | Package | Description |
 |---|---|
 | [`@haive/core`](./packages/core) | Types, memory schema, parser/serializer, validation |
-| [`@haive/cli`](./packages/cli) | CLI (`haive init`, `haive memory add\|list\|query\|promote`) |
+| [`@haive/cli`](./packages/cli) | CLI (`haive init`, `haive memory add\|list\|query\|promote`, `haive mcp`) |
+| [`@haive/mcp`](./packages/mcp) | MCP server exposing memory + project context to AI clients |
 
 ## Quick start
 
@@ -62,6 +63,64 @@ your-project/
 └── .github/
     └── copilot-instructions.md  # bridge for GitHub Copilot (auto-generated)
 ```
+
+## MCP server
+
+The MCP server exposes hAIve memory and project context to any MCP-compatible AI client over stdio.
+
+### Tools
+
+| Tool | Purpose |
+|---|---|
+| `mem_save` | Save a new memory (defaults to personal scope) |
+| `mem_search` | Search memories by substring across id, tags, body |
+| `mem_list` | List memories with optional filters |
+| `get_project_context` | Read `.ai/project-context.md` (and module context if requested) |
+| `bootstrap_project_save` | Persist a project (or module) context document analyzed by the AI |
+
+### Prompts
+
+| Prompt | Purpose |
+|---|---|
+| `bootstrap_project` | Instructions for the AI client to analyze the project and call `bootstrap_project_save` |
+
+### Client configuration examples
+
+After `haive init` in your project, point your AI client at the `haive-mcp` binary.
+
+**Claude Code** (`~/.claude.json` or per-project `.claude/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "haive": {
+      "command": "haive-mcp",
+      "args": ["--root", "/absolute/path/to/your/project"]
+    }
+  }
+}
+```
+
+**Cursor** (`~/.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "haive": {
+      "command": "haive-mcp",
+      "args": ["--root", "/absolute/path/to/your/project"]
+    }
+  }
+}
+```
+
+**VS Code** (`code --add-mcp`):
+
+```bash
+code --add-mcp '{"name":"haive","command":"haive-mcp","args":["--root","/absolute/path/to/your/project"]}'
+```
+
+The project root can also be set via the `HAIVE_PROJECT_ROOT` environment variable, or auto-detected from the nearest `.ai/`, `.git/`, or `package.json`.
 
 ## Development
 

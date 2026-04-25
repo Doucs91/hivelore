@@ -1,0 +1,23 @@
+{
+  "name": "@haive/cli",
+  "version": "0.1.0",
+  "description": "hAIve CLI",
+  "type": "module",
+  "bin": {
+    "haive": "./dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo"
+  },
+  "dependencies": {
+    "@haive/core": "workspace:*",
+    "@haive/mcp": "workspace:*",
+    "commander": "^12.1.0",
+    "picocolors": "^1.1.1"
+  }
+}
