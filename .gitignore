@@ -7,3 +7,6 @@ dist
 coverage
 .vitest-cache
 .tsbuildinfo
+
+# hAIve local cache (embeddings index, model weights, etc.)
+.ai/.cache/

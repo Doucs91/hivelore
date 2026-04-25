@@ -26,5 +26,8 @@
     "@haive/core": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.23.8"
+  },
+  "optionalDependencies": {
+    "@haive/embeddings": "workspace:*"
   }
 }

@@ -1,0 +1,17 @@
+---
+id: 2026-04-25-architecture-embedderlike-interface
+scope: team
+type: architecture
+status: draft
+anchor:
+  paths:
+    - packages/embeddings/src/embedder.ts
+  symbols:
+    - EmbedderLike
+tags:
+  - embeddings
+  - testing
+created_at: '2026-04-25T23:39:57.043Z'
+expires_when: null
+---
+Use the EmbedderLike interface (model, dimension, encode) instead of the concrete Embedder class anywhere downstream (indexer, semanticSearch). This lets tests inject a deterministic FakeEmbedder without downloading the 110MB bge-small model.
