@@ -7,5 +7,5 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   target: "node20",
-  external: ["gray-matter", "zod"],
+  external: ["@xenova/transformers"],
 });

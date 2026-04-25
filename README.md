@@ -14,7 +14,7 @@ Three problems hAIve solves:
 
 ## Status
 
-**v0.2 — MCP server (current)** — every v0.1 capability plus an MCP server that any MCP-compatible AI client can talk to (Claude Code, Cursor, Continue, Windsurf, VS Code, …). Embeddings and confidence levels arrive in v0.3.
+**v0.3 — Local embeddings + semantic search (current)** — every v0.1 + v0.2 capability plus a local embeddings index (Transformers.js, `bge-small-en-v1.5`, runs entirely on the developer's machine) and a `semantic` mode for `mem_search`. Confidence levels and the memory-PR workflow arrive in v0.4.
 
 See [`PLAN.md`](./PLAN.md) for the full roadmap.
 
@@ -23,8 +23,9 @@ See [`PLAN.md`](./PLAN.md) for the full roadmap.
 | Package | Description |
 |---|---|
 | [`@haive/core`](./packages/core) | Types, memory schema, parser/serializer, validation |
-| [`@haive/cli`](./packages/cli) | CLI (`haive init`, `haive memory add\|list\|query\|promote`, `haive mcp`) |
+| [`@haive/cli`](./packages/cli) | CLI (`haive init`, `haive memory …`, `haive mcp`, `haive embeddings …`) |
 | [`@haive/mcp`](./packages/mcp) | MCP server exposing memory + project context to AI clients |
+| [`@haive/embeddings`](./packages/embeddings) | Local sentence embeddings (Transformers.js) for semantic search — optional |
 
 ## Quick start
 
@@ -73,7 +74,7 @@ The MCP server exposes hAIve memory and project context to any MCP-compatible AI
 | Tool | Purpose |
 |---|---|
 | `mem_save` | Save a new memory (defaults to personal scope) |
-| `mem_search` | Search memories by substring across id, tags, body |
+| `mem_search` | Search memories by literal substring or semantic similarity (`semantic: true`) |
 | `mem_list` | List memories with optional filters |
 | `get_project_context` | Read `.ai/project-context.md` (and module context if requested) |
 | `bootstrap_project_save` | Persist a project (or module) context document analyzed by the AI |
@@ -121,6 +122,25 @@ code --add-mcp '{"name":"haive","command":"haive-mcp","args":["--root","/absolut
 ```
 
 The project root can also be set via the `HAIVE_PROJECT_ROOT` environment variable, or auto-detected from the nearest `.ai/`, `.git/`, or `package.json`.
+
+## Semantic search (optional)
+
+`@haive/embeddings` adds a local embeddings index over your memories using Transformers.js. The model (`Xenova/bge-small-en-v1.5`, 384 dimensions, ~110MB) is downloaded on first use and cached locally — **no data leaves your machine**.
+
+```bash
+# Build (or refresh) the embeddings index. First run downloads the model (~110MB).
+haive embeddings index
+
+# Inspect the index
+haive embeddings status
+
+# Run a semantic query from the CLI
+haive embeddings query "how do we handle retries on payment failures"
+```
+
+From an MCP client, set `semantic: true` on `mem_search` to use the embeddings index. If the index is missing or `@haive/embeddings` is not installed, `mem_search` gracefully falls back to literal search and returns `mode: "literal_fallback"` with a notice.
+
+The index is stored at `.ai/.cache/embeddings/embeddings-index.json` and is invalidated per-entry by content hash, so re-indexing is fast after edits.
 
 ## Development
 

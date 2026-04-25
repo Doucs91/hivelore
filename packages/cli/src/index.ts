@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { registerEmbeddings } from "./commands/embeddings.js";
 import { registerInit } from "./commands/init.js";
 import { registerMcp } from "./commands/mcp.js";
 import { registerMemoryAdd } from "./commands/memory-add.js";
@@ -15,6 +16,7 @@ program
 
 registerInit(program);
 registerMcp(program);
+registerEmbeddings(program);
 
 const memory = program.command("memory").description("Manage memory entries");
 registerMemoryAdd(memory);

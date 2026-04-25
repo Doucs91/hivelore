@@ -7,4 +7,15 @@ export default defineConfig({
   sourcemap: true,
   target: "node20",
   banner: { js: "#!/usr/bin/env node" },
+  external: [
+    "@haive/core",
+    "@haive/mcp",
+    "@haive/embeddings",
+    "@xenova/transformers",
+    "@modelcontextprotocol/sdk",
+    "commander",
+    "picocolors",
+    "gray-matter",
+    "zod",
+  ],
 });

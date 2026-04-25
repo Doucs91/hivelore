@@ -219,11 +219,16 @@ Ne pas réintroduire ce champ. Pour stocker une donnée équivalente, voir le mo
 - README étendu avec snippets de config pour Claude Code, Cursor, VS Code.
 - 37 tests passent (16 core + 16 mcp + 5 cli).
 
-### v0.3 — Embeddings + filtrage sémantique
-- Génération d'embeddings locaux pour chaque mémoire (Transformers.js).
-- Cache des embeddings dans `.ai/.cache/`.
-- `memory query` enrichi : tags + similarité sémantique.
-- Scoping automatique au démarrage d'une tâche (modules touchés).
+### v0.3 — Embeddings + filtrage sémantique — ✅ livrée (sauf scoping auto)
+- Package `@haive/embeddings` créé (Transformers.js, `Xenova/bge-small-en-v1.5`, 384 dims).
+- Modèle téléchargé à la première utilisation, exécuté 100% en local.
+- Cache d'embeddings dans `.ai/.cache/embeddings/embeddings-index.json` avec invalidation par hash SHA-256 par entrée.
+- CLI : `haive embeddings index | query | status`.
+- `mem_search` MCP gagne `semantic: true` + `min_score`. Lazy-load via dynamic import, fallback gracieux vers literal si le package ou l'index manque (`mode: "literal_fallback"` + notice).
+- Refactor : interface `EmbedderLike` extraite pour des tests rapides (pas de download du modèle).
+- Tests : 17 tests embeddings (cosine, index cache, indexer avec FakeEmbedder).
+- 54 tests passent au total (16 core + 17 embeddings + 16 mcp + 5 cli).
+- ⚠️ **Reste à faire** : scoping automatique au démarrage d'une tâche (modules touchés). Reporté en v0.4.
 
 ### v0.4 et au-delà (idées, à confirmer)
 - Workflow PR de mémoire (statut `proposed` → review → `validated`).

@@ -1,5 +1,14 @@
 import { defineConfig } from "tsup";
 
+const sharedExternal = [
+  "@haive/core",
+  "@haive/embeddings",
+  "@xenova/transformers",
+  "@modelcontextprotocol/sdk",
+  "zod",
+  "gray-matter",
+];
+
 export default defineConfig([
   {
     entry: ["src/server.ts"],
@@ -8,6 +17,7 @@ export default defineConfig([
     clean: true,
     sourcemap: true,
     target: "node20",
+    external: sharedExternal,
   },
   {
     entry: ["src/index.ts"],
@@ -16,5 +26,6 @@ export default defineConfig([
     sourcemap: true,
     target: "node20",
     banner: { js: "#!/usr/bin/env node" },
+    external: sharedExternal,
   },
 ]);
