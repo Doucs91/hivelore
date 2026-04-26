@@ -5,9 +5,11 @@ import { registerMcp } from "./commands/mcp.js";
 import { registerMemoryAdd } from "./commands/memory-add.js";
 import { registerMemoryList } from "./commands/memory-list.js";
 import { registerMemoryPromote } from "./commands/memory-promote.js";
+import { registerMemoryApprove } from "./commands/memory-approve.js";
 import { registerMemoryAutoPromote } from "./commands/memory-auto-promote.js";
 import { registerMemoryEdit } from "./commands/memory-edit.js";
 import { registerMemoryForFiles } from "./commands/memory-for-files.js";
+import { registerMemoryPending } from "./commands/memory-pending.js";
 import { registerMemoryQuery } from "./commands/memory-query.js";
 import { registerMemoryReject } from "./commands/memory-reject.js";
 import { registerMemoryRm } from "./commands/memory-rm.js";
@@ -39,6 +41,8 @@ registerMemoryForFiles(memory);
 registerMemoryShow(memory);
 registerMemoryEdit(memory);
 registerMemoryRm(memory);
+registerMemoryPending(memory);
+registerMemoryApprove(memory);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(err instanceof Error ? err.message : err);

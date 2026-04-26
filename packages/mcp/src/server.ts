@@ -39,6 +39,16 @@ import {
   type MemDeleteInput,
 } from "./tools/mem-delete.js";
 import {
+  MemPendingInputSchema,
+  memPending,
+  type MemPendingInput,
+} from "./tools/mem-pending.js";
+import {
+  MemApproveInputSchema,
+  memApprove,
+  type MemApproveInput,
+} from "./tools/mem-approve.js";
+import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
   type BootstrapProjectArgs,
@@ -137,6 +147,20 @@ export function createHaiveServer(
     "Delete a memory by id (and its usage entry by default).",
     MemDeleteInputSchema,
     async (input: MemDeleteInput) => jsonResult(await memDelete(input, context)),
+  );
+
+  server.tool(
+    "mem_pending",
+    "List 'proposed' memories awaiting review, sorted by reads (most-read first).",
+    MemPendingInputSchema,
+    async (input: MemPendingInput) => jsonResult(await memPending(input, context)),
+  );
+
+  server.tool(
+    "mem_approve",
+    "Mark a memory as validated immediately (explicit team review).",
+    MemApproveInputSchema,
+    async (input: MemApproveInput) => jsonResult(await memApprove(input, context)),
   );
 
   server.prompt(
