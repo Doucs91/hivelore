@@ -6,6 +6,24 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.1.1] — security: drop heavy ML chain from default install
+
+- **Breaking install behavior** : `@hiveai/embeddings` was an
+  `optionalDependency` of `@hiveai/cli` and `@hiveai/mcp`, which means
+  npm pulled it (and its full Transformers.js / onnxruntime / sharp
+  dependency tree) on every install — bringing in 35 known
+  vulnerabilities including a critical one (`protobufjs <7.5.5`,
+  GHSA-xq3m-2v4x-88gg, via `onnx-proto`).
+- It is now a `peerDependency` with `optional: true`. End users who
+  do not need semantic search no longer pull the ML chain, going from
+  ~150 transitive packages to ~20.
+- Users who do want semantic search install it explicitly:
+  `npm install @hiveai/embeddings`. The CLI/MCP code already lazy-imports
+  it, so behavior is unchanged when present.
+- Added a `protobufjs >=7.5.5` override at the workspace and embeddings
+  package level to patch the critical vuln even when the ML chain is
+  installed. `pnpm audit --prod` reports zero known vulnerabilities.
+
 ### Added — v0.4 (foundation cycle: real-world testing, staleness, validation, relevance, CRUD, review)
 
 - **A. Real-world MCP integration.** Project-scoped `.mcp.json` so Claude

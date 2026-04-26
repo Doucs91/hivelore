@@ -125,9 +125,18 @@ code --add-mcp '{"name":"haive","command":"haive-mcp","args":["--root","/absolut
 
 The project root can also be set via the `HAIVE_PROJECT_ROOT` environment variable, or auto-detected from the nearest `.ai/`, `.git/`, or `package.json`.
 
-## Semantic search (optional)
+## Semantic search (optional, opt-in install)
 
 `@hiveai/embeddings` adds a local embeddings index over your memories using Transformers.js. The model (`Xenova/bge-small-en-v1.5`, 384 dimensions, ~110MB) is downloaded on first use and cached locally — **no data leaves your machine**.
+
+It is **not installed by default** because Transformers.js pulls in heavy ML/native dependencies (onnxruntime, sharp, …). Install it explicitly only if you want semantic search:
+
+```bash
+npm install @hiveai/embeddings
+# or: pnpm add @hiveai/embeddings
+```
+
+Then:
 
 ```bash
 # Build (or refresh) the embeddings index. First run downloads the model (~110MB).
