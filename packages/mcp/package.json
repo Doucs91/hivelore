@@ -1,5 +1,5 @@
 {
-  "name": "@haive/mcp",
+  "name": "@hiveai/mcp",
   "version": "0.1.0",
   "description": "hAIve MCP server — exposes memory + project context to any MCP-compatible AI client",
   "license": "MIT",
@@ -32,11 +32,11 @@
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "dependencies": {
-    "@haive/core": "workspace:*",
+    "@hiveai/core": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.23.8"
   },
   "optionalDependencies": {
-    "@haive/embeddings": "workspace:*"
+    "@hiveai/embeddings": "workspace:*"
   }
 }

@@ -7,7 +7,7 @@ import {
   getUsage,
   loadUsageIndex,
   resolveHaivePaths,
-} from "@haive/core";
+} from "@hiveai/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 

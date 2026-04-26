@@ -7,7 +7,7 @@ import {
   resolveHaivePaths,
   serializeMemory,
   verifyAnchor,
-} from "@haive/core";
+} from "@hiveai/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 

@@ -210,7 +210,7 @@ Ne pas réintroduire ce champ. Pour stocker une donnée équivalente, voir le mo
 - **Pas d'IA orchestrée à ce stade** : `init` génère un squelette à compléter manuellement.
 
 ### v0.2 — Intégration MCP — ✅ livrée
-- Package `@haive/mcp` créé, expose 5 tools (`mem_save`, `mem_search`, `mem_list`, `get_project_context`, `bootstrap_project_save`) et 1 prompt (`bootstrap_project`).
+- Package `@hiveai/mcp` créé, expose 5 tools (`mem_save`, `mem_search`, `mem_list`, `get_project_context`, `bootstrap_project_save`) et 1 prompt (`bootstrap_project`).
 - Serveur stdio basé sur `@modelcontextprotocol/sdk` (1.29).
 - Bin séparé `haive-mcp` + commande `haive mcp` côté CLI qui le spawn.
 - Résolution du project root : flag `--root` > env `HAIVE_PROJECT_ROOT` > auto-detect `.ai/`/`.git/`/`package.json`.
@@ -220,7 +220,7 @@ Ne pas réintroduire ce champ. Pour stocker une donnée équivalente, voir le mo
 - 37 tests passent (16 core + 16 mcp + 5 cli).
 
 ### v0.3 — Embeddings + filtrage sémantique — ✅ livrée (sauf scoping auto)
-- Package `@haive/embeddings` créé (Transformers.js, `Xenova/bge-small-en-v1.5`, 384 dims).
+- Package `@hiveai/embeddings` créé (Transformers.js, `Xenova/bge-small-en-v1.5`, 384 dims).
 - Modèle téléchargé à la première utilisation, exécuté 100% en local.
 - Cache d'embeddings dans `.ai/.cache/embeddings/embeddings-index.json` avec invalidation par hash SHA-256 par entrée.
 - CLI : `haive embeddings index | query | status`.
@@ -248,7 +248,7 @@ Ne pas réintroduire ce champ. Pour stocker une donnée équivalente, voir le mo
 ## 7. Prochaine étape concrète
 
 **Démarrer la v0.1.** Toutes les décisions structurantes sont prises :
-- ✅ Nom : **hAIve** (vérifier dispo npm / scope `@haive/*` au moment du scaffolding).
+- ✅ Nom : **hAIve** (vérifier dispo npm / scope `@hiveai/*` au moment du scaffolding).
 - ✅ Monorepo TS, Node 20 LTS, `tsup` + `vitest`.
 - ✅ Bootstrap délégué à l'IA cliente via outil MCP.
 - ✅ Approche B pour le scoping en v0.1 (Personal first), C en v1.0.
@@ -256,12 +256,12 @@ Ne pas réintroduire ce champ. Pour stocker une donnée équivalente, voir le mo
 
 **Plan d'implémentation v0.1** (à détailler au moment de coder) :
 1. Scaffolding monorepo (`pnpm` workspaces ou `turborepo` à choisir).
-2. Package `@haive/core` : types, schéma frontmatter, parser/sérialiseur, validateur.
-3. Package `@haive/cli` : commandes `init`, `memory add|list|query|promote`.
+2. Package `@hiveai/core` : types, schéma frontmatter, parser/sérialiseur, validateur.
+3. Package `@hiveai/cli` : commandes `init`, `memory add|list|query|promote`.
 4. Tests vitest sur core.
 5. Documentation README minimale.
 
-Le serveur MCP (`@haive/mcp`) arrive en v0.2.
+Le serveur MCP (`@hiveai/mcp`) arrive en v0.2.
 
 ---
 

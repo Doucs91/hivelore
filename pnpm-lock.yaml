@@ -23,10 +23,10 @@ importers:
 
   packages/cli:
     dependencies:
-      '@haive/core':
+      '@hiveai/core':
         specifier: workspace:*
         version: link:../core
-      '@haive/mcp':
+      '@hiveai/mcp':
         specifier: workspace:*
         version: link:../mcp
       commander:
@@ -36,7 +36,7 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1
     optionalDependencies:
-      '@haive/embeddings':
+      '@hiveai/embeddings':
         specifier: workspace:*
         version: link:../embeddings
 
@@ -51,7 +51,7 @@ importers:
 
   packages/embeddings:
     dependencies:
-      '@haive/core':
+      '@hiveai/core':
         specifier: workspace:*
         version: link:../core
       '@xenova/transformers':
@@ -60,7 +60,7 @@ importers:
 
   packages/mcp:
     dependencies:
-      '@haive/core':
+      '@hiveai/core':
         specifier: workspace:*
         version: link:../core
       '@modelcontextprotocol/sdk':
@@ -70,7 +70,7 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     optionalDependencies:
-      '@haive/embeddings':
+      '@hiveai/embeddings':
         specifier: workspace:*
         version: link:../embeddings
 

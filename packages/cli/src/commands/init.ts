@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
-import { findProjectRoot, resolveHaivePaths } from "@haive/core";
+import { findProjectRoot, resolveHaivePaths } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 
 const PROJECT_CONTEXT_TEMPLATE = `# Project context

@@ -1,5 +1,5 @@
 {
-  "name": "@haive/cli",
+  "name": "@hiveai/cli",
   "version": "0.1.0",
   "description": "hAIve CLI — manage shared AI memories from the terminal",
   "license": "MIT",
@@ -24,12 +24,12 @@
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "dependencies": {
-    "@haive/core": "workspace:*",
-    "@haive/mcp": "workspace:*",
+    "@hiveai/core": "workspace:*",
+    "@hiveai/mcp": "workspace:*",
     "commander": "^12.1.0",
     "picocolors": "^1.1.1"
   },
   "optionalDependencies": {
-    "@haive/embeddings": "workspace:*"
+    "@hiveai/embeddings": "workspace:*"
   }
 }

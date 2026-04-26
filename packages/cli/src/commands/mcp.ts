@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
-import { findProjectRoot } from "@haive/core";
+import { findProjectRoot } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 
 const require = createRequire(import.meta.url);
@@ -23,7 +23,7 @@ export function registerMcp(program: Command): void {
       const bin = locateMcpBin();
       if (!bin) {
         ui.error(
-          "@haive/mcp binary not found. Install @haive/mcp or run `pnpm build` in the monorepo.",
+          "@hiveai/mcp binary not found. Install @hiveai/mcp or run `pnpm build` in the monorepo.",
         );
         process.exit(1);
       }
@@ -36,9 +36,9 @@ export function registerMcp(program: Command): void {
 }
 
 function locateMcpBin(): string | null {
-  // 1. Resolve the @haive/mcp package and use its bin entry.
+  // 1. Resolve the @hiveai/mcp package and use its bin entry.
   try {
-    const pkgPath = require.resolve("@haive/mcp/package.json");
+    const pkgPath = require.resolve("@hiveai/mcp/package.json");
     const pkgDir = path.dirname(pkgPath);
     const candidate = path.join(pkgDir, "dist", "index.js");
     if (existsSync(candidate)) return candidate;

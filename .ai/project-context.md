@@ -6,10 +6,10 @@
 
 Monorepo with four small, single-purpose packages connected by workspace dependencies:
 
-- **`@haive/core`** — domain primitives only. Types, zod schemas, markdown+frontmatter parser/serializer, path resolution (`.ai/`), recursive memory loader, project-root discovery. No I/O beyond the loader. No CLI, no server.
-- **`@haive/cli`** — `commander`-based CLI. Each subcommand lives in its own file under `src/commands/` and registers itself on the root program. The CLI never does heavy lifting itself; it delegates to core/embeddings.
-- **`@haive/mcp`** — MCP server built on `@modelcontextprotocol/sdk` with stdio transport. Tool implementations under `src/tools/` are pure async functions taking `(input, ctx)`; `server.ts` is a thin registration layer. Embeddings are pulled via `import("@haive/embeddings")` (optional dep) so the server runs even when embeddings are absent.
-- **`@haive/embeddings`** — optional package wrapping Transformers.js (`Xenova/bge-small-en-v1.5`, 384 dims). Lazy-loads the pipeline; exposes an `EmbedderLike` interface so tests can inject a deterministic fake instead of downloading the model.
+- **`@hiveai/core`** — domain primitives only. Types, zod schemas, markdown+frontmatter parser/serializer, path resolution (`.ai/`), recursive memory loader, project-root discovery. No I/O beyond the loader. No CLI, no server.
+- **`@hiveai/cli`** — `commander`-based CLI. Each subcommand lives in its own file under `src/commands/` and registers itself on the root program. The CLI never does heavy lifting itself; it delegates to core/embeddings.
+- **`@hiveai/mcp`** — MCP server built on `@modelcontextprotocol/sdk` with stdio transport. Tool implementations under `src/tools/` are pure async functions taking `(input, ctx)`; `server.ts` is a thin registration layer. Embeddings are pulled via `import("@hiveai/embeddings")` (optional dep) so the server runs even when embeddings are absent.
+- **`@hiveai/embeddings`** — optional package wrapping Transformers.js (`Xenova/bge-small-en-v1.5`, 384 dims). Lazy-loads the pipeline; exposes an `EmbedderLike` interface so tests can inject a deterministic fake instead of downloading the model.
 
 ## Key modules
 
@@ -38,5 +38,5 @@ Monorepo with four small, single-purpose packages connected by workspace depende
 - Without explicit `external` in `tsup.config.ts`, tsup will inline `@xenova/transformers` + `onnxruntime` and explode the CLI bundle past 5MB. Always list workspace deps and heavy native packages.
 - `gray-matter` parses YAML date strings as `Date` objects. The `IsoDateString` zod helper in `core/src/schema.ts` normalizes both `Date` and `string` to ISO strings before piping to `z.string().datetime()`.
 - `gray-matter` / js-yaml refuses to serialize `undefined` values. `serializeMemory` in `core/src/parser.ts` recursively strips them.
-- `@haive/embeddings` is an `optionalDependency` of `@haive/cli` and `@haive/mcp` — without it declared, the `import("@haive/embeddings")` in `mem-search.ts` silently fails and you get `mode: "literal_fallback"` instead of semantic results.
+- `@hiveai/embeddings` is an `optionalDependency` of `@hiveai/cli` and `@hiveai/mcp` — without it declared, the `import("@hiveai/embeddings")` in `mem-search.ts` silently fails and you get `mode: "literal_fallback"` instead of semantic results.
 - The MCP server logs to stderr (`[haive-mcp] starting…`) — never to stdout, since stdout is the JSON-RPC channel.

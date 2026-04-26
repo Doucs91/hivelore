@@ -11,7 +11,7 @@ import {
   trackReads,
   type ConfidenceLevel,
   type LoadedMemory,
-} from "@haive/core";
+} from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 

@@ -10,7 +10,7 @@ import {
   serializeMemory,
   type MemoryScope,
   type MemoryType,
-} from "@haive/core";
+} from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 
 interface AddOptions {

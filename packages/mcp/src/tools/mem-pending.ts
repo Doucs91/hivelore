@@ -3,7 +3,7 @@ import {
   getUsage,
   loadMemoriesFromDir,
   loadUsageIndex,
-} from "@haive/core";
+} from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 

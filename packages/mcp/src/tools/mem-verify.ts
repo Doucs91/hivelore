@@ -5,7 +5,7 @@ import {
   serializeMemory,
   verifyAnchor,
   type Memory,
-} from "@haive/core";
+} from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 

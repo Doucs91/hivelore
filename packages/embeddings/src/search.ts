@@ -1,4 +1,4 @@
-import type { HaivePaths } from "@haive/core";
+import type { HaivePaths } from "@hiveai/core";
 import { cosine, Embedder, type EmbedderLike } from "./embedder.js";
 import { loadIndex, type EmbeddingIndex } from "./index-cache.js";
 

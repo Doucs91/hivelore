@@ -10,7 +10,7 @@ project follows semantic versioning once it ships its first stable release.
 
 - **A. Real-world MCP integration.** Project-scoped `.mcp.json` so Claude
   Code auto-detects the local server. Multi-word literal `mem_search` (token
-  AND across id/tags/body, case-insensitive) extracted to `@haive/core` and
+  AND across id/tags/body, case-insensitive) extracted to `@hiveai/core` and
   shared by CLI and MCP.
 - **B. Staleness detection.** `verifyAnchor` checks that `anchor.paths`
   exist and `anchor.symbols` are still present in those files; `haive
@@ -37,7 +37,7 @@ project follows semantic versioning once it ships its first stable release.
 ### Changed
 - `mem_search` and `mem_list` now expose `confidence` and `read_count` on
   every hit; `mem_search` accepts a `track: false` opt-out.
-- `@haive/embeddings` is now an `optionalDependency` of `@haive/mcp` so
+- `@hiveai/embeddings` is now an `optionalDependency` of `@hiveai/mcp` so
   semantic mode works out of the box when the package is installed.
 
 ### Tests
@@ -45,7 +45,7 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [v0.3] — local embeddings + semantic search
 
-- New `@haive/embeddings` package built on Transformers.js
+- New `@hiveai/embeddings` package built on Transformers.js
   (`Xenova/bge-small-en-v1.5`, 384 dims), runs entirely locally.
 - CLI: `haive embeddings index | query | status`. MCP: `mem_search` gains
   `semantic` + `min_score`, with graceful literal fallback when the index
@@ -55,15 +55,15 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [v0.2] — MCP server
 
-- `@haive/mcp` (stdio) exposes 5 tools (`mem_save`, `mem_search`,
+- `@hiveai/mcp` (stdio) exposes 5 tools (`mem_save`, `mem_search`,
   `mem_list`, `get_project_context`, `bootstrap_project_save`) plus the
   `bootstrap_project` prompt. Bin `haive-mcp` and CLI command `haive mcp`.
 
 ## [v0.1] — foundations
 
 - Monorepo (pnpm workspaces, Node 20 LTS, `tsup`, `vitest`).
-- `@haive/core` memory schema (zod) + frontmatter parser/serializer + path
+- `@hiveai/core` memory schema (zod) + frontmatter parser/serializer + path
   resolution + recursive loader.
-- `@haive/cli` first commands: `haive init`, `haive memory add | list |
+- `@hiveai/cli` first commands: `haive init`, `haive memory add | list |
   query | promote`. Approach B (Personal first): new memories default to
   `personal`; explicit `promote` is the only way into `team`.

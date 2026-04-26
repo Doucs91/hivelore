@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveHaivePaths } from "@haive/core";
+import { resolveHaivePaths } from "@hiveai/core";
 import type { HaiveContext } from "../src/context.js";
 import { bootstrapProjectSave } from "../src/tools/bootstrap-project-save.js";
 import { getProjectContext } from "../src/tools/get-project-context.js";

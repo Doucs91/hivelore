@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
-import { findProjectRoot, resolveHaivePaths } from "@haive/core";
+import { findProjectRoot, resolveHaivePaths } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 
 interface EmbeddingsOptions {
@@ -92,10 +92,10 @@ export function registerEmbeddings(program: Command): void {
 
 async function loadEmbeddings() {
   try {
-    return await import("@haive/embeddings");
+    return await import("@hiveai/embeddings");
   } catch (err) {
     ui.error(
-      "Could not load @haive/embeddings. Install it or run `pnpm build` in the monorepo.",
+      "Could not load @hiveai/embeddings. Install it or run `pnpm build` in the monorepo.",
     );
     throw err;
   }

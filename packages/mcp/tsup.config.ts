@@ -1,8 +1,8 @@
 import { defineConfig } from "tsup";
 
 const sharedExternal = [
-  "@haive/core",
-  "@haive/embeddings",
+  "@hiveai/core",
+  "@hiveai/embeddings",
   "@xenova/transformers",
   "@modelcontextprotocol/sdk",
   "zod",

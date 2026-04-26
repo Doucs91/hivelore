@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { loadMemoriesFromDir } from "@haive/core";
+import { loadMemoriesFromDir } from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 

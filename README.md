@@ -22,10 +22,10 @@ See [`PLAN.md`](./PLAN.md) for the full roadmap.
 
 | Package | Description |
 |---|---|
-| [`@haive/core`](./packages/core) | Types, memory schema, parser/serializer, validation |
-| [`@haive/cli`](./packages/cli) | CLI (`haive init`, `haive memory …`, `haive mcp`, `haive embeddings …`) |
-| [`@haive/mcp`](./packages/mcp) | MCP server exposing memory + project context to AI clients |
-| [`@haive/embeddings`](./packages/embeddings) | Local sentence embeddings (Transformers.js) for semantic search — optional |
+| [`@hiveai/core`](./packages/core) | Types, memory schema, parser/serializer, validation |
+| [`@hiveai/cli`](./packages/cli) | CLI (`haive init`, `haive memory …`, `haive mcp`, `haive embeddings …`) |
+| [`@hiveai/mcp`](./packages/mcp) | MCP server exposing memory + project context to AI clients |
+| [`@hiveai/embeddings`](./packages/embeddings) | Local sentence embeddings (Transformers.js) for semantic search — optional |
 
 ## Quick start
 
@@ -127,7 +127,7 @@ The project root can also be set via the `HAIVE_PROJECT_ROOT` environment variab
 
 ## Semantic search (optional)
 
-`@haive/embeddings` adds a local embeddings index over your memories using Transformers.js. The model (`Xenova/bge-small-en-v1.5`, 384 dimensions, ~110MB) is downloaded on first use and cached locally — **no data leaves your machine**.
+`@hiveai/embeddings` adds a local embeddings index over your memories using Transformers.js. The model (`Xenova/bge-small-en-v1.5`, 384 dimensions, ~110MB) is downloaded on first use and cached locally — **no data leaves your machine**.
 
 ```bash
 # Build (or refresh) the embeddings index. First run downloads the model (~110MB).
@@ -140,7 +140,7 @@ haive embeddings status
 haive embeddings query "how do we handle retries on payment failures"
 ```
 
-From an MCP client, set `semantic: true` on `mem_search` to use the embeddings index. If the index is missing or `@haive/embeddings` is not installed, `mem_search` gracefully falls back to literal search and returns `mode: "literal_fallback"` with a notice.
+From an MCP client, set `semantic: true` on `mem_search` to use the embeddings index. If the index is missing or `@hiveai/embeddings` is not installed, `mem_search` gracefully falls back to literal search and returns `mode: "literal_fallback"` with a notice.
 
 The index is stored at `.ai/.cache/embeddings/embeddings-index.json` and is invalidated per-entry by content hash, so re-indexing is fast after edits.
 

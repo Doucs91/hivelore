@@ -8,9 +8,9 @@ export default defineConfig({
   target: "node20",
   banner: { js: "#!/usr/bin/env node" },
   external: [
-    "@haive/core",
-    "@haive/mcp",
-    "@haive/embeddings",
+    "@hiveai/core",
+    "@hiveai/mcp",
+    "@hiveai/embeddings",
     "@xenova/transformers",
     "@modelcontextprotocol/sdk",
     "commander",

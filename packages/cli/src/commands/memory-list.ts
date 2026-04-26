@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
-import { findProjectRoot, resolveHaivePaths, type MemoryScope, type MemoryType } from "@haive/core";
+import { findProjectRoot, resolveHaivePaths, type MemoryScope, type MemoryType } from "@hiveai/core";
 import { loadMemoriesFromDir, type LoadedMemory } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 

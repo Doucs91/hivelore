@@ -12,7 +12,7 @@ import {
   type ConfidenceLevel,
   type LoadedMemory,
   type UsageIndex,
-} from "@haive/core";
+} from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -93,7 +93,7 @@ export async function memSearch(
         ...buildLiteralResult(input, filtered, usage),
         mode: "literal_fallback",
         notice:
-          "Semantic search unavailable (embeddings index missing or @haive/embeddings not installed). Falling back to literal search.",
+          "Semantic search unavailable (embeddings index missing or @hiveai/embeddings not installed). Falling back to literal search.",
       };
     }
   } else {
@@ -142,9 +142,9 @@ async function trySemanticSearch(
   filtered: LoadedMemory[],
   usage: UsageIndex,
 ): Promise<MemSearchOutput | null> {
-  let mod: typeof import("@haive/embeddings");
+  let mod: typeof import("@hiveai/embeddings");
   try {
-    mod = await import("@haive/embeddings");
+    mod = await import("@hiveai/embeddings");
   } catch {
     return null;
   }

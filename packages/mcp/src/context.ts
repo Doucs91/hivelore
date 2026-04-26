@@ -1,4 +1,4 @@
-import { findProjectRoot, resolveHaivePaths, type HaivePaths } from "@haive/core";
+import { findProjectRoot, resolveHaivePaths, type HaivePaths } from "@hiveai/core";
 
 export interface HaiveContext {
   paths: HaivePaths;
