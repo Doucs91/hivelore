@@ -2,6 +2,15 @@
   "name": "@haive/embeddings",
   "version": "0.1.0",
   "description": "hAIve embeddings — local sentence embeddings via Transformers.js for semantic memory search",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Doucs91/hAIve.git",
+    "directory": "packages/embeddings"
+  },
+  "bugs": "https://github.com/Doucs91/hAIve/issues",
+  "homepage": "https://github.com/Doucs91/hAIve#readme",
+  "keywords": ["ai", "memory", "embeddings", "transformers", "semantic-search", "haive"],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -11,7 +20,7 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": ["dist", "LICENSE"],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",

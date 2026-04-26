@@ -2,6 +2,15 @@
   "name": "@haive/mcp",
   "version": "0.1.0",
   "description": "hAIve MCP server — exposes memory + project context to any MCP-compatible AI client",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Doucs91/hAIve.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": "https://github.com/Doucs91/hAIve/issues",
+  "homepage": "https://github.com/Doucs91/hAIve#readme",
+  "keywords": ["ai", "memory", "mcp", "haive", "model-context-protocol", "agent", "team"],
   "type": "module",
   "main": "./dist/server.js",
   "types": "./dist/server.d.ts",
@@ -14,7 +23,7 @@
   "bin": {
     "haive-mcp": "./dist/index.js"
   },
-  "files": ["dist"],
+  "files": ["dist", "LICENSE"],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",

@@ -1,12 +1,21 @@
 {
   "name": "@haive/cli",
   "version": "0.1.0",
-  "description": "hAIve CLI",
+  "description": "hAIve CLI — manage shared AI memories from the terminal",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Doucs91/hAIve.git",
+    "directory": "packages/cli"
+  },
+  "bugs": "https://github.com/Doucs91/hAIve/issues",
+  "homepage": "https://github.com/Doucs91/hAIve#readme",
+  "keywords": ["ai", "memory", "mcp", "haive", "agent", "team", "cli"],
   "type": "module",
   "bin": {
     "haive": "./dist/index.js"
   },
-  "files": ["dist"],
+  "files": ["dist", "LICENSE"],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
