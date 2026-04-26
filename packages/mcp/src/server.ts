@@ -18,6 +18,11 @@ import {
   type MemSearchInput,
 } from "./tools/mem-search.js";
 import {
+  MemVerifyInputSchema,
+  memVerify,
+  type MemVerifyInput,
+} from "./tools/mem-verify.js";
+import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
   type BootstrapProjectArgs,
@@ -81,6 +86,13 @@ export function createHaiveServer(
     BootstrapProjectSaveInputSchema,
     async (input: BootstrapProjectSaveInput) =>
       jsonResult(await bootstrapProjectSave(input, context)),
+  );
+
+  server.tool(
+    "mem_verify",
+    "Check anchor freshness for one or every memory; optionally write status updates back to disk.",
+    MemVerifyInputSchema,
+    async (input: MemVerifyInput) => jsonResult(await memVerify(input, context)),
   );
 
   server.prompt(

@@ -4,3 +4,4 @@ export * from "./parser.js";
 export * from "./paths.js";
 export * from "./loader.js";
 export * from "./search.js";
+export * from "./verifier.js";

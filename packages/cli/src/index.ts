@@ -6,6 +6,7 @@ import { registerMemoryAdd } from "./commands/memory-add.js";
 import { registerMemoryList } from "./commands/memory-list.js";
 import { registerMemoryPromote } from "./commands/memory-promote.js";
 import { registerMemoryQuery } from "./commands/memory-query.js";
+import { registerMemoryVerify } from "./commands/memory-verify.js";
 
 const program = new Command();
 
@@ -23,6 +24,7 @@ registerMemoryAdd(memory);
 registerMemoryList(memory);
 registerMemoryQuery(memory);
 registerMemoryPromote(memory);
+registerMemoryVerify(memory);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(err instanceof Error ? err.message : err);

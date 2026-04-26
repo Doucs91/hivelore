@@ -42,6 +42,8 @@ export const MemoryFrontmatterSchema = z
     author: z.string().optional(),
     created_at: IsoDateString,
     expires_when: z.string().nullable().default(null),
+    verified_at: z.string().nullable().default(null),
+    stale_reason: z.string().nullable().default(null),
   })
   .refine(
     (data) => data.scope !== "module" || !!data.module,
