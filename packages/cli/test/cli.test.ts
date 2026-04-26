@@ -88,4 +88,44 @@ describe("hAIve CLI integration", () => {
     expect(promoted).toContain("scope: team");
     expect(promoted).toContain("status: proposed");
   });
+
+  it("memory show prints metadata and body", async () => {
+    const teamDir = path.join(workDir, ".ai/memories/team");
+    const teamFiles = await readdir(teamDir);
+    const id = teamFiles[0]!.replace(/\.md$/, "");
+    const { stdout } = await run(workDir, ["memory", "show", id, "--dir", workDir]);
+    expect(stdout).toContain(id);
+    expect(stdout).toContain("scope:");
+    expect(stdout).toContain("confidence:");
+    expect(stdout).toContain("Always use pnpm");
+  });
+
+  it("memory rm --yes deletes the file and removes the usage entry", async () => {
+    await run(workDir, [
+      "memory", "add",
+      "--type", "gotcha",
+      "--slug", "deleteme",
+      "--body", "x",
+      "--dir", workDir,
+    ]);
+    const personalDir = path.join(workDir, ".ai/memories/personal");
+    const filesBefore = await readdir(personalDir);
+    expect(filesBefore.length).toBe(1);
+    const id = filesBefore[0]!.replace(/\.md$/, "");
+
+    await run(workDir, ["memory", "rm", id, "--yes", "--dir", workDir]);
+
+    const filesAfter = await readdir(personalDir);
+    expect(filesAfter.length).toBe(0);
+  });
+
+  it("memory rm errors on unknown id", async () => {
+    let threw = false;
+    try {
+      await run(workDir, ["memory", "rm", "nonexistent-id", "--yes", "--dir", workDir]);
+    } catch {
+      threw = true;
+    }
+    expect(threw).toBe(true);
+  });
 });

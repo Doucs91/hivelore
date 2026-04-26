@@ -32,6 +32,12 @@ import {
   memForFiles,
   type MemForFilesInput,
 } from "./tools/mem-for-files.js";
+import { MemGetInputSchema, memGet, type MemGetInput } from "./tools/mem-get.js";
+import {
+  MemDeleteInputSchema,
+  memDelete,
+  type MemDeleteInput,
+} from "./tools/mem-delete.js";
 import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
@@ -117,6 +123,20 @@ export function createHaiveServer(
     "Given the file paths the agent is currently working on, return relevant memories grouped by reason (anchor overlap, module, domain) plus any matching .ai/modules/<name>/context.md contents.",
     MemForFilesInputSchema,
     async (input: MemForFilesInput) => jsonResult(await memForFiles(input, context)),
+  );
+
+  server.tool(
+    "mem_get",
+    "Fetch a single memory by id, including its body, anchor, usage, and confidence.",
+    MemGetInputSchema,
+    async (input: MemGetInput) => jsonResult(await memGet(input, context)),
+  );
+
+  server.tool(
+    "mem_delete",
+    "Delete a memory by id (and its usage entry by default).",
+    MemDeleteInputSchema,
+    async (input: MemDeleteInput) => jsonResult(await memDelete(input, context)),
   );
 
   server.prompt(
