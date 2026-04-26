@@ -28,6 +28,11 @@ import {
   type MemRejectInput,
 } from "./tools/mem-reject.js";
 import {
+  MemForFilesInputSchema,
+  memForFiles,
+  type MemForFilesInput,
+} from "./tools/mem-for-files.js";
+import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
   type BootstrapProjectArgs,
@@ -105,6 +110,13 @@ export function createHaiveServer(
     "Record a rejection for a memory (blocks auto-promotion and lowers its trust signal).",
     MemRejectInputSchema,
     async (input: MemRejectInput) => jsonResult(await memReject(input, context)),
+  );
+
+  server.tool(
+    "mem_for_files",
+    "Given the file paths the agent is currently working on, return relevant memories grouped by reason (anchor overlap, module, domain) plus any matching .ai/modules/<name>/context.md contents.",
+    MemForFilesInputSchema,
+    async (input: MemForFilesInput) => jsonResult(await memForFiles(input, context)),
   );
 
   server.prompt(
