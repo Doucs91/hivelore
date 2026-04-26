@@ -23,6 +23,11 @@ import {
   type MemVerifyInput,
 } from "./tools/mem-verify.js";
 import {
+  MemRejectInputSchema,
+  memReject,
+  type MemRejectInput,
+} from "./tools/mem-reject.js";
+import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
   type BootstrapProjectArgs,
@@ -93,6 +98,13 @@ export function createHaiveServer(
     "Check anchor freshness for one or every memory; optionally write status updates back to disk.",
     MemVerifyInputSchema,
     async (input: MemVerifyInput) => jsonResult(await memVerify(input, context)),
+  );
+
+  server.tool(
+    "mem_reject",
+    "Record a rejection for a memory (blocks auto-promotion and lowers its trust signal).",
+    MemRejectInputSchema,
+    async (input: MemRejectInput) => jsonResult(await memReject(input, context)),
   );
 
   server.prompt(

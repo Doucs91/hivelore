@@ -5,3 +5,5 @@ export * from "./paths.js";
 export * from "./loader.js";
 export * from "./search.js";
 export * from "./verifier.js";
+export * from "./usage.js";
+export * from "./confidence.js";

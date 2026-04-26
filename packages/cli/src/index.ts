@@ -5,7 +5,10 @@ import { registerMcp } from "./commands/mcp.js";
 import { registerMemoryAdd } from "./commands/memory-add.js";
 import { registerMemoryList } from "./commands/memory-list.js";
 import { registerMemoryPromote } from "./commands/memory-promote.js";
+import { registerMemoryAutoPromote } from "./commands/memory-auto-promote.js";
 import { registerMemoryQuery } from "./commands/memory-query.js";
+import { registerMemoryReject } from "./commands/memory-reject.js";
+import { registerMemoryStats } from "./commands/memory-stats.js";
 import { registerMemoryVerify } from "./commands/memory-verify.js";
 
 const program = new Command();
@@ -25,6 +28,9 @@ registerMemoryList(memory);
 registerMemoryQuery(memory);
 registerMemoryPromote(memory);
 registerMemoryVerify(memory);
+registerMemoryStats(memory);
+registerMemoryReject(memory);
+registerMemoryAutoPromote(memory);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(err instanceof Error ? err.message : err);

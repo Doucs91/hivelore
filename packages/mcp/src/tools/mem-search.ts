@@ -1,11 +1,17 @@
 import { existsSync } from "node:fs";
 import {
+  deriveConfidence,
   extractSnippet,
+  getUsage,
   literalMatchesAllTokens,
   loadMemoriesFromDir,
+  loadUsageIndex,
   pickSnippetNeedle,
   tokenizeQuery,
+  trackReads,
+  type ConfidenceLevel,
   type LoadedMemory,
+  type UsageIndex,
 } from "@haive/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
@@ -34,6 +40,10 @@ export const MemSearchInputSchema = {
     .max(1)
     .default(0)
     .describe("Minimum cosine similarity (semantic mode only)"),
+  track: z
+    .boolean()
+    .default(true)
+    .describe("Increment read_count on returned memories (used for passive validation)"),
 };
 
 export type MemSearchInput = {
@@ -47,6 +57,8 @@ export interface MemSearchHit {
   module?: string;
   tags: string[];
   status: string;
+  confidence: ConfidenceLevel;
+  read_count: number;
   snippet: string;
   file_path: string;
   score?: number;
@@ -69,20 +81,33 @@ export async function memSearch(
 
   const all = await loadMemoriesFromDir(ctx.paths.memoriesDir);
   const filtered = all.filter(({ memory }) => passesFilters(memory.frontmatter, input));
+  const usage = await loadUsageIndex(ctx.paths);
 
+  let result: MemSearchOutput;
   if (input.semantic) {
-    const semantic = await trySemanticSearch(ctx, input, filtered);
-    if (semantic) return semantic;
-    // fall through to literal as a graceful fallback
-    return {
-      ...buildLiteralResult(input, filtered),
-      mode: "literal_fallback",
-      notice:
-        "Semantic search unavailable (embeddings index missing or @haive/embeddings not installed). Falling back to literal search.",
-    };
+    const semantic = await trySemanticSearch(ctx, input, filtered, usage);
+    if (semantic) {
+      result = semantic;
+    } else {
+      result = {
+        ...buildLiteralResult(input, filtered, usage),
+        mode: "literal_fallback",
+        notice:
+          "Semantic search unavailable (embeddings index missing or @haive/embeddings not installed). Falling back to literal search.",
+      };
+    }
+  } else {
+    result = buildLiteralResult(input, filtered, usage);
   }
 
-  return buildLiteralResult(input, filtered);
+  if (input.track && result.matches.length > 0) {
+    await trackReads(
+      ctx.paths,
+      result.matches.map((m) => m.id),
+    );
+  }
+
+  return result;
 }
 
 function passesFilters(
@@ -98,13 +123,14 @@ function passesFilters(
 function buildLiteralResult(
   input: MemSearchInput,
   filtered: LoadedMemory[],
+  usage: UsageIndex,
 ): { matches: MemSearchHit[]; total: number; mode: "literal" } {
   const tokens = tokenizeQuery(input.query);
   const matched = filtered.filter(({ memory }) => literalMatchesAllTokens(memory, tokens));
   const snippetNeedle = pickSnippetNeedle(input.query);
   const top = matched.slice(0, input.limit);
   return {
-    matches: top.map((loaded) => toHit(loaded, snippetNeedle)),
+    matches: top.map((loaded) => toHit(loaded, snippetNeedle, usage)),
     total: matched.length,
     mode: "literal",
   };
@@ -114,6 +140,7 @@ async function trySemanticSearch(
   ctx: HaiveContext,
   input: MemSearchInput,
   filtered: LoadedMemory[],
+  usage: UsageIndex,
 ): Promise<MemSearchOutput | null> {
   let mod: typeof import("@haive/embeddings");
   try {
@@ -143,12 +170,14 @@ async function trySemanticSearch(
         type: "unknown",
         tags: [],
         status: "unknown",
+        confidence: "unverified" as const,
+        read_count: 0,
         snippet: "",
         file_path: hit.file_path,
         score: hit.score,
       };
     }
-    const base = toHit(loaded, input.query.toLowerCase());
+    const base = toHit(loaded, input.query.toLowerCase(), usage);
     return { ...base, score: hit.score };
   });
 
@@ -159,8 +188,9 @@ async function trySemanticSearch(
   };
 }
 
-function toHit(loaded: LoadedMemory, needle: string): MemSearchHit {
+function toHit(loaded: LoadedMemory, needle: string, usage: UsageIndex): MemSearchHit {
   const fm = loaded.memory.frontmatter;
+  const u = getUsage(usage, fm.id);
   return {
     id: fm.id,
     scope: fm.scope,
@@ -168,6 +198,8 @@ function toHit(loaded: LoadedMemory, needle: string): MemSearchHit {
     ...(fm.module ? { module: fm.module } : {}),
     tags: fm.tags,
     status: fm.status,
+    confidence: deriveConfidence(fm, u),
+    read_count: u.read_count,
     snippet: extractSnippet(loaded.memory.body, needle),
     file_path: loaded.filePath,
   };
