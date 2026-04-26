@@ -121,6 +121,8 @@ After `haive init` in your project, point your AI client at the `haive-mcp` bina
 code --add-mcp '{"name":"haive","command":"haive-mcp","args":["--root","/absolute/path/to/your/project"]}'
 ```
 
+**Project-scoped (Claude Code, auto-detected on open)**: this repo ships a `.mcp.json` at the root that points at `packages/mcp/dist/index.js`. Open the project in Claude Code, accept the MCP server prompt, and `mem_save / mem_search / get_project_context` are immediately available.
+
 The project root can also be set via the `HAIVE_PROJECT_ROOT` environment variable, or auto-detected from the nearest `.ai/`, `.git/`, or `package.json`.
 
 ## Semantic search (optional)

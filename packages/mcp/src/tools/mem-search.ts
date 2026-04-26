@@ -1,5 +1,12 @@
 import { existsSync } from "node:fs";
-import { loadMemoriesFromDir, type LoadedMemory } from "@haive/core";
+import {
+  extractSnippet,
+  literalMatchesAllTokens,
+  loadMemoriesFromDir,
+  pickSnippetNeedle,
+  tokenizeQuery,
+  type LoadedMemory,
+} from "@haive/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -92,17 +99,12 @@ function buildLiteralResult(
   input: MemSearchInput,
   filtered: LoadedMemory[],
 ): { matches: MemSearchHit[]; total: number; mode: "literal" } {
-  const needle = input.query.toLowerCase();
-  const matched = filtered.filter(({ memory }) => {
-    const fm = memory.frontmatter;
-    if (fm.id.toLowerCase().includes(needle)) return true;
-    if (fm.tags.some((t) => t.toLowerCase().includes(needle))) return true;
-    if (memory.body.toLowerCase().includes(needle)) return true;
-    return false;
-  });
+  const tokens = tokenizeQuery(input.query);
+  const matched = filtered.filter(({ memory }) => literalMatchesAllTokens(memory, tokens));
+  const snippetNeedle = pickSnippetNeedle(input.query);
   const top = matched.slice(0, input.limit);
   return {
-    matches: top.map((loaded) => toHit(loaded, needle)),
+    matches: top.map((loaded) => toHit(loaded, snippetNeedle)),
     total: matched.length,
     mode: "literal",
   };
@@ -169,14 +171,4 @@ function toHit(loaded: LoadedMemory, needle: string): MemSearchHit {
     snippet: extractSnippet(loaded.memory.body, needle),
     file_path: loaded.filePath,
   };
-}
-
-function extractSnippet(body: string, needle: string): string {
-  const lower = body.toLowerCase();
-  const idx = needle ? lower.indexOf(needle) : -1;
-  if (idx < 0) return body.slice(0, 120).replace(/\s+/g, " ").trim();
-  const start = Math.max(0, idx - 40);
-  const end = Math.min(body.length, idx + needle.length + 40);
-  const snippet = body.slice(start, end).replace(/\s+/g, " ").trim();
-  return (start > 0 ? "…" : "") + snippet + (end < body.length ? "…" : "");
 }
