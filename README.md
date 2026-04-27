@@ -73,10 +73,14 @@ The MCP server exposes hAIve memory and project context to any MCP-compatible AI
 
 | Tool | Purpose |
 |---|---|
+| `get_briefing` | One-shot onboarding: project context + module contexts + ranked memories under a token budget. Replaces 4–5 separate calls. |
+| `code_map` | Browse the pre-computed `.ai/code-map.json` (file → exports + 1-line description) instead of greping. |
 | `mem_save` | Save a new memory (defaults to personal scope) |
-| `mem_search` | Search memories by literal substring or semantic similarity (`semantic: true`) |
+| `mem_search` | Search memories — literal (multi-word AND) or semantic similarity (`semantic: true`) |
 | `mem_list` | List memories with optional filters |
-| `get_project_context` | Read `.ai/project-context.md` (and module context if requested) |
+| `mem_for_files` | Surface memories relevant to a set of files (anchor / module / domain) |
+| `mem_get` / `mem_delete` / `mem_verify` / `mem_reject` / `mem_pending` / `mem_approve` | Memory lifecycle operations |
+| `get_project_context` | Read `.ai/project-context.md` directly (without budgeting) |
 | `bootstrap_project_save` | Persist a project (or module) context document analyzed by the AI |
 
 ### Prompts
@@ -152,6 +156,41 @@ haive embeddings query "how do we handle retries on payment failures"
 From an MCP client, set `semantic: true` on `mem_search` to use the embeddings index. If the index is missing or `@hiveai/embeddings` is not installed, `mem_search` gracefully falls back to literal search and returns `mode: "literal_fallback"` with a notice.
 
 The index is stored at `.ai/.cache/embeddings/embeddings-index.json` and is invalidated per-entry by content hash, so re-indexing is fast after edits.
+
+## Sync on merge
+
+Two ways to keep memory state fresh after pulls/merges:
+
+```bash
+# Local: install git hooks once. After every pull/merge, hAIve verifies
+# anchors, auto-promotes eligible memories, and reports memories that
+# changed since ORIG_HEAD.
+haive install-hooks
+
+# CI: copy .github/workflows/haive-sync.yml.example into your project's
+# .github/workflows/ to run the same on push to main/develop and to
+# comment on PRs whose changes would invalidate memories.
+```
+
+The `haive sync` command can also be run manually:
+
+```bash
+haive sync                    # verify anchors + auto-promote
+haive sync --since main       # also report memories changed since main
+haive sync --quiet            # minimal output (used by the hooks)
+```
+
+## Code map (token reduction)
+
+`haive index code` writes a compact JSON map (`.ai/code-map.json`) of every source file → its exports → 1-line JSDoc description. AIs that ask "where does X live?" can read this map (~30KB for a medium repo) instead of greping. The MCP tool `code_map` exposes it with file/symbol filters.
+
+```bash
+haive index code              # rebuild the map
+```
+
+## One-shot briefing (token reduction)
+
+The `get_briefing` MCP tool bundles project context + module contexts + ranked relevant memories under a `max_tokens` budget. A typical session does **one** call instead of four, and never blows past the token cap because each section is allocated a share and truncated to fit.
 
 ## Development
 

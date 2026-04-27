@@ -49,6 +49,16 @@ import {
   type MemApproveInput,
 } from "./tools/mem-approve.js";
 import {
+  GetBriefingInputSchema,
+  getBriefing,
+  type GetBriefingInput,
+} from "./tools/get-briefing.js";
+import {
+  CodeMapInputSchema,
+  codeMapTool,
+  type CodeMapInput,
+} from "./tools/code-map.js";
+import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
   type BootstrapProjectArgs,
@@ -104,6 +114,20 @@ export function createHaiveServer(
     GetProjectContextInputSchema,
     async (input: GetProjectContextInput) =>
       jsonResult(await getProjectContext(input, context)),
+  );
+
+  server.tool(
+    "get_briefing",
+    "One-shot onboarding: returns project context + module contexts + ranked relevant memories under a token budget. Replaces 4–5 separate calls when an agent starts a task.",
+    GetBriefingInputSchema,
+    async (input: GetBriefingInput) => jsonResult(await getBriefing(input, context)),
+  );
+
+  server.tool(
+    "code_map",
+    "Browse the project's pre-computed code map (file → exports + 1-line description) instead of grepping. Requires `haive index code`.",
+    CodeMapInputSchema,
+    async (input: CodeMapInput) => jsonResult(await codeMapTool(input, context)),
   );
 
   server.tool(

@@ -1,7 +1,10 @@
 import { Command } from "commander";
 import { registerEmbeddings } from "./commands/embeddings.js";
+import { registerIndexCode } from "./commands/index-code.js";
 import { registerInit } from "./commands/init.js";
+import { registerInstallHooks } from "./commands/install-hooks.js";
 import { registerMcp } from "./commands/mcp.js";
+import { registerSync } from "./commands/sync.js";
 import { registerMemoryAdd } from "./commands/memory-add.js";
 import { registerMemoryList } from "./commands/memory-list.js";
 import { registerMemoryPromote } from "./commands/memory-promote.js";
@@ -9,6 +12,7 @@ import { registerMemoryApprove } from "./commands/memory-approve.js";
 import { registerMemoryAutoPromote } from "./commands/memory-auto-promote.js";
 import { registerMemoryEdit } from "./commands/memory-edit.js";
 import { registerMemoryForFiles } from "./commands/memory-for-files.js";
+import { registerMemoryHot } from "./commands/memory-hot.js";
 import { registerMemoryPending } from "./commands/memory-pending.js";
 import { registerMemoryQuery } from "./commands/memory-query.js";
 import { registerMemoryReject } from "./commands/memory-reject.js";
@@ -27,6 +31,9 @@ program
 registerInit(program);
 registerMcp(program);
 registerEmbeddings(program);
+registerSync(program);
+registerInstallHooks(program);
+registerIndexCode(program);
 
 const memory = program.command("memory").description("Manage memory entries");
 registerMemoryAdd(memory);
@@ -43,6 +50,7 @@ registerMemoryEdit(memory);
 registerMemoryRm(memory);
 registerMemoryPending(memory);
 registerMemoryApprove(memory);
+registerMemoryHot(memory);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(err instanceof Error ? err.message : err);

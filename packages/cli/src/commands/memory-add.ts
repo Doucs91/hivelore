@@ -5,6 +5,7 @@ import { Command } from "commander";
 import {
   buildFrontmatter,
   findProjectRoot,
+  inferModulesFromPaths,
   memoryFilePath,
   resolveHaivePaths,
   serializeMemory,
@@ -43,8 +44,9 @@ export function registerMemoryAdd(memory: Command): void {
     .option("--symbols <csv>", "anchor symbols, comma-separated")
     .option("--commit <sha>", "anchor commit SHA")
     .option("--body <text>", "memory body content (Markdown)")
+    .option("--no-auto-tag", "disable automatic tag suggestions inferred from anchor paths")
     .option("-d, --dir <dir>", "project root")
-    .action(async (opts: AddOptions) => {
+    .action(async (opts: AddOptions & { autoTag?: boolean }) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) {
@@ -53,15 +55,21 @@ export function registerMemoryAdd(memory: Command): void {
         return;
       }
 
+      const userTags = parseCsv(opts.tags);
+      const anchorPaths = parseCsv(opts.paths);
+      const autoTagsEnabled = opts.autoTag !== false;
+      const inferredTags = autoTagsEnabled ? inferModulesFromPaths(anchorPaths) : [];
+      const mergedTags = Array.from(new Set([...userTags, ...inferredTags]));
+
       const frontmatter = buildFrontmatter({
         type: opts.type,
         slug: opts.slug,
         scope: opts.scope,
         module: opts.module,
-        tags: parseCsv(opts.tags),
+        tags: mergedTags,
         domain: opts.domain,
         author: opts.author,
-        paths: parseCsv(opts.paths),
+        paths: anchorPaths,
         symbols: parseCsv(opts.symbols),
         commit: opts.commit,
       });
@@ -79,6 +87,9 @@ export function registerMemoryAdd(memory: Command): void {
       await writeFile(file, serializeMemory({ frontmatter, body }), "utf8");
       ui.success(`Created ${path.relative(root, file)}`);
       ui.info(`scope=${frontmatter.scope} status=${frontmatter.status} id=${frontmatter.id}`);
+      if (inferredTags.length > 0) {
+        ui.info(`auto-tagged: ${inferredTags.join(", ")}  (use --no-auto-tag to disable)`);
+      }
     });
 }
 

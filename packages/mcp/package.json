@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "hAIve MCP server — exposes memory + project context to any MCP-compatible AI client",
   "license": "MIT",
   "repository": {
@@ -37,7 +37,7 @@
     "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "@hiveai/embeddings": "^0.1.0"
+    "@hiveai/embeddings": "^0.2.0"
   },
   "peerDependenciesMeta": {
     "@hiveai/embeddings": {

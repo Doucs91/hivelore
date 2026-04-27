@@ -1,0 +1,1365 @@
+{
+  "version": 1,
+  "generated_at": "2026-04-27T10:52:14.867Z",
+  "root": "/home/sd/Documents/Dev/New idea",
+  "files": {
+    "packages/cli/src/commands/embeddings.ts": {
+      "exports": [
+        {
+          "name": "registerEmbeddings",
+          "kind": "function",
+          "line": 16
+        }
+      ],
+      "loc": 103
+    },
+    "packages/cli/src/commands/index-code.ts": {
+      "exports": [
+        {
+          "name": "registerIndexCode",
+          "kind": "function",
+          "line": 17
+        }
+      ],
+      "loc": 60
+    },
+    "packages/cli/src/commands/init.ts": {
+      "exports": [
+        {
+          "name": "registerInit",
+          "kind": "function",
+          "line": 35
+        }
+      ],
+      "loc": 81
+    },
+    "packages/cli/src/commands/install-hooks.ts": {
+      "exports": [
+        {
+          "name": "registerInstallHooks",
+          "kind": "function",
+          "line": 29
+        }
+      ],
+      "loc": 66
+    },
+    "packages/cli/src/commands/mcp.ts": {
+      "exports": [
+        {
+          "name": "registerMcp",
+          "kind": "function",
+          "line": 16
+        }
+      ],
+      "loc": 56
+    },
+    "packages/cli/src/commands/memory-add.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryAdd",
+          "kind": "function",
+          "line": 32
+        }
+      ],
+      "loc": 103
+    },
+    "packages/cli/src/commands/memory-approve.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryApprove",
+          "kind": "function",
+          "line": 17
+        }
+      ],
+      "loc": 57
+    },
+    "packages/cli/src/commands/memory-auto-promote.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryAutoPromote",
+          "kind": "function",
+          "line": 24
+        }
+      ],
+      "loc": 84
+    },
+    "packages/cli/src/commands/memory-edit.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryEdit",
+          "kind": "function",
+          "line": 19
+        }
+      ],
+      "loc": 70
+    },
+    "packages/cli/src/commands/memory-for-files.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryForFiles",
+          "kind": "function",
+          "line": 20
+        }
+      ],
+      "loc": 94
+    },
+    "packages/cli/src/commands/memory-hot.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryHot",
+          "kind": "function",
+          "line": 19
+        }
+      ],
+      "loc": 71
+    },
+    "packages/cli/src/commands/memory-list.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryList",
+          "kind": "function",
+          "line": 16
+        }
+      ],
+      "loc": 63
+    },
+    "packages/cli/src/commands/memory-pending.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryPending",
+          "kind": "function",
+          "line": 18
+        }
+      ],
+      "loc": 66
+    },
+    "packages/cli/src/commands/memory-promote.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryPromote",
+          "kind": "function",
+          "line": 18
+        }
+      ],
+      "loc": 58
+    },
+    "packages/cli/src/commands/memory-query.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryQuery",
+          "kind": "function",
+          "line": 20
+        }
+      ],
+      "loc": 59
+    },
+    "packages/cli/src/commands/memory-reject.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryReject",
+          "kind": "function",
+          "line": 18
+        }
+      ],
+      "loc": 50
+    },
+    "packages/cli/src/commands/memory-rm.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryRm",
+          "kind": "function",
+          "line": 21
+        }
+      ],
+      "loc": 69
+    },
+    "packages/cli/src/commands/memory-show.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryShow",
+          "kind": "function",
+          "line": 20
+        }
+      ],
+      "loc": 75
+    },
+    "packages/cli/src/commands/memory-stats.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryStats",
+          "kind": "function",
+          "line": 19
+        }
+      ],
+      "loc": 66
+    },
+    "packages/cli/src/commands/memory-verify.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryVerify",
+          "kind": "function",
+          "line": 21
+        }
+      ],
+      "loc": 125
+    },
+    "packages/cli/src/commands/sync.ts": {
+      "exports": [
+        {
+          "name": "registerSync",
+          "kind": "function",
+          "line": 27
+        }
+      ],
+      "loc": 174
+    },
+    "packages/cli/src/utils/fs.ts": {
+      "exports": [
+        {
+          "name": "loadMemoriesFromDir",
+          "kind": "const",
+          "line": 1
+        },
+        {
+          "name": "loadMemory",
+          "kind": "const",
+          "line": 1
+        },
+        {
+          "name": "listMarkdownFilesRecursive",
+          "kind": "const",
+          "line": 1
+        }
+      ],
+      "loc": 7
+    },
+    "packages/cli/src/utils/ui.ts": {
+      "exports": [
+        {
+          "name": "ui",
+          "kind": "const",
+          "line": 3
+        }
+      ],
+      "loc": 11
+    },
+    "packages/core/src/code-map.ts": {
+      "exports": [
+        {
+          "name": "CODE_MAP_FILE",
+          "kind": "const",
+          "line": 6
+        },
+        {
+          "name": "CodeExportKind",
+          "kind": "type",
+          "line": 8
+        },
+        {
+          "name": "CodeExport",
+          "kind": "interface",
+          "line": 17
+        },
+        {
+          "name": "CodeFileEntry",
+          "kind": "interface",
+          "line": 24
+        },
+        {
+          "name": "CodeMap",
+          "kind": "interface",
+          "line": 30
+        },
+        {
+          "name": "BuildCodeMapOptions",
+          "kind": "interface",
+          "line": 37
+        },
+        {
+          "name": "codeMapPath",
+          "kind": "function",
+          "line": 55
+        },
+        {
+          "name": "loadCodeMap",
+          "kind": "function",
+          "line": 59
+        },
+        {
+          "name": "saveCodeMap",
+          "kind": "function",
+          "line": 65
+        },
+        {
+          "name": "buildCodeMap",
+          "kind": "function",
+          "line": 71
+        },
+        {
+          "name": "CodeMapQueryOptions",
+          "kind": "interface",
+          "line": 256
+        },
+        {
+          "name": "queryCodeMap",
+          "kind": "function",
+          "line": 261
+        }
+      ],
+      "loc": 277
+    },
+    "packages/core/src/confidence.ts": {
+      "exports": [
+        {
+          "name": "ConfidenceLevel",
+          "kind": "type",
+          "line": 4
+        },
+        {
+          "name": "ConfidenceThresholds",
+          "kind": "interface",
+          "line": 11
+        },
+        {
+          "name": "DEFAULT_CONFIDENCE_THRESHOLDS",
+          "kind": "const",
+          "line": 16
+        },
+        {
+          "name": "deriveConfidence",
+          "kind": "function",
+          "line": 21
+        },
+        {
+          "name": "AutoPromoteRule",
+          "kind": "interface",
+          "line": 39
+        },
+        {
+          "name": "DEFAULT_AUTO_PROMOTE_RULE",
+          "kind": "const",
+          "line": 46
+        },
+        {
+          "name": "isAutoPromoteEligible",
+          "kind": "function",
+          "line": 51
+        }
+      ],
+      "loc": 60
+    },
+    "packages/core/src/loader.ts": {
+      "exports": [
+        {
+          "name": "LoadedMemory",
+          "kind": "interface",
+          "line": 6
+        },
+        {
+          "name": "listMarkdownFilesRecursive",
+          "kind": "function",
+          "line": 11
+        },
+        {
+          "name": "loadMemory",
+          "kind": "function",
+          "line": 30
+        },
+        {
+          "name": "loadMemoriesFromDir",
+          "kind": "function",
+          "line": 35
+        }
+      ],
+      "loc": 47
+    },
+    "packages/core/src/parser.ts": {
+      "exports": [
+        {
+          "name": "stripPrivate",
+          "kind": "function",
+          "line": 7
+        },
+        {
+          "name": "parseMemory",
+          "kind": "function",
+          "line": 11
+        },
+        {
+          "name": "serializeMemory",
+          "kind": "function",
+          "line": 35
+        },
+        {
+          "name": "newMemoryId",
+          "kind": "function",
+          "line": 40
+        },
+        {
+          "name": "buildFrontmatter",
+          "kind": "function",
+          "line": 50
+        }
+      ],
+      "loc": 82
+    },
+    "packages/core/src/paths.ts": {
+      "exports": [
+        {
+          "name": "HAIVE_DIR",
+          "kind": "const",
+          "line": 4
+        },
+        {
+          "name": "findProjectRoot",
+          "kind": "function",
+          "line": 8
+        },
+        {
+          "name": "PROJECT_CONTEXT_FILE",
+          "kind": "const",
+          "line": 20
+        },
+        {
+          "name": "MEMORIES_DIR",
+          "kind": "const",
+          "line": 21
+        },
+        {
+          "name": "HaivePaths",
+          "kind": "interface",
+          "line": 23
+        },
+        {
+          "name": "resolveHaivePaths",
+          "kind": "function",
+          "line": 34
+        },
+        {
+          "name": "memoryFilePath",
+          "kind": "function",
+          "line": 49
+        }
+      ],
+      "loc": 63
+    },
+    "packages/core/src/relevance.ts": {
+      "exports": [
+        {
+          "name": "inferModulesFromPaths",
+          "kind": "function",
+          "description": "Best-effort inference: given a list of file paths, infer module names from conventional layouts (packages/X/, apps/X/, modules/X/, src/X/).",
+          "line": 15
+        },
+        {
+          "name": "pathsOverlap",
+          "kind": "function",
+          "description": "Path overlap: returns true if `a` and `b` refer to the same path or one is a parent of the other.",
+          "line": 31
+        },
+        {
+          "name": "memoryMatchesAnchorPaths",
+          "kind": "function",
+          "line": 38
+        },
+        {
+          "name": "relPathFrom",
+          "kind": "function",
+          "line": 57
+        }
+      ],
+      "loc": 60
+    },
+    "packages/core/src/schema.ts": {
+      "exports": [
+        {
+          "name": "MemoryScopeSchema",
+          "kind": "const",
+          "line": 3
+        },
+        {
+          "name": "MemoryStatusSchema",
+          "kind": "const",
+          "line": 5
+        },
+        {
+          "name": "MemoryTypeSchema",
+          "kind": "const",
+          "line": 13
+        },
+        {
+          "name": "AnchorSchema",
+          "kind": "const",
+          "line": 21
+        },
+        {
+          "name": "MemoryFrontmatterSchema",
+          "kind": "const",
+          "line": 32
+        }
+      ],
+      "loc": 52
+    },
+    "packages/core/src/search.ts": {
+      "exports": [
+        {
+          "name": "tokenizeQuery",
+          "kind": "function",
+          "line": 3
+        },
+        {
+          "name": "literalMatchesAllTokens",
+          "kind": "function",
+          "line": 11
+        },
+        {
+          "name": "pickSnippetNeedle",
+          "kind": "function",
+          "line": 54
+        },
+        {
+          "name": "extractSnippet",
+          "kind": "function",
+          "line": 60
+        }
+      ],
+      "loc": 71
+    },
+    "packages/core/src/token-budget.ts": {
+      "summary": "Token budgeting helpers.",
+      "exports": [
+        {
+          "name": "CHARS_PER_TOKEN",
+          "kind": "const",
+          "description": "Token budgeting helpers.",
+          "line": 8
+        },
+        {
+          "name": "estimateTokens",
+          "kind": "function",
+          "line": 10
+        },
+        {
+          "name": "TruncateOptions",
+          "kind": "interface",
+          "line": 14
+        },
+        {
+          "name": "TruncateResult",
+          "kind": "interface",
+          "line": 23
+        },
+        {
+          "name": "truncateToTokens",
+          "kind": "function",
+          "line": 32
+        },
+        {
+          "name": "BudgetPart",
+          "kind": "interface",
+          "description": "Allocate a global token budget across N parts with relative weights, then truncate each part to its share.",
+          "line": 76
+        },
+        {
+          "name": "BudgetSlice",
+          "kind": "interface",
+          "line": 83
+        },
+        {
+          "name": "allocateBudget",
+          "kind": "function",
+          "line": 92
+        }
+      ],
+      "loc": 151
+    },
+    "packages/core/src/types.ts": {
+      "exports": [
+        {
+          "name": "MemoryScope",
+          "kind": "type",
+          "line": 10
+        },
+        {
+          "name": "MemoryStatus",
+          "kind": "type",
+          "line": 11
+        },
+        {
+          "name": "MemoryType",
+          "kind": "type",
+          "line": 12
+        },
+        {
+          "name": "Anchor",
+          "kind": "type",
+          "line": 13
+        },
+        {
+          "name": "MemoryFrontmatter",
+          "kind": "type",
+          "line": 14
+        },
+        {
+          "name": "Memory",
+          "kind": "interface",
+          "line": 16
+        }
+      ],
+      "loc": 20
+    },
+    "packages/core/src/usage.ts": {
+      "exports": [
+        {
+          "name": "MemoryUsage",
+          "kind": "interface",
+          "line": 6
+        },
+        {
+          "name": "UsageIndex",
+          "kind": "interface",
+          "line": 14
+        },
+        {
+          "name": "USAGE_FILE",
+          "kind": "const",
+          "line": 20
+        },
+        {
+          "name": "emptyUsage",
+          "kind": "function",
+          "line": 22
+        },
+        {
+          "name": "emptyUsageIndex",
+          "kind": "function",
+          "line": 32
+        },
+        {
+          "name": "usagePath",
+          "kind": "function",
+          "line": 40
+        },
+        {
+          "name": "loadUsageIndex",
+          "kind": "function",
+          "line": 44
+        },
+        {
+          "name": "saveUsageIndex",
+          "kind": "function",
+          "line": 57
+        },
+        {
+          "name": "getUsage",
+          "kind": "function",
+          "line": 64
+        },
+        {
+          "name": "bumpRead",
+          "kind": "function",
+          "line": 68
+        },
+        {
+          "name": "recordRejection",
+          "kind": "function",
+          "line": 82
+        },
+        {
+          "name": "trackReads",
+          "kind": "function",
+          "line": 98
+        }
+      ],
+      "loc": 110
+    },
+    "packages/core/src/verifier.ts": {
+      "exports": [
+        {
+          "name": "VerifyResult",
+          "kind": "interface",
+          "line": 6
+        },
+        {
+          "name": "VerifyOptions",
+          "kind": "interface",
+          "line": 13
+        },
+        {
+          "name": "verifyAnchor",
+          "kind": "function",
+          "description": "Verify that a memory's anchor still matches the current code.",
+          "line": 27
+        }
+      ],
+      "loc": 96
+    },
+    "packages/core/test/code-map.test.ts": {
+      "exports": [
+        {
+          "name": "add",
+          "kind": "function",
+          "description": "Adds two numbers.",
+          "line": 21
+        },
+        {
+          "name": "PI",
+          "kind": "const",
+          "description": "One-liner doc.",
+          "line": 26
+        },
+        {
+          "name": "Vec2",
+          "kind": "interface",
+          "line": 28
+        },
+        {
+          "name": "Pair",
+          "kind": "type",
+          "line": 30
+        },
+        {
+          "name": "Rect",
+          "kind": "class",
+          "line": 32
+        }
+      ],
+      "loc": 112
+    },
+    "packages/embeddings/src/embedder.ts": {
+      "exports": [
+        {
+          "name": "DEFAULT_MODEL",
+          "kind": "const",
+          "line": 1
+        },
+        {
+          "name": "DEFAULT_DIMENSION",
+          "kind": "const",
+          "line": 2
+        },
+        {
+          "name": "EmbedderLike",
+          "kind": "interface",
+          "line": 4
+        },
+        {
+          "name": "Embedder",
+          "kind": "class",
+          "line": 32
+        },
+        {
+          "name": "cosine",
+          "kind": "function",
+          "line": 62
+        }
+      ],
+      "loc": 79
+    },
+    "packages/embeddings/src/index-cache.ts": {
+      "exports": [
+        {
+          "name": "INDEX_FILE",
+          "kind": "const",
+          "line": 8
+        },
+        {
+          "name": "EmbeddingEntry",
+          "kind": "interface",
+          "line": 10
+        },
+        {
+          "name": "EmbeddingIndex",
+          "kind": "interface",
+          "line": 17
+        },
+        {
+          "name": "cacheDir",
+          "kind": "function",
+          "line": 24
+        },
+        {
+          "name": "indexPath",
+          "kind": "function",
+          "line": 28
+        },
+        {
+          "name": "hashContent",
+          "kind": "function",
+          "line": 32
+        },
+        {
+          "name": "emptyIndex",
+          "kind": "function",
+          "line": 36
+        },
+        {
+          "name": "loadIndex",
+          "kind": "function",
+          "line": 45
+        },
+        {
+          "name": "saveIndex",
+          "kind": "function",
+          "line": 52
+        },
+        {
+          "name": "indexStat",
+          "kind": "function",
+          "line": 59
+        },
+        {
+          "name": "buildEntryText",
+          "kind": "function",
+          "line": 81
+        }
+      ],
+      "loc": 87
+    },
+    "packages/embeddings/src/index.ts": {
+      "exports": [
+        {
+          "name": "Embedder",
+          "kind": "const",
+          "line": 1
+        },
+        {
+          "name": "cosine",
+          "kind": "const",
+          "line": 1
+        },
+        {
+          "name": "DEFAULT_MODEL",
+          "kind": "const",
+          "line": 1
+        },
+        {
+          "name": "DEFAULT_DIMENSION",
+          "kind": "const",
+          "line": 1
+        },
+        {
+          "name": "buildEntryText",
+          "kind": "const",
+          "line": 9
+        },
+        {
+          "name": "cacheDir",
+          "kind": "const",
+          "line": 9
+        },
+        {
+          "name": "emptyIndex",
+          "kind": "const",
+          "line": 9
+        },
+        {
+          "name": "hashContent",
+          "kind": "const",
+          "line": 9
+        },
+        {
+          "name": "indexPath",
+          "kind": "const",
+          "line": 9
+        },
+        {
+          "name": "indexStat",
+          "kind": "const",
+          "line": 9
+        },
+        {
+          "name": "loadIndex",
+          "kind": "const",
+          "line": 9
+        },
+        {
+          "name": "saveIndex",
+          "kind": "const",
+          "line": 9
+        },
+        {
+          "name": "rebuildIndex",
+          "kind": "const",
+          "line": 22
+        },
+        {
+          "name": "semanticSearch",
+          "kind": "const",
+          "line": 27
+        }
+      ],
+      "loc": 31
+    },
+    "packages/embeddings/src/indexer.ts": {
+      "exports": [
+        {
+          "name": "IndexUpdateReport",
+          "kind": "interface",
+          "line": 13
+        },
+        {
+          "name": "rebuildIndex",
+          "kind": "function",
+          "line": 21
+        }
+      ],
+      "loc": 80
+    },
+    "packages/embeddings/src/search.ts": {
+      "exports": [
+        {
+          "name": "SemanticHit",
+          "kind": "interface",
+          "line": 5
+        },
+        {
+          "name": "semanticSearch",
+          "kind": "function",
+          "line": 11
+        }
+      ],
+      "loc": 43
+    },
+    "packages/mcp/src/context.ts": {
+      "exports": [
+        {
+          "name": "HaiveContext",
+          "kind": "interface",
+          "line": 3
+        },
+        {
+          "name": "CreateContextOptions",
+          "kind": "interface",
+          "line": 7
+        },
+        {
+          "name": "createContext",
+          "kind": "function",
+          "line": 13
+        }
+      ],
+      "loc": 22
+    },
+    "packages/mcp/src/prompts/bootstrap-project.ts": {
+      "exports": [
+        {
+          "name": "BootstrapProjectArgsSchema",
+          "kind": "const",
+          "line": 4
+        },
+        {
+          "name": "BootstrapProjectArgs",
+          "kind": "type",
+          "line": 17
+        },
+        {
+          "name": "bootstrapProjectPrompt",
+          "kind": "function",
+          "line": 64
+        }
+      ],
+      "loc": 114
+    },
+    "packages/mcp/src/server.ts": {
+      "exports": [
+        {
+          "name": "SERVER_NAME",
+          "kind": "const",
+          "line": 67
+        },
+        {
+          "name": "SERVER_VERSION",
+          "kind": "const",
+          "line": 68
+        },
+        {
+          "name": "createHaiveServer",
+          "kind": "function",
+          "line": 81
+        }
+      ],
+      "loc": 199
+    },
+    "packages/mcp/src/tools/bootstrap-project-save.ts": {
+      "exports": [
+        {
+          "name": "BootstrapProjectSaveInputSchema",
+          "kind": "const",
+          "line": 7
+        },
+        {
+          "name": "BootstrapProjectSaveInput",
+          "kind": "type",
+          "line": 24
+        },
+        {
+          "name": "BootstrapProjectSaveOutput",
+          "kind": "interface",
+          "line": 30
+        },
+        {
+          "name": "bootstrapProjectSave",
+          "kind": "function",
+          "line": 35
+        }
+      ],
+      "loc": 58
+    },
+    "packages/mcp/src/tools/code-map.ts": {
+      "exports": [
+        {
+          "name": "CodeMapInputSchema",
+          "kind": "const",
+          "line": 5
+        },
+        {
+          "name": "CodeMapInput",
+          "kind": "type",
+          "line": 22
+        },
+        {
+          "name": "CodeMapToolOutput",
+          "kind": "interface",
+          "line": 26
+        },
+        {
+          "name": "codeMapTool",
+          "kind": "function",
+          "line": 39
+        }
+      ],
+      "loc": 64
+    },
+    "packages/mcp/src/tools/get-briefing.ts": {
+      "exports": [
+        {
+          "name": "GetBriefingInputSchema",
+          "kind": "const",
+          "line": 24
+        },
+        {
+          "name": "GetBriefingInput",
+          "kind": "type",
+          "line": 60
+        },
+        {
+          "name": "BriefingMemory",
+          "kind": "interface",
+          "line": 64
+        },
+        {
+          "name": "BriefingOutput",
+          "kind": "interface",
+          "line": 79
+        },
+        {
+          "name": "getBriefing",
+          "kind": "function",
+          "line": 89
+        },
+        {
+          "name": "estimateTokens",
+          "kind": "const",
+          "line": 306
+        }
+      ],
+      "loc": 307
+    },
+    "packages/mcp/src/tools/get-project-context.ts": {
+      "exports": [
+        {
+          "name": "GetProjectContextInputSchema",
+          "kind": "const",
+          "line": 7
+        },
+        {
+          "name": "GetProjectContextInput",
+          "kind": "type",
+          "line": 18
+        },
+        {
+          "name": "GetProjectContextOutput",
+          "kind": "interface",
+          "line": 24
+        },
+        {
+          "name": "getProjectContext",
+          "kind": "function",
+          "line": 30
+        }
+      ],
+      "loc": 62
+    },
+    "packages/mcp/src/tools/mem-approve.ts": {
+      "exports": [
+        {
+          "name": "MemApproveInputSchema",
+          "kind": "const",
+          "line": 10
+        },
+        {
+          "name": "MemApproveInput",
+          "kind": "type",
+          "line": 14
+        },
+        {
+          "name": "MemApproveOutput",
+          "kind": "interface",
+          "line": 18
+        },
+        {
+          "name": "memApprove",
+          "kind": "function",
+          "line": 25
+        }
+      ],
+      "loc": 49
+    },
+    "packages/mcp/src/tools/mem-delete.ts": {
+      "exports": [
+        {
+          "name": "MemDeleteInputSchema",
+          "kind": "const",
+          "line": 11
+        },
+        {
+          "name": "MemDeleteInput",
+          "kind": "type",
+          "line": 19
+        },
+        {
+          "name": "MemDeleteOutput",
+          "kind": "interface",
+          "line": 23
+        },
+        {
+          "name": "memDelete",
+          "kind": "function",
+          "line": 29
+        }
+      ],
+      "loc": 54
+    },
+    "packages/mcp/src/tools/mem-for-files.ts": {
+      "exports": [
+        {
+          "name": "MemForFilesInputSchema",
+          "kind": "const",
+          "line": 18
+        },
+        {
+          "name": "MemForFilesInput",
+          "kind": "type",
+          "line": 33
+        },
+        {
+          "name": "MemMatch",
+          "kind": "interface",
+          "line": 37
+        },
+        {
+          "name": "MemForFilesOutput",
+          "kind": "interface",
+          "line": 51
+        },
+        {
+          "name": "memForFiles",
+          "kind": "function",
+          "line": 59
+        }
+      ],
+      "loc": 168
+    },
+    "packages/mcp/src/tools/mem-get.ts": {
+      "exports": [
+        {
+          "name": "MemGetInputSchema",
+          "kind": "const",
+          "line": 12
+        },
+        {
+          "name": "MemGetInput",
+          "kind": "type",
+          "line": 16
+        },
+        {
+          "name": "MemGetOutput",
+          "kind": "interface",
+          "line": 20
+        },
+        {
+          "name": "memGet",
+          "kind": "function",
+          "line": 38
+        }
+      ],
+      "loc": 69
+    },
+    "packages/mcp/src/tools/mem-list.ts": {
+      "exports": [
+        {
+          "name": "MemListInputSchema",
+          "kind": "const",
+          "line": 6
+        },
+        {
+          "name": "MemListInput",
+          "kind": "type",
+          "line": 15
+        },
+        {
+          "name": "MemSummary",
+          "kind": "interface",
+          "line": 19
+        },
+        {
+          "name": "memList",
+          "kind": "function",
+          "line": 29
+        }
+      ],
+      "loc": 59
+    },
+    "packages/mcp/src/tools/mem-pending.ts": {
+      "exports": [
+        {
+          "name": "MemPendingInputSchema",
+          "kind": "const",
+          "line": 10
+        },
+        {
+          "name": "MemPendingInput",
+          "kind": "type",
+          "line": 14
+        },
+        {
+          "name": "MemPendingHit",
+          "kind": "interface",
+          "line": 18
+        },
+        {
+          "name": "MemPendingOutput",
+          "kind": "interface",
+          "line": 30
+        },
+        {
+          "name": "memPending",
+          "kind": "function",
+          "line": 34
+        }
+      ],
+      "loc": 72
+    },
+    "packages/mcp/src/tools/mem-reject.ts": {
+      "exports": [
+        {
+          "name": "MemRejectInputSchema",
+          "kind": "const",
+          "line": 11
+        },
+        {
+          "name": "MemRejectInput",
+          "kind": "type",
+          "line": 19
+        },
+        {
+          "name": "MemRejectOutput",
+          "kind": "interface",
+          "line": 23
+        },
+        {
+          "name": "memReject",
+          "kind": "function",
+          "line": 30
+        }
+      ],
+      "loc": 55
+    },
+    "packages/mcp/src/tools/mem-save.ts": {
+      "exports": [
+        {
+          "name": "MemSaveInputSchema",
+          "kind": "const",
+          "line": 12
+        },
+        {
+          "name": "MemSaveInput",
+          "kind": "type",
+          "line": 48
+        },
+        {
+          "name": "MemSaveOutput",
+          "kind": "interface",
+          "line": 52
+        },
+        {
+          "name": "memSave",
+          "kind": "function",
+          "line": 58
+        }
+      ],
+      "loc": 101
+    },
+    "packages/mcp/src/tools/mem-search.ts": {
+      "exports": [
+        {
+          "name": "MemSearchInputSchema",
+          "kind": "const",
+          "line": 19
+        },
+        {
+          "name": "MemSearchInput",
+          "kind": "type",
+          "line": 49
+        },
+        {
+          "name": "MemSearchHit",
+          "kind": "interface",
+          "line": 53
+        },
+        {
+          "name": "MemSearchOutput",
+          "kind": "interface",
+          "line": 67
+        },
+        {
+          "name": "memSearch",
+          "kind": "function",
+          "line": 74
+        }
+      ],
+      "loc": 207
+    },
+    "packages/mcp/src/tools/mem-verify.ts": {
+      "exports": [
+        {
+          "name": "MemVerifyInputSchema",
+          "kind": "const",
+          "line": 12
+        },
+        {
+          "name": "MemVerifyInput",
+          "kind": "type",
+          "line": 20
+        },
+        {
+          "name": "MemVerifyHit",
+          "kind": "interface",
+          "line": 24
+        },
+        {
+          "name": "MemVerifyOutput",
+          "kind": "interface",
+          "line": 32
+        },
+        {
+          "name": "memVerify",
+          "kind": "function",
+          "line": 43
+        }
+      ],
+      "loc": 136
+    }
+  }
+}

@@ -6,6 +6,53 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.2.0] — token-aware briefing, code map, sync hooks
+
+### Added — token reduction
+- **`get_briefing` MCP tool**: one-shot onboarding that bundles project
+  context + module contexts + ranked relevant memories under a token budget.
+  Replaces 4–5 separate calls (`get_project_context`, `mem_for_files`,
+  `mem_search` literal, `mem_search` semantic) and dedupes results
+  ranked by reason (anchor / module / semantic / domain) and confidence.
+- **Code map** (`haive index code` → `.ai/code-map.json`): static parse of
+  TS/JS exports per file with JSDoc-derived 1-line descriptions. AIs read
+  the map (~30KB on this repo) instead of greping 30+ files. Exposed as
+  the `code_map` MCP tool with file/symbol filters.
+- **Token budget helpers** in `@hiveai/core`: `estimateTokens`,
+  `truncateToTokens` (head/tail/middle), `allocateBudget` distributes a
+  global budget across weighted parts and re-allocates surplus from
+  small parts to larger ones.
+
+### Added — sync on merge / near-realtime
+- **`haive sync`**: refreshes anchor verification + auto-promotion in
+  one command. `--since <ref>` reports memories added/modified/removed
+  vs a git ref. `--quiet` for hooks.
+- **`haive install-hooks`**: writes `.git/hooks/post-merge` and
+  `post-rewrite` that run `haive sync --quiet --since ORIG_HEAD` so
+  every pull/merge updates memory state automatically.
+- **GitHub Action template** at `.github/workflows/haive-sync.yml.example`:
+  on push to main/develop, runs sync and commits any state updates;
+  on PR, comments if memories anchored in the diff would become stale.
+
+### Added — quality of life
+- **`haive memory hot [--threshold N]`**: surfaces drafts/proposed
+  memories with `read_count >= N` — the natural promotion candidates.
+- **Auto-tag on `memory add`**: tags inferred from anchor paths
+  (e.g. anchoring `packages/mcp/...` adds tag `mcp`). Disable with
+  `--no-auto-tag`.
+
+### Changed
+- **Improved literal `mem_search`**: queries now also match against
+  anchor path basenames + segments, anchor symbols, module, and
+  domain — not just id/tags/body. Multi-token queries still AND
+  across all fields.
+- **Improved `mem_for_files`**: surfaces memories where any tag
+  matches an inferred module name, not only memories with the
+  `module` field set.
+
+### Tests
+- 120 passing total (79 core + 17 embeddings + 16 mcp + 8 cli).
+
 ## [0.1.1] — security: drop heavy ML chain from default install
 
 - **Breaking install behavior** : `@hiveai/embeddings` was an

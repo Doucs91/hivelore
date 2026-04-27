@@ -89,10 +89,13 @@ export async function memForFiles(
 
   for (const loaded of all) {
     if (seen.has(loaded.memory.frontmatter.id)) continue;
-    const mod = loaded.memory.frontmatter.module;
-    if (mod && inferred.includes(mod)) {
+    const fm = loaded.memory.frontmatter;
+    const moduleHit =
+      (fm.module && inferred.includes(fm.module)) ||
+      fm.tags.some((t) => inferred.includes(t));
+    if (moduleHit) {
       byModule.push(toMatch(loaded, "module", usage));
-      seen.add(loaded.memory.frontmatter.id);
+      seen.add(fm.id);
     }
   }
 

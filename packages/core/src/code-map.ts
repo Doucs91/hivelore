@@ -1,0 +1,276 @@
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import type { HaivePaths } from "./paths.js";
+
+export const CODE_MAP_FILE = "code-map.json";
+
+export type CodeExportKind =
+  | "function"
+  | "class"
+  | "interface"
+  | "type"
+  | "const"
+  | "enum"
+  | "default";
+
+export interface CodeExport {
+  name: string;
+  kind: CodeExportKind;
+  description?: string;
+  line: number;
+}
+
+export interface CodeFileEntry {
+  summary?: string;
+  exports: CodeExport[];
+  loc: number;
+}
+
+export interface CodeMap {
+  version: 1;
+  generated_at: string;
+  root: string;
+  files: Record<string, CodeFileEntry>;
+}
+
+export interface BuildCodeMapOptions {
+  includeExtensions?: string[];
+  excludeDirs?: string[];
+}
+
+const DEFAULT_INCLUDE = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
+const DEFAULT_EXCLUDE = [
+  "node_modules",
+  "dist",
+  "build",
+  "out",
+  ".git",
+  ".next",
+  ".turbo",
+  ".vitest-cache",
+  "coverage",
+];
+
+export function codeMapPath(paths: HaivePaths): string {
+  return path.join(paths.haiveDir, CODE_MAP_FILE);
+}
+
+export async function loadCodeMap(paths: HaivePaths): Promise<CodeMap | null> {
+  const file = codeMapPath(paths);
+  if (!existsSync(file)) return null;
+  return JSON.parse(await readFile(file, "utf8")) as CodeMap;
+}
+
+export async function saveCodeMap(paths: HaivePaths, map: CodeMap): Promise<void> {
+  const file = codeMapPath(paths);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, JSON.stringify(map, null, 2), "utf8");
+}
+
+export async function buildCodeMap(
+  root: string,
+  options: BuildCodeMapOptions = {},
+): Promise<CodeMap> {
+  const include = new Set(options.includeExtensions ?? DEFAULT_INCLUDE);
+  const exclude = new Set(options.excludeDirs ?? DEFAULT_EXCLUDE);
+  const files: Record<string, CodeFileEntry> = {};
+
+  for await (const abs of walkSourceFiles(root, include, exclude)) {
+    const rel = path.relative(root, abs).replace(/\\/g, "/");
+    if (rel.startsWith(".ai/")) continue;
+    const content = await readFile(abs, "utf8");
+    const entry = parseFile(content);
+    if (entry.exports.length > 0) files[rel] = entry;
+  }
+
+  return {
+    version: 1,
+    generated_at: new Date().toISOString(),
+    root,
+    files,
+  };
+}
+
+async function* walkSourceFiles(
+  dir: string,
+  include: Set<string>,
+  exclude: Set<string>,
+): AsyncGenerator<string> {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (entry.name.startsWith(".") && entry.name !== ".github") {
+      // Skip hidden dirs except .github (workflows can be useful)
+      if (entry.isDirectory()) continue;
+    }
+    if (exclude.has(entry.name)) continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      yield* walkSourceFiles(full, include, exclude);
+    } else if (entry.isFile()) {
+      const ext = path.extname(entry.name).toLowerCase();
+      if (include.has(ext)) yield full;
+    }
+  }
+}
+
+const EXPORT_RE =
+  /^export\s+(?:default\s+)?(async\s+)?(function|class|interface|type|const|let|var|enum)\s+(\*?)\s*([A-Za-z_$][\w$]*)/gm;
+
+const NAMED_REEXPORT_RE = /^export\s*\{([^}]+)\}/gm;
+
+const FILE_HEADER_COMMENT_RE = /^\/\*\*([\s\S]*?)\*\//;
+
+function parseFile(source: string): CodeFileEntry {
+  const exports: CodeExport[] = [];
+  const lines = source.split("\n");
+  const lineOffsets = computeLineOffsets(source);
+
+  let m: RegExpExecArray | null;
+  EXPORT_RE.lastIndex = 0;
+  while ((m = EXPORT_RE.exec(source))) {
+    const kindRaw = m[2] ?? "";
+    const name = m[4] ?? "";
+    if (!name) continue;
+    const kind: CodeExportKind =
+      kindRaw === "function" ? "function" :
+      kindRaw === "class" ? "class" :
+      kindRaw === "interface" ? "interface" :
+      kindRaw === "type" ? "type" :
+      kindRaw === "enum" ? "enum" : "const";
+    const lineIdx = byteToLine(m.index, lineOffsets);
+    const description = extractJSDocAbove(lines, lineIdx);
+    exports.push({
+      name,
+      kind,
+      ...(description ? { description } : {}),
+      line: lineIdx + 1,
+    });
+  }
+
+  NAMED_REEXPORT_RE.lastIndex = 0;
+  while ((m = NAMED_REEXPORT_RE.exec(source))) {
+    const inside = m[1] ?? "";
+    const lineIdx = byteToLine(m.index, lineOffsets);
+    for (const part of inside.split(",")) {
+      const cleaned = part.trim().split(/\s+as\s+/).pop()?.trim() ?? "";
+      if (!cleaned || cleaned.startsWith("type ")) continue;
+      if (exports.some((e) => e.name === cleaned)) continue;
+      exports.push({ name: cleaned, kind: "const", line: lineIdx + 1 });
+    }
+  }
+
+  const summary = extractFileSummary(source);
+  return {
+    ...(summary ? { summary } : {}),
+    exports,
+    loc: lines.length,
+  };
+}
+
+function computeLineOffsets(source: string): number[] {
+  const out: number[] = [0];
+  for (let i = 0; i < source.length; i++) {
+    if (source[i] === "\n") out.push(i + 1);
+  }
+  return out;
+}
+
+function byteToLine(byte: number, offsets: number[]): number {
+  let lo = 0;
+  let hi = offsets.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    const off = offsets[mid] ?? 0;
+    if (off <= byte) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
+function extractJSDocAbove(lines: string[], exportLine: number): string | undefined {
+  let i = exportLine - 1;
+  // Skip blank lines between JSDoc and export
+  while (i >= 0 && (lines[i] ?? "").trim() === "") i--;
+  if (i < 0) return undefined;
+  const line = (lines[i] ?? "").trim();
+
+  if (line.startsWith("//")) {
+    return line.replace(/^\/\/\s*/, "").trim() || undefined;
+  }
+
+  // Single-line JSDoc: /** Adds two numbers. */
+  const singleLine = line.match(/^\/\*\*\s*(.*?)\s*\*\/\s*$/);
+  if (singleLine && singleLine[1]) {
+    return firstSentence(singleLine[1]);
+  }
+
+  if (line.endsWith("*/")) {
+    // Walk up until /**
+    const collected: string[] = [];
+    // First piece: content of the line before */
+    const firstPiece = line.replace(/\*\/\s*$/, "").replace(/^\*\s?/, "").trim();
+    if (firstPiece) collected.unshift(firstPiece);
+    let j = i - 1;
+    while (j >= 0) {
+      const l = (lines[j] ?? "").trim();
+      if (l.startsWith("/**")) {
+        const inner = l.replace(/^\/\*\*/, "").trim();
+        if (inner) collected.unshift(inner);
+        break;
+      }
+      collected.unshift(l.replace(/^\*\s?/, "").trim());
+      j--;
+    }
+    const joined = collected.join(" ").trim();
+    if (!joined) return undefined;
+    return firstSentence(joined);
+  }
+  return undefined;
+}
+
+function firstSentence(text: string): string | undefined {
+  const trimmed = text.trim();
+  if (!trimmed) return undefined;
+  return trimmed.split(/(?<=\.)\s+/)[0]?.trim();
+}
+
+function extractFileSummary(source: string): string | undefined {
+  const m = source.match(FILE_HEADER_COMMENT_RE);
+  if (!m) return undefined;
+  const block = (m[1] ?? "")
+    .split("\n")
+    .map((l) => l.replace(/^\s*\*\s?/, "").trim())
+    .filter(Boolean)
+    .join(" ");
+  if (!block) return undefined;
+  const sentence = block.split(/(?<=\.)\s+/)[0]?.trim();
+  return sentence;
+}
+
+export interface CodeMapQueryOptions {
+  file?: string;
+  symbol?: string;
+}
+
+export function queryCodeMap(map: CodeMap, options: CodeMapQueryOptions): {
+  files: Array<{ path: string; entry: CodeFileEntry }>;
+} {
+  const files: Array<{ path: string; entry: CodeFileEntry }> = [];
+  for (const [filePath, entry] of Object.entries(map.files)) {
+    if (options.file) {
+      if (!filePath.includes(options.file)) continue;
+    }
+    if (options.symbol) {
+      const sym = options.symbol.toLowerCase();
+      if (!entry.exports.some((e) => e.name.toLowerCase().includes(sym))) continue;
+    }
+    files.push({ path: filePath, entry });
+  }
+  return { files };
+}

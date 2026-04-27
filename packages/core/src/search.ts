@@ -14,14 +14,41 @@ export function literalMatchesAllTokens(memory: Memory, tokens: string[]): boole
   const idLower = fm.id.toLowerCase();
   const tagsLower = fm.tags.map((t) => t.toLowerCase());
   const bodyLower = memory.body.toLowerCase();
+  const anchorPathTokens = collectAnchorPathTokens(fm.anchor.paths);
+  const anchorSymbolsLower = fm.anchor.symbols.map((s) => s.toLowerCase());
+  const moduleLower = fm.module?.toLowerCase();
+  const domainLower = fm.domain?.toLowerCase();
+
   return tokens.every((rawTok) => {
     const tok = rawTok.toLowerCase();
     return (
       idLower.includes(tok) ||
       tagsLower.some((t) => t.includes(tok)) ||
-      bodyLower.includes(tok)
+      bodyLower.includes(tok) ||
+      anchorPathTokens.some((p) => p.includes(tok)) ||
+      anchorSymbolsLower.some((s) => s.includes(tok)) ||
+      (moduleLower !== undefined && moduleLower.includes(tok)) ||
+      (domainLower !== undefined && domainLower.includes(tok))
     );
   });
+}
+
+function collectAnchorPathTokens(paths: readonly string[]): string[] {
+  const out = new Set<string>();
+  for (const p of paths) {
+    const lower = p.toLowerCase();
+    out.add(lower);
+    // basename without extension
+    const base = lower.split("/").pop() ?? lower;
+    const noExt = base.replace(/\.[a-z0-9]+$/, "");
+    if (noExt) out.add(noExt);
+    // each path segment (helps "verifier" match "src/verifier.ts")
+    for (const segment of lower.split("/")) {
+      const seg = segment.replace(/\.[a-z0-9]+$/, "");
+      if (seg) out.add(seg);
+    }
+  }
+  return [...out];
 }
 
 export function pickSnippetNeedle(query: string): string {
