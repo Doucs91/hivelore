@@ -20,8 +20,8 @@ interface SyncOptions {
   dir?: string;
   quiet?: boolean;
   since?: string;
-  noVerify?: boolean;
-  noPromote?: boolean;
+  verify?: boolean;
+  promote?: boolean;
 }
 
 export function registerSync(program: Command): void {
@@ -40,7 +40,8 @@ export function registerSync(program: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
-        if (!opts.quiet) ui.warn(`No .ai/memories at ${root} — skipping sync.`);
+        if (!opts.quiet) ui.warn(`No .ai/memories at ${root}. Run \`haive init\` first.`);
+        process.exitCode = 1;
         return;
       }
 

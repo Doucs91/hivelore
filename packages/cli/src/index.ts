@@ -23,10 +23,12 @@ import { registerMemoryVerify } from "./commands/memory-verify.js";
 
 const program = new Command();
 
+declare const __HAIVE_VERSION__: string;
+
 program
   .name("haive")
   .description("hAIve — team-first persistent memory layer for AI coding agents")
-  .version("0.1.0");
+  .version(__HAIVE_VERSION__);
 
 registerInit(program);
 registerMcp(program);
@@ -53,6 +55,24 @@ registerMemoryApprove(memory);
 registerMemoryHot(memory);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
-  console.error(err instanceof Error ? err.message : err);
+  if (isZodError(err)) {
+    for (const issue of err.issues) {
+      const field = issue.path.length > 0 ? `${String(issue.path.join("."))}: ` : "";
+      console.error(`\x1b[31m✗\x1b[0m ${field}${issue.message}`);
+    }
+  } else {
+    console.error(err instanceof Error ? err.message : err);
+  }
   process.exit(1);
 });
+
+function isZodError(
+  err: unknown,
+): err is { issues: Array<{ path: unknown[]; message: string }> } {
+  return (
+    err !== null &&
+    typeof err === "object" &&
+    "issues" in err &&
+    Array.isArray((err as Record<string, unknown>).issues)
+  );
+}

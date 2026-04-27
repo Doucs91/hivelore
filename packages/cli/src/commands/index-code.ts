@@ -16,6 +16,7 @@ interface IndexCodeOptions {
 
 export function registerIndexCode(program: Command): void {
   const idx = program.command("index").description("Build local indexes that help AIs read less code");
+  idx.action(() => idx.help());
   idx
     .command("code")
     .description("Scan source files and write .ai/code-map.json (file → exports + 1-line description)")

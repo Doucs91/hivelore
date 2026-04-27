@@ -95,7 +95,7 @@ async function loadEmbeddings() {
     return await import("@hiveai/embeddings");
   } catch (err) {
     ui.error(
-      "Could not load @hiveai/embeddings. Install it or run `pnpm build` in the monorepo.",
+      "Could not load @hiveai/embeddings. Run: npm install -g @hiveai/embeddings  (or `pnpm build` in the monorepo)",
     );
     throw err;
   }

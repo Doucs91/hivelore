@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "hAIve CLI — manage shared AI memories from the terminal",
   "license": "MIT",
   "repository": {
@@ -30,7 +30,7 @@
     "picocolors": "^1.1.1"
   },
   "peerDependencies": {
-    "@hiveai/embeddings": "^0.2.0"
+    "@hiveai/embeddings": "^0.2.1"
   },
   "peerDependenciesMeta": {
     "@hiveai/embeddings": {
