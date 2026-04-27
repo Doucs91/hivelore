@@ -27,6 +27,14 @@ export const MemSearchInputSchema = {
     .optional()
     .describe("Restrict results to a memory type"),
   module: z.string().optional().describe("Restrict results to a module"),
+  status: z
+    .enum(["draft", "proposed", "validated", "deprecated", "stale", "rejected"])
+    .optional()
+    .describe("Filter by a single status. Omit to return all statuses."),
+  exclude_rejected: z
+    .boolean()
+    .default(false)
+    .describe("When true, exclude memories with status=rejected from results."),
   limit: z.number().int().positive().max(100).default(20).describe("Max results"),
   semantic: z
     .boolean()
@@ -117,6 +125,8 @@ function passesFilters(
   if (input.scope && fm.scope !== input.scope) return false;
   if (input.type && fm.type !== input.type) return false;
   if (input.module && fm.module !== input.module) return false;
+  if (input.status && fm.status !== input.status) return false;
+  if (input.exclude_rejected && fm.status === "rejected") return false;
   return true;
 }
 

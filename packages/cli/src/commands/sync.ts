@@ -126,9 +126,21 @@ export function registerSync(program: Command): void {
 
       const sinceReport = opts.since ? collectSinceChanges(root, opts.since) : null;
 
+      const draftMemories = (await loadMemoriesFromDir(paths.memoriesDir)).filter(
+        (m) => m.memory.frontmatter.status === "draft",
+      );
+      const draftCount = draftMemories.length;
+
       log(
         `${ui.dim("sync:")} ${staleMarked} stale · ${revalidated} revalidated · ${promoted} promoted${sinceReport ? ` · ${sinceReport.added.length}+/${sinceReport.modified.length}~/${sinceReport.removed.length}- since ${opts.since}` : ""}`,
       );
+      if (!opts.quiet && draftCount > 0) {
+        log(
+          ui.dim(
+            `ℹ ${draftCount} memor${draftCount === 1 ? "y" : "ies"} in draft — run \`haive memory approve <id>\` to activate or \`haive memory list --status draft\` to review`,
+          ),
+        );
+      }
 
       if (sinceReport && !opts.quiet) {
         if (sinceReport.added.length > 0) {

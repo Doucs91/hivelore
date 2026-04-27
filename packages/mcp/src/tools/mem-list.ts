@@ -10,6 +10,14 @@ export const MemListInputSchema = {
     .optional(),
   module: z.string().optional(),
   tag: z.string().optional(),
+  status: z
+    .enum(["draft", "proposed", "validated", "deprecated", "stale", "rejected"])
+    .optional()
+    .describe("Filter by a single status. Omit to return all statuses."),
+  exclude_rejected: z
+    .boolean()
+    .default(false)
+    .describe("When true, exclude memories with status=rejected from results."),
   include_body: z
     .boolean()
     .default(false)
@@ -46,6 +54,8 @@ export async function memList(
     if (input.type && fm.type !== input.type) return false;
     if (input.module && fm.module !== input.module) return false;
     if (input.tag && !fm.tags.includes(input.tag)) return false;
+    if (input.status && fm.status !== input.status) return false;
+    if (input.exclude_rejected && fm.status === "rejected") return false;
     return true;
   });
   const memories: MemSummary[] = filtered.map(({ memory, filePath }) => {

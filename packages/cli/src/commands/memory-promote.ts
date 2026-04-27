@@ -29,6 +29,24 @@ export function registerMemoryPromote(memory: Command): void {
         return;
       }
 
+      // Check team/module scope first to give a helpful error
+      const teamAndModule = await loadMemoriesFromDir(paths.memoriesDir);
+      const alreadyShared = teamAndModule.find(
+        (m) =>
+          m.memory.frontmatter.id === id &&
+          (m.memory.frontmatter.scope === "team" || m.memory.frontmatter.scope === "module"),
+      );
+      if (alreadyShared) {
+        const fm = alreadyShared.memory.frontmatter;
+        ui.warn(
+          `"${id}" is already in ${fm.scope} scope (status=${fm.status}).`,
+        );
+        if (fm.status !== "validated") {
+          ui.info(`→ run \`haive memory approve ${id}\` to validate it`);
+        }
+        return;
+      }
+
       const all = await loadMemoriesFromDir(paths.personalDir);
       const found = all.find((m) => m.memory.frontmatter.id === id);
       if (!found) {
@@ -53,5 +71,6 @@ export function registerMemoryPromote(memory: Command): void {
 
       ui.success(`Promoted ${id} to team scope (status=proposed)`);
       ui.info(`Now at ${path.relative(root, newPath)}`);
+      console.log(ui.dim(`→ next: haive memory approve ${id}  (validate for team use)`));
     });
 }

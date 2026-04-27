@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { registerBriefing } from "./commands/briefing.js";
 import { registerEmbeddings } from "./commands/embeddings.js";
 import { registerIndexCode } from "./commands/index-code.js";
 import { registerInit } from "./commands/init.js";
@@ -33,6 +34,7 @@ program
 
 registerInit(program);
 registerMcp(program);
+registerBriefing(program);
 registerEmbeddings(program);
 registerSync(program);
 registerInstallHooks(program);

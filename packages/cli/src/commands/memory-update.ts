@@ -11,6 +11,7 @@ import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
 interface UpdateOptions {
+  title?: string;
   body?: string;
   tags?: string;
   paths?: string;
@@ -25,6 +26,7 @@ export function registerMemoryUpdate(memory: Command): void {
   memory
     .command("update <id>")
     .description("Update body, tags, or anchor of an existing memory (preserves id and usage history)")
+    .option("--title <text>", "new title — replaces the first heading of the body")
     .option("--body <text>", "new Markdown body — replaces the existing body")
     .option("--tags <csv>", "new tags, comma-separated — fully replaces existing tags")
     .option("--paths <csv>", "new anchor paths, comma-separated")
@@ -78,7 +80,11 @@ export function registerMemoryUpdate(memory: Command): void {
       if (opts.domain !== undefined) updated.push("domain");
       if (opts.author !== undefined) updated.push("author");
 
-      const newBody = opts.body !== undefined ? opts.body : body;
+      let newBody = opts.body !== undefined ? opts.body : body;
+      if (opts.title !== undefined) {
+        newBody = replaceFirstHeading(newBody, opts.title);
+        updated.push("title");
+      }
       if (opts.body !== undefined) updated.push("body");
 
       if (updated.length === 0) {
@@ -95,6 +101,15 @@ export function registerMemoryUpdate(memory: Command): void {
       ui.success(`Updated ${path.relative(root, loaded.filePath)}`);
       ui.info(`fields: ${updated.join(", ")}`);
     });
+}
+
+function replaceFirstHeading(body: string, title: string): string {
+  const headingRe = /^#\s+.+$/m;
+  const replacement = `# ${title}`;
+  if (headingRe.test(body)) {
+    return body.replace(headingRe, replacement);
+  }
+  return `${replacement}\n\n${body}`;
 }
 
 function parseCsv(value: string): string[] {
