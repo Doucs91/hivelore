@@ -78,6 +78,7 @@ export interface BriefingMemory {
 
 export interface BriefingOutput {
   task?: string;
+  search_mode: "semantic" | "literal_fallback" | "literal";
   inferred_modules: string[];
   project_context: { content: string; truncated: boolean } | null;
   module_contexts: Array<{ name: string; content: string; truncated: boolean }>;
@@ -92,6 +93,7 @@ export async function getBriefing(
 ): Promise<BriefingOutput> {
   const inferred = inferModulesFromPaths(input.files);
   const memories: BriefingMemory[] = [];
+  let searchMode: BriefingOutput["search_mode"] = "literal";
 
   if (existsSync(ctx.paths.memoriesDir)) {
     const allMemories = await loadMemoriesFromDir(ctx.paths.memoriesDir);
@@ -99,6 +101,10 @@ export async function getBriefing(
     const semanticHits = input.task && input.semantic
       ? await trySemanticHits(ctx, input.task, allMemories.length * 2)
       : null;
+
+    if (input.task && input.semantic) {
+      searchMode = semanticHits ? "semantic" : "literal_fallback";
+    }
 
     const seen = new Map<string, BriefingMemory>();
 
@@ -246,6 +252,7 @@ export async function getBriefing(
 
   return {
     ...(input.task ? { task: input.task } : {}),
+    search_mode: searchMode,
     inferred_modules: inferred,
     project_context: projectContext
       ? { content: projectSlice.text, truncated: projectSlice.truncated }

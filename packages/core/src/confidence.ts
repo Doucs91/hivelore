@@ -23,7 +23,7 @@ export function deriveConfidence(
   usage: MemoryUsage,
   thresholds: ConfidenceThresholds = DEFAULT_CONFIDENCE_THRESHOLDS,
 ): ConfidenceLevel {
-  if (fm.status === "stale" || fm.status === "deprecated") return "stale";
+  if (fm.status === "stale" || fm.status === "deprecated" || fm.status === "rejected") return "stale";
   if (fm.status === "validated") {
     return usage.read_count >= thresholds.authoritativeReads
       ? "authoritative"

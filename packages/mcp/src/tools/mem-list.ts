@@ -10,6 +10,10 @@ export const MemListInputSchema = {
     .optional(),
   module: z.string().optional(),
   tag: z.string().optional(),
+  include_body: z
+    .boolean()
+    .default(false)
+    .describe("Include full body text. Default false to save tokens — use mem_get for a single memory's full content."),
 };
 
 export type MemListInput = {
@@ -23,7 +27,9 @@ export interface MemSummary {
   module?: string;
   status: string;
   tags: string[];
+  snippet: string;
   file_path: string;
+  body?: string;
 }
 
 export async function memList(
@@ -44,6 +50,7 @@ export async function memList(
   });
   const memories: MemSummary[] = filtered.map(({ memory, filePath }) => {
     const fm = memory.frontmatter;
+    const snippet = memory.body.replace(/\s+/g, " ").trim().slice(0, 120);
     return {
       id: fm.id,
       scope: fm.scope,
@@ -51,7 +58,9 @@ export async function memList(
       ...(fm.module ? { module: fm.module } : {}),
       status: fm.status,
       tags: fm.tags,
+      snippet,
       file_path: filePath,
+      ...(input.include_body ? { body: memory.body } : {}),
     };
   });
   return { memories };

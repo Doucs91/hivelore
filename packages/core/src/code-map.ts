@@ -50,7 +50,13 @@ const DEFAULT_EXCLUDE = [
   ".turbo",
   ".vitest-cache",
   "coverage",
+  "test",
+  "tests",
+  "__tests__",
+  "__mocks__",
 ];
+
+const TEST_FILE_RE = /\.(test|spec)\.[a-z]+$/i;
 
 export function codeMapPath(paths: HaivePaths): string {
   return path.join(paths.haiveDir, CODE_MAP_FILE);
@@ -114,7 +120,7 @@ async function* walkSourceFiles(
       yield* walkSourceFiles(full, include, exclude);
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name).toLowerCase();
-      if (include.has(ext)) yield full;
+      if (include.has(ext) && !TEST_FILE_RE.test(entry.name)) yield full;
     }
   }
 }

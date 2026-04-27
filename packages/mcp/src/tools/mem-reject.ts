@@ -1,9 +1,11 @@
+import { writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import {
   loadMemoriesFromDir,
   loadUsageIndex,
   recordRejection,
   saveUsageIndex,
+  serializeMemory,
 } from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
@@ -22,6 +24,7 @@ export type MemRejectInput = {
 
 export interface MemRejectOutput {
   id: string;
+  status: string;
   rejected_count: number;
   last_rejected_at: string | null;
   rejection_reason: string | null;
@@ -36,10 +39,18 @@ export async function memReject(
   }
 
   const memories = await loadMemoriesFromDir(ctx.paths.memoriesDir);
-  const exists = memories.some((m) => m.memory.frontmatter.id === input.id);
-  if (!exists) {
-    throw new Error(`No memory with id "${input.id}".`);
-  }
+  const loaded = memories.find((m) => m.memory.frontmatter.id === input.id);
+  if (!loaded) throw new Error(`No memory with id "${input.id}".`);
+
+  // Write rejected status to disk
+  await writeFile(
+    loaded.filePath,
+    serializeMemory({
+      frontmatter: { ...loaded.memory.frontmatter, status: "rejected" },
+      body: loaded.memory.body,
+    }),
+    "utf8",
+  );
 
   const idx = await loadUsageIndex(ctx.paths);
   recordRejection(idx, input.id, input.reason ?? null);
@@ -47,6 +58,7 @@ export async function memReject(
   const u = idx.by_id[input.id];
   return {
     id: input.id,
+    status: "rejected",
     rejected_count: u?.rejected_count ?? 0,
     last_rejected_at: u?.last_rejected_at ?? null,
     rejection_reason: u?.rejection_reason ?? null,

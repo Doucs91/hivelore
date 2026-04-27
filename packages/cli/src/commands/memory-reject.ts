@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { Command } from "commander";
 import {
@@ -6,6 +7,7 @@ import {
   recordRejection,
   resolveHaivePaths,
   saveUsageIndex,
+  serializeMemory,
 } from "@hiveai/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
@@ -31,18 +33,28 @@ export function registerMemoryReject(memory: Command): void {
       }
 
       const memories = await loadMemoriesFromDir(paths.memoriesDir);
-      if (!memories.some((m) => m.memory.frontmatter.id === id)) {
+      const loaded = memories.find((m) => m.memory.frontmatter.id === id);
+      if (!loaded) {
         ui.error(`No memory with id "${id}".`);
         process.exitCode = 1;
         return;
       }
+
+      await writeFile(
+        loaded.filePath,
+        serializeMemory({
+          frontmatter: { ...loaded.memory.frontmatter, status: "rejected" },
+          body: loaded.memory.body,
+        }),
+        "utf8",
+      );
 
       const idx = await loadUsageIndex(paths);
       recordRejection(idx, id, opts.reason ?? null);
       await saveUsageIndex(paths, idx);
       const u = idx.by_id[id]!;
       ui.success(
-        `Recorded rejection for ${id} (now ${u.rejected_count} rejection${u.rejected_count === 1 ? "" : "s"})`,
+        `Rejected ${id} (status=rejected, ${u.rejected_count} rejection${u.rejected_count === 1 ? "" : "s"})`,
       );
       if (opts.reason) ui.info(`reason: ${opts.reason}`);
     });

@@ -93,10 +93,10 @@ export function registerEmbeddings(program: Command): void {
 async function loadEmbeddings() {
   try {
     return await import("@hiveai/embeddings");
-  } catch (err) {
+  } catch {
     ui.error(
       "Could not load @hiveai/embeddings. Run: npm install -g @hiveai/embeddings  (or `pnpm build` in the monorepo)",
     );
-    throw err;
+    process.exit(1);
   }
 }

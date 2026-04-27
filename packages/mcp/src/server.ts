@@ -39,6 +39,11 @@ import {
   type MemDeleteInput,
 } from "./tools/mem-delete.js";
 import {
+  MemUpdateInputSchema,
+  memUpdate,
+  type MemUpdateInput,
+} from "./tools/mem-update.js";
+import {
   MemPendingInputSchema,
   memPending,
   type MemPendingInput,
@@ -173,6 +178,13 @@ export function createHaiveServer(
     "Delete a memory by id (and its usage entry by default).",
     MemDeleteInputSchema,
     async (input: MemDeleteInput) => jsonResult(await memDelete(input, context)),
+  );
+
+  server.tool(
+    "mem_update",
+    "Update the body, tags, or anchor of an existing memory without changing its id or losing usage history.",
+    MemUpdateInputSchema,
+    async (input: MemUpdateInput) => jsonResult(await memUpdate(input, context)),
   );
 
   server.tool(

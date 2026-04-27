@@ -27,6 +27,7 @@ export interface MemVerifyHit {
   stale: boolean;
   reason: string | null;
   status_after: string;
+  skipped?: boolean;
 }
 
 export interface MemVerifyOutput {
@@ -68,6 +69,14 @@ export async function memVerify(
       memory.frontmatter.anchor.symbols.length > 0;
     if (!isAnchored) {
       anchorless++;
+      results.push({
+        id: memory.frontmatter.id,
+        file_path: filePath,
+        stale: false,
+        reason: null,
+        status_after: memory.frontmatter.status,
+        skipped: true,
+      });
       continue;
     }
     const result = await verifyAnchor(memory, { projectRoot: ctx.paths.root });

@@ -9,6 +9,7 @@ import { registerMemoryAdd } from "./commands/memory-add.js";
 import { registerMemoryList } from "./commands/memory-list.js";
 import { registerMemoryPromote } from "./commands/memory-promote.js";
 import { registerMemoryApprove } from "./commands/memory-approve.js";
+import { registerMemoryUpdate } from "./commands/memory-update.js";
 import { registerMemoryAutoPromote } from "./commands/memory-auto-promote.js";
 import { registerMemoryEdit } from "./commands/memory-edit.js";
 import { registerMemoryForFiles } from "./commands/memory-for-files.js";
@@ -52,6 +53,7 @@ registerMemoryEdit(memory);
 registerMemoryRm(memory);
 registerMemoryPending(memory);
 registerMemoryApprove(memory);
+registerMemoryUpdate(memory);
 registerMemoryHot(memory);
 
 program.parseAsync(process.argv).catch((err: unknown) => {

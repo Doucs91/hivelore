@@ -8,6 +8,7 @@ export const MemoryStatusSchema = z.enum([
   "validated",
   "deprecated",
   "stale",
+  "rejected",
 ]);
 
 export const MemoryTypeSchema = z.enum([
