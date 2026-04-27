@@ -42,11 +42,15 @@ export async function memReject(
   const loaded = memories.find((m) => m.memory.frontmatter.id === input.id);
   if (!loaded) throw new Error(`No memory with id "${input.id}".`);
 
-  // Write rejected status to disk
+  // Write rejected status and reason to disk
   await writeFile(
     loaded.filePath,
     serializeMemory({
-      frontmatter: { ...loaded.memory.frontmatter, status: "rejected" },
+      frontmatter: {
+        ...loaded.memory.frontmatter,
+        status: "rejected",
+        stale_reason: input.reason ?? loaded.memory.frontmatter.stale_reason ?? null,
+      },
       body: loaded.memory.body,
     }),
     "utf8",

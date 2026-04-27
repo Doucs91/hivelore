@@ -43,7 +43,11 @@ export function registerMemoryReject(memory: Command): void {
       await writeFile(
         loaded.filePath,
         serializeMemory({
-          frontmatter: { ...loaded.memory.frontmatter, status: "rejected" },
+          frontmatter: {
+            ...loaded.memory.frontmatter,
+            status: "rejected",
+            stale_reason: opts.reason ?? loaded.memory.frontmatter.stale_reason ?? null,
+          },
           body: loaded.memory.body,
         }),
         "utf8",

@@ -40,16 +40,23 @@ export function registerMemoryList(memory: Command): void {
       const filtered = all.filter((m) => {
         if (!matchesFilters(m, opts)) return false;
         const status = m.memory.frontmatter.status;
-        if (!opts.showRejected && status === "rejected") return false;
+        if (!opts.showRejected && !statusFilter && status === "rejected") return false;
         if (statusFilter && !statusFilter.includes(status)) return false;
         return true;
       });
 
+      // Count hidden rejected (not covered by an explicit status filter)
+      const hiddenRejectedCount =
+        !opts.showRejected && !statusFilter
+          ? all.filter(
+              (m) => matchesFilters(m, opts) && m.memory.frontmatter.status === "rejected",
+            ).length
+          : 0;
+
       if (filtered.length === 0) {
         ui.info("No memories match the filters.");
-        const rejectedCount = all.filter((m) => m.memory.frontmatter.status === "rejected").length;
-        if (rejectedCount > 0 && !opts.showRejected) {
-          ui.info(`(${rejectedCount} rejected hidden — use --show-rejected to include)`);
+        if (hiddenRejectedCount > 0) {
+          ui.info(`(${hiddenRejectedCount} rejected hidden — use --show-rejected to include)`);
         }
         return;
       }
@@ -66,13 +73,27 @@ export function registerMemoryList(memory: Command): void {
       }
       console.log(ui.dim(`\n${filtered.length} memor${filtered.length === 1 ? "y" : "ies"}`));
 
-      const draftCount = filtered.filter((m) => m.memory.frontmatter.status === "draft").length;
-      if (draftCount > 0) {
+      // Always show rejected hint when memories are hidden
+      if (hiddenRejectedCount > 0) {
         console.log(
-          ui.dim(
-            `ℹ ${draftCount} in draft — use \`haive memory approve <id>\` to activate or \`haive memory promote <id>\` to share with team`,
-          ),
+          ui.dim(`(${hiddenRejectedCount} rejected hidden — use --show-rejected to include)`),
         );
+      }
+
+      // Draft hint: scope-aware
+      const draftItems = filtered.filter((m) => m.memory.frontmatter.status === "draft");
+      if (draftItems.length > 0) {
+        const hasPersonalDrafts = draftItems.some(
+          (m) => m.memory.frontmatter.scope === "personal",
+        );
+        const hasTeamDrafts = draftItems.some(
+          (m) => m.memory.frontmatter.scope !== "personal",
+        );
+        let hint = `ℹ ${draftItems.length} in draft — use \`haive memory approve <id>\` to activate`;
+        if (hasPersonalDrafts && !hasTeamDrafts) {
+          hint += " or `haive memory promote <id>` to share with team";
+        }
+        console.log(ui.dim(hint));
       }
     });
 }

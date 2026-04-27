@@ -18,6 +18,7 @@ interface QueryOptions {
   limit?: string;
   scope?: MemoryScope;
   status?: string;
+  showRejected?: boolean;
 }
 
 export function registerMemoryQuery(memory: Command): void {
@@ -28,6 +29,7 @@ export function registerMemoryQuery(memory: Command): void {
     .option("--limit <n>", "max results", "20")
     .option("--scope <scope>", "personal | team | module")
     .option("--status <csv>", "filter by status (draft,proposed,validated,stale,rejected)")
+    .option("--show-rejected", "include rejected memories (hidden by default)")
     .action(async (text: string, opts: QueryOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
@@ -43,6 +45,7 @@ export function registerMemoryQuery(memory: Command): void {
       const matches = all.filter(({ memory: mem }) => {
         const fm = mem.frontmatter;
         if (opts.scope && fm.scope !== opts.scope) return false;
+        if (!opts.showRejected && !statusFilter && fm.status === "rejected") return false;
         if (statusFilter && !statusFilter.includes(fm.status)) return false;
         return literalMatchesAllTokens(mem, tokens);
       });

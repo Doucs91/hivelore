@@ -16,6 +16,7 @@ interface BriefingOptions {
   files?: string;
   maxMemories?: string;
   scope?: string;
+  includeDraft?: boolean;
   dir?: string;
 }
 
@@ -30,9 +31,10 @@ export function registerBriefing(program: Command): void {
     .option("--max-memories <n>", "cap on memories surfaced", "10")
     .option(
       "--scope <scope>",
-      "personal | team | module (default: team + validated only)",
+      "personal | team | module | all (default: team)",
       "team",
     )
+    .option("--include-draft", "include draft memories (excluded by default)")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: BriefingOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -56,12 +58,13 @@ export function registerBriefing(program: Command): void {
       const filePaths = parseCsv(opts.files);
       const tokens = opts.task ? tokenizeQuery(opts.task) : null;
       const maxMemories = Math.max(1, Number(opts.maxMemories ?? 10));
-
-      // Filter: exclude noise statuses
       const scopeFilter = opts.scope ?? "team";
+
+      // Filter: exclude noise and drafts by default
       const candidates = all.filter(({ memory: mem }) => {
         const fm = mem.frontmatter;
         if (fm.status === "rejected" || fm.status === "deprecated") return false;
+        if (!opts.includeDraft && fm.status === "draft") return false;
         if (scopeFilter !== "all" && fm.scope !== scopeFilter) return false;
         return true;
       });
@@ -82,6 +85,14 @@ export function registerBriefing(program: Command): void {
 
       if (top.length === 0) {
         ui.info("No relevant memories found.");
+        const draftCount = all.filter(
+          (m) =>
+            m.memory.frontmatter.status === "draft" &&
+            (scopeFilter === "all" || m.memory.frontmatter.scope === scopeFilter),
+        ).length;
+        if (draftCount > 0) {
+          ui.info(`(${draftCount} draft memories excluded — use --include-draft to show)`);
+        }
         return;
       }
 
@@ -89,8 +100,9 @@ export function registerBriefing(program: Command): void {
       for (const { memory: mem } of top) {
         const fm = mem.frontmatter;
         const badge = ui.statusBadge(fm.status);
+        const draftMarker = fm.status === "draft" ? ui.yellow(" [DRAFT]") : "";
         console.log(
-          `${ui.bold(fm.id)}  ${ui.dim(fm.scope + "/" + fm.type)}  ${badge}`,
+          `${ui.bold(fm.id)}  ${ui.dim(fm.scope + "/" + fm.type)}  ${badge}${draftMarker}`,
         );
         console.log(mem.body.trim());
         console.log();
