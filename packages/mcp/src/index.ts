@@ -1,5 +1,5 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createHaiveServer } from "./server.js";
+import { createHaiveServer, SERVER_VERSION } from "./server.js";
 
 function parseArgs(argv: string[]): { root?: string } {
   const out: { root?: string } = {};
@@ -19,7 +19,7 @@ async function main(): Promise<void> {
   const { server, context } = createHaiveServer({ root });
   // stderr is safe — stdio transport uses stdin/stdout exclusively for MCP frames.
   console.error(
-    `[haive-mcp] starting server v0.1.0 (project root: ${context.paths.root})`,
+    `[haive-mcp] starting server v${SERVER_VERSION} (project root: ${context.paths.root})`,
   );
   const transport = new StdioServerTransport();
   await server.connect(transport);
