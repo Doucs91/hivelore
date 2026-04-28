@@ -30,4 +30,31 @@ This monorepo uses pnpm workspaces (not npm/yarn workspaces, not turborepo). Run
 ### 2026-04-25-decision-esm-only (team/decision)
 All packages are ESM-only (type: module in package.json, format: esm in tsup). Imports must use .js extensions even for .ts source files (verbatimModuleSyntax + isolatedModules in tsconfig). Do not add CJS output.
 
+---
+
+### 2026-04-25-gotcha-tsup-externals-required (team/gotcha)
+Without explicit 'external' in tsup.config.ts, tsup will inline cross-package deps (notably @xenova/transformers + onnxruntime), exploding the CLI bundle to >5MB. Always list workspace deps and heavy native packages as external for any package that imports them.
+
+---
+
+### 2026-04-27-decision-zod-error-formatting-no-direct-import (team/decision)
+The CLI catches ZodError via duck-typing (`isZodError` checks for `.issues` array) rather than importing `ZodError` from `zod` directly. Reason: `zod` is not in `@hiveai/cli`'s direct dependencies — it's only a dep of `@hiveai/core`. In pnpm workspaces without hoisting, a direct `import { ZodError } from "zod"` in the CLI bundle fails at runtime with `ERR_MODULE_NOT_FOUND` when installed globally.
+
+---
+
+### 2026-04-27-gotcha-embeddings-load-error-double-print (team/gotcha)
+`loadEmbeddings()` prints a friendly error then re-throws. The re-thrown error bubbles to `program.parseAsync().catch()` which prints the raw `Cannot find package` message a second time. Fix: after `ui.error(...)`, call `process.exit(1)` directly instead of `throw err`, so only the friendly message appears.
+
+---
+
+### 2026-04-27-gotcha-mcp-exports-package-json (team/gotcha)
+When `@hiveai/cli` resolves the MCP binary via `require.resolve("@hiveai/mcp/package.json")`, Node enforces the `exports` field. If `./package.json` is not explicitly listed, the call throws `Package subpath './package.json' is not defined by "exports"`. Fix: add `"./package.json": "./package.json"` to the exports of `packages/mcp/package.json`.
+
+---
+
+### 2026-04-27-gotcha-version-define-tsup-and-vitest (team/gotcha)
+When using tsup `define` to inject a constant (e.g. `__HAIVE_VERSION__`), vitest does NOT apply the tsup config — it runs source files directly. Any package whose tests import source files referencing a `define`-injected global must have its own `vitest.config.ts` with the same `define`, reading the version from `package.json` at config-load time.
+
+Also: scan ALL files for hardcoded version strings before publishing — `server.ts` and `index.ts` both had `v0.1.0` in the startup log of `@hiveai/mcp`.
+
 <!-- haive:memories-end -->
