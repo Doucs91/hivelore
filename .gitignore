@@ -10,3 +10,6 @@ coverage
 
 # hAIve local cache (embeddings index, model weights, etc.)
 .ai/.cache/
+
+# Test project — not part of the repo
+sandaga-monorepo/
