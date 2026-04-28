@@ -13,6 +13,10 @@ export default defineConfig({
   target: "node20",
   define: { __HAIVE_VERSION__: JSON.stringify(version) },
   banner: { js: "#!/usr/bin/env node" },
+  esbuildOptions(options) {
+    options.jsx = "automatic";
+    options.jsxImportSource = "react";
+  },
   external: [
     "@hiveai/core",
     "@hiveai/mcp",
