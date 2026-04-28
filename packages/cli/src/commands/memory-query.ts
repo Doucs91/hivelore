@@ -41,6 +41,10 @@ export function registerMemoryQuery(memory: Command): void {
       }
 
       const tokens = tokenizeQuery(text);
+      if (tokens.length === 0) {
+        ui.warn("Empty query — use \`haive memory list\` to list all memories.");
+        return;
+      }
       const statusFilter = opts.status ? opts.status.split(",").map((s) => s.trim()) : null;
       const all = await loadMemoriesFromDir(paths.memoriesDir);
 

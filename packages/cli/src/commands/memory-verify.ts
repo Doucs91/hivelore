@@ -48,7 +48,7 @@ export function registerMemoryVerify(memory: Command): void {
 
       let staleCount = 0;
       let freshCount = 0;
-      let anchorless = 0;
+      const anchorlessIds: string[] = [];
       let updated = 0;
 
       for (const { memory: mem, filePath } of targets) {
@@ -58,7 +58,7 @@ export function registerMemoryVerify(memory: Command): void {
           mem.frontmatter.anchor.symbols.length > 0;
 
         if (!isAnchored) {
-          anchorless++;
+          anchorlessIds.push(mem.frontmatter.id);
           continue;
         }
 
@@ -83,10 +83,19 @@ export function registerMemoryVerify(memory: Command): void {
       const summary = [
         `${freshCount} fresh`,
         `${staleCount} stale`,
-        `${anchorless} anchorless (skipped)`,
+        `${anchorlessIds.length} anchorless (skipped)`,
       ];
       if (opts.update) summary.push(`${updated} updated on disk`);
       ui.info(summary.join(" · "));
+      if (anchorlessIds.length > 0) {
+        console.log(
+          ui.dim(
+            `Anchorless memories (no paths/symbols — staleness cannot be detected):\n` +
+            anchorlessIds.map((id) => `  ${id}`).join("\n") +
+            `\nTip: use \`haive memory update <id> --paths <files>\` to add anchors.`,
+          ),
+        );
+      }
     });
 }
 

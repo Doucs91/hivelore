@@ -75,6 +75,7 @@ export interface BriefingMemory {
   confidence: ConfidenceLevel;
   read_count: number;
   reasons: Array<"anchor" | "module" | "domain" | "semantic">;
+  match_quality: "exact" | "partial" | "semantic";
   semantic_score?: number;
   body: string;
   file_path: string;
@@ -83,6 +84,7 @@ export interface BriefingMemory {
 export interface BriefingOutput {
   task?: string;
   search_mode: "semantic" | "literal_fallback" | "literal";
+  match_quality_note?: string;
   inferred_modules: string[];
   project_context: { content: string; truncated: boolean } | null;
   module_contexts: Array<{ name: string; content: string; truncated: boolean }>;
@@ -122,6 +124,7 @@ export async function getBriefing(
       loaded: LoadedMemory,
       reason: BriefingMemory["reasons"][number],
       score?: number,
+      matchQuality?: BriefingMemory["match_quality"],
     ): void => {
       const fm = loaded.memory.frontmatter;
       const existing = seen.get(fm.id);
@@ -129,6 +132,12 @@ export async function getBriefing(
         if (!existing.reasons.includes(reason)) existing.reasons.push(reason);
         if (score !== undefined && (existing.semantic_score ?? 0) < score) {
           existing.semantic_score = score;
+        }
+        // upgrade match_quality if better evidence found
+        if (matchQuality === "exact" && existing.match_quality !== "exact") {
+          existing.match_quality = "exact";
+        } else if (matchQuality === "semantic" && existing.match_quality === "partial") {
+          existing.match_quality = "semantic";
         }
         return;
       }
@@ -143,6 +152,7 @@ export async function getBriefing(
         confidence: deriveConfidence(fm, u),
         read_count: u.read_count,
         reasons: [reason],
+        match_quality: matchQuality ?? "partial",
         ...(score !== undefined ? { semantic_score: score } : {}),
         body: loaded.memory.body,
         file_path: loaded.filePath,
@@ -151,13 +161,13 @@ export async function getBriefing(
 
     if (input.files.length > 0) {
       for (const loaded of allMemories) {
-        if (memoryMatchesAnchorPaths(loaded.memory, input.files)) addOrUpdate(loaded, "anchor");
+        if (memoryMatchesAnchorPaths(loaded.memory, input.files)) addOrUpdate(loaded, "anchor", undefined, "exact");
       }
       for (const loaded of allMemories) {
         const fm = loaded.memory.frontmatter;
-        if (fm.module && inferred.includes(fm.module)) addOrUpdate(loaded, "module");
-        if (fm.domain && inferred.includes(fm.domain)) addOrUpdate(loaded, "domain");
-        if (fm.tags.some((t) => inferred.includes(t))) addOrUpdate(loaded, "module");
+        if (fm.module && inferred.includes(fm.module)) addOrUpdate(loaded, "module", undefined, "partial");
+        if (fm.domain && inferred.includes(fm.domain)) addOrUpdate(loaded, "domain", undefined, "partial");
+        if (fm.tags.some((t) => inferred.includes(t))) addOrUpdate(loaded, "module", undefined, "partial");
       }
     }
 
@@ -165,20 +175,21 @@ export async function getBriefing(
       const tokens = tokenizeQuery(input.task);
       for (const loaded of allMemories) {
         if (literalMatchesAllTokens(loaded.memory, tokens)) {
-          addOrUpdate(loaded, "semantic");
+          addOrUpdate(loaded, "semantic", undefined, "exact");
         }
       }
       if (semanticHits) {
         const byId = new Map(allMemories.map((m) => [m.memory.frontmatter.id, m]));
         for (const hit of semanticHits) {
           const loaded = byId.get(hit.id);
-          if (loaded) addOrUpdate(loaded, "semantic", hit.score);
+          if (loaded) addOrUpdate(loaded, "semantic", hit.score, "semantic");
         }
       }
     }
 
     const ranked = [...seen.values()].sort((a, b) => {
       const reasonScore = (m: BriefingMemory): number =>
+        (m.type === "attempt" ? 3 : 0) + // attempt = negative knowledge, surface first to prevent repeating mistakes
         (m.reasons.includes("anchor") ? 4 : 0) +
         (m.reasons.includes("module") ? 2 : 0) +
         (m.reasons.includes("semantic") ? 2 : 0) +
@@ -251,14 +262,29 @@ export async function getBriefing(
 
   const trimmedMemoriesText = memoriesSlice.text;
 
-  // Recompute memory bodies to fit. We slice the joined text but also expose
-  // the truncated body per memory so the AI can render either form.
-  const trimmedMemories = memories.map((m): BriefingMemory => {
-    if (!memoriesSlice.truncated) return m;
-    const tokensPer = Math.floor(memoriesSlice.allocatedTokens / Math.max(1, memories.length));
-    const t = truncateToTokens(m.body, { maxTokens: tokensPer, mode: "head" });
-    return { ...m, body: t.text };
-  });
+  // Recompute memory bodies to fit using a cascade approach:
+  // top-ranked memories get full budget first; lower-ranked ones are dropped if budget runs out.
+  // This is better than uniform truncation which gives all memories a 37%-fragment.
+  const trimmedMemories: BriefingMemory[] = [];
+  if (!memoriesSlice.truncated) {
+    trimmedMemories.push(...memories);
+  } else {
+    let remaining = memoriesSlice.allocatedTokens;
+    for (const m of memories) {
+      const bodyTokens = estimateTokens(m.body);
+      if (remaining <= 0) break;
+      if (bodyTokens <= remaining) {
+        trimmedMemories.push(m);
+        remaining -= bodyTokens;
+      } else if (remaining > 80) {
+        // Enough budget for a meaningful fragment — truncate and include
+        const t = truncateToTokens(m.body, { maxTokens: remaining, mode: "head" });
+        trimmedMemories.push({ ...m, body: t.text });
+        remaining = 0;
+      }
+      // Otherwise skip — too small a fragment to be useful
+    }
+  }
 
   const totalTokens =
     projectSlice.estimatedTokens + modulesSlice.estimatedTokens + memoriesSlice.estimatedTokens;

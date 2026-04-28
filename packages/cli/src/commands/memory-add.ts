@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
@@ -6,6 +6,7 @@ import {
   buildFrontmatter,
   findProjectRoot,
   inferModulesFromPaths,
+  loadMemoriesFromDir,
   memoryFilePath,
   resolveHaivePaths,
   serializeMemory,
@@ -27,6 +28,7 @@ interface AddOptions {
   symbols?: string;
   commit?: string;
   body?: string;
+  bodyFile?: string;
   dir?: string;
 }
 
@@ -46,6 +48,7 @@ export function registerMemoryAdd(memory: Command): void {
     .option("--symbols <csv>", "anchor symbols, comma-separated")
     .option("--commit <sha>", "anchor commit SHA")
     .option("--body <text>", "memory body content (Markdown) — overrides --title default body")
+    .option("--body-file <path>", "read memory body from a Markdown file — alternative to --body for long content")
     .option("--no-auto-tag", "disable automatic tag suggestions inferred from anchor paths")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: AddOptions & { autoTag?: boolean }) => {
@@ -78,7 +81,15 @@ export function registerMemoryAdd(memory: Command): void {
 
       const title = opts.title ?? opts.slug;
       let body: string;
-      if (opts.body !== undefined) {
+      if (opts.bodyFile !== undefined) {
+        if (!existsSync(opts.bodyFile)) {
+          ui.error(`--body-file not found: ${opts.bodyFile}`);
+          process.exitCode = 1;
+          return;
+        }
+        const fileContent = await readFile(opts.bodyFile, "utf8");
+        body = opts.title ? `# ${opts.title}\n\n${fileContent.trim()}\n` : fileContent;
+      } else if (opts.body !== undefined) {
         body = opts.title ? `# ${opts.title}\n\n${opts.body}` : opts.body;
       } else {
         body = `# ${title}\n\nTODO — write the memory body.\n`;
@@ -91,6 +102,23 @@ export function registerMemoryAdd(memory: Command): void {
         ui.error(`Memory already exists at ${file}`);
         process.exitCode = 1;
         return;
+      }
+
+      // Dedup check: warn if a similar slug already exists
+      if (existsSync(paths.memoriesDir)) {
+        const existing = await loadMemoriesFromDir(paths.memoriesDir);
+        const slugTokens = opts.slug.toLowerCase().split(/[-_\s]+/).filter(Boolean);
+        const similar = existing.filter(({ memory }) => {
+          const id = memory.frontmatter.id.toLowerCase();
+          return (
+            slugTokens.length >= 2 &&
+            slugTokens.filter((t) => id.includes(t)).length >= Math.ceil(slugTokens.length * 0.6)
+          );
+        });
+        if (similar.length > 0) {
+          ui.warn(`Possible duplicate — similar memories exist: ${similar.map((m) => m.memory.frontmatter.id).join(", ")}`);
+          ui.warn("Consider updating one of these with \`haive memory update\` instead.");
+        }
       }
 
       await writeFile(file, serializeMemory({ frontmatter, body }), "utf8");

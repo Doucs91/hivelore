@@ -6,6 +6,11 @@ const MODULE_PATTERNS = [
   /^apps\/([^/]+)\//,
   /^modules\/([^/]+)\//,
   /^src\/([^/]+)\//,
+  /^libs\/([^/]+)\//,
+  /^services\/([^/]+)\//,
+  /^internal\/([^/]+)\//,
+  /^projects\/([^/]+)\//,  // Nx layout
+  /^cmd\/([^/]+)\//,       // Go-style
 ];
 
 /**

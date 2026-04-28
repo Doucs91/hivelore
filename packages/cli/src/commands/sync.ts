@@ -217,15 +217,31 @@ async function injectBridge(
     block +
     `\n\n${BRIDGE_END}`;
 
-  let existing = existsSync(bridgeFile) ? await readFile(bridgeFile, "utf8") : "";
+  const fileExists = existsSync(bridgeFile);
+  let existing = fileExists ? await readFile(bridgeFile, "utf8") : "";
+  // Normalize line endings to avoid \r\n accumulation
+  existing = existing.replace(/\r\n/g, "\n");
 
   const startIdx = existing.indexOf(BRIDGE_START);
   const endIdx = existing.indexOf(BRIDGE_END);
+
+  // Detect partial markers — safer to abort than silently corrupt the file
+  if (startIdx !== -1 && endIdx === -1) {
+    ui.warn(`${path.relative(root, bridgeFile)}: found ${BRIDGE_START} without ${BRIDGE_END}. Fix the file manually before running --inject-bridge.`);
+    return;
+  }
+  if (startIdx === -1 && endIdx !== -1) {
+    ui.warn(`${path.relative(root, bridgeFile)}: found ${BRIDGE_END} without ${BRIDGE_START}. Fix the file manually before running --inject-bridge.`);
+    return;
+  }
 
   let updated: string;
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
     updated = existing.slice(0, startIdx) + injected + existing.slice(endIdx + BRIDGE_END.length);
   } else {
+    if (!fileExists && !quiet) {
+      ui.info(`Creating ${path.relative(root, bridgeFile)} with haive memory block.`);
+    }
     updated = existing + (existing.endsWith("\n") ? "" : "\n") + "\n" + injected + "\n";
   }
 

@@ -73,6 +73,11 @@ import {
   bootstrapProjectPrompt,
   type BootstrapProjectArgs,
 } from "./prompts/bootstrap-project.js";
+import {
+  PostTaskArgsSchema,
+  postTaskPrompt,
+  type PostTaskArgs,
+} from "./prompts/post-task.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -101,7 +106,7 @@ export function createHaiveServer(
 
   server.tool(
     "mem_save",
-    "Save a new memory (default scope=personal). Use scope=team for shared memories.",
+    "Save a new memory (convention, decision, gotcha, architecture, glossary). For failed approaches use mem_tried instead — it enforces a structured format that is more useful to future agents. Use scope=team to share with the whole team.",
     MemSaveInputSchema,
     async (input: MemSaveInput) => jsonResult(await memSave(input, context)),
   );
@@ -208,7 +213,7 @@ export function createHaiveServer(
 
   server.tool(
     "mem_tried",
-    "Record a failed approach as negative knowledge (type=attempt, auto-validated). Use this whenever you tried something and it didn't work — saves future agents from repeating the mistake.",
+    "Preferred way to record a failed approach. Enforces a structured what/why_failed/instead format that is immediately actionable for future agents. Auto-validated (no approval cycle). Use whenever you tried an approach and it failed — prevents the same mistake from happening in the next session.",
     MemTriedInputSchema,
     async (input: MemTriedInput) => jsonResult(await memTried(input, context)),
   );
@@ -218,6 +223,13 @@ export function createHaiveServer(
     "Instructions for the AI client to analyze the project and save the context.",
     BootstrapProjectArgsSchema,
     (args: BootstrapProjectArgs) => bootstrapProjectPrompt(args, context),
+  );
+
+  server.prompt(
+    "post_task",
+    "Post-task checklist: run this after completing a task to capture failed approaches, new conventions, decisions, and gotchas before closing the session.",
+    PostTaskArgsSchema,
+    (args: PostTaskArgs) => postTaskPrompt(args, context),
   );
 
   return { server, context };
