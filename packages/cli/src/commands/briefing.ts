@@ -17,6 +17,7 @@ interface BriefingOptions {
   maxMemories?: string;
   scope?: string;
   includeDraft?: boolean;
+  includeStale?: boolean;
   dir?: string;
 }
 
@@ -35,6 +36,7 @@ export function registerBriefing(program: Command): void {
       "team",
     )
     .option("--include-draft", "include draft memories (excluded by default)")
+    .option("--include-stale", "include stale memories (excluded by default — may be outdated)")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: BriefingOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -60,11 +62,12 @@ export function registerBriefing(program: Command): void {
       const maxMemories = Math.max(1, Number(opts.maxMemories ?? 10));
       const scopeFilter = opts.scope ?? "team";
 
-      // Filter: exclude noise and drafts by default
+      // Filter: exclude noise, drafts, and stale by default
       const candidates = all.filter(({ memory: mem }) => {
         const fm = mem.frontmatter;
         if (fm.status === "rejected" || fm.status === "deprecated") return false;
         if (!opts.includeDraft && fm.status === "draft") return false;
+        if (!opts.includeStale && fm.status === "stale") return false;
         if (scopeFilter !== "all" && fm.scope !== scopeFilter) return false;
         return true;
       });
@@ -101,8 +104,9 @@ export function registerBriefing(program: Command): void {
         const fm = mem.frontmatter;
         const badge = ui.statusBadge(fm.status);
         const draftMarker = fm.status === "draft" ? ui.yellow(" [DRAFT]") : "";
+        const unverifiedMarker = fm.status === "proposed" ? ui.yellow(" [UNVERIFIED]") : "";
         console.log(
-          `${ui.bold(fm.id)}  ${ui.dim(fm.scope + "/" + fm.type)}  ${badge}${draftMarker}`,
+          `${ui.bold(fm.id)}  ${ui.dim(fm.scope + "/" + fm.type)}  ${badge}${draftMarker}${unverifiedMarker}`,
         );
         console.log(mem.body.trim());
         console.log();

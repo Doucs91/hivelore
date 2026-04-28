@@ -16,6 +16,7 @@ import { registerMemoryAutoPromote } from "./commands/memory-auto-promote.js";
 import { registerMemoryEdit } from "./commands/memory-edit.js";
 import { registerMemoryForFiles } from "./commands/memory-for-files.js";
 import { registerMemoryHot } from "./commands/memory-hot.js";
+import { registerMemoryTried } from "./commands/memory-tried.js";
 import { registerMemoryPending } from "./commands/memory-pending.js";
 import { registerMemoryQuery } from "./commands/memory-query.js";
 import { registerMemoryReject } from "./commands/memory-reject.js";
@@ -59,6 +60,7 @@ registerMemoryPending(memory);
 registerMemoryApprove(memory);
 registerMemoryUpdate(memory);
 registerMemoryHot(memory);
+registerMemoryTried(memory);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   if (isZodError(err)) {

@@ -51,6 +51,35 @@ function collectAnchorPathTokens(paths: readonly string[]): string[] {
   return [...out];
 }
 
+/**
+ * OR-based fallback: returns true if the memory matches at least one token.
+ * Used when all-tokens (AND) search returns 0 results.
+ */
+export function literalMatchesAnyToken(memory: Memory, tokens: string[]): boolean {
+  if (tokens.length === 0) return false;
+  const fm = memory.frontmatter;
+  const idLower = fm.id.toLowerCase();
+  const tagsLower = fm.tags.map((t) => t.toLowerCase());
+  const bodyLower = memory.body.toLowerCase();
+  const anchorPathTokens = collectAnchorPathTokens(fm.anchor.paths);
+  const anchorSymbolsLower = fm.anchor.symbols.map((s) => s.toLowerCase());
+  const moduleLower = fm.module?.toLowerCase();
+  const domainLower = fm.domain?.toLowerCase();
+
+  return tokens.some((rawTok) => {
+    const tok = rawTok.toLowerCase();
+    return (
+      idLower.includes(tok) ||
+      tagsLower.some((t) => t.includes(tok)) ||
+      bodyLower.includes(tok) ||
+      anchorPathTokens.some((p) => p.includes(tok)) ||
+      anchorSymbolsLower.some((s) => s.includes(tok)) ||
+      (moduleLower !== undefined && moduleLower.includes(tok)) ||
+      (domainLower !== undefined && domainLower.includes(tok))
+    );
+  });
+}
+
 export function pickSnippetNeedle(query: string): string {
   const tokens = tokenizeQuery(query);
   if (tokens.length === 0) return query.toLowerCase();

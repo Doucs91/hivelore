@@ -4,6 +4,7 @@ import {
   extractSnippet,
   getUsage,
   literalMatchesAllTokens,
+  literalMatchesAnyToken,
   loadMemoriesFromDir,
   loadUsageIndex,
   pickSnippetNeedle,
@@ -23,7 +24,7 @@ export const MemSearchInputSchema = {
     .optional()
     .describe("Restrict results to a single scope"),
   type: z
-    .enum(["convention", "decision", "gotcha", "architecture", "glossary"])
+    .enum(["convention", "decision", "gotcha", "architecture", "glossary", "attempt"])
     .optional()
     .describe("Restrict results to a memory type"),
   module: z.string().optional().describe("Restrict results to a module"),
@@ -134,15 +135,28 @@ function buildLiteralResult(
   input: MemSearchInput,
   filtered: LoadedMemory[],
   usage: UsageIndex,
-): { matches: MemSearchHit[]; total: number; mode: "literal" } {
+): { matches: MemSearchHit[]; total: number; mode: "literal"; notice?: string } {
   const tokens = tokenizeQuery(input.query);
-  const matched = filtered.filter(({ memory }) => literalMatchesAllTokens(memory, tokens));
   const snippetNeedle = pickSnippetNeedle(input.query);
-  const top = matched.slice(0, input.limit);
+
+  let andMatched = filtered.filter(({ memory }) => literalMatchesAllTokens(memory, tokens));
+  if (andMatched.length > 0) {
+    const top = andMatched.slice(0, input.limit);
+    return {
+      matches: top.map((loaded) => toHit(loaded, snippetNeedle, usage)),
+      total: andMatched.length,
+      mode: "literal",
+    };
+  }
+
+  // AND returned nothing — fall back to OR (any token)
+  const orMatched = filtered.filter(({ memory }) => literalMatchesAnyToken(memory, tokens));
+  const top = orMatched.slice(0, input.limit);
   return {
     matches: top.map((loaded) => toHit(loaded, snippetNeedle, usage)),
-    total: matched.length,
+    total: orMatched.length,
     mode: "literal",
+    notice: `No exact match for all tokens. Showing partial matches (OR fallback) — ${orMatched.length} result${orMatched.length === 1 ? "" : "s"}.`,
   };
 }
 

@@ -17,6 +17,7 @@ export const MemoryTypeSchema = z.enum([
   "gotcha",
   "architecture",
   "glossary",
+  "attempt", // failed approach / negative knowledge — "tried X, failed because Y, use Z instead"
 ]);
 
 export const AnchorSchema = z.object({

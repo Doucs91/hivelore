@@ -54,6 +54,11 @@ import {
   type MemApproveInput,
 } from "./tools/mem-approve.js";
 import {
+  MemTriedInputSchema,
+  memTried,
+  type MemTriedInput,
+} from "./tools/mem-tried.js";
+import {
   GetBriefingInputSchema,
   getBriefing,
   type GetBriefingInput,
@@ -199,6 +204,13 @@ export function createHaiveServer(
     "Mark a memory as validated immediately (explicit team review).",
     MemApproveInputSchema,
     async (input: MemApproveInput) => jsonResult(await memApprove(input, context)),
+  );
+
+  server.tool(
+    "mem_tried",
+    "Record a failed approach as negative knowledge (type=attempt, auto-validated). Use this whenever you tried something and it didn't work — saves future agents from repeating the mistake.",
+    MemTriedInputSchema,
+    async (input: MemTriedInput) => jsonResult(await memTried(input, context)),
   );
 
   server.prompt(

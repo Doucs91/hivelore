@@ -54,6 +54,10 @@ export const GetBriefingInputSchema = {
     .describe(
       "Use semantic ranking when a task is provided (requires `haive embeddings index`).",
     ),
+  include_stale: z
+    .boolean()
+    .default(false)
+    .describe("Include stale memories (excluded by default — they may be outdated)"),
   track: z.boolean().default(true).describe("Increment read_count on returned memories"),
 };
 
@@ -96,7 +100,13 @@ export async function getBriefing(
   let searchMode: BriefingOutput["search_mode"] = "literal";
 
   if (existsSync(ctx.paths.memoriesDir)) {
-    const allMemories = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+    const allLoaded = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+    const allMemories = allLoaded.filter(({ memory }) => {
+      const s = memory.frontmatter.status;
+      if (s === "rejected" || s === "deprecated") return false;
+      if (!input.include_stale && s === "stale") return false;
+      return true;
+    });
     const usage = await loadUsageIndex(ctx.paths);
     const semanticHits = input.task && input.semantic
       ? await trySemanticHits(ctx, input.task, allMemories.length * 2)
@@ -201,7 +211,10 @@ export async function getBriefing(
     : [];
 
   const memoriesText = memories
-    .map((m) => `### ${m.id} (${m.scope}/${m.type}, ${m.confidence})\n${m.body.trim()}`)
+    .map((m) => {
+      const unverified = m.status === "proposed" ? " [UNVERIFIED — not yet validated]" : "";
+      return `### ${m.id} (${m.scope}/${m.type}, ${m.confidence})${unverified}\n${m.body.trim()}`;
+    })
     .join("\n\n---\n\n");
 
   // Allocate budget across the three large pieces

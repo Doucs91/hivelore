@@ -34,7 +34,7 @@ export function registerMemoryAdd(memory: Command): void {
   memory
     .command("add")
     .description("Add a new memory (defaults to personal scope)")
-    .requiredOption("--type <type>", "convention | decision | gotcha | architecture | glossary")
+    .requiredOption("--type <type>", "convention | decision | gotcha | architecture | glossary | attempt")
     .requiredOption("--slug <slug>", "short identifier used in the file name")
     .option("--title <text>", "memory title — becomes the first heading of the body")
     .option("--scope <scope>", "personal | team | module", "personal")

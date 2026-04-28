@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   buildFrontmatter,
+  loadMemoriesFromDir,
   memoryFilePath,
   serializeMemory,
 } from "@hiveai/core";
@@ -11,8 +12,8 @@ import type { HaiveContext } from "../context.js";
 
 export const MemSaveInputSchema = {
   type: z
-    .enum(["convention", "decision", "gotcha", "architecture", "glossary"])
-    .describe("Kind of memory being saved"),
+    .enum(["convention", "decision", "gotcha", "architecture", "glossary", "attempt"])
+    .describe("Kind of memory being saved. Use 'attempt' for failed approaches (auto-validated)."),
   slug: z
     .string()
     .min(1)
@@ -53,6 +54,7 @@ export interface MemSaveOutput {
   id: string;
   scope: string;
   file_path: string;
+  warning?: string;
 }
 
 export async function memSave(
@@ -90,11 +92,26 @@ export async function memSave(
     throw new Error(`Memory already exists at ${file}`);
   }
 
+  // Dedup check: warn if a memory with a similar slug already exists
+  let warning: string | undefined;
+  if (existsSync(ctx.paths.memoriesDir)) {
+    const existing = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+    const slugTokens = input.slug.toLowerCase().split(/[-_\s]+/).filter(Boolean);
+    const similar = existing.filter(({ memory }) => {
+      const id = memory.frontmatter.id.toLowerCase();
+      return slugTokens.length >= 2 && slugTokens.filter((t) => id.includes(t)).length >= Math.ceil(slugTokens.length * 0.6);
+    });
+    if (similar.length > 0) {
+      warning = `Possible duplicate detected. Similar memories: ${similar.map((m) => m.memory.frontmatter.id).join(", ")}. Consider updating one of these instead.`;
+    }
+  }
+
   await writeFile(file, serializeMemory({ frontmatter, body: input.body }), "utf8");
 
   return {
     id: frontmatter.id,
     scope: frontmatter.scope,
     file_path: file,
+    ...(warning ? { warning } : {}),
   };
 }
