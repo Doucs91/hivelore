@@ -24,6 +24,7 @@ import { registerMemoryRm } from "./commands/memory-rm.js";
 import { registerMemoryShow } from "./commands/memory-show.js";
 import { registerMemoryStats } from "./commands/memory-stats.js";
 import { registerMemoryVerify } from "./commands/memory-verify.js";
+import { registerMemoryImport } from "./commands/memory-import.js";
 
 const program = new Command();
 
@@ -61,6 +62,7 @@ registerMemoryApprove(memory);
 registerMemoryUpdate(memory);
 registerMemoryHot(memory);
 registerMemoryTried(memory);
+registerMemoryImport(memory);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   if (isZodError(err)) {

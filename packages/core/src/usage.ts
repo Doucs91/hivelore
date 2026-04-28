@@ -95,6 +95,14 @@ export function recordRejection(
   return index;
 }
 
+export const DECAY_DAYS = 90;
+
+export function isDecaying(usage: MemoryUsage, createdAt: string): boolean {
+  const threshold = Date.now() - DECAY_DAYS * 24 * 60 * 60 * 1000;
+  const anchor = usage.last_read_at ?? createdAt;
+  return new Date(anchor).getTime() < threshold;
+}
+
 export async function trackReads(
   paths: HaivePaths,
   ids: string[],

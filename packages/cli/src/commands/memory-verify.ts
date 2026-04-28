@@ -68,6 +68,9 @@ export function registerMemoryVerify(memory: Command): void {
           console.log(`${ui.bold("STALE")}  ${mem.frontmatter.id}`);
           console.log(`       ${ui.dim(rel)}`);
           console.log(`       ${result.reason}`);
+          if (result.possibleRenames.length > 0) {
+            console.log(`       ${ui.yellow("Possible renames:")} ${result.possibleRenames.join(", ")}`);
+          }
         } else {
           freshCount++;
           console.log(`${ui.dim("fresh")}  ${mem.frontmatter.id}`);

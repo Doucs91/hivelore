@@ -46,6 +46,8 @@ export const MemoryFrontmatterSchema = z
     expires_when: z.string().nullable().default(null),
     verified_at: z.string().nullable().default(null),
     stale_reason: z.string().nullable().default(null),
+    related_ids: z.array(z.string()).default([]),
+    last_read_at: z.string().nullable().default(null),
   })
   .refine(
     (data) => data.scope !== "module" || !!data.module,

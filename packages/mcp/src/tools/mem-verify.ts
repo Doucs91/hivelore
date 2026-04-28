@@ -26,6 +26,7 @@ export interface MemVerifyHit {
   file_path: string;
   stale: boolean;
   reason: string | null;
+  possible_renames?: string[];
   status_after: string;
   skipped?: boolean;
 }
@@ -96,6 +97,7 @@ export async function memVerify(
       file_path: filePath,
       stale: result.stale,
       reason: result.reason,
+      ...(result.possibleRenames.length > 0 ? { possible_renames: result.possibleRenames } : {}),
       status_after: statusAfter,
     });
   }

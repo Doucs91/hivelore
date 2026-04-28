@@ -7,6 +7,7 @@ import {
   estimateTokens,
   getUsage,
   inferModulesFromPaths,
+  isDecaying,
   literalMatchesAllTokens,
   loadMemoriesFromDir,
   loadUsageIndex,
@@ -59,6 +60,12 @@ export const GetBriefingInputSchema = {
     .default(false)
     .describe("Include stale memories (excluded by default — they may be outdated)"),
   track: z.boolean().default(true).describe("Increment read_count on returned memories"),
+  format: z
+    .enum(["full", "compact"])
+    .default("full")
+    .describe(
+      "Output format: 'full' returns complete memory bodies; 'compact' returns id + 1-line summary only (call mem_get for details).",
+    ),
 };
 
 export type GetBriefingInput = {
@@ -89,6 +96,7 @@ export interface BriefingOutput {
   project_context: { content: string; truncated: boolean } | null;
   module_contexts: Array<{ name: string; content: string; truncated: boolean }>;
   memories: BriefingMemory[];
+  decay_warnings: string[];
   estimated_tokens: number;
   budget: { max_tokens: number; spent: { project: number; modules: number; memories: number } };
 }
@@ -100,6 +108,8 @@ export async function getBriefing(
   const inferred = inferModulesFromPaths(input.files);
   const memories: BriefingMemory[] = [];
   let searchMode: BriefingOutput["search_mode"] = "literal";
+  let usage: UsageIndex = { version: 1, updated_at: "", by_id: {} };
+  let byId = new Map<string, LoadedMemory>();
 
   if (existsSync(ctx.paths.memoriesDir)) {
     const allLoaded = await loadMemoriesFromDir(ctx.paths.memoriesDir);
@@ -109,7 +119,7 @@ export async function getBriefing(
       if (!input.include_stale && s === "stale") return false;
       return true;
     });
-    const usage = await loadUsageIndex(ctx.paths);
+    usage = await loadUsageIndex(ctx.paths);
     const semanticHits = input.task && input.semantic
       ? await trySemanticHits(ctx, input.task, allMemories.length * 2)
       : null;
@@ -179,7 +189,6 @@ export async function getBriefing(
         }
       }
       if (semanticHits) {
-        const byId = new Map(allMemories.map((m) => [m.memory.frontmatter.id, m]));
         for (const hit of semanticHits) {
           const loaded = byId.get(hit.id);
           if (loaded) addOrUpdate(loaded, "semantic", hit.score, "semantic");
@@ -203,6 +212,19 @@ export async function getBriefing(
       const sb = reasonScore(b) + confidenceScore(b) + (b.semantic_score ?? 0);
       return sb - sa;
     });
+
+    // Expand related_ids: pull in memories linked from the top results
+    byId = new Map(allMemories.map((m) => [m.memory.frontmatter.id, m]));
+    for (const mem of ranked.slice(0, input.max_memories)) {
+      if (seen.size >= input.max_memories * 2) break;
+      const loaded = byId.get(mem.id);
+      if (!loaded) continue;
+      for (const relId of loaded.memory.frontmatter.related_ids ?? []) {
+        if (seen.has(relId)) continue;
+        const related = byId.get(relId);
+        if (related) addOrUpdate(related, "anchor", undefined, "partial");
+      }
+    }
 
     memories.push(...ranked.slice(0, input.max_memories));
 
@@ -260,8 +282,6 @@ export async function getBriefing(
     }
   }
 
-  const trimmedMemoriesText = memoriesSlice.text;
-
   // Recompute memory bodies to fit using a cascade approach:
   // top-ranked memories get full budget first; lower-ranked ones are dropped if budget runs out.
   // This is better than uniform truncation which gives all memories a 37%-fragment.
@@ -289,6 +309,21 @@ export async function getBriefing(
   const totalTokens =
     projectSlice.estimatedTokens + modulesSlice.estimatedTokens + memoriesSlice.estimatedTokens;
 
+  // Decay warnings: memories not read in >90 days
+  const decayWarnings: string[] = [];
+  for (const m of trimmedMemories) {
+    const u = getUsage(usage, m.id);
+    const loaded = byId.get(m.id);
+    const createdAt = loaded?.memory.frontmatter.created_at ?? new Date().toISOString();
+    if (isDecaying(u, createdAt)) decayWarnings.push(m.id);
+  }
+
+  // Compact format: replace body with 1-line summary
+  const outputMemories =
+    input.format === "compact"
+      ? trimmedMemories.map((m) => ({ ...m, body: compactSummary(m.body) }))
+      : trimmedMemories;
+
   return {
     ...(input.task ? { task: input.task } : {}),
     search_mode: searchMode,
@@ -297,7 +332,8 @@ export async function getBriefing(
       ? { content: projectSlice.text, truncated: projectSlice.truncated }
       : null,
     module_contexts: trimmedModules,
-    memories: trimmedMemories,
+    memories: outputMemories,
+    decay_warnings: decayWarnings,
     estimated_tokens: totalTokens,
     budget: {
       max_tokens: input.max_tokens,
@@ -308,6 +344,14 @@ export async function getBriefing(
       },
     },
   };
+}
+
+function compactSummary(body: string): string {
+  for (const line of body.split("\n")) {
+    const trimmed = line.replace(/^#+\s*/, "").trim();
+    if (trimmed.length > 0) return trimmed.slice(0, 120);
+  }
+  return body.slice(0, 120);
 }
 
 async function trySemanticHits(

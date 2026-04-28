@@ -30,6 +30,47 @@ const BRIDGE_BODY = `<!-- hAIve bridge file — do not edit by hand. -->
 
 See \`.ai/project-context.md\` for the full project context.
 Memories live under \`.ai/memories/\` (personal/team/module).
+
+## hAIve — mandatory rules for AI agents
+- **Before** marking a task as done ("Done", "Finished", "C'est fait"), call the MCP prompt \`post_task\`.
+- **Immediately** when an approach fails (wrong API, wrong pattern, wrong assumption), call \`mem_tried\` — do not wait until the end of the session.
+- When starting a new task, call \`get_briefing\` with the task description to load relevant memories and avoid repeating past mistakes.
+`;
+
+const CI_WORKFLOW = `name: haive-sync
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    paths:
+      - '.ai/**'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install hAIve CLI
+        run: npm install -g @haive/cli
+
+      - name: Sync memories (verify anchors + auto-promote)
+        run: haive sync --quiet
+
+      - name: Commit updated memories (if any)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .ai/
+          git diff --cached --quiet || git commit -m "chore: haive sync [skip ci]"
+          git push
 `;
 
 export function registerInit(program: Command): void {
@@ -38,7 +79,8 @@ export function registerInit(program: Command): void {
     .description("Initialize a hAIve project (.ai/ structure + bridge files)")
     .option("-d, --dir <dir>", "project root", process.cwd())
     .option("--no-bridges", "do not generate CLAUDE.md / .cursorrules / copilot-instructions.md")
-    .action(async (opts: { dir: string; bridges: boolean }) => {
+    .option("--with-ci", "write a GitHub Actions workflow (.github/workflows/haive-sync.yml)")
+    .action(async (opts: { dir: string; bridges: boolean; withCi?: boolean }) => {
       const root = path.resolve(opts.dir);
       const paths = resolveHaivePaths(root);
 
@@ -60,6 +102,17 @@ export function registerInit(program: Command): void {
         await writeBridge(root, "CLAUDE.md");
         await writeBridge(root, ".cursorrules");
         await writeBridge(root, path.join(".github", "copilot-instructions.md"));
+      }
+
+      if (opts.withCi) {
+        const ciPath = path.join(root, ".github", "workflows", "haive-sync.yml");
+        if (existsSync(ciPath)) {
+          ui.info("CI workflow already exists — skipped");
+        } else {
+          await mkdir(path.dirname(ciPath), { recursive: true });
+          await writeFile(ciPath, CI_WORKFLOW, "utf8");
+          ui.success(`Created ${path.relative(root, ciPath)}`);
+        }
       }
 
       ui.success(`hAIve initialized at ${root}`);

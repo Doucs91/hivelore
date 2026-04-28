@@ -69,6 +69,11 @@ import {
   type CodeMapInput,
 } from "./tools/code-map.js";
 import {
+  MemDiffInputSchema,
+  memDiff,
+  type MemDiffInput,
+} from "./tools/mem-diff.js";
+import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
   type BootstrapProjectArgs,
@@ -78,6 +83,11 @@ import {
   postTaskPrompt,
   type PostTaskArgs,
 } from "./prompts/post-task.js";
+import {
+  ImportDocsArgsSchema,
+  importDocsPrompt,
+  type ImportDocsArgs,
+} from "./prompts/import-docs.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -218,6 +228,13 @@ export function createHaiveServer(
     async (input: MemTriedInput) => jsonResult(await memTried(input, context)),
   );
 
+  server.tool(
+    "mem_diff",
+    "Compare two memories side-by-side: shows frontmatter fields that differ and lines unique to each body. Useful before merging or deduplicating memories.",
+    MemDiffInputSchema,
+    async (input: MemDiffInput) => jsonResult(await memDiff(input, context)),
+  );
+
   server.prompt(
     "bootstrap_project",
     "Instructions for the AI client to analyze the project and save the context.",
@@ -230,6 +247,13 @@ export function createHaiveServer(
     "Post-task checklist: run this after completing a task to capture failed approaches, new conventions, decisions, and gotchas before closing the session.",
     PostTaskArgsSchema,
     (args: PostTaskArgs) => postTaskPrompt(args, context),
+  );
+
+  server.prompt(
+    "import_docs",
+    "Analyze documentation (README, ADR, wiki page, etc.) and save the actionable knowledge as hAIve memories. Pass the content and an optional source/scope.",
+    ImportDocsArgsSchema,
+    (args: ImportDocsArgs) => importDocsPrompt(args, context),
   );
 
   return { server, context };

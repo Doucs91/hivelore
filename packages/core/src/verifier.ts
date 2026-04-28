@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import type { Memory } from "./types.js";
@@ -8,6 +8,7 @@ export interface VerifyResult {
   reason: string | null;
   checkedPaths: string[];
   checkedSymbols: string[];
+  possibleRenames: string[];
 }
 
 export interface VerifyOptions {
@@ -33,7 +34,7 @@ export async function verifyAnchor(
   const checkedSymbols = anchor.symbols;
 
   if (checkedPaths.length === 0 && checkedSymbols.length === 0) {
-    return { stale: false, reason: null, checkedPaths, checkedSymbols };
+    return { stale: false, reason: null, checkedPaths, checkedSymbols, possibleRenames: [] };
   }
 
   const missingPaths: string[] = [];
@@ -48,11 +49,13 @@ export async function verifyAnchor(
   }
 
   if (missingPaths.length > 0) {
+    const possibleRenames = await findPossibleRenames(missingPaths, options.projectRoot);
     return {
       stale: true,
       reason: `anchor path(s) no longer exist: ${missingPaths.join(", ")}`,
       checkedPaths,
       checkedSymbols,
+      possibleRenames,
     };
   }
 
@@ -63,6 +66,7 @@ export async function verifyAnchor(
         reason: `cannot verify symbols (${checkedSymbols.join(", ")}): no anchor paths recorded`,
         checkedPaths,
         checkedSymbols,
+        possibleRenames: [],
       };
     }
     const missingSymbols: string[] = [];
@@ -87,9 +91,55 @@ export async function verifyAnchor(
         reason: `anchor symbol(s) not found in any anchor path: ${missingSymbols.join(", ")}`,
         checkedPaths,
         checkedSymbols,
+        possibleRenames: [],
       };
     }
   }
 
-  return { stale: false, reason: null, checkedPaths, checkedSymbols };
+  return { stale: false, reason: null, checkedPaths, checkedSymbols, possibleRenames: [] };
+}
+
+async function findPossibleRenames(
+  missingPaths: string[],
+  projectRoot: string,
+): Promise<string[]> {
+  const basenames = new Set(missingPaths.map((p) => path.basename(p)));
+  const found: string[] = [];
+  try {
+    await walkDir(projectRoot, projectRoot, basenames, found, 0);
+  } catch {
+    // best-effort
+  }
+  return found;
+}
+
+async function walkDir(
+  dir: string,
+  root: string,
+  targets: Set<string>,
+  found: string[],
+  depth: number,
+): Promise<void> {
+  if (depth > 6) return;
+  let entries: string[];
+  try {
+    entries = await readdir(dir, { encoding: "utf8" });
+  } catch {
+    return;
+  }
+  for (const name of entries) {
+    if (name.startsWith(".") || name === "node_modules") continue;
+    const abs = path.join(dir, name);
+    let isDir = false;
+    try {
+      isDir = (await stat(abs)).isDirectory();
+    } catch {
+      continue;
+    }
+    if (isDir) {
+      await walkDir(abs, root, targets, found, depth + 1);
+    } else if (targets.has(name)) {
+      found.push(path.relative(root, abs));
+    }
+  }
 }

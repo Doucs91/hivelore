@@ -8,6 +8,7 @@ import {
   findProjectRoot,
   getUsage,
   isAutoPromoteEligible,
+  isDecaying,
   loadMemoriesFromDir,
   loadUsageIndex,
   resolveHaivePaths,
@@ -28,6 +29,7 @@ interface SyncOptions {
   injectBridge?: boolean;
   bridgeFile?: string;
   bridgeMaxMemories?: string;
+  embed?: boolean;
 }
 
 export function registerSync(program: Command): void {
@@ -48,6 +50,7 @@ export function registerSync(program: Command): void {
     )
     .option("--bridge-file <path>", "bridge file to inject into (default: CLAUDE.md)")
     .option("--bridge-max-memories <n>", "max memories to inject into bridge file", "5")
+    .option("--embed", "rebuild embeddings index after sync (requires @haive/embeddings)")
     .action(async (opts: SyncOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
@@ -174,6 +177,36 @@ export function registerSync(program: Command): void {
         if (sinceReport.removed.length > 0) {
           log(ui.bold("\nRemoved:"));
           for (const f of sinceReport.removed) log(`  - ${f}`);
+        }
+      }
+
+      // Decay report: memories not read in >90 days
+      if (!opts.quiet) {
+        const allForDecay = await loadMemoriesFromDir(paths.memoriesDir);
+        const usageForDecay = await loadUsageIndex(paths);
+        const decaying = allForDecay.filter(({ memory }) => {
+          const fm = memory.frontmatter;
+          if (fm.status === "rejected" || fm.status === "deprecated" || fm.status === "stale") return false;
+          const u = getUsage(usageForDecay, fm.id);
+          return isDecaying(u, fm.created_at);
+        });
+        if (decaying.length > 0) {
+          log(ui.yellow(`\n⚠  ${decaying.length} memor${decaying.length === 1 ? "y" : "ies"} not read in >90 days (consider reviewing or deprecating):`));
+          for (const { memory } of decaying) {
+            log(ui.dim(`   ${memory.frontmatter.id}`));
+          }
+        }
+      }
+
+      // --embed: rebuild embeddings index after sync
+      if (opts.embed) {
+        try {
+          const emb = await import("@hiveai/embeddings");
+          log(ui.dim("embed: rebuilding index…"));
+          const report = await emb.rebuildIndex(paths);
+          log(ui.dim(`embed: index rebuilt (${report.added} added, ${report.updated} updated, ${report.removed} removed)`));
+        } catch {
+          ui.warn("--embed: @hiveai/embeddings not available or index build failed. Run `haive embeddings index` manually.");
         }
       }
     });
