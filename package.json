@@ -15,7 +15,8 @@
     "test": "pnpm -r test",
     "test:watch": "pnpm -r test:watch",
     "typecheck": "pnpm -r typecheck",
-    "clean": "pnpm -r clean"
+    "clean": "pnpm -r clean",
+    "publish:all": "pnpm -r build && pnpm -r test && pnpm --filter @hiveai/core publish --access public --no-git-checks && pnpm --filter @hiveai/embeddings publish --access public --no-git-checks && pnpm --filter @hiveai/mcp publish --access public --no-git-checks && pnpm --filter @hiveai/cli publish --access public --no-git-checks"
   },
   "devDependencies": {
     "typescript": "^5.6.3",
