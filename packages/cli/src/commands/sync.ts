@@ -71,8 +71,27 @@ export function registerSync(program: Command): void {
       if (opts.verify !== false) {
         const memories = await loadMemoriesFromDir(paths.memoriesDir);
         for (const { memory, filePath } of memories) {
-          // session_recap memories record historical context — anchor staleness doesn't apply
-          if (memory.frontmatter.type === "session_recap") continue;
+          // session_recap records historical context — staleness doesn't apply.
+          // If one was incorrectly stale-marked by a prior sync, auto-revalidate it now.
+          if (memory.frontmatter.type === "session_recap") {
+            if (memory.frontmatter.status === "stale") {
+              await writeFile(
+                filePath,
+                serializeMemory({
+                  frontmatter: {
+                    ...memory.frontmatter,
+                    status: "validated",
+                    stale_reason: null,
+                    verified_at: new Date().toISOString(),
+                  },
+                  body: memory.body,
+                }),
+                "utf8",
+              );
+              revalidated++;
+            }
+            continue;
+          }
           const isAnchored =
             memory.frontmatter.anchor.paths.length > 0 ||
             memory.frontmatter.anchor.symbols.length > 0;
