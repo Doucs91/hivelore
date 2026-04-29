@@ -39,7 +39,16 @@ export interface BuildCodeMapOptions {
   excludeDirs?: string[];
 }
 
-const DEFAULT_INCLUDE = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
+const DEFAULT_INCLUDE = [
+  ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
+  ".java", ".kt",
+  ".py",
+  ".go",
+  ".rb",
+  ".rs",
+  ".cs",
+  ".php",
+];
 const DEFAULT_EXCLUDE = [
   "node_modules",
   "dist",
@@ -54,6 +63,11 @@ const DEFAULT_EXCLUDE = [
   "tests",
   "__tests__",
   "__mocks__",
+  "target",        // Maven/Gradle build output
+  ".gradle",
+  "__pycache__",
+  ".pytest_cache",
+  "vendor",        // Go / PHP
 ];
 
 const TEST_FILE_RE = /\.(test|spec)\.[a-z]+$/i;
@@ -86,7 +100,8 @@ export async function buildCodeMap(
     const rel = path.relative(root, abs).replace(/\\/g, "/");
     if (rel.startsWith(".ai/")) continue;
     const content = await readFile(abs, "utf8");
-    const entry = parseFile(content);
+    const ext = path.extname(abs).toLowerCase();
+    const entry = parseFile(content, ext);
     if (entry.exports.length > 0) files[rel] = entry;
   }
 
@@ -132,7 +147,29 @@ const NAMED_REEXPORT_RE = /^export\s*\{([^}]+)\}/gm;
 
 const FILE_HEADER_COMMENT_RE = /^\/\*\*([\s\S]*?)\*\//;
 
-function parseFile(source: string): CodeFileEntry {
+// Java / Kotlin: public/protected class, interface, enum, record, @interface, fun, @RestController etc.
+const JAVA_DECL_RE =
+  /^(?:[ \t]*)(?:@\w+\s+)*(?:public|protected|private|internal)?\s*(?:static\s+|final\s+|abstract\s+|open\s+|data\s+|sealed\s+)*(?:(class|interface|enum|record|@interface|object)\s+([A-Z][A-Za-z0-9_$]*)|(fun|def|func|function)\s+([a-z_][A-Za-z0-9_$]*))/gm;
+
+// Python: def / class at module level (not indented)
+const PYTHON_DECL_RE = /^(def|class)\s+([A-Za-z_][A-Za-z0-9_]*)/gm;
+
+// Go: func declarations
+const GO_DECL_RE = /^func\s+(?:\(\w+\s+\*?[A-Za-z_][\w]*\)\s+)?([A-Za-z_][A-Za-z0-9_]*)/gm;
+
+// Rust: pub fn / pub struct / pub enum / pub trait
+const RUST_DECL_RE =
+  /^pub(?:\([^)]*\))?\s+(fn|struct|enum|trait|type|const|impl|mod)\s+([A-Za-z_][A-Za-z0-9_]*)/gm;
+
+function parseFile(source: string, ext: string): CodeFileEntry {
+  if (ext === ".java" || ext === ".kt") return parseJvmFile(source);
+  if (ext === ".py") return parsePythonFile(source);
+  if (ext === ".go") return parseGoFile(source);
+  if (ext === ".rs") return parseRustFile(source);
+  return parseJsFile(source);
+}
+
+function parseJsFile(source: string): CodeFileEntry {
   const exports: CodeExport[] = [];
   const lines = source.split("\n");
   const lineOffsets = computeLineOffsets(source);
@@ -151,12 +188,7 @@ function parseFile(source: string): CodeFileEntry {
       kindRaw === "enum" ? "enum" : "const";
     const lineIdx = byteToLine(m.index, lineOffsets);
     const description = extractJSDocAbove(lines, lineIdx);
-    exports.push({
-      name,
-      kind,
-      ...(description ? { description } : {}),
-      line: lineIdx + 1,
-    });
+    exports.push({ name, kind, ...(description ? { description } : {}), line: lineIdx + 1 });
   }
 
   NAMED_REEXPORT_RE.lastIndex = 0;
@@ -172,11 +204,117 @@ function parseFile(source: string): CodeFileEntry {
   }
 
   const summary = extractFileSummary(source);
-  return {
-    ...(summary ? { summary } : {}),
-    exports,
-    loc: lines.length,
-  };
+  return { ...(summary ? { summary } : {}), exports, loc: source.split("\n").length };
+}
+
+function parseJvmFile(source: string): CodeFileEntry {
+  const exports: CodeExport[] = [];
+  const lines = source.split("\n");
+  const lineOffsets = computeLineOffsets(source);
+  let m: RegExpExecArray | null;
+  JAVA_DECL_RE.lastIndex = 0;
+  while ((m = JAVA_DECL_RE.exec(source))) {
+    const kindRaw = m[1] ?? m[3] ?? "";
+    const name = m[2] ?? m[4] ?? "";
+    if (!name) continue;
+    const kind: CodeExportKind =
+      kindRaw === "class" || kindRaw === "record" || kindRaw === "object" ? "class" :
+      kindRaw === "interface" || kindRaw === "@interface" ? "interface" :
+      kindRaw === "enum" ? "enum" :
+      kindRaw === "fun" || kindRaw === "def" || kindRaw === "func" || kindRaw === "function" ? "function" :
+      "const";
+    const lineIdx = byteToLine(m.index, lineOffsets);
+    const description = extractJSDocAbove(lines, lineIdx);
+    exports.push({ name, kind, ...(description ? { description } : {}), line: lineIdx + 1 });
+  }
+  const summary = extractJavaSummary(source);
+  return { ...(summary ? { summary } : {}), exports, loc: lines.length };
+}
+
+function parsePythonFile(source: string): CodeFileEntry {
+  const exports: CodeExport[] = [];
+  const lines = source.split("\n");
+  const lineOffsets = computeLineOffsets(source);
+  let m: RegExpExecArray | null;
+  PYTHON_DECL_RE.lastIndex = 0;
+  while ((m = PYTHON_DECL_RE.exec(source))) {
+    const keyword = m[1] ?? "";
+    const name = m[2] ?? "";
+    if (!name || name.startsWith("_")) continue;
+    const kind: CodeExportKind = keyword === "class" ? "class" : "function";
+    const lineIdx = byteToLine(m.index, lineOffsets);
+    const description = extractPythonDocstring(lines, lineIdx);
+    exports.push({ name, kind, ...(description ? { description } : {}), line: lineIdx + 1 });
+  }
+  const summary = extractPythonModuleDocstring(source);
+  return { ...(summary ? { summary } : {}), exports, loc: lines.length };
+}
+
+function parseGoFile(source: string): CodeFileEntry {
+  const exports: CodeExport[] = [];
+  const lines = source.split("\n");
+  const lineOffsets = computeLineOffsets(source);
+  let m: RegExpExecArray | null;
+  GO_DECL_RE.lastIndex = 0;
+  while ((m = GO_DECL_RE.exec(source))) {
+    const name = m[1] ?? "";
+    if (!name || !/^[A-Z]/.test(name)) continue; // Only exported (uppercase) in Go
+    const lineIdx = byteToLine(m.index, lineOffsets);
+    const description = extractJSDocAbove(lines, lineIdx);
+    exports.push({ name, kind: "function", ...(description ? { description } : {}), line: lineIdx + 1 });
+  }
+  return { exports, loc: lines.length };
+}
+
+function parseRustFile(source: string): CodeFileEntry {
+  const exports: CodeExport[] = [];
+  const lines = source.split("\n");
+  const lineOffsets = computeLineOffsets(source);
+  let m: RegExpExecArray | null;
+  RUST_DECL_RE.lastIndex = 0;
+  while ((m = RUST_DECL_RE.exec(source))) {
+    const kindRaw = m[1] ?? "";
+    const name = m[2] ?? "";
+    if (!name) continue;
+    const kind: CodeExportKind =
+      kindRaw === "struct" || kindRaw === "impl" ? "class" :
+      kindRaw === "enum" ? "enum" :
+      kindRaw === "trait" ? "interface" :
+      kindRaw === "fn" ? "function" :
+      kindRaw === "type" ? "type" : "const";
+    const lineIdx = byteToLine(m.index, lineOffsets);
+    const description = extractJSDocAbove(lines, lineIdx);
+    exports.push({ name, kind, ...(description ? { description } : {}), line: lineIdx + 1 });
+  }
+  return { exports, loc: lines.length };
+}
+
+function extractJavaSummary(source: string): string | undefined {
+  // Java/Kotlin: file-level Javadoc before first class/interface
+  const m = source.match(/^\/\*\*([\s\S]*?)\*\//);
+  if (!m) return undefined;
+  const block = (m[1] ?? "")
+    .split("\n")
+    .map((l) => l.replace(/^\s*\*\s?/, "").trim())
+    .filter((l) => l && !l.startsWith("@"))
+    .join(" ");
+  return block ? firstSentence(block) : undefined;
+}
+
+function extractPythonDocstring(lines: string[], defLine: number): string | undefined {
+  const next = lines[defLine + 1] ?? "";
+  const stripped = next.trim();
+  if (stripped.startsWith('"""') || stripped.startsWith("'''")) {
+    const inner = stripped.replace(/^["']{3}/, "").replace(/["']{3}.*$/, "").trim();
+    return inner || undefined;
+  }
+  return undefined;
+}
+
+function extractPythonModuleDocstring(source: string): string | undefined {
+  const m = source.match(/^["']{3}([\s\S]*?)["']{3}/);
+  if (!m) return undefined;
+  return firstSentence((m[1] ?? "").trim());
 }
 
 function computeLineOffsets(source: string): number[] {

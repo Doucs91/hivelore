@@ -35,6 +35,19 @@ Project root: \`${ctx.paths.root}\`
 
 Go through each item. If the answer is yes, call the corresponding tool immediately.
 
+### 0. Did you read existing code and discover bugs, inconsistencies, or security gaps that weren't in the briefing?
+This is the most important question. Deep code reading surfaces issues that no memory captures yet.
+Examples of things to look for:
+- A method with an invalid signature (e.g. two \`@RequestBody\` on the same handler)
+- A configuration that looks wrong or missing (e.g. webhook path not whitelisted in SecurityConfig)
+- A component scan / DI issue (e.g. a Spring bean not picked up because the package isn't scanned)
+- A DB constraint that will break when you add a new enum value
+- A hardcoded value that should be dynamic (e.g. hardcoded tenant id "default-tenant")
+- Anything that will silently break in production
+
+→ If yes, call **\`mem_save\`** with \`type="gotcha"\`, \`scope="team"\`, and **anchor it to the file** with \`paths\`.
+  This transforms your discovery into institutional knowledge that protects every future agent.
+
 ### 1. Did you try an approach that failed?
 → If yes, call **\`mem_tried\`** with:
   - \`what\`: the approach you tried (e.g. "importing gray-matter with ESM dynamic import")
@@ -49,7 +62,7 @@ Go through each item. If the answer is yes, call the corresponding tool immediat
 ### 3. Did you make an architectural decision?
 → If yes, call **\`mem_save\`** with \`type="decision"\` and document the WHY (constraints, tradeoffs), not just the what
 
-### 4. Did you hit a non-obvious bug or surprising behavior?
+### 4. Did you hit a non-obvious bug or surprising behavior in a library or framework?
 → If yes, call **\`mem_save\`** with \`type="gotcha"\` and anchor it to the relevant file paths
 
 ### 5. Did you find that an existing memory is outdated or wrong?
@@ -61,6 +74,7 @@ Go through each item. If the answer is yes, call the corresponding tool immediat
 - Anchor memories to file paths when possible (the \`paths\` field) — this enables staleness detection.
 - Prefer \`scope="team"\` for anything a teammate or future agent would benefit from.
 - Skip sections where you genuinely have nothing to add. Don't fabricate memories.
+- **Question 0 is not optional** — always scan your exploration history for code-level discoveries.
 
 When done, respond with a brief summary: "Saved N memories: [list of IDs]" or "Nothing new to save."
 `;

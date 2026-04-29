@@ -8,6 +8,7 @@ import {
   memoryMatchesAnchorPaths,
   resolveHaivePaths,
   tokenizeQuery,
+  trackReads,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 
@@ -112,6 +113,12 @@ export function registerBriefing(program: Command): void {
         console.log();
       }
       console.log(ui.dim(`${top.length} memor${top.length === 1 ? "y" : "ies"} surfaced`));
+
+      // Track reads so usage stats, decay, and hot-memory detection work via CLI too
+      const ids = top.map(({ memory: mem }) => mem.frontmatter.id);
+      if (ids.length > 0) {
+        await trackReads(paths, ids).catch(() => { /* non-fatal */ });
+      }
     });
 }
 

@@ -9,6 +9,7 @@ import {
   pickSnippetNeedle,
   resolveHaivePaths,
   tokenizeQuery,
+  trackReads,
   type MemoryScope,
 } from "@hiveai/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
@@ -87,5 +88,11 @@ export function registerMemoryQuery(memory: Command): void {
       console.log(
         ui.dim(`\n${top.length} of ${matches.length} match${matches.length === 1 ? "" : "es"}`),
       );
+
+      // Track reads for usage stats / decay / hot detection
+      const ids = top.map(({ memory: mem }) => mem.frontmatter.id);
+      if (ids.length > 0) {
+        await trackReads(paths, ids).catch(() => { /* non-fatal */ });
+      }
     });
 }

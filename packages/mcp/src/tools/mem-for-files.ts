@@ -87,12 +87,19 @@ export async function memForFiles(
     }
   }
 
+  // Extract meaningful path segments from input files for tag matching
+  const pathSegments = extractPathSegments(input.files);
+
   for (const loaded of all) {
     if (seen.has(loaded.memory.frontmatter.id)) continue;
     const fm = loaded.memory.frontmatter;
     const moduleHit =
       (fm.module && inferred.includes(fm.module)) ||
-      fm.tags.some((t) => inferred.includes(t));
+      fm.tags.some((t) => inferred.includes(t)) ||
+      fm.tags.some((t) => {
+        const tl = t.toLowerCase();
+        return pathSegments.has(tl) || pathSegments.has(tl.replace(/[-_]/g, ""));
+      });
     if (moduleHit) {
       byModule.push(toMatch(loaded, "module", usage));
       seen.add(fm.id);
@@ -141,6 +148,34 @@ function toMatch(
     file_path: loaded.filePath,
     body: loaded.memory.body,
   };
+}
+
+/**
+ * Extract lowercase path segments from file paths that are likely domain/module names.
+ * Filters out generic segments like src, main, java, com, org, test, etc.
+ */
+function extractPathSegments(files: string[]): Set<string> {
+  const GENERIC = new Set([
+    "src", "main", "java", "kotlin", "python", "go", "lib", "libs",
+    "com", "org", "net", "io", "app", "apps", "pkg", "internal",
+    "test", "tests", "spec", "specs", "impl", "domain", "shared",
+    "resources", "static", "assets", "config", "configs",
+  ]);
+  const out = new Set<string>();
+  for (const file of files) {
+    const parts = file.replace(/\\/g, "/").split("/");
+    for (const part of parts) {
+      const seg = part.toLowerCase().replace(/\.[^.]+$/, ""); // strip extension
+      if (seg.length >= 3 && !GENERIC.has(seg) && /^[a-z]/.test(seg)) {
+        out.add(seg);
+        // Also split camelCase / kebab-case segments: mobilepayment → mobile, payment
+        for (const sub of seg.split(/[-_]/).filter((s) => s.length >= 3)) {
+          out.add(sub);
+        }
+      }
+    }
+  }
+  return out;
 }
 
 async function loadModuleContexts(

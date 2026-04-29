@@ -128,6 +128,14 @@ export function registerMemoryAdd(memory: Command): void {
         ui.info(`auto-tagged: ${inferredTags.join(", ")}  (use --no-auto-tag to disable)`);
       }
 
+      // Anchorless warning: without paths the memory cannot be verified for staleness
+      if (anchorPaths.length === 0) {
+        ui.warn(
+          `This memory has no anchor paths — staleness cannot be detected automatically.` +
+          `\n  Add file anchors: haive memory update ${frontmatter.id} --paths <file1,file2>`,
+        );
+      }
+
       // Workflow hint
       if (frontmatter.scope === "personal") {
         console.log(

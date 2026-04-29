@@ -59,6 +59,11 @@ import {
   type MemTriedInput,
 } from "./tools/mem-tried.js";
 import {
+  MemObserveInputSchema,
+  memObserve,
+  type MemObserveInput,
+} from "./tools/mem-observe.js";
+import {
   GetBriefingInputSchema,
   getBriefing,
   type GetBriefingInput,
@@ -233,6 +238,13 @@ export function createHaiveServer(
     "Compare two memories side-by-side: shows frontmatter fields that differ and lines unique to each body. Useful before merging or deduplicating memories.",
     MemDiffInputSchema,
     async (input: MemDiffInput) => jsonResult(await memDiff(input, context)),
+  );
+
+  server.tool(
+    "mem_observe",
+    "Capture a code-level discovery made during exploration: a bug, inconsistency, missing config, or security gap found by reading existing code that was NOT in the briefing. Use this whenever you read code and spot something that could silently break in production. Auto-validated, anchored to file paths for staleness detection. Prefer this over mem_save for reactive discoveries during code reading.",
+    MemObserveInputSchema,
+    async (input: MemObserveInput) => jsonResult(await memObserve(input, context)),
   );
 
   server.prompt(

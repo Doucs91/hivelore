@@ -46,12 +46,20 @@ export function registerMemoryForFiles(memory: Command): void {
           seen.add(loaded.memory.frontmatter.id);
         }
       }
+      const pathSegments = extractPathSegments(files);
+
       for (const loaded of all) {
         if (seen.has(loaded.memory.frontmatter.id)) continue;
-        const mod = loaded.memory.frontmatter.module;
-        if (mod && inferred.includes(mod)) {
+        const fm = loaded.memory.frontmatter;
+        const moduleHit =
+          (fm.module && inferred.includes(fm.module)) ||
+          fm.tags.some((t) => {
+            const tl = t.toLowerCase();
+            return pathSegments.has(tl) || pathSegments.has(tl.replace(/[-_]/g, ""));
+          });
+        if (moduleHit) {
           byModule.push(loaded);
-          seen.add(loaded.memory.frontmatter.id);
+          seen.add(fm.id);
         }
       }
       for (const loaded of all) {
@@ -73,6 +81,29 @@ export function registerMemoryForFiles(memory: Command): void {
         `${total} relevant memor${total === 1 ? "y" : "ies"} (${byAnchor.length} anchor · ${byModule.length} module · ${byDomain.length} domain)`,
       );
     });
+}
+
+function extractPathSegments(files: string[]): Set<string> {
+  const GENERIC = new Set([
+    "src", "main", "java", "kotlin", "python", "go", "lib", "libs",
+    "com", "org", "net", "io", "app", "apps", "pkg", "internal",
+    "test", "tests", "spec", "specs", "impl", "domain", "shared",
+    "resources", "static", "assets", "config", "configs",
+  ]);
+  const out = new Set<string>();
+  for (const file of files) {
+    const parts = file.replace(/\\/g, "/").split("/");
+    for (const part of parts) {
+      const seg = part.toLowerCase().replace(/\.[^.]+$/, "");
+      if (seg.length >= 3 && !GENERIC.has(seg) && /^[a-z]/.test(seg)) {
+        out.add(seg);
+        for (const sub of seg.split(/[-_]/).filter((s) => s.length >= 3)) {
+          out.add(sub);
+        }
+      }
+    }
+  }
+  return out;
 }
 
 function printGroup(
