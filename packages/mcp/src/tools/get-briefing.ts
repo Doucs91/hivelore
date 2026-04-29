@@ -93,6 +93,7 @@ export interface BriefingOutput {
   search_mode: "semantic" | "literal_fallback" | "literal";
   match_quality_note?: string;
   inferred_modules: string[];
+  last_session?: { id: string; scope: string; revision_count: number; body: string };
   project_context: { content: string; truncated: boolean } | null;
   module_contexts: Array<{ name: string; content: string; truncated: boolean }>;
   memories: BriefingMemory[];
@@ -111,12 +112,36 @@ export async function getBriefing(
   let usage: UsageIndex = { version: 1, updated_at: "", by_id: {} };
   let byId = new Map<string, LoadedMemory>();
 
+  // ── Session recap ──────────────────────────────────────────────────────
+  let lastSession: BriefingOutput["last_session"] | undefined;
+
   if (existsSync(ctx.paths.memoriesDir)) {
     const allLoaded = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+
+    // Find the most recent session_recap (by created_at) — exclude from main ranking
+    const recaps = allLoaded
+      .filter(({ memory }) => memory.frontmatter.type === "session_recap")
+      .sort((a, b) =>
+        new Date(b.memory.frontmatter.created_at).getTime() -
+        new Date(a.memory.frontmatter.created_at).getTime(),
+      );
+    if (recaps.length > 0) {
+      const r = recaps[0]!;
+      const fm = r.memory.frontmatter;
+      lastSession = {
+        id: fm.id,
+        scope: fm.scope,
+        revision_count: fm.revision_count ?? 0,
+        body: r.memory.body,
+      };
+    }
+
     const allMemories = allLoaded.filter(({ memory }) => {
       const s = memory.frontmatter.status;
       if (s === "rejected" || s === "deprecated") return false;
       if (!input.include_stale && s === "stale") return false;
+      // session_recap surfaces separately in last_session, not in the ranked memories list
+      if (memory.frontmatter.type === "session_recap") return false;
       return true;
     });
     usage = await loadUsageIndex(ctx.paths);
@@ -328,6 +353,7 @@ export async function getBriefing(
     ...(input.task ? { task: input.task } : {}),
     search_mode: searchMode,
     inferred_modules: inferred,
+    ...(lastSession ? { last_session: lastSession } : {}),
     project_context: projectContext
       ? { content: projectSlice.text, truncated: projectSlice.truncated }
       : null,

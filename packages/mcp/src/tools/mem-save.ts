@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -12,8 +13,11 @@ import type { HaiveContext } from "../context.js";
 
 export const MemSaveInputSchema = {
   type: z
-    .enum(["convention", "decision", "gotcha", "architecture", "glossary", "attempt"])
-    .describe("Kind of memory being saved. Use 'attempt' for failed approaches (auto-validated)."),
+    .enum(["convention", "decision", "gotcha", "architecture", "glossary", "attempt", "session_recap"])
+    .describe(
+      "Kind of memory being saved. Use 'attempt' for failed approaches (auto-validated). " +
+      "Use 'session_recap' via mem_session_end instead.",
+    ),
   slug: z
     .string()
     .min(1)
@@ -44,6 +48,13 @@ export const MemSaveInputSchema = {
     .string()
     .optional()
     .describe("Anchor commit SHA (for staleness detection later)"),
+  topic: z
+    .string()
+    .optional()
+    .describe(
+      "Stable key for this memory. If a memory with the same topic already exists in this scope, " +
+      "it is updated in-place (revision_count++). Use for knowledge that evolves over time.",
+    ),
 };
 
 export type MemSaveInput = {
@@ -54,7 +65,14 @@ export interface MemSaveOutput {
   id: string;
   scope: string;
   file_path: string;
+  action: "created" | "updated";
+  revision_count?: number;
   warning?: string;
+  similar_found?: string[];
+}
+
+function bodyHash(body: string): string {
+  return createHash("sha256").update(body.trim()).digest("hex").slice(0, 12);
 }
 
 export async function memSave(
@@ -67,6 +85,60 @@ export async function memSave(
     );
   }
 
+  const existing = existsSync(ctx.paths.memoriesDir)
+    ? await loadMemoriesFromDir(ctx.paths.memoriesDir)
+    : [];
+
+  // ── Dedup by content hash ──────────────────────────────────────────────
+  const incomingHash = bodyHash(input.body);
+  const hashDuplicate = existing.find(({ memory }) =>
+    bodyHash(memory.body) === incomingHash &&
+    memory.frontmatter.scope === input.scope,
+  );
+  if (hashDuplicate) {
+    throw new Error(
+      `Duplicate content detected — identical body already saved as "${hashDuplicate.memory.frontmatter.id}". ` +
+      `Use mem_update to modify it, or change the body to add new information.`,
+    );
+  }
+
+  // ── Topic upsert ───────────────────────────────────────────────────────
+  if (input.topic) {
+    const topicMatch = existing.find(({ memory }) =>
+      memory.frontmatter.topic === input.topic &&
+      memory.frontmatter.scope === input.scope &&
+      (!input.module || memory.frontmatter.module === input.module),
+    );
+
+    if (topicMatch) {
+      const fm = topicMatch.memory.frontmatter;
+      const newFrontmatter = {
+        ...fm,
+        body: input.body,
+        tags: input.tags.length ? input.tags : fm.tags,
+        revision_count: (fm.revision_count ?? 0) + 1,
+        anchor: {
+          commit: input.commit ?? fm.anchor.commit,
+          paths: input.paths.length ? input.paths : fm.anchor.paths,
+          symbols: input.symbols.length ? input.symbols : fm.anchor.symbols,
+        },
+      };
+      await writeFile(
+        topicMatch.filePath,
+        serializeMemory({ frontmatter: newFrontmatter, body: input.body }),
+        "utf8",
+      );
+      return {
+        id: fm.id,
+        scope: fm.scope,
+        file_path: topicMatch.filePath,
+        action: "updated",
+        revision_count: newFrontmatter.revision_count,
+      };
+    }
+  }
+
+  // ── Create new memory ──────────────────────────────────────────────────
   const frontmatter = buildFrontmatter({
     type: input.type,
     slug: input.slug,
@@ -78,6 +150,7 @@ export async function memSave(
     paths: input.paths,
     symbols: input.symbols,
     commit: input.commit,
+    topic: input.topic,
   });
 
   const file = memoryFilePath(
@@ -92,17 +165,21 @@ export async function memSave(
     throw new Error(`Memory already exists at ${file}`);
   }
 
-  // Dedup check: warn if a memory with a similar slug already exists
+  // ── Similar slug detection (warn but don't block) ──────────────────────
   let warning: string | undefined;
-  if (existsSync(ctx.paths.memoriesDir)) {
-    const existing = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+  let similar_found: string[] | undefined;
+  if (existing.length > 0) {
     const slugTokens = input.slug.toLowerCase().split(/[-_\s]+/).filter(Boolean);
     const similar = existing.filter(({ memory }) => {
       const id = memory.frontmatter.id.toLowerCase();
-      return slugTokens.length >= 2 && slugTokens.filter((t) => id.includes(t)).length >= Math.ceil(slugTokens.length * 0.6);
+      return (
+        slugTokens.length >= 2 &&
+        slugTokens.filter((t) => id.includes(t)).length >= Math.ceil(slugTokens.length * 0.6)
+      );
     });
     if (similar.length > 0) {
-      warning = `Possible duplicate detected. Similar memories: ${similar.map((m) => m.memory.frontmatter.id).join(", ")}. Consider updating one of these instead.`;
+      similar_found = similar.map((m) => m.memory.frontmatter.id);
+      warning = `Possible duplicate: similar memories already exist (${similar_found.join(", ")}). Consider updating one of these instead.`;
     }
   }
 
@@ -112,6 +189,8 @@ export async function memSave(
     id: frontmatter.id,
     scope: frontmatter.scope,
     file_path: file,
+    action: "created",
     ...(warning ? { warning } : {}),
+    ...(similar_found ? { similar_found } : {}),
   };
 }

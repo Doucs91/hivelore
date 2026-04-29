@@ -76,8 +76,20 @@ Examples of things to look for:
 - Skip sections where you genuinely have nothing to add. Don't fabricate memories.
 - **Question 0 is not optional** — always scan your exploration history for code-level discoveries.
 
-When done, respond with a brief summary: "Saved N memories: [list of IDs]" or "Nothing new to save."
+### 6. Close the session — always
+Call **\`mem_session_end\`** with:
+- \`goal\`: what you set out to do
+- \`accomplished\`: what was actually done (bullet list)
+- \`discoveries\`: anything surprising or broken found during this session (leave empty if none)
+- \`files_touched\`: the key files you read or modified
+- \`next_steps\`: what remains for the next session or a teammate
+- \`scope\`: "team" if this task affects the whole team, "personal" otherwise
+
+This creates/updates a single rolling recap that **get_briefing automatically surfaces** at the start of every subsequent session — no token waste re-explaining what happened.
+
+When done, respond with a brief summary: "Saved N memories: [list of IDs]. Session recap saved."
 `;
+
 
   return {
     description: "Post-task reflection: capture what you learned before closing the session",

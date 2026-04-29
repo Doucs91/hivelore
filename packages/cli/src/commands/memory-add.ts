@@ -10,6 +10,7 @@ import {
   memoryFilePath,
   resolveHaivePaths,
   serializeMemory,
+  type MemoryFrontmatter,
   type MemoryScope,
   type MemoryType,
 } from "@hiveai/core";
@@ -29,6 +30,7 @@ interface AddOptions {
   commit?: string;
   body?: string;
   bodyFile?: string;
+  topic?: string;
   dir?: string;
 }
 
@@ -50,6 +52,7 @@ export function registerMemoryAdd(memory: Command): void {
     .option("--body <text>", "memory body content (Markdown) — overrides --title default body")
     .option("--body-file <path>", "read memory body from a Markdown file — alternative to --body for long content")
     .option("--no-auto-tag", "disable automatic tag suggestions inferred from anchor paths")
+    .option("--topic <key>", "stable key: if a memory with this topic+scope already exists it is updated in-place (revision_count++)")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: AddOptions & { autoTag?: boolean }) => {
       const root = findProjectRoot(opts.dir);
@@ -66,19 +69,6 @@ export function registerMemoryAdd(memory: Command): void {
       const inferredTags = autoTagsEnabled ? inferModulesFromPaths(anchorPaths) : [];
       const mergedTags = Array.from(new Set([...userTags, ...inferredTags]));
 
-      const frontmatter = buildFrontmatter({
-        type: opts.type,
-        slug: opts.slug,
-        scope: opts.scope,
-        module: opts.module,
-        tags: mergedTags,
-        domain: opts.domain,
-        author: opts.author,
-        paths: anchorPaths,
-        symbols: parseCsv(opts.symbols),
-        commit: opts.commit,
-      });
-
       const title = opts.title ?? opts.slug;
       let body: string;
       if (opts.bodyFile !== undefined) {
@@ -94,6 +84,49 @@ export function registerMemoryAdd(memory: Command): void {
       } else {
         body = `# ${title}\n\nTODO — write the memory body.\n`;
       }
+
+      // ── Topic upsert ─────────────────────────────────────────────────
+      const scope = opts.scope ?? "personal";
+      if (opts.topic && existsSync(paths.memoriesDir)) {
+        const existing = await loadMemoriesFromDir(paths.memoriesDir);
+        const topicMatch = existing.find(({ memory }) =>
+          memory.frontmatter.topic === opts.topic &&
+          memory.frontmatter.scope === scope &&
+          (!opts.module || memory.frontmatter.module === opts.module),
+        );
+        if (topicMatch) {
+          const fm = topicMatch.memory.frontmatter;
+          const revisionCount = (fm.revision_count ?? 0) + 1;
+          const newFrontmatter: MemoryFrontmatter = {
+            ...fm,
+            revision_count: revisionCount,
+            tags: mergedTags.length ? mergedTags : fm.tags,
+            anchor: {
+              commit: opts.commit ?? fm.anchor.commit,
+              paths: anchorPaths.length ? anchorPaths : fm.anchor.paths,
+              symbols: parseCsv(opts.symbols).length ? parseCsv(opts.symbols) : fm.anchor.symbols,
+            },
+          };
+          await writeFile(topicMatch.filePath, serializeMemory({ frontmatter: newFrontmatter, body }), "utf8");
+          ui.success(`Updated (topic upsert) ${path.relative(root, topicMatch.filePath)}`);
+          ui.info(`id=${fm.id}  revision=${revisionCount}`);
+          return;
+        }
+      }
+
+      const frontmatter = buildFrontmatter({
+        type: opts.type,
+        slug: opts.slug,
+        scope,
+        module: opts.module,
+        tags: mergedTags,
+        domain: opts.domain,
+        author: opts.author,
+        paths: anchorPaths,
+        symbols: parseCsv(opts.symbols),
+        commit: opts.commit,
+        topic: opts.topic,
+      });
 
       const file = memoryFilePath(paths, frontmatter.scope, frontmatter.id, frontmatter.module);
       await mkdir(path.dirname(file), { recursive: true });
@@ -137,7 +170,7 @@ export function registerMemoryAdd(memory: Command): void {
       }
 
       // Workflow hint
-      if (frontmatter.scope === "personal") {
+      if (scope === "personal") {
         console.log(
           ui.dim(
             `→ next: haive memory approve ${frontmatter.id}  (activate)` +

@@ -58,6 +58,8 @@ export function buildFrontmatter(input: {
   paths?: string[];
   symbols?: string[];
   commit?: string;
+  topic?: string;
+  status?: MemoryFrontmatter["status"];
 }): MemoryFrontmatter {
   const now = new Date();
   const id = newMemoryId(input.type, input.slug, now);
@@ -66,7 +68,7 @@ export function buildFrontmatter(input: {
     scope: input.scope ?? "personal",
     module: input.module,
     type: input.type,
-    status: "draft",
+    status: input.status ?? "draft",
     anchor: {
       commit: input.commit,
       paths: input.paths ?? [],
@@ -77,5 +79,7 @@ export function buildFrontmatter(input: {
     author: input.author,
     created_at: now.toISOString(),
     expires_when: null,
+    topic: input.topic,
+    revision_count: 0,
   });
 }

@@ -64,6 +64,11 @@ import {
   type MemObserveInput,
 } from "./tools/mem-observe.js";
 import {
+  MemSessionEndInputSchema,
+  memSessionEnd,
+  type MemSessionEndInput,
+} from "./tools/mem-session-end.js";
+import {
   GetBriefingInputSchema,
   getBriefing,
   type GetBriefingInput,
@@ -245,6 +250,16 @@ export function createHaiveServer(
     "Capture a code-level discovery made during exploration: a bug, inconsistency, missing config, or security gap found by reading existing code that was NOT in the briefing. Use this whenever you read code and spot something that could silently break in production. Auto-validated, anchored to file paths for staleness detection. Prefer this over mem_save for reactive discoveries during code reading.",
     MemObserveInputSchema,
     async (input: MemObserveInput) => jsonResult(await memObserve(input, context)),
+  );
+
+  server.tool(
+    "mem_session_end",
+    "Save a structured end-of-session recap (goal / accomplished / discoveries / next steps). " +
+    "Uses topic-upsert: one recap per scope is kept and updated in-place so the next session always has " +
+    "fresh context. Call this before closing every significant session. " +
+    "get_briefing automatically surfaces the latest recap at the top of the next session's briefing.",
+    MemSessionEndInputSchema,
+    async (input: MemSessionEndInput) => jsonResult(await memSessionEnd(input, context)),
   );
 
   server.prompt(

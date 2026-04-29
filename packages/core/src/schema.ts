@@ -17,7 +17,8 @@ export const MemoryTypeSchema = z.enum([
   "gotcha",
   "architecture",
   "glossary",
-  "attempt", // failed approach / negative knowledge — "tried X, failed because Y, use Z instead"
+  "attempt",      // failed approach — "tried X, failed because Y, use Z instead"
+  "session_recap", // end-of-session summary: goal / accomplished / discoveries / next steps
 ]);
 
 export const AnchorSchema = z.object({
@@ -48,6 +49,8 @@ export const MemoryFrontmatterSchema = z
     stale_reason: z.string().nullable().default(null),
     related_ids: z.array(z.string()).default([]),
     last_read_at: z.string().nullable().default(null),
+    topic: z.string().optional(),          // stable key for upsert — same topic in same scope → update instead of create
+    revision_count: z.number().int().min(0).default(0), // incremented each time a topic upsert occurs
   })
   .refine(
     (data) => data.scope !== "module" || !!data.module,
