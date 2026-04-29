@@ -100,6 +100,15 @@ export async function memSessionEnd(
   const body = buildBody(input);
   const topic = recapTopic(input.scope, input.module);
 
+  // Validate anchor paths exist before saving
+  const invalidPaths = input.files_touched.filter(
+    (p) => !existsSync(path.resolve(ctx.paths.root, p)),
+  );
+  if (invalidPaths.length > 0) {
+    // Non-blocking for session end — just log in the output
+    console.warn(`[haive] session end: anchor path(s) not found: ${invalidPaths.join(", ")}`);
+  }
+
   const existing = existsSync(ctx.paths.memoriesDir)
     ? await loadMemoriesFromDir(ctx.paths.memoriesDir)
     : [];

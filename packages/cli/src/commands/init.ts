@@ -43,12 +43,15 @@ on:
   push:
     branches: [main, master]
   pull_request:
-    paths:
-      - '.ai/**'
+    branches: [main, master]
 
 jobs:
-  sync:
+  # On push to main/master: sync anchors + auto-promote + commit changes
+  sync-on-merge:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,19 +61,58 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install hAIve CLI
-        run: npm install -g @haive/cli
+      - name: install haive
+        run: npm install -g @hiveai/cli
 
-      - name: Sync memories (verify anchors + auto-promote)
-        run: haive sync --quiet
+      - name: refresh memory anchors + auto-promote
+        run: haive sync --since HEAD~1 || true
 
-      - name: Commit updated memories (if any)
+      - name: commit updated memories (if any)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .ai/
           git diff --cached --quiet || git commit -m "chore: haive sync [skip ci]"
           git push
+
+  # On pull request: warn if PR touches files that would invalidate memories
+  pr-stale-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: install haive
+        run: npm install -g @hiveai/cli
+
+      - name: verify memory anchors touched by this PR
+        id: verify
+        run: |
+          haive memory verify 2>&1 | tee /tmp/haive-verify.txt || true
+          STALE=$(grep -c 'stale' /tmp/haive-verify.txt || echo 0)
+          echo "stale_count=$STALE" >> "$GITHUB_OUTPUT"
+
+      - name: comment on PR if stale memories detected
+        if: steps.verify.outputs.stale_count != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('/tmp/haive-verify.txt', 'utf8').trim();
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: \`### haive — Stale memories detected\\n\\nSome memories anchored to code modified in this PR may be outdated:\\n\\n\\\`\\\`\\\`\\n\${report}\\n\\\`\\\`\\\`\\n\\nRun \\\`haive memory verify --update\\\` locally to refresh them before merging.\`
+            });
 `;
 
 export function registerInit(program: Command): void {

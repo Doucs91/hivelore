@@ -70,6 +70,19 @@ export function registerMemoryAdd(memory: Command): void {
       const inferredTags = autoTagsEnabled ? inferModulesFromPaths(anchorPaths) : [];
       const mergedTags = Array.from(new Set([...userTags, ...inferredTags]));
 
+      // ── Anchor path validation ────────────────────────────────────────
+      if (anchorPaths.length > 0) {
+        const missing = anchorPaths.filter((p) => !existsSync(path.resolve(root, p)));
+        if (missing.length > 0) {
+          ui.warn(`Anchor path${missing.length > 1 ? "s" : ""} not found in project:`);
+          for (const p of missing) ui.warn(`  ✗ ${p}`);
+          ui.warn(
+            "Memories anchored to non-existent paths will be immediately marked stale by \`haive sync\`.\n" +
+            "  Verify the paths are relative to the project root and the files/directories exist.",
+          );
+        }
+      }
+
       const title = opts.title ?? opts.slug;
       let body: string;
       if (opts.bodyFile !== undefined) {

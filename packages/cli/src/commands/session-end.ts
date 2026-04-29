@@ -79,6 +79,13 @@ export function registerSessionEnd(session: Command): void {
       const topic = recapTopic(scope, opts.module);
       const filesTouched = parseCsv(opts.files);
 
+      // Warn about paths that don't exist in project
+      const missingPaths = filesTouched.filter((p) => !existsSync(path.resolve(root, p)));
+      if (missingPaths.length > 0) {
+        ui.warn(`Anchor path${missingPaths.length > 1 ? "s" : ""} not found in project (will be stale):`);
+        for (const p of missingPaths) ui.warn(`  ✗ ${p}`);
+      }
+
       // ── Topic upsert ────────────────────────────────────────────────
       if (existsSync(paths.memoriesDir)) {
         const existing = await loadMemoriesFromDir(paths.memoriesDir);

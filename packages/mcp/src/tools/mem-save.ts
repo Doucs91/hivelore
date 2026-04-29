@@ -69,6 +69,7 @@ export interface MemSaveOutput {
   revision_count?: number;
   warning?: string;
   similar_found?: string[];
+  invalid_paths?: string[];
 }
 
 function bodyHash(body: string): string {
@@ -88,6 +89,11 @@ export async function memSave(
   const existing = existsSync(ctx.paths.memoriesDir)
     ? await loadMemoriesFromDir(ctx.paths.memoriesDir)
     : [];
+
+  // ── Anchor path validation ─────────────────────────────────────────────
+  const invalidPaths = input.paths.filter(
+    (p) => !existsSync(path.resolve(ctx.paths.root, p)),
+  );
 
   // ── Dedup by content hash ──────────────────────────────────────────────
   const incomingHash = bodyHash(input.body);
@@ -134,6 +140,7 @@ export async function memSave(
         file_path: topicMatch.filePath,
         action: "updated",
         revision_count: newFrontmatter.revision_count,
+        ...(invalidPaths.length > 0 ? { invalid_paths: invalidPaths, warning: `Anchor path(s) not found in project: ${invalidPaths.join(", ")}. They will be marked stale by haive sync.` } : {}),
       };
     }
   }
@@ -185,12 +192,21 @@ export async function memSave(
 
   await writeFile(file, serializeMemory({ frontmatter, body: input.body }), "utf8");
 
+  // Merge invalid_paths warning with slug similarity warning
+  const finalWarning = [
+    invalidPaths.length > 0
+      ? `Anchor path(s) not found in project: ${invalidPaths.join(", ")}. They will be marked stale by \`haive sync\`.`
+      : null,
+    warning ?? null,
+  ].filter(Boolean).join(" — ") || undefined;
+
   return {
     id: frontmatter.id,
     scope: frontmatter.scope,
     file_path: file,
     action: "created",
-    ...(warning ? { warning } : {}),
+    ...(finalWarning ? { warning: finalWarning } : {}),
     ...(similar_found ? { similar_found } : {}),
+    ...(invalidPaths.length > 0 ? { invalid_paths: invalidPaths } : {}),
   };
 }
