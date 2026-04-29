@@ -63,13 +63,31 @@ export function registerBriefing(program: Command): void {
       const maxMemories = Math.max(1, Number(opts.maxMemories ?? 10));
       const scopeFilter = opts.scope ?? "team";
 
-      // Filter: exclude noise, drafts, and stale by default
+      // Surface the most recent session recap first (before ranked memories)
+      const recaps = all
+        .filter(({ memory: mem }) => mem.frontmatter.type === "session_recap")
+        .sort((a, b) =>
+          new Date(b.memory.frontmatter.created_at).getTime() -
+          new Date(a.memory.frontmatter.created_at).getTime(),
+        );
+      if (recaps.length > 0) {
+        const recap = recaps[0]!;
+        const fm = recap.memory.frontmatter;
+        const rev = fm.revision_count ? ` · revision #${fm.revision_count}` : "";
+        console.log(`${ui.bold("=== Last Session Recap ===")}\n`);
+        console.log(ui.dim(`${fm.id} (${fm.scope}${rev})`));
+        console.log(recap.memory.body.trim());
+        console.log();
+      }
+
+      // Filter: exclude noise, drafts, stale, and session_recap (shown above) by default
       const candidates = all.filter(({ memory: mem }) => {
         const fm = mem.frontmatter;
         if (fm.status === "rejected" || fm.status === "deprecated") return false;
         if (!opts.includeDraft && fm.status === "draft") return false;
         if (!opts.includeStale && fm.status === "stale") return false;
         if (scopeFilter !== "all" && fm.scope !== scopeFilter) return false;
+        if (fm.type === "session_recap") return false; // shown separately above
         return true;
       });
 
