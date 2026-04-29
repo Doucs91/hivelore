@@ -7,4 +7,5 @@ const { version } = JSON.parse(
 
 export default defineConfig({
   define: { __HAIVE_VERSION__: JSON.stringify(version) },
+  test: { pool: "vmThreads" },
 });
