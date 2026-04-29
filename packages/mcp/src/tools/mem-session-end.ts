@@ -139,7 +139,7 @@ export async function memSessionEnd(
   // ── Create new recap (first session) ──────────────────────────────────
   const frontmatter = buildFrontmatter({
     type: "session_recap",
-    slug: "session-recap",
+    slug: "recap",
     scope: input.scope,
     module: input.module,
     tags: ["session", "recap"],

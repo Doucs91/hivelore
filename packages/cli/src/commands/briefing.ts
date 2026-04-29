@@ -43,19 +43,16 @@ export function registerBriefing(program: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
 
-      // Project context
-      if (existsSync(paths.projectContext)) {
-        const ctx = await readFile(paths.projectContext, "utf8");
-        console.log(`${ui.bold("=== Project Context ===")}\n`);
-        console.log(ctx.trim());
-        console.log();
-      } else {
-        ui.warn(
-          "No project-context.md found. Run `haive init` and the `bootstrap_project` MCP prompt to set it up.",
-        );
+      if (!existsSync(paths.memoriesDir)) {
+        // No memories yet — just print project context and exit
+        if (existsSync(paths.projectContext)) {
+          console.log(`${ui.bold("=== Project Context ===")}\n`);
+          console.log((await readFile(paths.projectContext, "utf8")).trim());
+        } else {
+          ui.warn("No project-context.md found. Run `haive init` and the `bootstrap_project` MCP prompt to set it up.");
+        }
+        return;
       }
-
-      if (!existsSync(paths.memoriesDir)) return;
 
       const all = await loadMemoriesFromDir(paths.memoriesDir);
       const filePaths = parseCsv(opts.files);
@@ -63,7 +60,7 @@ export function registerBriefing(program: Command): void {
       const maxMemories = Math.max(1, Number(opts.maxMemories ?? 10));
       const scopeFilter = opts.scope ?? "team";
 
-      // Surface the most recent session recap first (before ranked memories)
+      // ── 1. Session recap — always shown first so agents start with fresh context ──
       const recaps = all
         .filter(({ memory: mem }) => mem.frontmatter.type === "session_recap")
         .sort((a, b) =>
@@ -78,6 +75,18 @@ export function registerBriefing(program: Command): void {
         console.log(ui.dim(`${fm.id} (${fm.scope}${rev})`));
         console.log(recap.memory.body.trim());
         console.log();
+      }
+
+      // ── 2. Project context ─────────────────────────────────────────────────────
+      if (existsSync(paths.projectContext)) {
+        const ctx = await readFile(paths.projectContext, "utf8");
+        console.log(`${ui.bold("=== Project Context ===")}\n`);
+        console.log(ctx.trim());
+        console.log();
+      } else {
+        ui.warn(
+          "No project-context.md found. Run `haive init` and the `bootstrap_project` MCP prompt to set it up.",
+        );
       }
 
       // Filter: exclude noise, drafts, stale, and session_recap (shown above) by default

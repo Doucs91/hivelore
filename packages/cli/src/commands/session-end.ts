@@ -107,16 +107,16 @@ export function registerSessionEnd(session: Command): void {
       }
 
       // ── Create first recap ──────────────────────────────────────────
-      const frontmatter = buildFrontmatter({
-        type: "session_recap",
-        slug: "session-recap",
-        scope,
-        module: opts.module,
-        tags: ["session", "recap"],
-        paths: filesTouched,
-        topic,
-        status: "validated",
-      });
+  const frontmatter = buildFrontmatter({
+    type: "session_recap",
+    slug: "recap",
+    scope,
+    module: opts.module,
+    tags: ["session", "recap"],
+    paths: filesTouched,
+    topic,
+    status: "validated",
+  });
 
       const file = memoryFilePath(paths, frontmatter.scope, frontmatter.id, frontmatter.module);
       await mkdir(path.dirname(file), { recursive: true });

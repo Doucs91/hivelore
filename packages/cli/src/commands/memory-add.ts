@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -85,8 +86,24 @@ export function registerMemoryAdd(memory: Command): void {
         body = `# ${title}\n\nTODO — write the memory body.\n`;
       }
 
-      // ── Topic upsert ─────────────────────────────────────────────────
+      // ── Dedup by content hash ─────────────────────────────────────────
       const scope = opts.scope ?? "personal";
+      if (existsSync(paths.memoriesDir)) {
+        const incomingHash = createHash("sha256").update(body.trim()).digest("hex").slice(0, 12);
+        const allForHash = await loadMemoriesFromDir(paths.memoriesDir);
+        const hashDup = allForHash.find(({ memory }) =>
+          createHash("sha256").update(memory.body.trim()).digest("hex").slice(0, 12) === incomingHash &&
+          memory.frontmatter.scope === scope,
+        );
+        if (hashDup) {
+          ui.error(`Duplicate content detected — identical body already saved as "${hashDup.memory.frontmatter.id}".`);
+          ui.error("Use \`haive memory update\` to modify it, or change the body to add new information.");
+          process.exitCode = 1;
+          return;
+        }
+      }
+
+      // ── Topic upsert ─────────────────────────────────────────────────
       if (opts.topic && existsSync(paths.memoriesDir)) {
         const existing = await loadMemoriesFromDir(paths.memoriesDir);
         const topicMatch = existing.find(({ memory }) =>
