@@ -81,6 +81,8 @@ export async function memForFiles(
   const byDomain: MemMatch[] = [];
 
   for (const loaded of all) {
+    // session_recap surfaces in get_briefing.last_session — skip here
+    if (loaded.memory.frontmatter.type === "session_recap") continue;
     if (memoryMatchesAnchorPaths(loaded.memory, input.files)) {
       byAnchor.push(toMatch(loaded, "anchor_overlap", usage));
       seen.add(loaded.memory.frontmatter.id);
@@ -92,6 +94,7 @@ export async function memForFiles(
 
   for (const loaded of all) {
     if (seen.has(loaded.memory.frontmatter.id)) continue;
+    if (loaded.memory.frontmatter.type === "session_recap") continue;
     const fm = loaded.memory.frontmatter;
     const moduleHit =
       (fm.module && inferred.includes(fm.module)) ||
@@ -108,6 +111,7 @@ export async function memForFiles(
 
   for (const loaded of all) {
     if (seen.has(loaded.memory.frontmatter.id)) continue;
+    if (loaded.memory.frontmatter.type === "session_recap") continue;
     const domain = loaded.memory.frontmatter.domain;
     if (domain && inferred.includes(domain)) {
       byDomain.push(toMatch(loaded, "domain", usage));

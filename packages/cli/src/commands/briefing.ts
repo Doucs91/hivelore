@@ -4,6 +4,7 @@ import { Command } from "commander";
 import {
   findProjectRoot,
   literalMatchesAllTokens,
+  literalMatchesAnyToken,
   loadMemoriesFromDir,
   memoryMatchesAnchorPaths,
   resolveHaivePaths,
@@ -100,14 +101,22 @@ export function registerBriefing(program: Command): void {
         return true;
       });
 
-      // Score by relevance
+      // Score by relevance (AND on task tokens; OR fallback if AND produces no task hits)
+      const andTaskHits = tokens
+        ? new Set(candidates.filter(({ memory: mem }) => literalMatchesAllTokens(mem, tokens)).map(({ memory: mem }) => mem.frontmatter.id))
+        : null;
+      const useOrFallback = andTaskHits !== null && andTaskHits.size === 0 && (tokens?.length ?? 0) > 1;
+
       const scored = candidates.map(({ memory: mem, filePath }) => {
         const fm = mem.frontmatter;
         let score = 0;
         if (fm.status === "validated") score += 3;
         else if (fm.status === "proposed") score += 1;
         if (filePaths.length > 0 && memoryMatchesAnchorPaths(mem, filePaths)) score += 4;
-        if (tokens && literalMatchesAllTokens(mem, tokens)) score += 3;
+        if (tokens) {
+          if (andTaskHits?.has(fm.id)) score += 3;
+          else if (useOrFallback && literalMatchesAnyToken(mem, tokens)) score += 1;
+        }
         return { memory: mem, filePath, score };
       });
 

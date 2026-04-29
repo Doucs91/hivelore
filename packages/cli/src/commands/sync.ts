@@ -71,6 +71,8 @@ export function registerSync(program: Command): void {
       if (opts.verify !== false) {
         const memories = await loadMemoriesFromDir(paths.memoriesDir);
         for (const { memory, filePath } of memories) {
+          // session_recap memories record historical context — anchor staleness doesn't apply
+          if (memory.frontmatter.type === "session_recap") continue;
           const isAnchored =
             memory.frontmatter.anchor.paths.length > 0 ||
             memory.frontmatter.anchor.symbols.length > 0;
@@ -225,6 +227,7 @@ async function injectBridge(
   const top = all
     .filter(({ memory }) => {
       const s = memory.frontmatter.status;
+      if (memory.frontmatter.type === "session_recap") return false;
       return s === "validated" || s === "proposed";
     })
     .sort((a, b) => {

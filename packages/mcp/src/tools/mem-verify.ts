@@ -65,6 +65,19 @@ export async function memVerify(
   let updated = 0;
 
   for (const { memory, filePath } of targets) {
+    // session_recap records historical context — anchor staleness does not apply
+    if (memory.frontmatter.type === "session_recap") {
+      anchorless++;
+      results.push({
+        id: memory.frontmatter.id,
+        file_path: filePath,
+        stale: false,
+        reason: null,
+        status_after: memory.frontmatter.status,
+        skipped: true,
+      });
+      continue;
+    }
     const isAnchored =
       memory.frontmatter.anchor.paths.length > 0 ||
       memory.frontmatter.anchor.symbols.length > 0;

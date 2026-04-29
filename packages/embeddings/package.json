@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/embeddings",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "description": "hAIve embeddings — local sentence embeddings via Transformers.js for semantic memory search",
   "license": "MIT",
   "repository": {

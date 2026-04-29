@@ -54,6 +54,8 @@ export function registerMemoryQuery(memory: Command): void {
         if (opts.scope && fm.scope !== opts.scope) return false;
         if (!opts.showRejected && !statusFilter && fm.status === "rejected") return false;
         if (statusFilter && !statusFilter.includes(fm.status)) return false;
+        // session_recap surfaces in briefing as last_session, not in regular search
+        if (fm.type === "session_recap") return false;
         return true;
       };
 

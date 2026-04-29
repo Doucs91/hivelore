@@ -9,6 +9,7 @@ import {
   inferModulesFromPaths,
   isDecaying,
   literalMatchesAllTokens,
+  literalMatchesAnyToken,
   loadMemoriesFromDir,
   loadUsageIndex,
   memoryMatchesAnchorPaths,
@@ -208,9 +209,17 @@ export async function getBriefing(
 
     if (input.task) {
       const tokens = tokenizeQuery(input.task);
-      for (const loaded of allMemories) {
-        if (literalMatchesAllTokens(loaded.memory, tokens)) {
-          addOrUpdate(loaded, "semantic", undefined, "exact");
+      // AND first — exact match
+      const andHits = allMemories.filter((m) => literalMatchesAllTokens(m.memory, tokens));
+      for (const loaded of andHits) {
+        addOrUpdate(loaded, "semantic", undefined, "exact");
+      }
+      // OR fallback — if AND produced nothing, partial match is better than nothing
+      if (andHits.length === 0 && tokens.length > 1) {
+        for (const loaded of allMemories) {
+          if (literalMatchesAnyToken(loaded.memory, tokens)) {
+            addOrUpdate(loaded, "semantic", undefined, "partial");
+          }
         }
       }
       if (semanticHits) {

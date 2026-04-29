@@ -24,9 +24,13 @@ export const MemSearchInputSchema = {
     .optional()
     .describe("Restrict results to a single scope"),
   type: z
-    .enum(["convention", "decision", "gotcha", "architecture", "glossary", "attempt"])
+    .enum(["convention", "decision", "gotcha", "architecture", "glossary", "attempt", "session_recap"])
     .optional()
-    .describe("Restrict results to a memory type"),
+    .describe("Restrict results to a memory type. session_recap is excluded by default — use type='session_recap' to include them."),
+  include_session_recap: z
+    .boolean()
+    .default(false)
+    .describe("Include session_recap memories in search results (excluded by default — they surface in get_briefing as last_session)."),
   module: z.string().optional().describe("Restrict results to a module"),
   status: z
     .enum(["draft", "proposed", "validated", "deprecated", "stale", "rejected"])
@@ -58,6 +62,11 @@ export const MemSearchInputSchema = {
 export type MemSearchInput = {
   [K in keyof typeof MemSearchInputSchema]: z.infer<(typeof MemSearchInputSchema)[K]>;
 };
+
+/** session_recap memories are surfaced separately via get_briefing.last_session — not in search results by default. */
+function isSessionRecap(fm: { type: string }): boolean {
+  return fm.type === "session_recap";
+}
 
 export interface MemSearchHit {
   id: string;
@@ -128,6 +137,8 @@ function passesFilters(
   if (input.module && fm.module !== input.module) return false;
   if (input.status && fm.status !== input.status) return false;
   if (input.exclude_rejected && fm.status === "rejected") return false;
+  // session_recap memories surface via get_briefing.last_session — exclude unless explicitly requested
+  if (!input.include_session_recap && isSessionRecap(fm)) return false;
   return true;
 }
 

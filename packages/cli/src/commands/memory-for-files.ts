@@ -41,6 +41,8 @@ export function registerMemoryForFiles(memory: Command): void {
       const seen = new Set<string>();
 
       for (const loaded of all) {
+        // session_recap surfaces in briefing last_session — not in for-files
+        if (loaded.memory.frontmatter.type === "session_recap") continue;
         if (memoryMatchesAnchorPaths(loaded.memory, files)) {
           byAnchor.push(loaded);
           seen.add(loaded.memory.frontmatter.id);
@@ -50,6 +52,7 @@ export function registerMemoryForFiles(memory: Command): void {
 
       for (const loaded of all) {
         if (seen.has(loaded.memory.frontmatter.id)) continue;
+        if (loaded.memory.frontmatter.type === "session_recap") continue;
         const fm = loaded.memory.frontmatter;
         const moduleHit =
           (fm.module && inferred.includes(fm.module)) ||
@@ -64,6 +67,7 @@ export function registerMemoryForFiles(memory: Command): void {
       }
       for (const loaded of all) {
         if (seen.has(loaded.memory.frontmatter.id)) continue;
+        if (loaded.memory.frontmatter.type === "session_recap") continue;
         const domain = loaded.memory.frontmatter.domain;
         if (domain && inferred.includes(domain)) {
           byDomain.push(loaded);

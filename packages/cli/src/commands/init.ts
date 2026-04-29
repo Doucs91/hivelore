@@ -116,7 +116,28 @@ export function registerInit(program: Command): void {
       }
 
       ui.success(`hAIve initialized at ${root}`);
-      ui.info("Next: " + ui.bold("haive memory add --type convention --slug <name>"));
+      console.log();
+      console.log(ui.bold("Next steps:"));
+      console.log(
+        ui.dim("  1. Fill project context — let your AI agent do it:"),
+      );
+      console.log(
+        "     " + ui.bold("In your AI client (Claude, Cursor…), invoke the MCP prompt: bootstrap_project"),
+      );
+      console.log(
+        ui.dim("     This analyzes your codebase and writes .ai/project-context.md automatically."),
+      );
+      console.log(
+        ui.dim("     Without this step, get_briefing returns a blank template (little value)."),
+      );
+      console.log();
+      console.log(ui.dim("  2. Point your AI client at the MCP server:"));
+      console.log(
+        `     haive-mcp --root ${root}`,
+      );
+      console.log();
+      console.log(ui.dim("  3. Start every AI session with:"));
+      console.log("     " + ui.bold("get_briefing({ task: '…what you are about to do…' })"));
     });
 }
 
