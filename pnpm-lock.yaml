@@ -27,14 +27,14 @@ importers:
   packages/cli:
     dependencies:
       '@hiveai/core':
-        specifier: ^0.4.3
-        version: 0.4.3
+        specifier: ^0.4.5
+        version: 0.4.5
       '@hiveai/embeddings':
-        specifier: ^0.4.1
-        version: 0.4.3
+        specifier: ^0.4.5
+        version: 0.4.5
       '@hiveai/mcp':
-        specifier: ^0.4.3
-        version: 0.4.3(@hiveai/embeddings@0.4.3)
+        specifier: ^0.4.5
+        version: 0.4.5(@hiveai/embeddings@0.4.5)
       commander:
         specifier: ^12.1.0
         version: 12.1.0
@@ -92,11 +92,11 @@ importers:
   packages/mcp:
     dependencies:
       '@hiveai/core':
-        specifier: ^0.4.3
-        version: 0.4.3
+        specifier: ^0.4.5
+        version: 0.4.5
       '@hiveai/embeddings':
-        specifier: ^0.4.1
-        version: 0.4.3
+        specifier: ^0.4.5
+        version: 0.4.5
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@3.25.76)
@@ -488,17 +488,17 @@ packages:
   '@hiveai/core@0.2.16':
     resolution: {integrity: sha512-+2LEEKhfiuq2WQLlRZolSBbSaJHnw4SyivbB19K3vKyKc1OyhjWWbgMTGY7TQu53pgon1sILxGww7KRqNSxB1Q==}
 
-  '@hiveai/core@0.4.3':
-    resolution: {integrity: sha512-lCA21FcN3rCB5hw2az/nBXV6aDzsTWMMefKPGWs1/f6TQldianOr7xwlTdOu6RrEucTebw+1puhv4F1vd7fuMQ==}
+  '@hiveai/core@0.4.5':
+    resolution: {integrity: sha512-HiFTIiViIsUidHKck0YSo5gYXINzwHqfAGKeBjLiSoU+GHKTzheLik9cIRRMrnvBL2jm4NAD/R8FNpCMd2FjJw==}
 
-  '@hiveai/embeddings@0.4.3':
-    resolution: {integrity: sha512-fUv6VYedM+YJEsp2IBs4+udEn8E6toEZDbQUxCD8FWeX7+Sy1KsN5Ci+CbBgsU/xGYTja5tfEoOLmJ+VU/gl8w==}
+  '@hiveai/embeddings@0.4.5':
+    resolution: {integrity: sha512-6e6IS7Erfon8WyBFyCM8TjFNKoIIsytjbem5dxBZdcTJL02XPSKA/TVsecAC/m0uHeQQZRdEZIJyrcQ/zakqyw==}
 
-  '@hiveai/mcp@0.4.3':
-    resolution: {integrity: sha512-KkGDI+ToxVPAUfNS/RMlVRWLHZ7vEmZLSJzQeyKn0lLbZ9jyHwGbdR5Y6/xe9DUkCiMRyPWvwSQN4dv6jJN+KQ==}
+  '@hiveai/mcp@0.4.5':
+    resolution: {integrity: sha512-En7M2/bLCh54I6evo2HRyt8eMZrgtH5xsFWmgpj3NRh9mM5UytbQKwHklAN/UvfG+5YOyqQISfQrQuhKs0YiYg==}
     hasBin: true
     peerDependencies:
-      '@hiveai/embeddings': ^0.4.1
+      '@hiveai/embeddings': ^0.4.5
     peerDependenciesMeta:
       '@hiveai/embeddings':
         optional: true
@@ -2625,12 +2625,12 @@ snapshots:
       gray-matter: 4.0.3
       zod: 3.25.76
 
-  '@hiveai/core@0.4.3':
+  '@hiveai/core@0.4.5':
     dependencies:
       gray-matter: 4.0.3
       zod: 3.25.76
 
-  '@hiveai/embeddings@0.4.3':
+  '@hiveai/embeddings@0.4.5':
     dependencies:
       '@hiveai/core': 0.2.16
       '@xenova/transformers': 2.17.2
@@ -2639,13 +2639,13 @@ snapshots:
       - bare-buffer
       - react-native-b4a
 
-  '@hiveai/mcp@0.4.3(@hiveai/embeddings@0.4.3)':
+  '@hiveai/mcp@0.4.5(@hiveai/embeddings@0.4.5)':
     dependencies:
-      '@hiveai/core': 0.4.3
+      '@hiveai/core': 0.4.5
       '@modelcontextprotocol/sdk': 1.29.0(zod@3.25.76)
       zod: 3.25.76
     optionalDependencies:
-      '@hiveai/embeddings': 0.4.3
+      '@hiveai/embeddings': 0.4.5
     transitivePeerDependencies:
       - '@cfworker/json-schema'
       - supports-color
