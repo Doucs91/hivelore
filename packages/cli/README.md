@@ -252,13 +252,21 @@ Show memories relevant to specific files you're about to edit.
 haive memory for-files src/payments/PaymentService.java src/payments/PaymentController.java
 ```
 
-#### `haive memory stats` / `hot` / `pending`
+#### `haive memory stats` / `hot` / `pending` / `digest`
 
 ```bash
 haive memory stats     # Usage stats and confidence levels for all memories
 haive memory hot       # Most-read unvalidated memories (good promotion candidates)
 haive memory pending   # Proposed memories awaiting review
+
+# Generate a Markdown review digest for bulk approval/rejection:
+haive memory digest                  # Last 7 days, team scope (prints to stdout)
+haive memory digest --days 14        # Last 14 days
+haive memory digest --scope all      # All scopes
+haive memory digest --out digest.md  # Write to file
 ```
+
+The digest groups memories by type, shows confidence level (⬜ unverified / 🟡 low / 🟢 trusted / ⭐ authoritative), anchor, read count, and action checkboxes for easy bulk review.
 
 ---
 
@@ -267,12 +275,20 @@ haive memory pending   # Proposed memories awaiting review
 Print the full project briefing — project context + relevant memories — in one shot. Use before starting a task.
 
 ```bash
-haive briefing                                      # Full briefing, team scope
-haive briefing --task "add a Stripe payment"        # Filter by task relevance
+haive briefing                                           # Full briefing, team scope
+haive briefing --task "add a Stripe payment"             # Filter by task relevance
 haive briefing --files src/payments/PaymentService.java  # Filter by files
-haive briefing --scope all                          # Include personal memories
-haive briefing --include-stale                      # Include stale memories
-haive briefing --max-memories 15                    # Show more memories
+haive briefing --symbols PaymentService,TenantFilter     # Look up symbol locations in code-map
+haive briefing --scope all                               # Include personal memories
+haive briefing --include-stale                           # Include stale memories
+haive briefing --max-memories 15                         # Show more memories
+```
+
+**`--symbols` (requires `haive index code`):** look up where specific symbols are defined across your entire codebase — no grep needed. Returns file, line number, kind (class/interface/function/enum), and JSDoc description for each match.
+
+```
+PaymentProvider  src/payments/PaymentProvider.java:12  [interface]  — Abstract payment provider
+PaymentProvider  src/frontend/payment.types.ts:4       [enum]       — Mobile payment provider enum
 ```
 
 ---
@@ -337,12 +353,50 @@ The code map lets AI agents find where a function lives without grepping — dra
 
 ### `haive tui`
 
-Interactive terminal dashboard to browse, filter, and manage memories.
+Interactive terminal dashboard with 3 screens — browse, filter, and manage memories without leaving the terminal.
 
 ```bash
-haive tui               # Open the TUI (q to quit, arrow keys to navigate)
+haive tui               # Open the TUI
 haive tui --dir /path/to/project
 ```
+
+**Screens (switch with `1` `2` `3`):**
+
+| Screen | Key | What it shows |
+|---|---|---|
+| Memories | `1` | Full list + preview panel, filter by status (Tab), actions |
+| Health | `2` | Stale memories, pending review, anchorless memories |
+| Stats | `3` | Top-read memories, decaying (>90d unused), totals by status |
+
+**Actions (in Memories screen):**
+
+| Key | Action |
+|---|---|
+| `↑` `↓` | Navigate |
+| `Tab` | Cycle filter (all / draft / proposed / validated / stale / rejected) |
+| `a` | Approve (→ validated) |
+| `r` | Reject |
+| `p` | Propose (→ proposed) |
+| `d` | Delete |
+| `q` | Quit |
+
+---
+
+### `haive session end`
+
+Save a structured end-of-session recap. Surfaced automatically at the start of the next session via `get_briefing`.
+
+```bash
+haive session end \
+  --goal "Add Stripe payment integration" \
+  --accomplished "Implemented PaymentService, added tests, deployed to staging" \
+  --discoveries "The webhook signature must use the raw request body, not parsed JSON" \
+  --files "src/payments/PaymentService.ts,src/payments/webhook.ts" \
+  --next "Add retry logic for failed webhooks" \
+  --scope team
+```
+
+One recap is kept per scope (topic-upsert: `revision_count` increments on each call).
 
 ---
 

@@ -99,6 +99,7 @@ One-shot onboarding: returns project context + module contexts + ranked relevant
 {
   "task": "add a Stripe payment integration",
   "files": ["src/payments/PaymentService.ts"],
+  "symbols": ["PaymentService", "TenantFilter"],
   "max_tokens": 8000,
   "max_memories": 8,
   "format": "full",
@@ -112,6 +113,7 @@ One-shot onboarding: returns project context + module contexts + ranked relevant
 |---|---|---|
 | `task` | — | What you're about to do. Used to rank memories by relevance. |
 | `files` | `[]` | Files you're editing. Surfaces memories anchored to these files. |
+| `symbols` | `[]` | Symbol names to look up in the code-map (e.g. `["PaymentService"]`). Returns file + line + kind without grepping. Requires `haive index code`. |
 | `max_tokens` | `8000` | Token budget for the entire response. Sections are truncated to fit. |
 | `max_memories` | `8` | Max memories to include. |
 | `format` | `"full"` | `"full"` = complete bodies · `"compact"` = 1-line summaries (call `mem_get` for details) |
@@ -120,10 +122,13 @@ One-shot onboarding: returns project context + module contexts + ranked relevant
 | `track` | `true` | Increment read_count for returned memories. |
 
 **Response includes:**
-- `project_context` — the contents of `.ai/project-context.md`
+- `last_session` — most recent `haive session end` recap (surfaced first so agents start with fresh context)
+- `project_context` — `.ai/project-context.md` (suppressed if still template — `is_template: true`)
 - `module_contexts` — relevant `.ai/modules/<name>/context.md` files
-- `memories` — ranked list of relevant memories with body, confidence, and match reason
-- `decay_warnings` — memory IDs not read in >90 days (review or deprecate)
+- `memories` — ranked memories with `confidence`, `unverified` flag (for draft/proposed), and `match reason`
+- `symbol_locations` — file:line:kind results for each requested symbol (from code-map)
+- `decay_warnings` — memory IDs not read in >90 days
+- `setup_warnings` — actionable warnings (e.g. template project-context, missing init)
 - `search_mode` — `"semantic"` | `"literal_fallback"` | `"literal"`
 
 ---
@@ -149,11 +154,14 @@ Save a new memory. For failed approaches, use `mem_tried` instead — it enforce
 | `slug` | ✅ | Short kebab-case identifier |
 | `scope` | — | `personal` (default) · `team` · `module` |
 | `body` | ✅ | Markdown content |
-| `paths` | — | File paths to anchor to (enables staleness detection) |
+| `paths` | — | File paths to anchor to (enables staleness detection). **Warning returned if path doesn't exist in project.** |
 | `symbols` | — | Function/class names to anchor to |
 | `tags` | — | Tags for filtering |
+| `topic` | — | Stable key for upsert: if a memory with this `topic`+`scope` already exists, it is updated in-place (`revision_count++`) |
 | `domain` | — | Business domain (e.g. `payments`) |
 | `author` | — | Author handle |
+
+**Deduplication:** identical body content (same SHA-256 hash) within the same scope is rejected with an error. Use `mem_update` to modify it instead.
 
 ---
 
@@ -259,6 +267,38 @@ Compare two memories side-by-side: shows frontmatter fields that differ and line
 
 ```json
 { "id_a": "2025-01-15-gotcha-flyway-strict", "id_b": "2025-02-01-decision-flyway-naming" }
+```
+
+---
+
+### `mem_session_end`
+
+Save a structured end-of-session recap. Topic-upsert: one recap per scope is kept and updated with `revision_count++`. Automatically surfaced at the top of the next `get_briefing`.
+
+```json
+{
+  "goal": "Add Stripe payment integration",
+  "accomplished": "PaymentService done, tests passing, deployed to staging",
+  "discoveries": "Webhook signature requires raw body, not parsed JSON",
+  "files_touched": ["src/payments/PaymentService.ts", "src/payments/webhook.ts"],
+  "next_steps": "Add retry logic for failed webhooks",
+  "scope": "team"
+}
+```
+
+---
+
+### `mem_observe`
+
+Capture a code-level discovery in structured form (found-while, not a convention or decision).
+
+```json
+{
+  "file": "src/payments/PaymentService.ts",
+  "symbol": "processPayment",
+  "observation": "This method calls the external API synchronously — any timeout blocks the entire request thread.",
+  "scope": "team"
+}
 ```
 
 ---

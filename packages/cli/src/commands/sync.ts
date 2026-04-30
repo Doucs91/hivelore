@@ -9,6 +9,7 @@ import {
   getUsage,
   isAutoPromoteEligible,
   isDecaying,
+  loadCodeMap,
   loadMemoriesFromDir,
   loadUsageIndex,
   resolveHaivePaths,
@@ -215,6 +216,44 @@ export function registerSync(program: Command): void {
           log(ui.yellow(`\n⚠  ${decaying.length} memor${decaying.length === 1 ? "y" : "ies"} not read in >90 days (consider reviewing or deprecating):`));
           for (const { memory } of decaying) {
             log(ui.dim(`   ${memory.frontmatter.id}`));
+          }
+        }
+      }
+
+      // ── Auto-refresh code-map if source files changed since it was generated ──
+      const existingMap = await loadCodeMap(paths);
+      if (existingMap) {
+        const mapAge = new Date(existingMap.generated_at).getTime();
+        // Check if any tracked source files are newer than the map
+        const gitResult = spawnSync(
+          "git",
+          [
+            "diff",
+            "--name-only",
+            "--diff-filter=ACMR",
+            `@{${new Date(mapAge).toISOString()}}..HEAD`,
+            "--",
+            "*.ts", "*.tsx", "*.js", "*.jsx",
+            "*.java", "*.kt",
+            "*.py",
+            "*.go",
+            "*.rs",
+            "*.cs",
+            "*.php",
+          ],
+          { cwd: root, encoding: "utf8" },
+        );
+        const changedSourceFiles = (gitResult.stdout ?? "").trim();
+        if (changedSourceFiles.length > 0) {
+          // Lazily import the indexer to avoid circular deps
+          try {
+            const { buildCodeMap, saveCodeMap } = await import("@hiveai/core");
+            log(ui.dim("code-map: source files changed — refreshing index…"));
+            const newMap = await buildCodeMap(root);
+            await saveCodeMap(paths, newMap);
+            log(ui.dim(`code-map: refreshed (${Object.keys(newMap.files).length} files)`));
+          } catch {
+            // Non-fatal — code-map refresh is best-effort
           }
         }
       }

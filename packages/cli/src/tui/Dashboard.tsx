@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Box, Text, useInput, useApp } from "ink";
 import { existsSync } from "node:fs";
 import { writeFile, unlink } from "node:fs/promises";
+import path from "node:path";
 import {
   getUsage,
   isDecaying,
@@ -98,7 +99,7 @@ export function Dashboard({ root }: Props) {
   };
 
   // ── Actions ───────────────────────────────────────────────────────────
-  const doStatusChange = useCallback(async (newStatus: "validated" | "rejected" | "proposed") => {
+  const doStatusChange = useCallback(async (newStatus: "validated" | "rejected") => {
     if (!selected) return;
     const fm = selected.memory.frontmatter;
     if (fm.status === newStatus) { flash_(`Already ${newStatus}`, "yellow"); return; }
@@ -107,13 +108,36 @@ export function Dashboard({ root }: Props) {
       serializeMemory({ frontmatter: { ...fm, status: newStatus }, body: selected.memory.body }),
       "utf8",
     );
-    const label = newStatus === "validated" ? "✓ Approved" : newStatus === "rejected" ? "✗ Rejected" : "↑ Promoted";
-    const color = newStatus === "validated" ? "green" : newStatus === "rejected" ? "red" : "yellow";
+    const label = newStatus === "validated" ? "✓ Approved" : "✗ Rejected";
+    const color = newStatus === "validated" ? "green" : "red";
     flash_(`${label}: ${fm.id.slice(0, 40)}`, color);
     const prev = cursor;
     await reload();
     setCursor(Math.min(prev, Math.max(0, filtered.length - 2)));
   }, [selected, cursor, filtered.length, reload]);
+
+  // Promote = move personal → team (scope change) + set status proposed
+  const doPromote = useCallback(async () => {
+    if (!selected) return;
+    const fm = selected.memory.frontmatter;
+    if (fm.scope === "team") { flash_("Already team scope", "yellow"); return; }
+    const teamDir = path.join(path.dirname(path.dirname(selected.filePath)), "team");
+    const newFilePath = path.join(teamDir, path.basename(selected.filePath));
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(teamDir, { recursive: true });
+    await writeFile(
+      newFilePath,
+      serializeMemory({
+        frontmatter: { ...fm, scope: "team" as const, status: "proposed" as const },
+        body: selected.memory.body,
+      }),
+      "utf8",
+    );
+    await unlink(selected.filePath);
+    flash_(`↑ Promoted to team: ${fm.id.slice(0, 36)}`, "yellow");
+    await reload();
+    setCursor((c) => Math.max(0, c - 1));
+  }, [selected, reload]);
 
   const doDelete = useCallback(async () => {
     if (!selected) return;
@@ -136,7 +160,7 @@ export function Dashboard({ root }: Props) {
       if (key.tab) { setFilterIdx((i) => (i + 1) % FILTERS.length); setCursor(0); }
       if (input === "a") void doStatusChange("validated");
       if (input === "r") void doStatusChange("rejected");
-      if (input === "p") void doStatusChange("proposed");
+      if (input === "p") void doPromote();
       if (input === "d") void doDelete();
     }
   });
@@ -258,7 +282,7 @@ export function Dashboard({ root }: Props) {
 
         <FlashBar />
         <Box paddingX={1}>
-          <Text dimColor>↑↓ navigate  [tab] filter  [a] approve  [r] reject  [p] propose  [d] delete</Text>
+          <Text dimColor>↑↓ navigate  [tab] filter  [a] approve  [r] reject  [p] promote personal→team  [d] delete</Text>
         </Box>
       </Box>
     );
