@@ -25,8 +25,11 @@ import { registerMemoryShow } from "./commands/memory-show.js";
 import { registerMemoryStats } from "./commands/memory-stats.js";
 import { registerMemoryVerify } from "./commands/memory-verify.js";
 import { registerMemoryImport } from "./commands/memory-import.js";
+import { registerMemoryImportChangelog } from "./commands/memory-import-changelog.js";
 import { registerMemoryDigest } from "./commands/memory-digest.js";
 import { registerSessionEnd } from "./commands/session-end.js";
+import { registerSnapshot } from "./commands/snapshot.js";
+import { registerHub } from "./commands/hub.js";
 
 const program = new Command();
 
@@ -65,10 +68,14 @@ registerMemoryUpdate(memory);
 registerMemoryHot(memory);
 registerMemoryTried(memory);
 registerMemoryImport(memory);
+registerMemoryImportChangelog(memory);
 registerMemoryDigest(memory);
 
 const session = program.command("session").description("Manage session lifecycle");
 registerSessionEnd(session);
+
+registerSnapshot(program);
+registerHub(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   if (isZodError(err)) {

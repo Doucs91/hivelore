@@ -121,6 +121,28 @@ jobs:
               issue_number: context.issue.number,
               body: \`### haive — Stale memories detected\\n\\nSome memories anchored to code modified in this PR may be outdated:\\n\\n\\\`\\\`\\\`\\n\${report}\\n\\\`\\\`\\\`\\n\\nRun \\\`haive memory verify --update\\\` locally to refresh them before merging.\`
             });
+
+  # On push to main: push shared memories to the hub (if hubPath is configured)
+  # Uncomment and configure hubPath in .ai/haive.config.json to enable.
+  # hub-push:
+  #   if: github.event_name == 'push'
+  #   needs: sync-on-merge
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: write
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
+  #     - name: install haive
+  #       run: npm install -g @hiveai/cli
+  #     - name: push shared memories to hub
+  #       run: haive hub push --commit
+  #       # Requires hubPath in .ai/haive.config.json pointing to a cloned hub repo.
+  #       # The hub repo must be available at that path in the CI workspace.
 `;
 
 export function registerInit(program: Command): void {

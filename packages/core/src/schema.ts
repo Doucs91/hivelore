@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const MemoryScopeSchema = z.enum(["personal", "team", "module"]);
+export const MemoryScopeSchema = z.enum(["personal", "team", "module", "shared"]);
 
 export const MemoryStatusSchema = z.enum([
   "draft",
@@ -56,3 +56,11 @@ export const MemoryFrontmatterSchema = z
     (data) => data.scope !== "module" || !!data.module,
     { message: "module name is required when scope is 'module'", path: ["module"] },
   );
+
+// Additional fields for cross-repo provenance (stored in frontmatter of imported memories)
+export const CrossRepoProvenanceSchema = z.object({
+  source_name: z.string(),    // the crossRepoSources name from haive.config.json
+  source_path: z.string(),    // original file path in the source repo
+  source_id: z.string(),      // original memory id
+  imported_at: z.string(),    // ISO timestamp of import
+}).optional();

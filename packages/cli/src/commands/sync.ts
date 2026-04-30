@@ -1,10 +1,11 @@
 import { spawnSync } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import {
   DEFAULT_AUTO_PROMOTE_RULE,
+  buildFrontmatter,
   findProjectRoot,
   getUsage,
   isAutoPromoteEligible,
@@ -13,9 +14,13 @@ import {
   loadConfig,
   loadMemoriesFromDir,
   loadUsageIndex,
+  pullCrossRepoSources,
   resolveHaivePaths,
+  resolveManifestFiles,
   serializeMemory,
+  trackDependencies,
   verifyAnchor,
+  watchContracts,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 
@@ -32,6 +37,9 @@ interface SyncOptions {
   bridgeFile?: string;
   bridgeMaxMemories?: string;
   embed?: boolean;
+  noCrossRepo?: boolean;
+  noDeps?: boolean;
+  noContracts?: boolean;
 }
 
 export function registerSync(program: Command): void {
@@ -66,6 +74,9 @@ export function registerSync(program: Command): void {
     .option("--bridge-file <path>", "bridge file to inject into (default: CLAUDE.md)")
     .option("--bridge-max-memories <n>", "max memories to inject into bridge file", "5")
     .option("--embed", "rebuild embeddings index after sync (requires @haive/embeddings)")
+    .option("--no-cross-repo", "skip cross-repo memory pull even if crossRepoSources is configured")
+    .option("--no-deps", "skip dependency version tracking")
+    .option("--no-contracts", "skip contract file diff checking")
     .action(async (opts: SyncOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
@@ -264,6 +275,135 @@ export function registerSync(program: Command): void {
           for (const { memory } of decaying) {
             log(ui.dim(`   ${memory.frontmatter.id}`));
           }
+        }
+      }
+
+      // ── Cross-repo pull ────────────────────────────────────────────────────────
+      if (opts.noCrossRepo !== true && (config.crossRepoSources ?? []).length > 0) {
+        try {
+          const crossReports = await pullCrossRepoSources(paths, config, root);
+          for (const r of crossReports) {
+            const total = r.imported.length + r.updated.length;
+            if (total > 0 || r.errors.length > 0) {
+              log(
+                ui.dim(
+                  `cross-repo [${r.source}]: ${r.imported.length} imported · ${r.updated.length} updated · ${r.skipped.length} unchanged` +
+                  (r.errors.length > 0 ? ` · ⚠ ${r.errors.length} error(s)` : ""),
+                ),
+              );
+              for (const e of r.errors) ui.warn(`  cross-repo error: ${e}`);
+            }
+          }
+        } catch (err) {
+          ui.warn(`cross-repo pull failed: ${String(err)}`);
+        }
+      }
+
+      // ── Dependency tracker ─────────────────────────────────────────────────────
+      if (opts.noDeps !== true) {
+        try {
+          const manifestFiles = resolveManifestFiles(root, config.dependencyFiles);
+          if (manifestFiles.length > 0) {
+            const depResults = await trackDependencies(root, paths.haiveDir, manifestFiles);
+            for (const result of depResults) {
+              const majorBumps = result.changes.filter((c) => c.isMajorBump);
+              const minorChanges = result.changes.filter((c) => !c.isMajorBump);
+              if (result.changes.length > 0) {
+                log(
+                  ui.yellow(
+                    `⚠  dependency changes in ${result.file}: ${majorBumps.length} major bump(s) · ${minorChanges.length} minor change(s)`,
+                  ),
+                );
+                for (const c of majorBumps) {
+                  log(ui.yellow(`   MAJOR: ${c.name} ${c.from} → ${c.to}`));
+                }
+                for (const c of minorChanges) {
+                  log(ui.dim(`   minor: ${c.name} ${c.from} → ${c.to}`));
+                }
+                // Create a gotcha memory for major bumps
+                if (majorBumps.length > 0) {
+                  const slugParts = result.file.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+                  const slug = `dep-major-bump-${slugParts}-${Date.now().toString(36)}`;
+                  const body =
+                    `## Major dependency version bumps detected in \`${result.file}\`\n\n` +
+                    majorBumps.map((c) => `- **${c.name}**: \`${c.from}\` → \`${c.to}\` (major bump — check for breaking changes)`).join("\n") +
+                    `\n\n**Action:** Review the changelogs for these packages and update any memories anchored to their APIs.\n` +
+                    `Run \`haive memory import --from-changelog CHANGELOG.md\` if available.`;
+                  const fm = buildFrontmatter({
+                    type: "gotcha",
+                    slug,
+                    scope: "team",
+                    status: "validated",
+                    tags: ["dependency", "breaking-change", "auto-generated"],
+                    paths: [result.file],
+                    topic: `dep-bump-${slugParts}`,
+                  });
+                  const teamDir = path.join(paths.memoriesDir, "team");
+                  await mkdir(teamDir, { recursive: true });
+                  await writeFile(
+                    path.join(teamDir, `${fm.id}.md`),
+                    serializeMemory({ frontmatter: fm, body }),
+                    "utf8",
+                  );
+                  log(ui.yellow(`   → memory created: ${fm.id}`));
+                }
+              }
+            }
+          }
+        } catch (err) {
+          ui.warn(`dependency tracker failed: ${String(err)}`);
+        }
+      }
+
+      // ── Contract watcher ───────────────────────────────────────────────────────
+      if (opts.noContracts !== true && (config.contractFiles ?? []).length > 0) {
+        try {
+          const diffs = await watchContracts(root, paths.haiveDir, config.contractFiles!);
+          for (const diff of diffs) {
+            const breaking = diff.changes.filter((c) => c.severity === "breaking");
+            const additive = diff.changes.filter((c) => c.severity === "additive");
+            log(
+              ui.yellow(
+                `⚠  contract changed [${diff.contract}]: ${breaking.length} breaking · ${additive.length} additive`,
+              ),
+            );
+            for (const c of diff.changes) {
+              const icon = c.severity === "breaking" ? "🔴" : c.severity === "additive" ? "🟢" : "🟡";
+              log(`   ${icon} ${c.description}`);
+            }
+            // Create a gotcha memory for breaking contract changes
+            if (breaking.length > 0) {
+              const slug = `contract-breaking-${diff.contract.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-${Date.now().toString(36)}`;
+              const body =
+                `## Breaking changes detected in contract: \`${diff.contract}\` (\`${diff.file}\`)\n\n` +
+                breaking.map((c) => `- 🔴 **${c.kind}**: ${c.description}`).join("\n") +
+                (additive.length > 0
+                  ? "\n\n### Additive changes (non-breaking)\n" +
+                    additive.map((c) => `- 🟢 ${c.description}`).join("\n")
+                  : "") +
+                `\n\n**Action:** Review all consumers of this contract and update accordingly.\n` +
+                `Check memories tagged with \`${diff.contract}\` for potentially stale knowledge.`;
+              const fm = buildFrontmatter({
+                type: "gotcha",
+                slug,
+                scope: "team",
+                status: "validated",
+                tags: ["api-contract", "breaking-change", diff.contract, "auto-generated"],
+                paths: [diff.file],
+                topic: `contract-breaking-${diff.contract}`,
+              });
+              const teamDir = path.join(paths.memoriesDir, "team");
+              await mkdir(teamDir, { recursive: true });
+              await writeFile(
+                path.join(teamDir, `${fm.id}.md`),
+                serializeMemory({ frontmatter: fm, body }),
+                "utf8",
+              );
+              log(ui.yellow(`   → memory created: ${fm.id}`));
+            }
+          }
+        } catch (err) {
+          ui.warn(`contract watcher failed: ${String(err)}`);
         }
       }
 

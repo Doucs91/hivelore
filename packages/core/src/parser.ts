@@ -60,6 +60,7 @@ export function buildFrontmatter(input: {
   commit?: string;
   topic?: string;
   status?: MemoryFrontmatter["status"];
+  relatedIds?: string[];
 }): MemoryFrontmatter {
   const now = new Date();
   const id = newMemoryId(input.type, input.slug, now);
@@ -81,5 +82,6 @@ export function buildFrontmatter(input: {
     expires_when: null,
     topic: input.topic,
     revision_count: 0,
+    related_ids: input.relatedIds ?? [],
   });
 }

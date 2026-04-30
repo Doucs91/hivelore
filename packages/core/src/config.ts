@@ -6,6 +6,11 @@
  *   - `haive sync` auto-approves proposed memories after the delay
  *   - The MCP server saves a session recap automatically on exit
  *   - `get_briefing` auto-generates a minimal project context if none exists
+ *
+ * Multi-repo support:
+ *   - crossRepoSources: pull shared memories from other repos on haive sync
+ *   - contractFiles: watch API contract files for breaking changes
+ *   - hubPath: local path to a shared team-knowledge hub repo
  */
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
@@ -13,6 +18,33 @@ import path from "node:path";
 import type { HaivePaths } from "./paths.js";
 
 export const CONFIG_FILE = "haive.config.json";
+
+/** A remote or local repo to pull shared memories from. */
+export interface CrossRepoSource {
+  /** Human-readable name for this source (used in imported memory tags). */
+  name: string;
+  /** Local filesystem path to the other project's root (relative or absolute). */
+  path?: string;
+  /** Git URL — clone/fetch performed automatically. */
+  git?: string;
+  /** Only import memories matching all of these filters. */
+  filter?: {
+    /** Only import memories with these tags. */
+    tags?: string[];
+    /** Only import memories of these types. */
+    types?: string[];
+  };
+}
+
+/** An API contract file to snapshot and monitor for breaking changes. */
+export interface ContractFile {
+  /** Human-readable name for this contract. */
+  name: string;
+  /** Path to the contract file, relative to the project root. */
+  path: string;
+  /** Format of the contract file. */
+  format: "openapi" | "graphql" | "proto" | "typescript" | "json-schema";
+}
 
 export interface HaiveConfig {
   /** Autopilot mode: maximum autonomy, minimum human intervention. Default: false. */
@@ -45,6 +77,41 @@ export interface HaiveConfig {
    * the template. Default: true in autopilot, false otherwise.
    */
   autoContext?: boolean;
+
+  // ── Multi-repo support ──────────────────────────────────────────────────
+
+  /**
+   * Other repos to pull `shared`-scoped memories from during `haive sync`.
+   * Each source must have either `path` (local) or `git` (remote URL).
+   *
+   * Example:
+   *   { "name": "backend", "path": "../repo-backend", "filter": { "tags": ["api-contract"] } }
+   */
+  crossRepoSources?: CrossRepoSource[];
+
+  /**
+   * API contract files to snapshot and watch for breaking changes.
+   * `haive sync` compares the current file against `.ai/contracts/<name>.lock`
+   * and creates a `gotcha` memory if a breaking change is detected.
+   *
+   * Example:
+   *   { "name": "payment-api", "path": "docs/openapi.yaml", "format": "openapi" }
+   */
+  contractFiles?: ContractFile[];
+
+  /**
+   * Local path to a shared team-knowledge hub repo.
+   * Used by `haive hub pull` and `haive hub push`.
+   * Can be relative (resolved from project root) or absolute.
+   */
+  hubPath?: string;
+
+  /**
+   * Lock file paths to watch for dependency version changes.
+   * Auto-detected if not specified (package.json, pom.xml, go.mod, etc.).
+   * Set to [] to disable dependency tracking entirely.
+   */
+  dependencyFiles?: string[];
 }
 
 export const DEFAULT_CONFIG: HaiveConfig = {

@@ -11,3 +11,6 @@ export * from "./relevance.js";
 export * from "./token-budget.js";
 export * from "./code-map.js";
 export * from "./config.js";
+export * from "./cross-repo.js";
+export * from "./dep-tracker.js";
+export * from "./contract-watcher.js";
