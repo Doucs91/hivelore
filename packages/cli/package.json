@@ -35,15 +35,15 @@
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "dependencies": {
-    "@hiveai/core": "^0.2.9",
-    "@hiveai/mcp": "^0.2.9",
+    "@hiveai/core": "^0.4.1",
+    "@hiveai/mcp": "^0.4.1",
     "commander": "^12.1.0",
     "ink": "^7.0.1",
     "picocolors": "^1.1.1",
     "react": "^19.2.5"
   },
   "peerDependencies": {
-    "@hiveai/embeddings": "^0.2.2"
+    "@hiveai/embeddings": "^0.4.1"
   },
   "peerDependenciesMeta": {
     "@hiveai/embeddings": {

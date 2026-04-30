@@ -33,12 +33,12 @@
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "dependencies": {
-    "@hiveai/core": "^0.2.9",
+    "@hiveai/core": "^0.4.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "@hiveai/embeddings": "^0.2.2"
+    "@hiveai/embeddings": "^0.4.1"
   },
   "peerDependenciesMeta": {
     "@hiveai/embeddings": {
