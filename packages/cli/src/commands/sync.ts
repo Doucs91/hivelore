@@ -10,6 +10,7 @@ import {
   isAutoPromoteEligible,
   isDecaying,
   loadCodeMap,
+  loadConfig,
   loadMemoriesFromDir,
   loadUsageIndex,
   resolveHaivePaths,
@@ -65,9 +66,14 @@ export function registerSync(program: Command): void {
         if (!opts.quiet) console.log(msg);
       };
 
+      const config = await loadConfig(paths);
+      const autoApproveDelayHours = config.autoApproveDelayHours ?? null;
+      const autoPromoteMinReads = config.autoPromoteMinReads ?? DEFAULT_AUTO_PROMOTE_RULE.minReads;
+
       let staleMarked = 0;
       let revalidated = 0;
       let promoted = 0;
+      let autoApproved = 0;
 
       if (opts.verify !== false) {
         const memories = await loadMemoriesFromDir(paths.memoriesDir);
@@ -140,23 +146,50 @@ export function registerSync(program: Command): void {
       if (opts.promote !== false) {
         const memories = await loadMemoriesFromDir(paths.memoriesDir);
         const usage = await loadUsageIndex(paths);
+        const nowMs = Date.now();
         for (const { memory, filePath } of memories) {
+          const fm = memory.frontmatter;
+          if (fm.type === "session_recap") continue;
+
+          // Usage-based auto-promotion (existing logic, threshold from config)
           if (
-            isAutoPromoteEligible(
-              memory.frontmatter,
-              getUsage(usage, memory.frontmatter.id),
-              DEFAULT_AUTO_PROMOTE_RULE,
-            )
+            isAutoPromoteEligible(fm, getUsage(usage, fm.id), {
+              minReads: autoPromoteMinReads,
+              maxRejections: DEFAULT_AUTO_PROMOTE_RULE.maxRejections,
+            })
           ) {
             await writeFile(
               filePath,
-              serializeMemory({
-                frontmatter: { ...memory.frontmatter, status: "validated" },
-                body: memory.body,
-              }),
+              serializeMemory({ frontmatter: { ...fm, status: "validated" }, body: memory.body }),
               "utf8",
             );
             promoted++;
+            continue;
+          }
+
+          // Time-based auto-approve: proposed memories older than N hours → validated
+          if (
+            autoApproveDelayHours !== null &&
+            fm.status === "proposed" &&
+            fm.scope === "team"
+          ) {
+            const ageHours =
+              (nowMs - new Date(fm.created_at).getTime()) / (1000 * 60 * 60);
+            if (ageHours >= autoApproveDelayHours) {
+              await writeFile(
+                filePath,
+                serializeMemory({
+                  frontmatter: {
+                    ...fm,
+                    status: "validated",
+                    verified_at: new Date().toISOString(),
+                  },
+                  body: memory.body,
+                }),
+                "utf8",
+              );
+              autoApproved++;
+            }
           }
         }
       }
@@ -168,8 +201,9 @@ export function registerSync(program: Command): void {
       );
       const draftCount = draftMemories.length;
 
+      const autoApprovedNote = autoApproved > 0 ? ` · ${autoApproved} auto-approved` : "";
       log(
-        `${ui.dim("sync:")} ${staleMarked} stale · ${revalidated} revalidated · ${promoted} promoted${sinceReport ? ` · ${sinceReport.added.length}+/${sinceReport.modified.length}~/${sinceReport.removed.length}- since ${opts.since}` : ""}`,
+        `${ui.dim("sync:")} ${staleMarked} stale · ${revalidated} revalidated · ${promoted} promoted${autoApprovedNote}${sinceReport ? ` · ${sinceReport.added.length}+/${sinceReport.modified.length}~/${sinceReport.removed.length}- since ${opts.since}` : ""}`,
       );
       if (!opts.quiet && draftCount > 0) {
         log(

@@ -1,8 +1,16 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { Command } from "commander";
-import { findProjectRoot, resolveHaivePaths } from "@hiveai/core";
+import {
+  AUTOPILOT_DEFAULTS,
+  buildCodeMap,
+  findProjectRoot,
+  resolveHaivePaths,
+  saveCodeMap,
+  saveConfig,
+} from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 
 const PROJECT_CONTEXT_TEMPLATE = `# Project context
@@ -122,9 +130,14 @@ export function registerInit(program: Command): void {
     .option("-d, --dir <dir>", "project root", process.cwd())
     .option("--no-bridges", "do not generate CLAUDE.md / .cursorrules / copilot-instructions.md")
     .option("--with-ci", "write a GitHub Actions workflow (.github/workflows/haive-sync.yml)")
-    .action(async (opts: { dir: string; bridges: boolean; withCi?: boolean }) => {
+    .option(
+      "--autopilot",
+      "zero-friction mode: memories → validated, auto-approve, auto-session, auto-context, git hooks + CI included",
+    )
+    .action(async (opts: { dir: string; bridges: boolean; withCi?: boolean; autopilot?: boolean }) => {
       const root = path.resolve(opts.dir);
       const paths = resolveHaivePaths(root);
+      const autopilot = opts.autopilot === true;
 
       if (existsSync(paths.haiveDir)) {
         ui.warn(`.ai/ already exists at ${paths.haiveDir} — leaving existing files in place.`);
@@ -140,13 +153,26 @@ export function registerInit(program: Command): void {
         ui.success(`Created ${path.relative(root, paths.projectContext)}`);
       }
 
+      // Write config (autopilot or default)
+      const configExists = existsSync(
+        path.join(paths.haiveDir, "haive.config.json"),
+      );
+      if (!configExists) {
+        await saveConfig(paths, autopilot ? AUTOPILOT_DEFAULTS : { autopilot: false });
+        ui.success(
+          `Created .ai/haive.config.json (mode: ${autopilot ? "autopilot" : "standard"})`,
+        );
+      }
+
       if (opts.bridges) {
         await writeBridge(root, "CLAUDE.md");
         await writeBridge(root, ".cursorrules");
         await writeBridge(root, path.join(".github", "copilot-instructions.md"));
       }
 
-      if (opts.withCi) {
+      // autopilot: CI + git hooks + code-map included automatically
+      const wantCi = opts.withCi || autopilot;
+      if (wantCi) {
         const ciPath = path.join(root, ".github", "workflows", "haive-sync.yml");
         if (existsSync(ciPath)) {
           ui.info("CI workflow already exists — skipped");
@@ -157,29 +183,60 @@ export function registerInit(program: Command): void {
         }
       }
 
-      ui.success(`hAIve initialized at ${root}`);
+      if (autopilot) {
+        // Install git hooks
+        const haiveBin = process.argv[1]!;
+        const hookResult = spawnSync(
+          process.execPath,
+          [haiveBin, "install-hooks", "--dir", root],
+          { encoding: "utf8" },
+        );
+        if (hookResult.status === 0) {
+          ui.success("Git hooks installed (auto-sync after pull/merge)");
+        } else {
+          ui.warn("Git hooks not installed (not a git repo or no .git/ found) — run `haive install-hooks` manually");
+        }
+
+        // Build initial code-map
+        try {
+          ui.info("Building code-map…");
+          const map = await buildCodeMap(root);
+          await saveCodeMap(paths, map);
+          ui.success(`Code-map built (${Object.keys(map.files).length} files)`);
+        } catch {
+          ui.warn("Code-map build failed — run `haive index code` manually");
+        }
+      }
+
+      ui.success(`hAIve initialized at ${root}${autopilot ? " (autopilot mode)" : ""}`);
       console.log();
-      console.log(ui.bold("Next steps:"));
-      console.log(
-        ui.dim("  1. Fill project context — let your AI agent do it:"),
-      );
-      console.log(
-        "     " + ui.bold("In your AI client (Claude, Cursor…), invoke the MCP prompt: bootstrap_project"),
-      );
-      console.log(
-        ui.dim("     This analyzes your codebase and writes .ai/project-context.md automatically."),
-      );
-      console.log(
-        ui.dim("     Without this step, get_briefing returns a blank template (little value)."),
-      );
-      console.log();
-      console.log(ui.dim("  2. Point your AI client at the MCP server:"));
-      console.log(
-        `     haive-mcp --root ${root}`,
-      );
-      console.log();
-      console.log(ui.dim("  3. Start every AI session with:"));
-      console.log("     " + ui.bold("get_briefing({ task: '…what you are about to do…' })"));
+
+      if (autopilot) {
+        console.log(ui.bold("Autopilot mode is ON — hAIve runs itself:"));
+        console.log(ui.dim("  ✓ Memories go directly to validated (no approval needed)"));
+        console.log(ui.dim("  ✓ Proposed memories auto-approve after 72h without rejection"));
+        console.log(ui.dim("  ✓ Session recap saved automatically when the AI session closes"));
+        console.log(ui.dim("  ✓ Code-map refreshes automatically after every pull"));
+        console.log(ui.dim("  ✓ Git hooks installed (auto-sync after pull/merge)"));
+        console.log(ui.dim("  ✓ CI workflow created (pr-stale-check + sync-on-merge)"));
+        console.log();
+        console.log(ui.bold("One remaining step:"));
+        console.log("  In your AI client, invoke the MCP prompt: " + ui.bold("bootstrap_project"));
+        console.log(ui.dim("  This fills .ai/project-context.md — only needed once."));
+      } else {
+        console.log(ui.bold("Next steps:"));
+        console.log(ui.dim("  1. Fill project context — let your AI agent do it:"));
+        console.log("     " + ui.bold("In your AI client (Claude, Cursor…), invoke the MCP prompt: bootstrap_project"));
+        console.log(ui.dim("     This analyzes your codebase and writes .ai/project-context.md automatically."));
+        console.log();
+        console.log(ui.dim("  2. Point your AI client at the MCP server:"));
+        console.log(`     haive-mcp --root ${root}`);
+        console.log();
+        console.log(ui.dim("  3. Start every AI session with:"));
+        console.log("     " + ui.bold("get_briefing({ task: '…what you are about to do…' })"));
+        console.log();
+        console.log(ui.dim("  Tip: run `haive init --autopilot` for zero-friction mode (no manual steps)."));
+      }
     });
 }
 

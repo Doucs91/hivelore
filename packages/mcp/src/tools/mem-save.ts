@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   buildFrontmatter,
+  loadConfig,
   loadMemoriesFromDir,
   memoryFilePath,
   serializeMemory,
@@ -146,10 +147,18 @@ export async function memSave(
   }
 
   // ── Create new memory ──────────────────────────────────────────────────
+  const haiveConfig = await loadConfig(ctx.paths);
+
+  // In autopilot mode: memories go directly to validated (skip approval cycle)
+  // Also apply config defaults for scope
+  const resolvedScope = input.scope !== "personal"
+    ? input.scope
+    : (haiveConfig.defaultScope ?? "personal");
+
   const frontmatter = buildFrontmatter({
     type: input.type,
     slug: input.slug,
-    scope: input.scope,
+    scope: resolvedScope as "personal" | "team" | "module",
     module: input.module,
     tags: input.tags,
     domain: input.domain,
@@ -158,6 +167,7 @@ export async function memSave(
     symbols: input.symbols,
     commit: input.commit,
     topic: input.topic,
+    status: haiveConfig.defaultStatus === "validated" ? "validated" : undefined,
   });
 
   const file = memoryFilePath(

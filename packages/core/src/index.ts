@@ -10,3 +10,4 @@ export * from "./confidence.js";
 export * from "./relevance.js";
 export * from "./token-budget.js";
 export * from "./code-map.js";
+export * from "./config.js";

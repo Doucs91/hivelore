@@ -98,6 +98,7 @@ import {
   importDocsPrompt,
   type ImportDocsArgs,
 } from "./prompts/import-docs.js";
+import { SessionTracker } from "./session-tracker.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -117,8 +118,12 @@ function jsonResult(data: unknown) {
 
 export function createHaiveServer(
   options: CreateContextOptions = {},
-): { server: McpServer; context: HaiveContext } {
+): { server: McpServer; context: HaiveContext; tracker: SessionTracker } {
   const context = createContext(options);
+  const tracker = new SessionTracker(context);
+  // Init is async — fire-and-forget at startup (registers shutdown handler if autopilot)
+  void tracker.init();
+
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
     { capabilities: { tools: {}, prompts: {} } },
@@ -128,7 +133,10 @@ export function createHaiveServer(
     "mem_save",
     "Save a new memory (convention, decision, gotcha, architecture, glossary). For failed approaches use mem_tried instead — it enforces a structured format that is more useful to future agents. Use scope=team to share with the whole team.",
     MemSaveInputSchema,
-    async (input: MemSaveInput) => jsonResult(await memSave(input, context)),
+    async (input: MemSaveInput) => {
+      tracker.record("mem_save", input.slug);
+      return jsonResult(await memSave(input, context));
+    },
   );
 
   server.tool(
@@ -157,7 +165,10 @@ export function createHaiveServer(
     "get_briefing",
     "One-shot onboarding: returns project context + module contexts + ranked relevant memories under a token budget. Replaces 4–5 separate calls when an agent starts a task.",
     GetBriefingInputSchema,
-    async (input: GetBriefingInput) => jsonResult(await getBriefing(input, context)),
+    async (input: GetBriefingInput) => {
+      tracker.record("get_briefing", input.task ?? "");
+      return jsonResult(await getBriefing(input, context));
+    },
   );
 
   server.tool(
@@ -235,7 +246,10 @@ export function createHaiveServer(
     "mem_tried",
     "Preferred way to record a failed approach. Enforces a structured what/why_failed/instead format that is immediately actionable for future agents. Auto-validated (no approval cycle). Use whenever you tried an approach and it failed — prevents the same mistake from happening in the next session.",
     MemTriedInputSchema,
-    async (input: MemTriedInput) => jsonResult(await memTried(input, context)),
+    async (input: MemTriedInput) => {
+      tracker.record("mem_tried", input.what.slice(0, 80));
+      return jsonResult(await memTried(input, context));
+    },
   );
 
   server.tool(
@@ -249,7 +263,10 @@ export function createHaiveServer(
     "mem_observe",
     "Capture a code-level discovery made during exploration: a bug, inconsistency, missing config, or security gap found by reading existing code that was NOT in the briefing. Use this whenever you read code and spot something that could silently break in production. Auto-validated, anchored to file paths for staleness detection. Prefer this over mem_save for reactive discoveries during code reading.",
     MemObserveInputSchema,
-    async (input: MemObserveInput) => jsonResult(await memObserve(input, context)),
+    async (input: MemObserveInput) => {
+      tracker.record("mem_observe", input.where);
+      return jsonResult(await memObserve(input, context));
+    },
   );
 
   server.tool(
@@ -259,7 +276,10 @@ export function createHaiveServer(
     "fresh context. Call this before closing every significant session. " +
     "get_briefing automatically surfaces the latest recap at the top of the next session's briefing.",
     MemSessionEndInputSchema,
-    async (input: MemSessionEndInput) => jsonResult(await memSessionEnd(input, context)),
+    async (input: MemSessionEndInput) => {
+      tracker.record("mem_session_end", input.goal.slice(0, 80));
+      return jsonResult(await memSessionEnd(input, context));
+    },
   );
 
   server.prompt(
@@ -283,5 +303,5 @@ export function createHaiveServer(
     (args: ImportDocsArgs) => importDocsPrompt(args, context),
   );
 
-  return { server, context };
+  return { server, context, tracker };
 }
