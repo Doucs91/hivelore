@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/core",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "hAIve core — memory types, schema, parser, validator",
   "license": "MIT",
   "repository": {
@@ -10,7 +10,14 @@
   },
   "bugs": "https://github.com/Doucs91/hAIve/issues",
   "homepage": "https://github.com/Doucs91/hAIve#readme",
-  "keywords": ["ai", "memory", "mcp", "haive", "agent", "team"],
+  "keywords": [
+    "ai",
+    "memory",
+    "mcp",
+    "haive",
+    "agent",
+    "team"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,7 +27,10 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "LICENSE"],
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",

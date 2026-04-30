@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/mcp",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "hAIve MCP server — exposes memory + project context to any MCP-compatible AI client",
   "license": "MIT",
   "repository": {
@@ -10,7 +10,15 @@
   },
   "bugs": "https://github.com/Doucs91/hAIve/issues",
   "homepage": "https://github.com/Doucs91/hAIve#readme",
-  "keywords": ["ai", "memory", "mcp", "haive", "model-context-protocol", "agent", "team"],
+  "keywords": [
+    "ai",
+    "memory",
+    "mcp",
+    "haive",
+    "model-context-protocol",
+    "agent",
+    "team"
+  ],
   "type": "module",
   "main": "./dist/server.js",
   "types": "./dist/server.d.ts",
@@ -24,7 +32,10 @@
   "bin": {
     "haive-mcp": "./dist/index.js"
   },
-  "files": ["dist", "LICENSE"],
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -33,7 +44,7 @@
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "dependencies": {
-    "@hiveai/core": "^0.4.1",
+    "@hiveai/core": "^0.4.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.23.8"
   },
