@@ -40,9 +40,16 @@ See \`.ai/project-context.md\` for the full project context.
 Memories live under \`.ai/memories/\` (personal/team/module).
 
 ## hAIve — mandatory rules for AI agents
+
+### Session rules
 - **Before** marking a task as done ("Done", "Finished", "C'est fait"), call the MCP prompt \`post_task\`.
 - **Immediately** when an approach fails (wrong API, wrong pattern, wrong assumption), call \`mem_tried\` — do not wait until the end of the session.
 - When starting a new task, call \`get_briefing\` with the task description to load relevant memories and avoid repeating past mistakes.
+
+### Safety rules — NEVER violate these
+- If \`get_briefing\` returns an \`action_required\` list, **stop and show each item to the developer** before doing anything. Use the exact \`developer_message\` provided. Wait for explicit confirmation.
+- **Never modify code autonomously** because of a breaking change detected in another project (dependency version bump, API contract change, removed field). Always ask first.
+- When in doubt about a cross-repo change: ask, don't act.
 `;
 
 const CI_WORKFLOW = `name: haive-sync

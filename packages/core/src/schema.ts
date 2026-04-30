@@ -51,6 +51,13 @@ export const MemoryFrontmatterSchema = z
     last_read_at: z.string().nullable().default(null),
     topic: z.string().optional(),          // stable key for upsert — same topic in same scope → update instead of create
     revision_count: z.number().int().min(0).default(0), // incremented each time a topic upsert occurs
+    /**
+     * When true, the AI MUST NOT act on this memory autonomously.
+     * It must surface the information to the human developer and wait
+     * for explicit confirmation before modifying any code.
+     * Used for cross-repo breaking changes, dependency bumps, contract diffs.
+     */
+    requires_human_approval: z.boolean().default(false),
   })
   .refine(
     (data) => data.scope !== "module" || !!data.module,

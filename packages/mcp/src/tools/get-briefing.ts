@@ -113,6 +113,18 @@ export interface CodeMapSymbolHit {
   }>;
 }
 
+export interface ActionRequiredItem {
+  /** Memory id containing the alert */
+  id: string;
+  /** Short human-readable summary of the issue */
+  summary: string;
+  /**
+   * The exact message to show the developer before doing anything.
+   * Copy-paste this verbatim — do NOT paraphrase or act before confirmation.
+   */
+  developer_message: string;
+}
+
 export interface BriefingOutput {
   task?: string;
   search_mode: "semantic" | "literal_fallback" | "literal";
@@ -123,6 +135,13 @@ export interface BriefingOutput {
   module_contexts: Array<{ name: string; content: string; truncated: boolean }>;
   memories: BriefingMemory[];
   symbol_locations?: CodeMapSymbolHit[];
+  /**
+   * Memories that require explicit human confirmation before any code action.
+   * IMPORTANT: for each item, show developer_message to the developer and
+   * wait for explicit approval before modifying any code.
+   * These are surfaced separately from memories to make them impossible to miss.
+   */
+  action_required: ActionRequiredItem[];
   decay_warnings: string[];
   setup_warnings: string[];
   estimated_tokens: number;
@@ -495,6 +514,65 @@ export async function getBriefing(
     }
   }
 
+  // ── action_required: memories that need explicit human confirmation ──────
+  const actionRequired: ActionRequiredItem[] = [];
+  for (const m of outputMemories) {
+    const loaded = byId.get(m.id);
+    if (!loaded?.memory.frontmatter.requires_human_approval) continue;
+
+    // Extract the developer message from the memory body (between the > quote block)
+    const bodyLines = loaded.memory.body.split("\n");
+    const quoteBlock = bodyLines
+      .filter((l) => l.startsWith("> "))
+      .map((l) => l.slice(2))
+      .join(" ")
+      .replace(/^\*«\s*/, "")
+      .replace(/\s*»\*$/, "")
+      .trim();
+
+    // Build a short summary from the first heading
+    const headingLine = bodyLines.find((l) => l.startsWith("## "));
+    const summary = headingLine?.replace(/^##\s*/, "").trim() ?? m.id;
+
+    actionRequired.push({
+      id: m.id,
+      summary,
+      developer_message: quoteBlock ||
+        `Une modification externe potentiellement incompatible a été détectée (${m.id}). ` +
+        `Veux-tu que j'analyse l'impact et que je propose des mises à jour ?`,
+    });
+  }
+  // Also load action_required memories that weren't in the ranked set
+  // (they may not be relevant to the task but are still urgent)
+  if (existsSync(ctx.paths.memoriesDir)) {
+    const allMems = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+    for (const { memory } of allMems) {
+      const fm = memory.frontmatter;
+      if (!fm.requires_human_approval) continue;
+      if (fm.status === "rejected" || fm.status === "deprecated") continue;
+      if (actionRequired.some((a) => a.id === fm.id)) continue; // already included
+
+      const bodyLines = memory.body.split("\n");
+      const quoteBlock = bodyLines
+        .filter((l) => l.startsWith("> "))
+        .map((l) => l.slice(2))
+        .join(" ")
+        .replace(/^\*«\s*/, "")
+        .replace(/\s*»\*$/, "")
+        .trim();
+      const headingLine = bodyLines.find((l) => l.startsWith("## "));
+      const summary = headingLine?.replace(/^##\s*/, "").trim() ?? fm.id;
+
+      actionRequired.push({
+        id: fm.id,
+        summary,
+        developer_message: quoteBlock ||
+          `Une modification externe potentiellement incompatible a été détectée (${fm.id}). ` +
+          `Veux-tu que j'analyse l'impact et que je propose des mises à jour ?`,
+      });
+    }
+  }
+
   return {
     ...(input.task ? { task: input.task } : {}),
     search_mode: searchMode,
@@ -511,6 +589,7 @@ export async function getBriefing(
     module_contexts: trimmedModules,
     memories: outputMemories,
     ...(symbolLocations ? { symbol_locations: symbolLocations } : {}),
+    action_required: actionRequired,
     decay_warnings: decayWarnings,
     setup_warnings: setupWarnings,
     estimated_tokens: totalTokens,
