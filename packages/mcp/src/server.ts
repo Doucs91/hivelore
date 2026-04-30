@@ -129,9 +129,34 @@ export function createHaiveServer(
     { capabilities: { tools: {}, prompts: {} } },
   );
 
+  // ── Memory creation ────────────────────────────────────────────────────
+
   server.tool(
     "mem_save",
-    "Save a new memory (convention, decision, gotcha, architecture, glossary). For failed approaches use mem_tried instead — it enforces a structured format that is more useful to future agents. Use scope=team to share with the whole team.",
+    [
+      "Save a piece of knowledge as a persistent memory that survives across AI sessions.",
+      "",
+      "USE THIS WHEN you discover something worth remembering for future sessions:",
+      "  - A project convention (how things are done here)",
+      "  - An architectural decision and its rationale",
+      "  - A gotcha or non-obvious behavior that surprised you",
+      "  - A domain term and what it means in this codebase",
+      "",
+      "DO NOT USE for failed approaches → use mem_tried instead (better structure).",
+      "DO NOT USE for code discoveries during exploration → use mem_observe instead.",
+      "",
+      "PARAMETERS:",
+      "  type     — convention | decision | gotcha | architecture | glossary | attempt",
+      "  slug     — short kebab-case id (e.g. 'flyway-no-modify-existing')",
+      "  body     — Markdown content with the full knowledge",
+      "  scope    — team (shared with all devs) | personal (private) | module (component-scoped)",
+      "  paths    — anchor to source files for staleness detection (STRONGLY recommended)",
+      "  topic    — stable key for upsert: if a memory with same topic+scope exists, update it in-place",
+      "",
+      "RETURNS: { id, scope, file_path, action: 'created'|'updated', warning?, invalid_paths? }",
+      "WARNING: if paths point to non-existent files, they will be immediately stale after haive sync.",
+      "DEDUP: identical body content within the same scope is rejected — use mem_update to modify.",
+    ].join("\n"),
     MemSaveInputSchema,
     async (input: MemSaveInput) => {
       tracker.record("mem_save", input.slug);
@@ -140,111 +165,26 @@ export function createHaiveServer(
   );
 
   server.tool(
-    "mem_search",
-    "Search memories by substring across id, tags, and body. Optional filters by scope/type/module.",
-    MemSearchInputSchema,
-    async (input: MemSearchInput) => jsonResult(await memSearch(input, context)),
-  );
-
-  server.tool(
-    "mem_list",
-    "List memories with optional filters by scope/type/module/tag.",
-    MemListInputSchema,
-    async (input: MemListInput) => jsonResult(await memList(input, context)),
-  );
-
-  server.tool(
-    "get_project_context",
-    "Read the shared .ai/project-context.md (and optionally a module context).",
-    GetProjectContextInputSchema,
-    async (input: GetProjectContextInput) =>
-      jsonResult(await getProjectContext(input, context)),
-  );
-
-  server.tool(
-    "get_briefing",
-    "One-shot onboarding: returns project context + module contexts + ranked relevant memories under a token budget. Replaces 4–5 separate calls when an agent starts a task.",
-    GetBriefingInputSchema,
-    async (input: GetBriefingInput) => {
-      tracker.record("get_briefing", input.task ?? "");
-      return jsonResult(await getBriefing(input, context));
-    },
-  );
-
-  server.tool(
-    "code_map",
-    "Browse the project's pre-computed code map (file → exports + 1-line description) instead of grepping. Requires `haive index code`.",
-    CodeMapInputSchema,
-    async (input: CodeMapInput) => jsonResult(await codeMapTool(input, context)),
-  );
-
-  server.tool(
-    "bootstrap_project_save",
-    "Persist a project (or module) context document analyzed by the AI client.",
-    BootstrapProjectSaveInputSchema,
-    async (input: BootstrapProjectSaveInput) =>
-      jsonResult(await bootstrapProjectSave(input, context)),
-  );
-
-  server.tool(
-    "mem_verify",
-    "Check anchor freshness for one or every memory; optionally write status updates back to disk.",
-    MemVerifyInputSchema,
-    async (input: MemVerifyInput) => jsonResult(await memVerify(input, context)),
-  );
-
-  server.tool(
-    "mem_reject",
-    "Record a rejection for a memory (blocks auto-promotion and lowers its trust signal).",
-    MemRejectInputSchema,
-    async (input: MemRejectInput) => jsonResult(await memReject(input, context)),
-  );
-
-  server.tool(
-    "mem_for_files",
-    "Given the file paths the agent is currently working on, return relevant memories grouped by reason (anchor overlap, module, domain) plus any matching .ai/modules/<name>/context.md contents.",
-    MemForFilesInputSchema,
-    async (input: MemForFilesInput) => jsonResult(await memForFiles(input, context)),
-  );
-
-  server.tool(
-    "mem_get",
-    "Fetch a single memory by id, including its body, anchor, usage, and confidence.",
-    MemGetInputSchema,
-    async (input: MemGetInput) => jsonResult(await memGet(input, context)),
-  );
-
-  server.tool(
-    "mem_delete",
-    "Delete a memory by id (and its usage entry by default).",
-    MemDeleteInputSchema,
-    async (input: MemDeleteInput) => jsonResult(await memDelete(input, context)),
-  );
-
-  server.tool(
-    "mem_update",
-    "Update the body, tags, or anchor of an existing memory without changing its id or losing usage history.",
-    MemUpdateInputSchema,
-    async (input: MemUpdateInput) => jsonResult(await memUpdate(input, context)),
-  );
-
-  server.tool(
-    "mem_pending",
-    "List 'proposed' memories awaiting review, sorted by reads (most-read first).",
-    MemPendingInputSchema,
-    async (input: MemPendingInput) => jsonResult(await memPending(input, context)),
-  );
-
-  server.tool(
-    "mem_approve",
-    "Mark a memory as validated immediately (explicit team review).",
-    MemApproveInputSchema,
-    async (input: MemApproveInput) => jsonResult(await memApprove(input, context)),
-  );
-
-  server.tool(
     "mem_tried",
-    "Preferred way to record a failed approach. Enforces a structured what/why_failed/instead format that is immediately actionable for future agents. Auto-validated (no approval cycle). Use whenever you tried an approach and it failed — prevents the same mistake from happening in the next session.",
+    [
+      "Record a FAILED approach so future agents don't repeat the same mistake.",
+      "",
+      "USE THIS IMMEDIATELY when you try something and it doesn't work. This is the",
+      "most valuable type of negative knowledge — it saves hours of debugging for",
+      "future agents working on the same codebase.",
+      "",
+      "Auto-validated (no approval cycle). Surfaced FIRST in future get_briefing calls",
+      "so it's impossible to miss.",
+      "",
+      "PARAMETERS:",
+      "  what       — short title of what you tried (e.g. 'importing X with ESM dynamic import')",
+      "  why_failed — the exact error or reason it failed",
+      "  instead    — what to do instead (the correct approach)",
+      "  scope      — team (default) | personal",
+      "  paths      — source files where the issue lives",
+      "",
+      "RETURNS: { id, file_path, action: 'created' }",
+    ].join("\n"),
     MemTriedInputSchema,
     async (input: MemTriedInput) => {
       tracker.record("mem_tried", input.what.slice(0, 80));
@@ -253,15 +193,31 @@ export function createHaiveServer(
   );
 
   server.tool(
-    "mem_diff",
-    "Compare two memories side-by-side: shows frontmatter fields that differ and lines unique to each body. Useful before merging or deduplicating memories.",
-    MemDiffInputSchema,
-    async (input: MemDiffInput) => jsonResult(await memDiff(input, context)),
-  );
-
-  server.tool(
     "mem_observe",
-    "Capture a code-level discovery made during exploration: a bug, inconsistency, missing config, or security gap found by reading existing code that was NOT in the briefing. Use this whenever you read code and spot something that could silently break in production. Auto-validated, anchored to file paths for staleness detection. Prefer this over mem_save for reactive discoveries during code reading.",
+    [
+      "Capture a code-level discovery made WHILE READING existing code.",
+      "",
+      "USE THIS when you read a file and spot something the team may not know about:",
+      "  - A bug or race condition hiding in the code",
+      "  - A security gap or missing validation",
+      "  - An inconsistency between two files",
+      "  - A missing configuration or environment variable",
+      "  - Anything that could silently break in production",
+      "",
+      "DIFFERENCE from mem_save: mem_observe is for REACTIVE discoveries during code",
+      "reading. mem_save is for deliberate knowledge capture (conventions, decisions).",
+      "",
+      "Auto-validated, anchored to file paths for staleness detection.",
+      "",
+      "PARAMETERS:",
+      "  what   — one-line title (e.g. 'MobilePaymentController: duplicate @RequestBody')",
+      "  where  — file path(s) where the issue lives",
+      "  impact — what breaks or could break because of this",
+      "  fix    — suggested fix (optional)",
+      "  scope  — team (default, since discoveries benefit everyone)",
+      "",
+      "RETURNS: { id, file_path }",
+    ].join("\n"),
     MemObserveInputSchema,
     async (input: MemObserveInput) => {
       tracker.record("mem_observe", input.where);
@@ -271,10 +227,27 @@ export function createHaiveServer(
 
   server.tool(
     "mem_session_end",
-    "Save a structured end-of-session recap (goal / accomplished / discoveries / next steps). " +
-    "Uses topic-upsert: one recap per scope is kept and updated in-place so the next session always has " +
-    "fresh context. Call this before closing every significant session. " +
-    "get_briefing automatically surfaces the latest recap at the top of the next session's briefing.",
+    [
+      "Save an end-of-session recap so the NEXT session starts with fresh context.",
+      "",
+      "CALL THIS before closing any significant working session. In autopilot mode,",
+      "the MCP server saves a minimal recap automatically on exit — but calling this",
+      "manually produces a richer, more useful recap.",
+      "",
+      "HOW IT WORKS: uses topic-upsert — one recap per scope is kept and updated",
+      "in-place (revision_count increments). get_briefing surfaces the latest recap",
+      "at the very top of the next session's briefing, before project context.",
+      "",
+      "PARAMETERS:",
+      "  goal         — what you were trying to accomplish (1–2 sentences)",
+      "  accomplished — what was actually done (bullet list recommended)",
+      "  discoveries  — bugs, surprises, missing knowledge found during this session",
+      "  files_touched — key files read or modified (used as anchor for staleness)",
+      "  next_steps   — what should happen in the next session or for a teammate",
+      "  scope        — personal (default) | team",
+      "",
+      "RETURNS: { id, scope, action: 'created'|'updated', revision_count }",
+    ].join("\n"),
     MemSessionEndInputSchema,
     async (input: MemSessionEndInput) => {
       tracker.record("mem_session_end", input.goal.slice(0, 80));
@@ -282,23 +255,369 @@ export function createHaiveServer(
     },
   );
 
+  // ── Memory retrieval ───────────────────────────────────────────────────
+
+  server.tool(
+    "get_briefing",
+    [
+      "⭐ CALL THIS FIRST at the start of every task. One-shot onboarding that returns",
+      "everything relevant in a single call under a token budget.",
+      "",
+      "RETURNS (in order of priority):",
+      "  1. last_session   — recap of the previous session (goal, what was done, next steps)",
+      "  2. project_context — .ai/project-context.md (auto-generated from code-map if template)",
+      "  3. module_contexts — relevant .ai/modules/<name>/context.md based on files being edited",
+      "  4. memories        — ranked team memories relevant to your task",
+      "  5. symbol_locations — file:line:kind for any requested symbols (no grep needed)",
+      "  6. setup_warnings  — actionable warnings if setup is incomplete",
+      "  7. decay_warnings  — memories not read in >90 days (consider reviewing)",
+      "",
+      "KEY PARAMETERS:",
+      "  task    — what you are about to do (1–2 sentences) — ALWAYS provide this",
+      "  files   — files you are about to edit — surfaces anchored memories",
+      "  symbols — symbol names to look up in the code-map (e.g. ['PaymentService'])",
+      "  format  — 'full' (default) | 'compact' (1-line summaries, use when token budget is tight)",
+      "",
+      "EXAMPLE USAGE:",
+      "  get_briefing({ task: 'add a Stripe payment integration', files: ['src/payments/'], symbols: ['PaymentService'] })",
+      "",
+      "CONFIDENCE LEVELS in memories:",
+      "  authoritative — validated + read 10+ times (highest trust)",
+      "  trusted       — validated or proposed + read 3+ times",
+      "  low           — proposed, few reads (take with caution)",
+      "  unverified    — draft (unverified: true flag set)",
+      "",
+      "Replaces 4–5 separate tool calls. Always call this before any other tool.",
+    ].join("\n"),
+    GetBriefingInputSchema,
+    async (input: GetBriefingInput) => {
+      tracker.record("get_briefing", input.task ?? "");
+      return jsonResult(await getBriefing(input, context));
+    },
+  );
+
+  server.tool(
+    "mem_search",
+    [
+      "Search memories by keyword or semantic similarity.",
+      "",
+      "USE WHEN you need to find a specific memory and don't know its id.",
+      "For session onboarding, use get_briefing instead (richer, ranked, budgeted).",
+      "",
+      "SEARCH MODES:",
+      "  Literal (default): AND search across id, tags, and body — all tokens must match.",
+      "  Falls back to OR automatically if no AND results (partial match).",
+      "  Semantic (semantic: true): embedding-based similarity — finds related memories",
+      "  even with different wording. Requires haive embeddings index to be built.",
+      "",
+      "PARAMETERS:",
+      "  query    — search terms or natural language question",
+      "  scope    — filter by personal | team | module",
+      "  type     — filter by convention | decision | gotcha | architecture | glossary",
+      "  semantic — true for embedding-based search (requires @hiveai/embeddings)",
+      "  limit    — max results (default 10)",
+      "",
+      "RETURNS: array of { id, type, scope, status, confidence, body, match_quality }",
+    ].join("\n"),
+    MemSearchInputSchema,
+    async (input: MemSearchInput) => jsonResult(await memSearch(input, context)),
+  );
+
+  server.tool(
+    "mem_for_files",
+    [
+      "Surface memories relevant to the files you are currently editing.",
+      "",
+      "USE WHEN starting work on specific files and you want to know:",
+      "  - What conventions apply to these files",
+      "  - What gotchas are anchored to these paths",
+      "  - What decisions were made about this module",
+      "",
+      "Matching strategy (in priority order):",
+      "  1. Anchor overlap — memories whose paths overlap with your files",
+      "  2. Module context — .ai/modules/<name>/context.md if module is inferred",
+      "  3. Domain/tag match — memories whose tags include path segments",
+      "",
+      "PARAMETERS:",
+      "  files — list of project-relative file paths you are editing",
+      "  scope — filter by scope (default: all)",
+      "",
+      "RETURNS: { memories: [...], module_contexts: [...] }",
+    ].join("\n"),
+    MemForFilesInputSchema,
+    async (input: MemForFilesInput) => jsonResult(await memForFiles(input, context)),
+  );
+
+  server.tool(
+    "mem_get",
+    [
+      "Fetch a single memory by its full id with all details.",
+      "",
+      "USE WHEN get_briefing returned a memory in 'compact' format and you need",
+      "the full body, or when you know the exact id of a memory.",
+      "",
+      "PARAMETERS:",
+      "  id — full memory id (e.g. '2026-04-28-gotcha-flyway-strict-no-ddl')",
+      "",
+      "RETURNS: { id, type, scope, status, confidence, body, anchor, tags, usage }",
+    ].join("\n"),
+    MemGetInputSchema,
+    async (input: MemGetInput) => jsonResult(await memGet(input, context)),
+  );
+
+  server.tool(
+    "mem_list",
+    [
+      "List memories with optional filters. Use for browsing, not for task onboarding.",
+      "",
+      "For task onboarding use get_briefing (ranked + budgeted).",
+      "For keyword search use mem_search.",
+      "",
+      "PARAMETERS:",
+      "  scope  — personal | team | module",
+      "  type   — convention | decision | gotcha | architecture | glossary",
+      "  status — draft | proposed | validated | stale | rejected",
+      "  tags   — filter by tags (AND match)",
+      "  module — filter by module name",
+      "",
+      "RETURNS: array of { id, type, scope, status, confidence, tags, created_at }",
+    ].join("\n"),
+    MemListInputSchema,
+    async (input: MemListInput) => jsonResult(await memList(input, context)),
+  );
+
+  // ── Project context ────────────────────────────────────────────────────
+
+  server.tool(
+    "get_project_context",
+    [
+      "Read .ai/project-context.md (and optionally a module context) directly.",
+      "",
+      "USE WHEN you need the full project context without the memory ranking and",
+      "token budgeting of get_briefing — e.g. for a reference architecture review.",
+      "",
+      "For normal task onboarding, use get_briefing instead (more efficient).",
+      "",
+      "PARAMETERS:",
+      "  module — also load .ai/modules/<module>/context.md if provided",
+      "",
+      "RETURNS: { content: string, module_context?: string }",
+    ].join("\n"),
+    GetProjectContextInputSchema,
+    async (input: GetProjectContextInput) =>
+      jsonResult(await getProjectContext(input, context)),
+  );
+
+  server.tool(
+    "bootstrap_project_save",
+    [
+      "Persist the project context document (.ai/project-context.md) or a module",
+      "context (.ai/modules/<name>/context.md) analyzed by the AI.",
+      "",
+      "USE AFTER the bootstrap_project MCP prompt: the prompt tells you how to",
+      "analyze the codebase; this tool saves the result.",
+      "",
+      "PARAMETERS:",
+      "  content — full Markdown content of the context document",
+      "  module  — if provided, saves as a module context (not root project context)",
+      "",
+      "RETURNS: { file_path, module? }",
+    ].join("\n"),
+    BootstrapProjectSaveInputSchema,
+    async (input: BootstrapProjectSaveInput) =>
+      jsonResult(await bootstrapProjectSave(input, context)),
+  );
+
+  server.tool(
+    "code_map",
+    [
+      "Look up where symbols (classes, functions, interfaces) are defined in the codebase.",
+      "",
+      "USE INSTEAD OF grepping when you need to find where something lives.",
+      "Requires haive index code to have been run (done automatically in autopilot mode).",
+      "",
+      "TIP: include symbols in get_briefing directly for auto-lookup at session start.",
+      "",
+      "PARAMETERS:",
+      "  symbol   — name or partial name to search (e.g. 'PaymentService')",
+      "  file     — filter by file path substring",
+      "  max_files — cap on results (default 40)",
+      "",
+      "RETURNS: { available: bool, files: [{ path, exports: [{ name, kind, line, description }] }] }",
+      "If available: false → run haive index code first.",
+    ].join("\n"),
+    CodeMapInputSchema,
+    async (input: CodeMapInput) => jsonResult(await codeMapTool(input, context)),
+  );
+
+  // ── Memory lifecycle ───────────────────────────────────────────────────
+
+  server.tool(
+    "mem_update",
+    [
+      "Update the body, tags, or anchor of an existing memory in-place.",
+      "",
+      "USE WHEN a memory exists but its content has become outdated or incomplete.",
+      "This preserves the memory's id, usage history, and read_count.",
+      "",
+      "For evolving memories that you will update repeatedly, use mem_save with a",
+      "topic key instead (topic-upsert pattern).",
+      "",
+      "PARAMETERS:",
+      "  id      — full memory id to update",
+      "  body    — new Markdown content (replaces existing body)",
+      "  tags    — new tag list (replaces existing tags)",
+      "  paths   — new anchor paths (replaces existing paths)",
+      "  symbols — new anchor symbols (replaces existing symbols)",
+      "",
+      "RETURNS: { id, file_path, updated_fields: string[] }",
+    ].join("\n"),
+    MemUpdateInputSchema,
+    async (input: MemUpdateInput) => jsonResult(await memUpdate(input, context)),
+  );
+
+  server.tool(
+    "mem_verify",
+    [
+      "Check whether memory anchor paths and symbols still exist in the current code.",
+      "",
+      "USE WHEN you want to know if a specific memory is still valid after a refactor,",
+      "or to check all memories for staleness (haive sync does this automatically).",
+      "",
+      "PARAMETERS:",
+      "  id     — check a single memory (omit to check all)",
+      "  update — write 'stale' or 'validated' status back to disk",
+      "",
+      "RETURNS: { results: [{ id, status: 'fresh'|'stale'|'anchorless', reason? }] }",
+      "Stale means the anchored file/symbol no longer exists at that path.",
+      "Anchorless means the memory has no paths/symbols — staleness is undetectable.",
+    ].join("\n"),
+    MemVerifyInputSchema,
+    async (input: MemVerifyInput) => jsonResult(await memVerify(input, context)),
+  );
+
+  server.tool(
+    "mem_approve",
+    [
+      "Mark a memory as validated (trusted, approved by a human or the team).",
+      "",
+      "In autopilot mode, memories are validated automatically — you rarely need this.",
+      "In manual mode, call this after reviewing a proposed memory to activate it.",
+      "",
+      "PARAMETERS:",
+      "  id — full memory id to approve",
+      "",
+      "RETURNS: { id, previous_status, new_status: 'validated' }",
+    ].join("\n"),
+    MemApproveInputSchema,
+    async (input: MemApproveInput) => jsonResult(await memApprove(input, context)),
+  );
+
+  server.tool(
+    "mem_reject",
+    [
+      "Mark a memory as rejected and record a reason.",
+      "",
+      "USE WHEN a memory is factually wrong, outdated, or not useful.",
+      "Rejection blocks auto-promotion and lowers the memory's trust signal.",
+      "Rejected memories are excluded from get_briefing by default.",
+      "",
+      "PARAMETERS:",
+      "  id     — full memory id to reject",
+      "  reason — why this memory is being rejected (stored in frontmatter)",
+      "",
+      "RETURNS: { id, previous_status, new_status: 'rejected' }",
+    ].join("\n"),
+    MemRejectInputSchema,
+    async (input: MemRejectInput) => jsonResult(await memReject(input, context)),
+  );
+
+  server.tool(
+    "mem_pending",
+    [
+      "List memories in 'proposed' status awaiting review, sorted by read count.",
+      "",
+      "USE IN MANUAL MODE to see what memories are waiting for human review.",
+      "In autopilot mode, proposed memories auto-approve after 72h.",
+      "",
+      "High read_count on a proposed memory = many agents found it useful without",
+      "rejecting it = strong signal to approve.",
+      "",
+      "RETURNS: array of { id, type, scope, read_count, created_at, body_preview }",
+    ].join("\n"),
+    MemPendingInputSchema,
+    async (input: MemPendingInput) => jsonResult(await memPending(input, context)),
+  );
+
+  server.tool(
+    "mem_delete",
+    [
+      "Permanently delete a memory by id.",
+      "",
+      "USE WITH CAUTION — prefer mem_reject for outdated memories (preserves history).",
+      "Use delete only for accidentally created memories or duplicates.",
+      "",
+      "PARAMETERS:",
+      "  id            — full memory id to delete",
+      "  delete_usage  — also delete usage stats (default: true)",
+      "",
+      "RETURNS: { deleted: true, id }",
+    ].join("\n"),
+    MemDeleteInputSchema,
+    async (input: MemDeleteInput) => jsonResult(await memDelete(input, context)),
+  );
+
+  server.tool(
+    "mem_diff",
+    [
+      "Compare two memories side-by-side to decide if they should be merged.",
+      "",
+      "USE BEFORE merging or deduplicating similar memories.",
+      "Shows: frontmatter fields that differ + lines unique to each body.",
+      "",
+      "PARAMETERS:",
+      "  id_a — first memory id",
+      "  id_b — second memory id",
+      "",
+      "RETURNS: { frontmatter_diff: {...}, body_only_in_a: [...], body_only_in_b: [...] }",
+    ].join("\n"),
+    MemDiffInputSchema,
+    async (input: MemDiffInput) => jsonResult(await memDiff(input, context)),
+  );
+
   server.prompt(
     "bootstrap_project",
-    "Instructions for the AI client to analyze the project and save the context.",
+    [
+      "Analyze the project codebase and write .ai/project-context.md — run once after haive init.",
+      "The AI explores the directory structure, reads key files (package.json, README, config),",
+      "identifies the tech stack, architectural patterns, key modules, and conventions,",
+      "then persists everything via bootstrap_project_save.",
+      "For multi-component projects, run with module param to create .ai/modules/<name>/context.md.",
+    ].join(" "),
     BootstrapProjectArgsSchema,
     (args: BootstrapProjectArgs) => bootstrapProjectPrompt(args, context),
   );
 
   server.prompt(
     "post_task",
-    "Post-task checklist: run this after completing a task to capture failed approaches, new conventions, decisions, and gotchas before closing the session.",
+    [
+      "⭐ Post-task reflection — run at the end of every session to capture what you learned:",
+      "failed approaches (mem_tried), new conventions/decisions/gotchas (mem_save),",
+      "code discoveries (mem_observe), and an end-of-session recap (mem_session_end).",
+      "In autopilot mode a minimal recap saves automatically; calling this produces a richer one.",
+    ].join(" "),
     PostTaskArgsSchema,
     (args: PostTaskArgs) => postTaskPrompt(args, context),
   );
 
   server.prompt(
     "import_docs",
-    "Analyze documentation (README, ADR, wiki page, etc.) and save the actionable knowledge as hAIve memories. Pass the content and an optional source/scope.",
+    [
+      "Import knowledge from a document (README, ADR, wiki, API spec) as hAIve memories.",
+      "Pass the full document content; the AI extracts up to 10 actionable memories",
+      "(conventions, decisions, gotchas, architecture) and saves them via mem_save.",
+      "Good candidates: ADRs, onboarding docs, runbooks, team wikis.",
+    ].join(" "),
     ImportDocsArgsSchema,
     (args: ImportDocsArgs) => importDocsPrompt(args, context),
   );

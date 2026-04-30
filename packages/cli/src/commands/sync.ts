@@ -37,7 +37,20 @@ interface SyncOptions {
 export function registerSync(program: Command): void {
   program
     .command("sync")
-    .description("Refresh memory state after a pull/merge: verify anchors, auto-promote, report changes")
+    .description(
+      "Refresh memory state after a git pull or merge.\n" +
+      "  What it does:\n" +
+      "    1. Verifies anchor paths — marks stale if files/symbols moved or deleted\n" +
+      "    2. Re-validates previously stale memories that are now fresh\n" +
+      "    3. Auto-promotes proposed memories (by usage count or time delay in autopilot)\n" +
+      "    4. Auto-refreshes code-map if source files changed\n" +
+      "    5. Reports decay warnings for memories unused >90 days\n\n" +
+      "  Install git hooks to run sync automatically: haive install-hooks\n\n" +
+      "  Examples:\n" +
+      "    haive sync\n" +
+      "    haive sync --since main   # also report memories changed since main\n" +
+      "    haive sync --embed        # also rebuild embeddings index\n",
+    )
     .option("-d, --dir <dir>", "project root")
     .option("--quiet", "minimal output (suitable for git hooks)")
     .option(

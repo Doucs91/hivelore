@@ -55,13 +55,26 @@ function recapTopic(scope: string, module?: string): string {
 export function registerSessionEnd(session: Command): void {
   session
     .command("end")
-    .description("Save a structured end-of-session recap (goal / accomplished / discoveries / next steps)")
-    .requiredOption("--goal <text>", "What you were trying to accomplish (1–2 sentences)")
-    .requiredOption("--accomplished <text>", "What was actually done (bullet list recommended)")
-    .option("--discoveries <text>", "Bugs, surprises, or inconsistencies found during this session")
-    .option("--files <csv>", "Key files touched, comma-separated")
-    .option("--next <text>", "What should happen next (for the next session or a teammate)")
-    .option("--scope <scope>", "personal | team | module", "personal")
+    .description(
+      "Save an end-of-session recap so the NEXT session starts with fresh context.\n\n" +
+      "  One recap per scope is kept and updated in-place (topic-upsert). The next\n" +
+      "  session's get_briefing (or haive briefing) shows it at the very top.\n\n" +
+      "  In autopilot mode, a minimal recap saves automatically on MCP server exit.\n" +
+      "  Calling this manually produces a richer, more actionable recap.\n\n" +
+      "  Example:\n" +
+      "    haive session end \\\\\n" +
+      "      --goal \"Add Stripe webhook handler\" \\\\\n" +
+      "      --accomplished \"Implemented webhook endpoint, added idempotency key\" \\\\\n" +
+      "      --discoveries \"Missing .env.example entry for STRIPE_WEBHOOK_SECRET\" \\\\\n" +
+      "      --files src/payments/WebhookController.ts,src/payments/WebhookService.ts \\\\\n" +
+      "      --next \"Add integration tests for webhook signature validation\"\n",
+    )
+    .requiredOption("--goal <text>", "what you were trying to accomplish (1–2 sentences)")
+    .requiredOption("--accomplished <text>", "what was actually done (bullet list recommended)")
+    .option("--discoveries <text>", "bugs, surprises, or inconsistencies found during this session")
+    .option("--files <csv>", "key files touched, comma-separated (used as anchor for staleness detection)")
+    .option("--next <text>", "what should happen next (for the next session or a teammate)")
+    .option("--scope <scope>", "personal | team | module (default: personal)", "personal")
     .option("--module <name>", "module name (required when scope=module)")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: SessionEndOptions) => {

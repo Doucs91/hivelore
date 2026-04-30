@@ -15,11 +15,27 @@ interface IndexCodeOptions {
 }
 
 export function registerIndexCode(program: Command): void {
-  const idx = program.command("index").description("Build local indexes that help AIs read less code");
+  const idx = program
+    .command("index")
+    .description(
+      "Build local indexes that let AIs look up symbols instead of grepping.\n\n" +
+      "  Run once after init, then haive sync refreshes it automatically when source changes.",
+    );
   idx.action(() => idx.help());
   idx
     .command("code")
-    .description("Scan source files and write .ai/code-map.json (file → exports + 1-line description)")
+    .description(
+      "Scan source files and write .ai/code-map.json (file → exports + 1-line description).\n\n" +
+      "  Supported languages: TypeScript, JavaScript, Java, Python, Go, Rust, C#, PHP.\n" +
+      "  The map is used by:\n" +
+      "    • get_briefing (symbol_locations) — look up where a class/function lives\n" +
+      "    • code_map MCP tool — browse exports without grepping\n" +
+      "    • haive briefing --symbols — look up symbols from the CLI\n\n" +
+      "  Run automatically by haive init (autopilot mode) and haive sync (if source changed).\n\n" +
+      "  Example:\n" +
+      "    haive index code\n" +
+      "    haive index code --exclude generated,proto\n",
+    )
     .option("-d, --dir <dir>", "project root")
     .option(
       "--exclude <csv>",

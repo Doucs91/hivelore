@@ -41,10 +41,18 @@ export function registerMemoryDigest(program: Command): void {
   program
     .command("digest")
     .description(
-      "Generate a Markdown review digest of recently added/updated memories (default: last 7 days)",
+      "Generate a Markdown review digest of recently added or updated memories.\n\n" +
+      "  Groups memories by type, shows confidence, status, read count, and anchor info.\n" +
+      "  Each memory has action checkboxes (approve / reject / keep as-is) for peer review.\n\n" +
+      "  Use this to do a bulk weekly review of team memories, or share with teammates\n" +
+      "  as a pull-request attachment so humans can validate what the AI captured.\n\n" +
+      "  Examples:\n" +
+      "    haive memory digest                         # last 7 days, team scope\n" +
+      "    haive memory digest --days 30 --scope all   # last 30 days, all scopes\n" +
+      "    haive memory digest --out review.md         # write to file\n",
     )
-    .option("--days <n>", "look-back window in days", "7")
-    .option("--scope <scope>", "personal | team | module | all", "team")
+    .option("--days <n>", "look-back window in days (default: 7)", "7")
+    .option("--scope <scope>", "personal | team | module | all (default: team)", "team")
     .option("--out <file>", "write digest to a file instead of stdout")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: DigestOptions) => {

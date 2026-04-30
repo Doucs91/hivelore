@@ -29,7 +29,15 @@ const HOOKS = ["post-merge", "post-rewrite"] as const;
 export function registerInstallHooks(program: Command): void {
   program
     .command("install-hooks")
-    .description("Install git hooks that run `haive sync` after pull/merge")
+    .description(
+      "Install git hooks so haive sync runs automatically after every pull or merge.\n\n" +
+      "  Installs a post-merge hook at .git/hooks/post-merge that runs:\n" +
+      "    haive sync --quiet --since ORIG_HEAD --embed\n\n" +
+      "  This ensures memory anchors are always verified and the embeddings index\n" +
+      "  is kept fresh without requiring any manual steps.\n\n" +
+      "  Installed automatically by haive init (autopilot mode).\n" +
+      "  Use --force to overwrite an existing post-merge hook.\n",
+    )
     .option("-d, --dir <dir>", "project root")
     .option("--force", "overwrite existing hooks")
     .action(async (opts: InstallHooksOptions) => {

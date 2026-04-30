@@ -126,18 +126,21 @@ jobs:
 export function registerInit(program: Command): void {
   program
     .command("init")
-    .description("Initialize a hAIve project (.ai/ structure + bridge files)")
+    .description(
+      "Initialize a hAIve project — autopilot mode ON by default (zero human intervention).\n" +
+      "  Add --manual if you want to control memory approval and session recaps yourself.",
+    )
     .option("-d, --dir <dir>", "project root", process.cwd())
     .option("--no-bridges", "do not generate CLAUDE.md / .cursorrules / copilot-instructions.md")
-    .option("--with-ci", "write a GitHub Actions workflow (.github/workflows/haive-sync.yml)")
+    .option("--with-ci", "write a GitHub Actions workflow (.github/workflows/haive-sync.yml) — included automatically in autopilot mode")
     .option(
-      "--autopilot",
-      "zero-friction mode: memories → validated, auto-approve, auto-session, auto-context, git hooks + CI included",
+      "--manual",
+      "opt out of autopilot: memories require manual approval, no auto-session recap, no auto-context",
     )
-    .action(async (opts: { dir: string; bridges: boolean; withCi?: boolean; autopilot?: boolean }) => {
+    .action(async (opts: { dir: string; bridges: boolean; withCi?: boolean; manual?: boolean }) => {
       const root = path.resolve(opts.dir);
       const paths = resolveHaivePaths(root);
-      const autopilot = opts.autopilot === true;
+      const autopilot = opts.manual !== true; // autopilot is ON by default
 
       if (existsSync(paths.haiveDir)) {
         ui.warn(`.ai/ already exists at ${paths.haiveDir} — leaving existing files in place.`);
@@ -235,7 +238,7 @@ export function registerInit(program: Command): void {
         console.log(ui.dim("  3. Start every AI session with:"));
         console.log("     " + ui.bold("get_briefing({ task: '…what you are about to do…' })"));
         console.log();
-        console.log(ui.dim("  Tip: run `haive init --autopilot` for zero-friction mode (no manual steps)."));
+        console.log(ui.dim("  Tip: run `haive init` (without --manual) for zero-friction autopilot mode."));
       }
     });
 }

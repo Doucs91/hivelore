@@ -22,28 +22,30 @@ This installs the `haive` command globally.
 ## Quick start
 
 ```bash
-# 1. Initialize hAIve in your project
+# 1. Initialize hAIve in your project (autopilot ON by default)
 cd my-project
-haive init
+haive init                          # autopilot: hooks + CI + code-map auto-configured
+# haive init --manual               # if you prefer to approve memories yourself
 
-# 2. Start the MCP server (in Claude Code / Cursor MCP config)
-haive mcp --root /absolute/path/to/my-project
+# 2. Point your AI client at the MCP server
+# Add to ~/.claude.json / ~/.cursor/mcp.json:
+# { "mcpServers": { "haive": { "command": "haive-mcp", "args": ["--root", "/absolute/path"] } } }
 
-# 3. Add a team memory
+# 3. Bootstrap the project context (run once in your AI client)
+# → Use the bootstrap_project MCP prompt to analyze the codebase and fill .ai/project-context.md
+
+# 4. Your AI client now calls get_briefing at every session start — zero config needed
+
+# 5. Add a memory manually (or let the AI agent do it via mem_save)
 haive memory add \
-  --type gotcha \
-  --slug "open-in-view-false" \
-  --scope team \
+  --type gotcha --slug "jpa-open-in-view" --scope team \
   --paths src/main/resources/application.properties \
   --body "spring.jpa.open-in-view=false is intentional — do not re-enable."
 
-# 4. Browse memories
-haive memory list --scope team
+# 6. Browse and manage memories in the TUI dashboard
+haive tui
 
-# 5. Get a briefing before a task
-haive briefing --task "add a payment endpoint" --scope team
-
-# 6. Sync after a git pull
+# 7. Sync after a git pull (runs automatically via hooks in autopilot mode)
 haive sync
 ```
 
@@ -53,14 +55,27 @@ haive sync
 
 ### `haive init`
 
-Initialize the `.ai/` structure in a project and generate bridge files for your AI tools.
+Initialize the `.ai/` structure in a project. **Autopilot mode is ON by default** — zero manual steps required.
 
 ```bash
-haive init                    # Creates .ai/, CLAUDE.md, .cursorrules, copilot-instructions.md
-haive init --no-bridges       # Skip bridge file generation
-haive init --with-ci          # Also write .github/workflows/haive-sync.yml
+haive init                    # Autopilot: validates memories automatically, installs hooks, builds code-map
+haive init --manual           # Manual mode: you approve every memory yourself
+haive init --no-bridges       # Skip bridge file generation (CLAUDE.md, .cursorrules, etc.)
 haive init --dir /other/path  # Initialize in a specific directory
 ```
+
+**Autopilot mode** (default):
+- Memories are saved directly as `validated` (no approval cycle)
+- Git hooks installed automatically (`haive sync` after every pull)
+- CI workflow generated (`.github/workflows/haive-sync.yml`)
+- Initial code-map built (`.ai/code-map.json`) for symbol lookup
+- Session recaps saved automatically when the MCP server exits
+- Configuration stored in `.ai/haive.config.json`
+
+**Manual mode** (`--manual`):
+- Memories start as `proposed` and require explicit approval (`haive memory approve`)
+- No automatic hooks or CI — set up manually with `haive install-hooks` and `haive init --with-ci`
+- Full control over when knowledge is shared with the team
 
 **What it creates:**
 
@@ -68,6 +83,7 @@ haive init --dir /other/path  # Initialize in a specific directory
 your-project/
 ├── .ai/
 │   ├── project-context.md        # Shared project overview (fill via bootstrap_project MCP prompt)
+│   ├── haive.config.json         # Autopilot settings
 │   ├── modules/                  # Per-component context files
 │   └── memories/
 │       ├── personal/             # Private to one developer

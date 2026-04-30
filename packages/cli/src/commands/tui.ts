@@ -4,7 +4,21 @@ import { findProjectRoot } from "@hiveai/core";
 export function registerTui(program: Command): void {
   program
     .command("tui")
-    .description("Interactive TUI dashboard — browse, filter, and manage memories in the terminal")
+    .description(
+      "Interactive terminal dashboard for browsing and managing memories.\n\n" +
+      "  Screens (switch with 1 / 2 / 3):\n" +
+      "    1 — Memories: list + preview, filter by status (Tab), actions (a/r/p/d)\n" +
+      "    2 — Health:   stale, pending review, anchorless memories\n" +
+      "    3 — Stats:    most-read, decaying, total counts\n\n" +
+      "  Key bindings:\n" +
+      "    ↑ ↓     navigate list\n" +
+      "    Tab     cycle status filter (all → proposed → validated → stale)\n" +
+      "    a       approve selected memory\n" +
+      "    r       reject selected memory\n" +
+      "    p       promote personal → team (proposed)\n" +
+      "    d       delete selected memory\n" +
+      "    q / Esc exit\n",
+    )
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: { dir?: string }) => {
       if (!process.stdout.isTTY) {

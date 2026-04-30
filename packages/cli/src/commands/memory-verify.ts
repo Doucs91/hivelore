@@ -21,10 +21,21 @@ interface VerifyOptions {
 export function registerMemoryVerify(memory: Command): void {
   memory
     .command("verify")
-    .description("Check memory anchors against current code, optionally marking stale ones")
+    .description(
+      "Check that memory anchor paths still exist in the current codebase.\n\n" +
+      "  A memory is 'stale' when its anchored file or symbol was moved, deleted, or renamed.\n" +
+      "  Stale memories are shown with a warning in get_briefing and should be updated or deleted.\n\n" +
+      "  haive sync runs this automatically. Use this command for on-demand checks or in CI.\n\n" +
+      "  CI recommendation: add 'haive memory verify' to your haive-sync.yml PR check job\n" +
+      "  to catch stale memories before they reach main.\n\n" +
+      "  Examples:\n" +
+      "    haive memory verify                          # check all, report only\n" +
+      "    haive memory verify --update                 # mark stale/fresh on disk\n" +
+      "    haive memory verify --id 2026-04-28-gotcha-x # check one memory\n",
+    )
     .option("--id <id>", "verify a single memory by id")
     .option("--all", "verify every memory (default if --id is omitted)")
-    .option("--update", "write status=stale (or status=validated for re-freshed) back to disk")
+    .option("--update", "write status=stale or status=validated back to disk")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: VerifyOptions) => {
       const root = findProjectRoot(opts.dir);

@@ -28,12 +28,21 @@ export function registerMemoryTried(memory: Command): void {
   memory
     .command("tried")
     .description(
-      "Record a failed approach — negative knowledge to prevent repeated AI mistakes",
+      "Record a FAILED approach — prevents repeated mistakes in future sessions.\n\n" +
+      "  This is the most valuable type of negative knowledge. It surfaces FIRST in\n" +
+      "  get_briefing so agents can't miss it. Auto-validated (no approval cycle).\n\n" +
+      "  Use this immediately when you try something and it fails.\n\n" +
+      "  Example:\n" +
+      "    haive memory tried \\\\\n" +
+      "      --what \"importing X with ESM dynamic import\" \\\\\n" +
+      "      --why-failed \"tsup bundles it as CJS, dynamic import fails at runtime\" \\\\\n" +
+      "      --instead \"use static import in the entry file\" \\\\\n" +
+      "      --paths packages/cli/src/index.ts\n",
     )
-    .requiredOption("--what <text>", "what approach was tried")
-    .requiredOption("--why-failed <text>", "why it failed or should NOT be used")
-    .option("--instead <text>", "recommended alternative")
-    .option("--scope <scope>", "personal | team | module", "personal")
+    .requiredOption("--what <text>", "what approach was tried (short, descriptive title)")
+    .requiredOption("--why-failed <text>", "why it failed or should NOT be used (include the exact error if possible)")
+    .option("--instead <text>", "the correct approach to use instead")
+    .option("--scope <scope>", "personal | team | module (default: personal)", "personal")
     .option("--module <name>", "module name (required when scope=module)")
     .option("--tags <csv>", "comma-separated tags")
     .option("--paths <csv>", "anchor paths, comma-separated")

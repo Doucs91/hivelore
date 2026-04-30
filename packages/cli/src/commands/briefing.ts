@@ -30,11 +30,16 @@ export function registerBriefing(program: Command): void {
   program
     .command("briefing")
     .description(
-      "Print project context + relevant memories in one shot — ideal for agent onboarding",
+      "Print the full project briefing: last session recap + project context + relevant memories.\n" +
+      "  Equivalent to calling get_briefing via MCP. Run before starting any task.\n\n" +
+      "  Examples:\n" +
+      "    haive briefing\n" +
+      "    haive briefing --task \"add Stripe payment\" --files src/payments/PaymentService.ts\n" +
+      "    haive briefing --symbols PaymentService,TenantFilter   # look up where symbols live\n",
     )
     .option("--task <text>", "what you are about to do — filters memories by relevance")
-    .option("--files <csv>", "comma-separated file paths being worked on (anchors memories)")
-    .option("--symbols <csv>", "symbol names to look up in the code-map (e.g. PaymentService,TenantFilter)")
+    .option("--files <csv>", "comma-separated file paths being worked on (surfaces anchored memories)")
+    .option("--symbols <csv>", "symbol names to look up in the code-map (e.g. PaymentService,TenantFilter) — requires haive index code")
     .option("--max-memories <n>", "cap on memories surfaced", "10")
     .option(
       "--scope <scope>",

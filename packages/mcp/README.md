@@ -23,11 +23,19 @@ npm install -g @hiveai/cli
 ## Quick start
 
 ```bash
-# 1. Initialize hAIve in your project
-haive init
+# 1. Install the CLI
+npm install -g @hiveai/cli
 
-# 2. Add your AI client config (see below)
-# 3. Ask your AI to call get_briefing before starting any task
+# 2. Initialize hAIve in your project (autopilot ON by default)
+cd my-project
+haive init          # sets up .ai/, hooks, CI workflow, code-map — everything automatic
+# haive init --manual  # if you want to approve memories yourself
+
+# 3. Point your AI client at the MCP server (see Client configuration below)
+
+# 4. Bootstrap project context — run bootstrap_project prompt in your AI client once
+
+# 5. Your AI client now calls get_briefing at every session start automatically
 ```
 
 ---
@@ -135,7 +143,9 @@ One-shot onboarding: returns project context + module contexts + ranked relevant
 
 ### `mem_save`
 
-Save a new memory. For failed approaches, use `mem_tried` instead — it enforces better structure.
+Save a piece of knowledge as a persistent memory. For failed approaches, use `mem_tried` instead. For code discoveries during reading, use `mem_observe` instead.
+
+> **Autopilot mode:** memories go directly to `validated` with `team` scope by default. No approval cycle.
 
 ```json
 {
@@ -144,24 +154,27 @@ Save a new memory. For failed approaches, use `mem_tried` instead — it enforce
   "scope": "team",
   "body": "spring.jpa.open-in-view=false is intentional — do not re-enable. Lazy loading outside transactions causes N+1 queries.",
   "paths": ["src/main/resources/application.properties"],
-  "tags": ["spring", "jpa", "performance"]
+  "tags": ["spring", "jpa", "performance"],
+  "topic": "jpa-config"
 }
 ```
 
 | Parameter | Required | Description |
 |---|---|---|
 | `type` | ✅ | `convention` · `decision` · `gotcha` · `architecture` · `glossary` |
-| `slug` | ✅ | Short kebab-case identifier |
-| `scope` | — | `personal` (default) · `team` · `module` |
-| `body` | ✅ | Markdown content |
-| `paths` | — | File paths to anchor to (enables staleness detection). **Warning returned if path doesn't exist in project.** |
+| `slug` | ✅ | Short kebab-case identifier used in the file name |
+| `scope` | — | `personal` (default in manual mode) · `team` · `module` |
+| `body` | ✅ | Markdown content of the memory |
+| `paths` | — | Source file paths to anchor to — enables staleness detection by `haive sync`. **Warning if path doesn't exist.** |
 | `symbols` | — | Function/class names to anchor to |
-| `tags` | — | Tags for filtering |
-| `topic` | — | Stable key for upsert: if a memory with this `topic`+`scope` already exists, it is updated in-place (`revision_count++`) |
+| `tags` | — | Tags for filtering and search |
+| `topic` | — | Stable key for upsert: if a memory with this `topic`+`scope` exists, update it in-place (`revision_count++`) |
 | `domain` | — | Business domain (e.g. `payments`) |
 | `author` | — | Author handle |
 
-**Deduplication:** identical body content (same SHA-256 hash) within the same scope is rejected with an error. Use `mem_update` to modify it instead.
+**Response:** `{ id, scope, file_path, action: "created"|"updated", warning?, invalid_paths? }`
+
+**Deduplication:** identical body content within the same scope is rejected. Use `mem_update` to modify an existing memory.
 
 ---
 

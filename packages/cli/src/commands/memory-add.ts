@@ -38,22 +38,41 @@ interface AddOptions {
 export function registerMemoryAdd(memory: Command): void {
   memory
     .command("add")
-    .description("Add a new memory (defaults to personal scope)")
+    .description(
+      "Save a piece of knowledge as a persistent memory.\n\n" +
+      "  Memory types:\n" +
+      "    convention  — how things are done here (naming, patterns, tooling)\n" +
+      "    decision    — a choice made and WHY (tradeoffs, constraints)\n" +
+      "    gotcha      — non-obvious behavior that surprises newcomers\n" +
+      "    architecture — structural overview of a system or module\n" +
+      "    glossary    — domain terms and their meaning in this codebase\n" +
+      "    attempt     — failed approach (prefer 'haive memory tried' for better structure)\n\n" +
+      "  Tips:\n" +
+      "    • --paths anchors the memory to source files for staleness detection\n" +
+      "    • --topic enables upsert: future adds with the same topic update the existing memory\n" +
+      "    • In autopilot mode, memories go directly to validated with team scope by default\n\n" +
+      "  Examples:\n" +
+      "    haive memory add --type gotcha --slug jpa-open-in-view --scope team \\\\\n" +
+      "      --paths src/main/resources/application.properties \\\\\n" +
+      "      --body \"spring.jpa.open-in-view=false is intentional — do not re-enable.\"\n" +
+      "    haive memory add --type convention --slug flyway-no-modify --topic flyway \\\\\n" +
+      "      --scope team --body \"Never modify existing migrations. Create V{n+1}__desc.sql.\"\n",
+    )
     .requiredOption("--type <type>", "convention | decision | gotcha | architecture | glossary | attempt")
-    .requiredOption("--slug <slug>", "short identifier used in the file name")
+    .requiredOption("--slug <slug>", "short kebab-case identifier used in the file name")
     .option("--title <text>", "memory title — becomes the first heading of the body")
-    .option("--scope <scope>", "personal | team | module", "personal")
+    .option("--scope <scope>", "personal | team | module (default: personal, or team in autopilot)", "personal")
     .option("--module <name>", "module name (required when scope=module)")
-    .option("--tags <csv>", "comma-separated tags")
+    .option("--tags <csv>", "comma-separated tags for easier retrieval")
     .option("--domain <domain>", "domain (e.g. transactions)")
     .option("--author <author>", "author email or handle")
-    .option("--paths <csv>", "anchor paths, comma-separated")
-    .option("--symbols <csv>", "anchor symbols, comma-separated")
-    .option("--commit <sha>", "anchor commit SHA")
+    .option("--paths <csv>", "anchor to source files — used for staleness detection by haive sync")
+    .option("--symbols <csv>", "anchor to specific symbols (class/function names)")
+    .option("--commit <sha>", "anchor to a specific commit SHA")
     .option("--body <text>", "memory body content (Markdown) — overrides --title default body")
-    .option("--body-file <path>", "read memory body from a Markdown file — alternative to --body for long content")
+    .option("--body-file <path>", "read memory body from a Markdown file — for long content")
     .option("--no-auto-tag", "disable automatic tag suggestions inferred from anchor paths")
-    .option("--topic <key>", "stable key: if a memory with this topic+scope already exists it is updated in-place (revision_count++)")
+    .option("--topic <key>", "stable key for upsert: if a memory with this topic+scope already exists, update it in-place (revision_count++)")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: AddOptions & { autoTag?: boolean }) => {
       const root = findProjectRoot(opts.dir);
