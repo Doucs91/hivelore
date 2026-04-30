@@ -78,3 +78,15 @@ jobs:
             });
         env:
           REPORT: ${{ steps.verify.outputs.report }}
+
+  pr-memory-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Doucs91/hAIve/packages/github-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # post-if-empty: 'true'   # uncomment to always post (even when no memories found)
+          # max-memories: '5'       # limit memories per file in the comment

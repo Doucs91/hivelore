@@ -43,8 +43,8 @@ export function registerBriefing(program: Command): void {
     .option("--max-memories <n>", "cap on memories surfaced", "10")
     .option(
       "--scope <scope>",
-      "personal | team | module | all (default: team)",
-      "team",
+      "personal | team | shared | all (default: all — includes team + shared cross-repo memories)",
+      "all",
     )
     .option("--include-draft", "include draft memories (excluded by default)")
     .option("--include-stale", "include stale memories (excluded by default — may be outdated)")
@@ -68,7 +68,7 @@ export function registerBriefing(program: Command): void {
       const filePaths = parseCsv(opts.files);
       const tokens = opts.task ? tokenizeQuery(opts.task) : null;
       const maxMemories = Math.max(1, Number(opts.maxMemories ?? 10));
-      const scopeFilter = opts.scope ?? "team";
+      const scopeFilter = opts.scope ?? "all";
 
       // ── 1. Session recap — always shown first so agents start with fresh context ──
       const recaps = all
@@ -116,7 +116,7 @@ export function registerBriefing(program: Command): void {
         if (fm.status === "rejected" || fm.status === "deprecated") return false;
         if (!opts.includeDraft && fm.status === "draft") return false;
         if (!opts.includeStale && fm.status === "stale") return false;
-        if (scopeFilter !== "all" && fm.scope !== scopeFilter) return false;
+        if (scopeFilter !== "all" && fm.scope !== scopeFilter && !(scopeFilter === "team" && fm.scope === "shared")) return false;
         if (fm.type === "session_recap") return false; // shown separately above
         return true;
       });
