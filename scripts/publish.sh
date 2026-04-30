@@ -45,11 +45,13 @@ for pkg in cli mcp; do
     const fs = require('fs');
     const p = './packages/$pkg/package.json';
     const j = JSON.parse(fs.readFileSync(p, 'utf8'));
-    const deps = j.dependencies || {};
-    ['@hiveai/core','@hiveai/mcp','@hiveai/embeddings'].forEach(name => {
-      if (deps[name]) deps[name] = '^$TARGET';
-    });
-    j.dependencies = deps;
+    const names = ['@hiveai/core','@hiveai/mcp','@hiveai/embeddings'];
+    // Update in all dependency sections (dependencies, optionalDependencies, peerDependencies)
+    for (const section of ['dependencies','optionalDependencies','peerDependencies']) {
+      const deps = j[section] || {};
+      names.forEach(name => { if (deps[name]) deps[name] = '^$TARGET'; });
+      if (Object.keys(deps).length) j[section] = deps;
+    }
     fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
   "
 done
