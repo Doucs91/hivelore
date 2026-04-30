@@ -2,7 +2,7 @@
 
 > **hAIve** (mélange de *hive* et *AI*) — couche de mémoire IA persistante et synchronisée pour les équipes.
 > Document de référence pour reprendre le travail à froid après fermeture de session.
-> Dernière mise à jour : 2026-04-25
+> Dernière mise à jour : 2026-04-30
 
 ---
 
@@ -96,8 +96,6 @@ Au démarrage d'une tâche, pull :
   - Fallback : appel API direct avec clé configurée (utile en CI pour régénérer).
 - **Storage initial** : fichiers + git, pas de DB.
 - **Embeddings** : `@xenova/transformers` (Transformers.js), local, modèle léger.
-- **Conventions de naming MCP** : suivre le style Engram pour familiarité écosystème (`mem_save`, `mem_search`, `mem_session_start`, etc.).
-- **Privacy** : strip automatique des sections `<private>...</private>` dans les contenus de mémoire (inspiré d'Engram).
 
 ---
 
@@ -115,20 +113,10 @@ Au démarrage d'une tâche, pull :
   - Pas d'ancrage à un commit SHA pour staleness automatique.
   - Pas de chargement automatique par module touché.
 
-### Mnemo (MnemoAI/mnemo)
-- 373 ⭐, Python, framework MCP pour construire des agents avec RAG.
-- **Pas un concurrent** : c'est "build your own agent", pas "couche mémoire pour agent existant". Dimension crypto (adresse de contrat dans le README).
-
 ### Positionnement hAIve
 > **"Explicit team curation"** vs Engram *"invisible individual infrastructure"*.
 >
 > hAIve cible les **équipes** qui veulent un savoir collectif curé et partagé, pas les solos qui veulent une mémoire perso transparente.
-
-### Stratégie retenue
-**Option 1 : construire hAIve from scratch en TS, indépendamment d'Engram.**
-- Risque : Engram a 2 mois d'avance et un meilleur runtime de distribution (Go binary).
-- Mitigation : se différencier fortement sur l'angle équipe dès la v0.1 (scoping `personal/team/module`, format de mémoire taillé pour la collaboration, bootstrap structuré).
-- À surveiller : si Engram pivote vers le team-first, réévaluer (option 4 = bridge MCP avec eux).
 
 ---
 
@@ -153,13 +141,11 @@ votre-projet/
 └── .github/copilot-instructions.md # pont auto-généré
 ```
 
-Côté dev (hors repo) :
-- `~/.config/<outil>/personal/` — mémoires personnelles, sync optionnelle entre machines via compte.
-
 Composants logiciels :
-1. **CLI** (`<outil>-cli`) : commandes `init`, `memory add|query|validate`, `sync`.
-2. **Serveur MCP** : expose `query_memories`, `add_memory`, `get_project_context` à n'importe quel client IA compatible.
-3. **Générateur de fichiers de pont** : auto-écrit `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md` qui référencent `.ai/project-context.md`.
+1. **CLI** (`@hiveai/cli`) : commandes `init`, `memory add|list|query|validate`, `sync`, `session end`, `tui`.
+2. **Serveur MCP** (`@hiveai/mcp`) : expose tous les outils mémoire + code-map à n'importe quel client IA compatible.
+3. **Core** (`@hiveai/core`) : types, schéma frontmatter, parser/sérialiseur, validateur, token-budget, usage stats.
+4. **Embeddings** (`@hiveai/embeddings`) : index sémantique local (Transformers.js, bge-small-en-v1.5, 384 dims).
 
 ---
 
@@ -172,8 +158,10 @@ Markdown avec frontmatter YAML :
 id: 2026-04-25-field-x-removed
 scope: team                          # personal | team | module
 module: transactions                 # optionnel si scope=module
-type: decision                       # convention | decision | gotcha | architecture | glossary
+type: decision                       # convention | decision | gotcha | architecture | glossary | attempt | session_recap
 status: validated                    # draft | proposed | validated | deprecated | stale
+topic: field-x-removed               # clé stable pour upsert (topic-upsert incrémente revision_count)
+revision_count: 0
 anchor:
   commit: a1b2c3d
   paths:
@@ -181,10 +169,10 @@ anchor:
   symbols:
     - Transaction.legacyField
 tags: [legal, schema-change]
-domain: transactions
-author: collegue-b@example.com
+related_ids:
+  - 2026-04-25-convention-audit-log   # mémoires liées (backend↔frontend, cause↔conséquence)
 created_at: 2026-04-25T10:00:00Z
-expires_when: null                   # ex: "PR #234 merged"
+expires_when: null
 ---
 
 ## Contexte
@@ -199,69 +187,79 @@ Ne pas réintroduire ce champ. Pour stocker une donnée équivalente, voir le mo
 
 ---
 
-## 6. Découpe en versions
+## 6. Historique des versions
 
-### v0.1 — Fondations (sans IA, approche B "Personal first")
-- Structure de dossier `.ai/`.
-- Format de mémoire (frontmatter + validation).
-- CLI : `init` (crée `.ai/` + génère fichiers de pont vides), `memory add`, `memory list`, `memory query` (basique, par tags).
-- **Approche B pour le scoping** : par défaut, toute nouvelle mémoire est `personal`. Promotion explicite vers `team` via commande dédiée (`hAIve memory promote <id>`).
-- Tests unitaires sur le format et le parsing.
-- **Pas d'IA orchestrée à ce stade** : `init` génère un squelette à compléter manuellement.
+### v0.1 — Fondations ✅
+- Structure `.ai/`, format mémoire, CLI `init|memory add|list|query|promote`, tests unitaires.
 
-### v0.2 — Intégration MCP — ✅ livrée
-- Package `@hiveai/mcp` créé, expose 5 tools (`mem_save`, `mem_search`, `mem_list`, `get_project_context`, `bootstrap_project_save`) et 1 prompt (`bootstrap_project`).
-- Serveur stdio basé sur `@modelcontextprotocol/sdk` (1.29).
-- Bin séparé `haive-mcp` + commande `haive mcp` côté CLI qui le spawn.
-- Résolution du project root : flag `--root` > env `HAIVE_PROJECT_ROOT` > auto-detect `.ai/`/`.git/`/`package.json`.
-- Tools structurés en fonctions pures testables ; serveur n'est qu'un thin wrapper.
-- Smoke test JSON-RPC : `initialize` + `tools/list` répondent correctement.
-- README étendu avec snippets de config pour Claude Code, Cursor, VS Code.
-- 37 tests passent (16 core + 16 mcp + 5 cli).
+### v0.2 — Intégration MCP ✅
+- `@hiveai/mcp` avec `mem_save`, `mem_search`, `mem_list`, `get_project_context`, `bootstrap_project_save`, prompt `bootstrap_project`.
+- Serveur stdio `haive-mcp`, résolution projet root, tests JSON-RPC.
 
-### v0.3 — Embeddings + filtrage sémantique — ✅ livrée (sauf scoping auto)
-- Package `@hiveai/embeddings` créé (Transformers.js, `Xenova/bge-small-en-v1.5`, 384 dims).
-- Modèle téléchargé à la première utilisation, exécuté 100% en local.
-- Cache d'embeddings dans `.ai/.cache/embeddings/embeddings-index.json` avec invalidation par hash SHA-256 par entrée.
-- CLI : `haive embeddings index | query | status`.
-- `mem_search` MCP gagne `semantic: true` + `min_score`. Lazy-load via dynamic import, fallback gracieux vers literal si le package ou l'index manque (`mode: "literal_fallback"` + notice).
-- Refactor : interface `EmbedderLike` extraite pour des tests rapides (pas de download du modèle).
-- Tests : 17 tests embeddings (cosine, index cache, indexer avec FakeEmbedder).
-- 54 tests passent au total (16 core + 17 embeddings + 16 mcp + 5 cli).
-- ⚠️ **Reste à faire** : scoping automatique au démarrage d'une tâche (modules touchés). Reporté en v0.4.
+### v0.3 — Embeddings + filtrage sémantique ✅
+- `@hiveai/embeddings` (Transformers.js, bge-small-en-v1.5, 384 dims).
+- CLI `haive embeddings index|query|status`.
+- `mem_search` MCP gagne `semantic: true`, fallback gracieux vers literal.
+- Interface `EmbedderLike` pour tests rapides (FakeEmbedder).
 
-### v0.4 et au-delà (idées, à confirmer)
-- Workflow PR de mémoire (statut `proposed` → review → `validated`).
-- Détection de staleness via vérification d'ancre.
-- Validation passive par usage (compteur d'utilisations sans rejet).
-- Confidence levels (`unverified | low-confidence | trusted | authoritative`) côté affichage.
-- Sync `personal/` multi-machines (compte / cloud léger).
-- Service managé optionnel pour grandes équipes.
+### v0.2.10 — Token economy + code-map ✅
+- `get_briefing` : one-shot onboarding, budget tokens configurable, priorise `attempt` + mémoires fréquentes.
+- `haive index code` : code-map JSON multi-langages (TS/JS/Java/Kotlin/Python/Go/Rust/C#/PHP).
+- `code_map` MCP tool, `mem_for_files` amélioré (path-segment matching).
+- CLI `haive briefing` avec OR fallback si AND donne 0 résultats.
+- `mem_observe` MCP tool pour capturer des découvertes code en cours de session.
 
-### v1.0 — approche C "Hybride intelligent"
-- Classification automatique heuristique au moment de l'écriture : l'IA propose un scope (`personal` vs `team-proposed`) en fonction du contenu.
-- L'utilisateur peut corriger.
-- Prend le meilleur des deux mondes (friction nulle + savoir partagé maximal) une fois qu'on a appris des usages réels en v0.x.
+### v0.2.12 — Features Engram-inspired ✅
+- **Topic upsert** : `--topic` sur `haive memory add` + `topic` param sur `mem_save` → update en place (revision_count++).
+- **Déduplication par hash** : `mem_save` et `haive memory add` rejettent un corps identique à un existant.
+- **Conflict detection** : `similar_found[]` dans la réponse `mem_save` si des mémoires proches existent.
+- **`mem_session_end` MCP + `haive session end` CLI** : récap structuré de fin de session, upsert par topic, surfacé automatiquement dans `get_briefing`.
+- **`post_task` amélioré** : Question 0 (gotchas découverts) + Question 6 (appel à `mem_session_end`).
+- **`session_recap` type** : nouveau type de mémoire, exclu des recherches, surfacé uniquement dans `get_briefing.last_session`.
+
+### v0.2.13–0.2.15 — Bugfixes & polish ✅
+- `session_recap` exclu de `memory query`, `mem_for_files`, `haive sync` staleness.
+- Auto-revalidation des `session_recap` stales hérités.
+- OR fallback dans `get_briefing` (MCP) et `haive briefing` (CLI).
+- `haive init` : message post-init actionnable avec `bootstrap_project`.
+- ID récap simplifié : `…-session_recap-recap` (plus `…-session_recap-session-recap`).
+
+### v0.2.16 — Anchor validation + CI verify + template warning ✅
+- **Anchor path validation** : `haive memory add` et `mem_save` avertissent si les `--paths` n'existent pas dans le projet (chemins invalides → stale immédiat).
+- **`haive memory verify` dans le CI** : template `--with-ci` inclut un job `pr-stale-check` qui commente sur la PR si des mémoires stales sont détectées.
+- **Warning template `project-context.md`** : `haive briefing` et `get_briefing` détectent si le fichier contient encore le boilerplate généré par `haive init` et affichent un avertissement actionnable ; le contenu template est supprimé du budget tokens.
 
 ---
 
-## 7. Prochaine étape concrète
+## 7. Roadmap v0.3 (prochaine version majeure)
 
-**Démarrer la v0.1.** Toutes les décisions structurantes sont prises :
-- ✅ Nom : **hAIve** (vérifier dispo npm / scope `@hiveai/*` au moment du scaffolding).
-- ✅ Monorepo TS, Node 20 LTS, `tsup` + `vitest`.
-- ✅ Bootstrap délégué à l'IA cliente via outil MCP.
-- ✅ Approche B pour le scoping en v0.1 (Personal first), C en v1.0.
-- ✅ Différenciation vs Engram : team-first explicit curation.
+### 7.1 `get_briefing` intègre le code-map activement
+Actuellement le code-map (`haive index code`) est passif : il faut que l'IA appelle explicitement `code_map`. En v0.3, `get_briefing` répond aux questions "où se trouve X ?" directement, sans grep.
 
-**Plan d'implémentation v0.1** (à détailler au moment de coder) :
-1. Scaffolding monorepo (`pnpm` workspaces ou `turborepo` à choisir).
-2. Package `@hiveai/core` : types, schéma frontmatter, parser/sérialiseur, validateur.
-3. Package `@hiveai/cli` : commandes `init`, `memory add|list|query|promote`.
-4. Tests vitest sur core.
-5. Documentation README minimale.
+**Plan d'implémentation :**
+- `get_briefing` accepte un nouveau paramètre `symbols?: string[]`.
+- Si fourni, interroge `.ai/code-map.json` pour ces symboles et injecte les résultats dans la réponse, sous un budget séparé.
+- CLI : `haive briefing --symbols PaymentService,TenantFilter`.
+- Objectif : zéro appel grep/find pour la localisation de symboles.
 
-Le serveur MCP (`@hiveai/mcp`) arrive en v0.2.
+### 7.2 Dashboard TUI `haive tui` fonctionnel
+Actuellement `haive tui` est un stub (Ink/React sans contenu). En v0.3, il devient un vrai tableau de bord interactif.
+
+**Écrans prévus :**
+1. **Vue mémoires** : liste paginée, filtres scope/type/status, prévisualisation inline.
+2. **Vue santé** : mémoires stales / anchorless / à valider, alertes par criticité.
+3. **Vue stats** : top mémoires lues, decay warnings, budget tokens consommé.
+4. **Actions** : approve / reject / promote / delete directement depuis la TUI.
+
+### 7.3 Peer-review `proposed → validated`
+Actuellement la mécanique de statut existe mais n'a pas de workflow réel. En v0.3, on complète le cycle.
+
+**Plan d'implémentation :**
+- `haive memory pending` liste les mémoires `proposed` en attente de review.
+- `haive memory digest` : rapport hebdomadaire des nouvelles mémoires team (Markdown, envoyable par email/Slack).
+- `get_briefing` signale les mémoires `proposed` avec un flag `⚠ unverified` dans le résultat.
+- Confiance multi-niveau dans le format de sortie : `draft | proposed | validated | authoritative`.
+- Auto-promotion par usage : si une mémoire `proposed` est consommée N fois sans rejet → `validated`.
 
 ---
 
@@ -271,3 +269,6 @@ Le serveur MCP (`@hiveai/mcp`) arrive en v0.2.
 - **Pont** : fichier généré (`CLAUDE.md`, `.cursorrules`, etc.) qui rend l'outil compatible avec des clients IA non-MCP.
 - **Scope** : espace de visibilité d'une mémoire (`personal`, `team`, `module`).
 - **Bootstrap** : analyse initiale d'un projet par l'IA pour produire `project-context.md`.
+- **Topic upsert** : mise à jour en place d'une mémoire identifiée par sa clé `topic` + `scope`, incrémentant `revision_count`.
+- **session_recap** : mémoire spéciale capturant le bilan d'une session de travail ; surfacée en tête du prochain `get_briefing`.
+- **Code-map** : index JSON compact (`fichier → exports + description JSDoc`) utilisé pour répondre aux questions de localisation de symboles sans grep.

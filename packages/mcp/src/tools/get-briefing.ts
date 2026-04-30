@@ -10,9 +10,11 @@ import {
   isDecaying,
   literalMatchesAllTokens,
   literalMatchesAnyToken,
+  loadCodeMap,
   loadMemoriesFromDir,
   loadUsageIndex,
   memoryMatchesAnchorPaths,
+  queryCodeMap,
   tokenizeQuery,
   trackReads,
   truncateToTokens,
@@ -67,6 +69,14 @@ export const GetBriefingInputSchema = {
     .describe(
       "Output format: 'full' returns complete memory bodies; 'compact' returns id + 1-line summary only (call mem_get for details).",
     ),
+  symbols: z
+    .array(z.string())
+    .default([])
+    .describe(
+      "Symbol names to look up in the code-map (e.g. ['PaymentService', 'TenantFilter']). " +
+      "Returns the file(s) exporting each symbol so agents don't need to grep. " +
+      "Requires `haive index code` to have been run.",
+    ),
 };
 
 export type GetBriefingInput = {
@@ -81,12 +91,25 @@ export interface BriefingMemory {
   tags: string[];
   status: string;
   confidence: ConfidenceLevel;
+  /** Present when confidence is 'low' or 'unverified' — AI should weight this memory cautiously. */
+  unverified?: true;
   read_count: number;
   reasons: Array<"anchor" | "module" | "domain" | "semantic">;
   match_quality: "exact" | "partial" | "semantic";
   semantic_score?: number;
   body: string;
   file_path: string;
+}
+
+export interface CodeMapSymbolHit {
+  symbol: string;
+  /** files that export this symbol */
+  locations: Array<{
+    file: string;
+    kind: string;
+    line: number;
+    description?: string;
+  }>;
 }
 
 export interface BriefingOutput {
@@ -98,6 +121,7 @@ export interface BriefingOutput {
   project_context: { content: string; truncated: boolean; is_template?: boolean } | null;
   module_contexts: Array<{ name: string; content: string; truncated: boolean }>;
   memories: BriefingMemory[];
+  symbol_locations?: CodeMapSymbolHit[];
   decay_warnings: string[];
   setup_warnings: string[];
   estimated_tokens: number;
@@ -187,6 +211,7 @@ export async function getBriefing(
         tags: fm.tags,
         status: fm.status,
         confidence: deriveConfidence(fm, u),
+        ...(fm.status === "draft" || fm.status === "proposed" ? { unverified: true as const } : {}),
         read_count: u.read_count,
         reasons: [reason],
         match_quality: matchQuality ?? "partial",
@@ -378,6 +403,44 @@ export async function getBriefing(
       ? trimmedMemories.map((m) => ({ ...m, body: compactSummary(m.body) }))
       : trimmedMemories;
 
+  // ── Code-map symbol lookup ──────────────────────────────────────────────
+  // Also auto-look up symbols found in anchor paths of returned memories +
+  // any explicit symbols[] the caller requested.
+  let symbolLocations: CodeMapSymbolHit[] | undefined;
+  const symbolsToLookup = new Set<string>(input.symbols);
+  // Auto-collect symbols from memory anchors so agents get locations for free
+  for (const m of outputMemories) {
+    const loaded = byId.get(m.id);
+    for (const sym of loaded?.memory.frontmatter.anchor.symbols ?? []) {
+      symbolsToLookup.add(sym);
+    }
+  }
+  if (symbolsToLookup.size > 0) {
+    const codeMap = await loadCodeMap(ctx.paths);
+    if (codeMap) {
+      symbolLocations = [];
+      for (const sym of symbolsToLookup) {
+        const { files } = queryCodeMap(codeMap, { symbol: sym });
+        if (files.length > 0) {
+          symbolLocations.push({
+            symbol: sym,
+            locations: files.flatMap((f) =>
+              f.entry.exports
+                .filter((e) => e.name.toLowerCase().includes(sym.toLowerCase()))
+                .map((e) => ({
+                  file: f.path,
+                  kind: e.kind,
+                  line: e.line,
+                  ...(e.description ? { description: e.description } : {}),
+                })),
+            ),
+          });
+        }
+      }
+      if (symbolLocations.length === 0) symbolLocations = undefined;
+    }
+  }
+
   return {
     ...(input.task ? { task: input.task } : {}),
     search_mode: searchMode,
@@ -392,6 +455,7 @@ export async function getBriefing(
       : null,
     module_contexts: trimmedModules,
     memories: outputMemories,
+    ...(symbolLocations ? { symbol_locations: symbolLocations } : {}),
     decay_warnings: decayWarnings,
     setup_warnings: setupWarnings,
     estimated_tokens: totalTokens,

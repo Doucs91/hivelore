@@ -5,8 +5,10 @@ import {
   findProjectRoot,
   literalMatchesAllTokens,
   literalMatchesAnyToken,
+  loadCodeMap,
   loadMemoriesFromDir,
   memoryMatchesAnchorPaths,
+  queryCodeMap,
   resolveHaivePaths,
   tokenizeQuery,
   trackReads,
@@ -16,6 +18,7 @@ import { ui } from "../utils/ui.js";
 interface BriefingOptions {
   task?: string;
   files?: string;
+  symbols?: string;
   maxMemories?: string;
   scope?: string;
   includeDraft?: boolean;
@@ -31,6 +34,7 @@ export function registerBriefing(program: Command): void {
     )
     .option("--task <text>", "what you are about to do — filters memories by relevance")
     .option("--files <csv>", "comma-separated file paths being worked on (anchors memories)")
+    .option("--symbols <csv>", "symbol names to look up in the code-map (e.g. PaymentService,TenantFilter)")
     .option("--max-memories <n>", "cap on memories surfaced", "10")
     .option(
       "--scope <scope>",
@@ -165,6 +169,37 @@ export function registerBriefing(program: Command): void {
       const ids = top.map(({ memory: mem }) => mem.frontmatter.id);
       if (ids.length > 0) {
         await trackReads(paths, ids).catch(() => { /* non-fatal */ });
+      }
+
+      // ── Code-map symbol lookup ──────────────────────────────────────────
+      const requestedSymbols = (opts.symbols ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (requestedSymbols.length > 0) {
+        const codeMap = await loadCodeMap(paths);
+        if (!codeMap) {
+          ui.warn("No code-map found. Run `haive index code` first to enable symbol lookup.");
+        } else {
+          console.log(`\n${ui.bold("=== Symbol Locations ===")}\n`);
+          for (const sym of requestedSymbols) {
+            const { files } = queryCodeMap(codeMap, { symbol: sym });
+            if (files.length === 0) {
+              console.log(`${ui.dim(sym)}  (not found in code-map)`);
+            } else {
+              for (const f of files) {
+                const exports = f.entry.exports.filter((e) =>
+                  e.name.toLowerCase().includes(sym.toLowerCase()),
+                );
+                for (const e of exports) {
+                  const desc = e.description ? `  — ${e.description}` : "";
+                  console.log(`${ui.bold(e.name)}  ${ui.dim(f.path + ":" + e.line)}  [${e.kind}]${desc}`);
+                }
+              }
+            }
+          }
+          console.log();
+        }
       }
     });
 }

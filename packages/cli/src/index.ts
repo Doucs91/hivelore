@@ -25,6 +25,7 @@ import { registerMemoryShow } from "./commands/memory-show.js";
 import { registerMemoryStats } from "./commands/memory-stats.js";
 import { registerMemoryVerify } from "./commands/memory-verify.js";
 import { registerMemoryImport } from "./commands/memory-import.js";
+import { registerMemoryDigest } from "./commands/memory-digest.js";
 import { registerSessionEnd } from "./commands/session-end.js";
 
 const program = new Command();
@@ -64,6 +65,7 @@ registerMemoryUpdate(memory);
 registerMemoryHot(memory);
 registerMemoryTried(memory);
 registerMemoryImport(memory);
+registerMemoryDigest(memory);
 
 const session = program.command("session").description("Manage session lifecycle");
 registerSessionEnd(session);
