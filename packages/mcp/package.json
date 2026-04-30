@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/mcp",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "hAIve MCP server — exposes memory + project context to any MCP-compatible AI client",
   "license": "MIT",
   "repository": {
@@ -44,7 +44,7 @@
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "dependencies": {
-    "@hiveai/core": "^0.4.3",
+    "@hiveai/core": "^0.4.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.23.8"
   },

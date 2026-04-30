@@ -1,0 +1,139 @@
+{
+  "name": "haive-vscode",
+  "displayName": "hAIve — Team Memory for AI Agents",
+  "description": "Surface team memories, gotchas, and architectural decisions inline while you code. Never let your AI agent forget what your team knows.",
+  "version": "0.4.3",
+  "publisher": "hiveai",
+  "icon": "media/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Doucs91/hAIve.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other", "AI", "Programming Languages"],
+  "keywords": ["ai", "memory", "context", "mcp", "cursor", "copilot", "knowledge"],
+  "activationEvents": [
+    "workspaceContains:.ai/memories/**",
+    "workspaceContains:.ai/haive.config.json"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "id": "haive.memoriesView",
+          "name": "hAIve Memories",
+          "icon": "$(book)",
+          "contextualTitle": "Team Knowledge"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "haive.memoriesView",
+        "contents": "No hAIve memories found in this workspace.\n\nRun `haive init` to initialize hAIve in your project.\n[Learn more](https://github.com/Doucs91/hAIve)\n\n[Initialize hAIve](command:haive.init)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "haive.refreshMemories",
+        "title": "hAIve: Refresh Memories",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "haive.showMemoriesForFile",
+        "title": "hAIve: Show Memories for This File"
+      },
+      {
+        "command": "haive.openMemory",
+        "title": "hAIve: Open Memory File"
+      },
+      {
+        "command": "haive.addMemory",
+        "title": "hAIve: Add Memory…",
+        "icon": "$(add)"
+      },
+      {
+        "command": "haive.copyMemoryBody",
+        "title": "hAIve: Copy Memory Content"
+      },
+      {
+        "command": "haive.init",
+        "title": "hAIve: Initialize in This Workspace"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "haive.addMemory",
+          "when": "view == haive.memoriesView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "haive.refreshMemories",
+          "when": "view == haive.memoriesView",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "haive.openMemory",
+          "when": "view == haive.memoriesView && viewItem == memory",
+          "group": "inline"
+        },
+        {
+          "command": "haive.copyMemoryBody",
+          "when": "view == haive.memoriesView && viewItem == memory"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "haive.showMemoriesForFile",
+          "group": "haive",
+          "when": "resourceScheme == file"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "hAIve",
+      "properties": {
+        "haive.showCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline memory count (CodeLens) at the top of files that have anchored memories."
+        },
+        "haive.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the hAIve memory count in the status bar."
+        },
+        "haive.memoriesDir": {
+          "type": "string",
+          "default": ".ai/memories",
+          "description": "Path to the memories directory relative to the workspace root."
+        },
+        "haive.highlightActionRequired": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight files with action_required memories using a warning decoration."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsup src/extension.ts --format cjs --out-dir dist --external vscode --no-splitting",
+    "watch": "tsup src/extension.ts --format cjs --out-dir dist --external vscode --no-splitting --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.6.3",
+    "tsup": "^8.3.5",
+    "@vscode/vsce": "^2.22.0"
+  }
+}
