@@ -129,6 +129,25 @@ jobs:
               body: \`### haive — Stale memories detected\\n\\nSome memories anchored to code modified in this PR may be outdated:\\n\\n\\\`\\\`\\\`\\n\${report}\\n\\\`\\\`\\\`\\n\\nRun \\\`haive memory verify --update\\\` locally to refresh them before merging.\`
             });
 
+  # ── hAIve PR Memory Check ─────────────────────────────────────────────────
+  # Posts a comment on every PR surfacing memories relevant to the changed files.
+  # Reviewers and AI agents see gotchas, conventions, and action_required items
+  # before they start coding.
+  pr-memory-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Doucs91/hAIve/packages/github-action@main
+        with:
+          github-token: \${{ secrets.GITHUB_TOKEN }}
+          # post-if-empty: 'true'   # uncomment to always post (even when no memories found)
+          # max-memories: '5'       # limit memories per file in the comment
+
   # On push to main: push shared memories to the hub (if hubPath is configured)
   # Uncomment and configure hubPath in .ai/haive.config.json to enable.
   # hub-push:
@@ -149,7 +168,6 @@ jobs:
   #     - name: push shared memories to hub
   #       run: haive hub push --commit
   #       # Requires hubPath in .ai/haive.config.json pointing to a cloned hub repo.
-  #       # The hub repo must be available at that path in the CI workspace.
 `;
 
 export function registerInit(program: Command): void {

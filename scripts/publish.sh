@@ -94,3 +94,11 @@ git push origin "v$TARGET" 2>/dev/null || echo "ℹ  Tag already on remote"
 echo ""
 echo "✅ Published @hiveai/* v$TARGET"
 echo "   Install with: npm install -g @hiveai/cli@$TARGET"
+
+# ── Also build github-action ───────────────────────────────────────────────
+if [ -d "packages/github-action" ]; then
+  echo ""
+  echo "🔨 Building github-action..."
+  pnpm --filter "@hiveai/github-action" build 2>/dev/null || \
+    (cd packages/github-action && node_modules/.bin/tsup src/run.ts --format cjs --out-dir dist --no-splitting)
+fi
