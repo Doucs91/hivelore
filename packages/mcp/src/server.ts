@@ -109,6 +109,26 @@ import {
   type AntiPatternsCheckInput,
 } from "./tools/anti-patterns-check.js";
 import {
+  MemDistillInputSchema,
+  memDistill,
+  type MemDistillInput,
+} from "./tools/mem-distill.js";
+import {
+  WhyThisDecisionInputSchema,
+  whyThisDecision,
+  type WhyThisDecisionInput,
+} from "./tools/why-this-decision.js";
+import {
+  MemConflictsInputSchema,
+  memConflicts,
+  type MemConflictsInput,
+} from "./tools/mem-conflicts.js";
+import {
+  PreCommitCheckInputSchema,
+  preCommitCheck,
+  type PreCommitCheckInput,
+} from "./tools/precommit-check.js";
+import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
   type BootstrapProjectArgs,
@@ -163,6 +183,26 @@ export {
   type AntiPatternsCheckInput,
   type AntiPatternsCheckOutput,
 } from "./tools/anti-patterns-check.js";
+export {
+  memDistill,
+  type MemDistillInput,
+  type MemDistillOutput,
+} from "./tools/mem-distill.js";
+export {
+  whyThisDecision,
+  type WhyThisDecisionInput,
+  type WhyThisDecisionOutput,
+} from "./tools/why-this-decision.js";
+export {
+  memConflicts,
+  type MemConflictsInput,
+  type MemConflictsOutput,
+} from "./tools/mem-conflicts.js";
+export {
+  preCommitCheck,
+  type PreCommitCheckInput,
+  type PreCommitCheckOutput,
+} from "./tools/precommit-check.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -760,6 +800,110 @@ export function createHaiveServer(
     async (input: AntiPatternsCheckInput) => {
       tracker.record("anti_patterns_check", input.paths.join(",").slice(0, 80));
       return jsonResult(await antiPatternsCheck(input, context));
+    },
+  );
+
+  // ── v0.6.0 additions ───────────────────────────────────────────────────
+
+  server.tool(
+    "mem_distill",
+    [
+      "Cluster recurring observations / failed attempts so a human can collapse",
+      "N similar memories into one richer convention/gotcha. Cheap heuristic",
+      "(anchor path overlap + body keyword overlap) — no embeddings required.",
+      "",
+      "USE periodically (e.g. monthly) to prevent memory pollution from agents",
+      "saving the same observation many times.",
+      "",
+      "PARAMETERS:",
+      "  since_days   — only consider memories from the last N days (default 30)",
+      "  min_cluster  — minimum cluster size to surface (default 3)",
+      "  type_filter  — 'gotcha' | 'attempt' | 'all' (default 'gotcha')",
+      "  scope        — 'personal' | 'team' | 'module' | 'any' (default 'any')",
+      "",
+      "RETURNS: { scanned, singletons, clusters: [{ suggested_topic, member_ids, ... }] }",
+      "Output is advisory — nothing is written to disk.",
+    ].join("\n"),
+    MemDistillInputSchema,
+    async (input: MemDistillInput) => {
+      tracker.record("mem_distill", `${input.type_filter}/since=${input.since_days}d`);
+      return jsonResult(await memDistill(input, context));
+    },
+  );
+
+  server.tool(
+    "why_this_decision",
+    [
+      "Trace the genealogy of a memory (especially decision/architecture):",
+      "the memory itself + memories explicitly linked via related_ids + memories",
+      "anchored to overlapping paths + recent commits touching those paths.",
+      "",
+      "USE WHEN you find a memory and need to understand WHY it was made and",
+      "what surrounds it. One call instead of 4-5 manual lookups.",
+      "",
+      "PARAMETERS:",
+      "  id            — memory id (required)",
+      "  git_log_limit — how many recent commits per anchor path (default 5)",
+      "",
+      "RETURNS: { decision, related: [...], path_neighbors: [...], recent_commits: [...] }",
+    ].join("\n"),
+    WhyThisDecisionInputSchema,
+    async (input: WhyThisDecisionInput) => {
+      tracker.record("why_this_decision", input.id);
+      return jsonResult(await whyThisDecision(input, context));
+    },
+  );
+
+  server.tool(
+    "mem_conflicts_with",
+    [
+      "Detect memories that potentially CONTRADICT a given memory.",
+      "",
+      "USE BEFORE relying on a memory's advice — surfaces 'another memory says",
+      "the opposite'. Detection uses several heuristics layered together:",
+      "",
+      "  1. Opposite status — validated vs rejected on overlapping topic",
+      "  2. attempt-vs-convention on overlapping anchor paths",
+      "  3. Polarity keywords — 'use X' vs 'do not use X' among semantic neighbors",
+      "  4. Explicit #contradicts:<id> tags in either body",
+      "",
+      "PARAMETERS:",
+      "  id        — memory id to check (required)",
+      "  min_score — minimum cosine similarity for semantic neighbors (default 0.5)",
+      "  semantic  — use embeddings (default true)",
+      "",
+      "RETURNS: { found, target, scanned, conflicts: [{ id, reasons, similarity, ... }] }",
+    ].join("\n"),
+    MemConflictsInputSchema,
+    async (input: MemConflictsInput) => {
+      tracker.record("mem_conflicts_with", input.id);
+      return jsonResult(await memConflicts(input, context));
+    },
+  );
+
+  server.tool(
+    "pre_commit_check",
+    [
+      "One-shot 'should I block this commit?' check. Combines three signals:",
+      "",
+      "  1. anti_patterns_check — known gotchas/attempts that match the diff",
+      "  2. mem_for_files       — conventions/decisions anchored to touched files",
+      "  3. mem_verify          — memories whose anchors are stale (knowledge may be wrong)",
+      "",
+      "USE FROM A GIT HOOK or before finalizing a non-trivial change.",
+      "",
+      "PARAMETERS:",
+      "  diff       — raw unified diff text (e.g. `git diff --cached`)",
+      "  paths      — affected file paths (project-relative)",
+      "  block_on   — 'any' | 'high-confidence' (default) | 'never'",
+      "  semantic   — use embeddings in anti_patterns_check (default true)",
+      "",
+      "RETURNS: { should_block, summary, warnings, relevant_memories, stale_anchors }",
+    ].join("\n"),
+    PreCommitCheckInputSchema,
+    async (input: PreCommitCheckInput) => {
+      tracker.record("pre_commit_check", `${input.paths.length}p`);
+      return jsonResult(await preCommitCheck(input, context));
     },
   );
 
