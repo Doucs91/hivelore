@@ -42,6 +42,50 @@ describe("deriveConfidence", () => {
   });
 });
 
+describe("deriveConfidence — time decay", () => {
+  const FRESH = new Date("2026-05-02T00:00:00Z");
+
+  it("a freshly created authoritative memory stays authoritative", () => {
+    const f = { ...fm("validated"), created_at: "2026-05-01T00:00:00Z" };
+    expect(deriveConfidence(f, usage({ read_count: 50, last_read_at: "2026-05-01T00:00:00Z" }), undefined, FRESH))
+      .toBe("authoritative");
+  });
+
+  it("authoritative not read in 200 days drops to trusted (decayDays=180 default)", () => {
+    const f = { ...fm("validated"), created_at: "2025-10-01T00:00:00Z" };
+    expect(
+      deriveConfidence(f, usage({ read_count: 50, last_read_at: "2025-10-01T00:00:00Z" }), undefined, FRESH),
+    ).toBe("trusted");
+  });
+
+  it("authoritative not read in 400 days hard-decays to low", () => {
+    const f = { ...fm("validated"), created_at: "2025-03-01T00:00:00Z" };
+    expect(
+      deriveConfidence(f, usage({ read_count: 50, last_read_at: "2025-03-01T00:00:00Z" }), undefined, FRESH),
+    ).toBe("low");
+  });
+
+  it("trusted not read in 200 days drops to low (one tier)", () => {
+    const f = { ...fm("validated"), created_at: "2025-10-01T00:00:00Z" };
+    expect(
+      deriveConfidence(f, usage({ read_count: 1, last_read_at: "2025-10-01T00:00:00Z" }), undefined, FRESH),
+    ).toBe("low");
+  });
+
+  it("decay clock uses last_read_at when present, falling back to created_at", () => {
+    const f = { ...fm("validated"), created_at: "2025-01-01T00:00:00Z" };
+    // last_read_at recent → no decay even though created_at is old
+    expect(
+      deriveConfidence(f, usage({ read_count: 50, last_read_at: "2026-04-01T00:00:00Z" }), undefined, FRESH),
+    ).toBe("authoritative");
+  });
+
+  it("draft / unverified are not decayed (already at the floor)", () => {
+    const f = { ...fm("draft"), created_at: "2024-01-01T00:00:00Z" };
+    expect(deriveConfidence(f, usage(), undefined, FRESH)).toBe("unverified");
+  });
+});
+
 describe("isAutoPromoteEligible", () => {
   it("only proposed can be auto-promoted", () => {
     expect(isAutoPromoteEligible(fm("draft"), usage({ read_count: 99 }))).toBe(false);
