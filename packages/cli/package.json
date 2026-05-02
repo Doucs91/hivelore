@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/cli",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "description": "hAIve CLI — manage shared AI memories from the terminal",
   "license": "MIT",
   "repository": {
@@ -35,15 +35,15 @@
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "dependencies": {
-    "@hiveai/core": "^0.4.5",
-    "@hiveai/mcp": "^0.4.5",
+    "@hiveai/core": "workspace:*",
+    "@hiveai/mcp": "workspace:*",
     "commander": "^12.1.0",
     "ink": "^7.0.1",
     "picocolors": "^1.1.1",
     "react": "^19.2.5"
   },
   "peerDependencies": {
-    "@hiveai/embeddings": "^0.4.5"
+    "@hiveai/embeddings": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@hiveai/embeddings": {
