@@ -5,7 +5,7 @@
  * On SIGTERM/SIGINT (i.e. when the AI client closes), automatically
  * saves a session recap via mem_session_end — no human action needed.
  */
-import { loadConfig, type HaiveConfig } from "@hiveai/core";
+import { appendUsageEvent, loadConfig, type HaiveConfig } from "@hiveai/core";
 import type { HaiveContext } from "./context.js";
 import { memSessionEnd } from "./tools/mem-session-end.js";
 
@@ -35,7 +35,11 @@ export class SessionTracker {
   }
 
   record(tool: string, summary?: string): void {
-    this.events.push({ tool, at: new Date().toISOString(), summary });
+    const event: SessionEvent = { tool, at: new Date().toISOString(), summary };
+    this.events.push(event);
+    // Persist to .ai/.usage/tool-usage.jsonl for cross-session stats (haive stats).
+    // Best-effort: never blocks the tool execution, never throws.
+    void appendUsageEvent(this.ctx.paths, event);
   }
 
   private registerShutdownHandler(): void {

@@ -84,6 +84,31 @@ import {
   type MemDiffInput,
 } from "./tools/mem-diff.js";
 import {
+  GetRecapInputSchema,
+  getRecap,
+  type GetRecapInput,
+} from "./tools/get-recap.js";
+import {
+  MemRelevantToInputSchema,
+  memRelevantTo,
+  type MemRelevantToInput,
+} from "./tools/mem-relevant-to.js";
+import {
+  CodeSearchInputSchema,
+  codeSearch,
+  type CodeSearchInput,
+} from "./tools/code-search.js";
+import {
+  WhyThisFileInputSchema,
+  whyThisFile,
+  type WhyThisFileInput,
+} from "./tools/why-this-file.js";
+import {
+  AntiPatternsCheckInputSchema,
+  antiPatternsCheck,
+  type AntiPatternsCheckInput,
+} from "./tools/anti-patterns-check.js";
+import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
   type BootstrapProjectArgs,
@@ -99,6 +124,45 @@ import {
   type ImportDocsArgs,
 } from "./prompts/import-docs.js";
 import { SessionTracker } from "./session-tracker.js";
+
+// Re-export tool implementations so `@hiveai/cli` (and integrators) can call
+// them programmatically without going through the MCP stdio transport.
+// These are the same handlers the MCP server registers below.
+export {
+  getBriefing,
+  type GetBriefingInput,
+  type BriefingOutput,
+} from "./tools/get-briefing.js";
+export {
+  codeMapTool,
+  type CodeMapInput,
+  type CodeMapToolOutput,
+} from "./tools/code-map.js";
+export {
+  getRecap,
+  type GetRecapInput,
+  type GetRecapOutput,
+} from "./tools/get-recap.js";
+export {
+  memRelevantTo,
+  type MemRelevantToInput,
+  type MemRelevantToOutput,
+} from "./tools/mem-relevant-to.js";
+export {
+  codeSearch,
+  type CodeSearchInput,
+  type CodeSearchOutput,
+} from "./tools/code-search.js";
+export {
+  whyThisFile,
+  type WhyThisFileInput,
+  type WhyThisFileOutput,
+} from "./tools/why-this-file.js";
+export {
+  antiPatternsCheck,
+  type AntiPatternsCheckInput,
+  type AntiPatternsCheckOutput,
+} from "./tools/anti-patterns-check.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -328,7 +392,10 @@ export function createHaiveServer(
       "RETURNS: array of { id, type, scope, status, confidence, body, match_quality }",
     ].join("\n"),
     MemSearchInputSchema,
-    async (input: MemSearchInput) => jsonResult(await memSearch(input, context)),
+    async (input: MemSearchInput) => {
+      tracker.record("mem_search", input.query.slice(0, 80));
+      return jsonResult(await memSearch(input, context));
+    },
   );
 
   server.tool(
@@ -573,6 +640,127 @@ export function createHaiveServer(
     ].join("\n"),
     MemDeleteInputSchema,
     async (input: MemDeleteInput) => jsonResult(await memDelete(input, context)),
+  );
+
+  // ── v0.5.0: granular alternatives to get_briefing ─────────────────────
+  // Use these when you don't need the full one-shot briefing payload.
+
+  server.tool(
+    "get_recap",
+    [
+      "Return ONLY the most recent session_recap. Cheaper than get_briefing when",
+      "you just want to know 'what was I doing last time?' and don't need project",
+      "context, modules, or memory ranking.",
+      "",
+      "PARAMETERS:",
+      "  scope — 'personal' | 'team' | 'any' (default 'any', returns the most recent across both)",
+      "",
+      "RETURNS: { recap: { id, scope, revision_count, created_at, body } | null, notice? }",
+    ].join("\n"),
+    GetRecapInputSchema,
+    async (input: GetRecapInput) => {
+      tracker.record("get_recap", input.scope);
+      return jsonResult(await getRecap(input, context));
+    },
+  );
+
+  server.tool(
+    "mem_relevant_to",
+    [
+      "One-shot ranked memories for a task — use instead of get_briefing when",
+      "project context is already loaded and you only want the relevant memory layer.",
+      "",
+      "Reuses the same ranking pipeline (anchor / module / literal / semantic) but",
+      "skips project_context, modules, action_required, etc.",
+      "",
+      "PARAMETERS:",
+      "  task    — 1–2 sentences describing what you are about to do (required)",
+      "  files   — files you'll edit (surfaces anchored memories)",
+      "  limit   — cap on returned memories (default 8)",
+      "  min_semantic_score — drop weak semantic hits below this cosine (default 0.25)",
+      "",
+      "RETURNS: { task, search_mode, memories: [...], hints?: [...], empty?: true }",
+    ].join("\n"),
+    MemRelevantToInputSchema,
+    async (input: MemRelevantToInput) => {
+      tracker.record("mem_relevant_to", input.task.slice(0, 80));
+      return jsonResult(await memRelevantTo(input, context));
+    },
+  );
+
+  // ── v0.5.0: code semantic search ──────────────────────────────────────
+
+  server.tool(
+    "code_search",
+    [
+      "Semantic search over the codebase — finds exported symbols (functions, classes,",
+      "interfaces) related to a natural-language query. Replaces blind grep when you",
+      "don't know the exact symbol name.",
+      "",
+      "Requires `haive index code-search` to have been run (builds embeddings for every",
+      "exported symbol from the code-map). Falls back to a notice when index is missing.",
+      "",
+      "PARAMETERS:",
+      "  query     — natural language (e.g. 'function that hashes passwords', 'JWT signing')",
+      "  k         — number of top hits (default 5)",
+      "  min_score — minimum cosine similarity (default 0.2; try 0.3+ for stricter)",
+      "",
+      "RETURNS: { available: bool, hits: [{ file, name, kind, line, description?, score }] }",
+    ].join("\n"),
+    CodeSearchInputSchema,
+    async (input: CodeSearchInput) => {
+      tracker.record("code_search", input.query.slice(0, 80));
+      return jsonResult(await codeSearch(input, context));
+    },
+  );
+
+  // ── v0.5.0: file-context lookup ───────────────────────────────────────
+
+  server.tool(
+    "why_this_file",
+    [
+      "One-shot file-context lookup: combines recent git history, memories anchored",
+      "to the path, and the code-map entry. Answers 'why is this file the way it is?'",
+      "in a single call instead of 3-4 manual ones.",
+      "",
+      "PARAMETERS:",
+      "  path           — project-relative path (required)",
+      "  git_log_limit  — recent commits to include (default 5)",
+      "  memory_limit   — anchored memories cap (default 5)",
+      "",
+      "RETURNS: { file, exists, recent_commits: [...], memories: [...], code_map_entry, hints? }",
+    ].join("\n"),
+    WhyThisFileInputSchema,
+    async (input: WhyThisFileInput) => {
+      tracker.record("why_this_file", input.path);
+      return jsonResult(await whyThisFile(input, context));
+    },
+  );
+
+  // ── v0.5.0: anti-patterns check ───────────────────────────────────────
+
+  server.tool(
+    "anti_patterns_check",
+    [
+      "Scan a diff (or set of paths) against documented attempt/gotcha memories.",
+      "Surfaces 'you are about to repeat a known mistake' warnings BEFORE you commit.",
+      "",
+      "USE BEFORE finalizing a non-trivial change. Cheap and high-signal: the only",
+      "memories scanned are 'attempt' and 'gotcha' types.",
+      "",
+      "PARAMETERS:",
+      "  diff     — raw unified diff text (or any code snippet) — optional if `paths` provided",
+      "  paths    — affected file paths (optional if `diff` provided)",
+      "  limit    — cap on returned warnings (default 8)",
+      "  semantic — also use semantic search (default true; requires embeddings index)",
+      "",
+      "RETURNS: { scanned, warnings: [{ id, type, scope, confidence, body_preview, reasons, semantic_score? }] }",
+    ].join("\n"),
+    AntiPatternsCheckInputSchema,
+    async (input: AntiPatternsCheckInput) => {
+      tracker.record("anti_patterns_check", input.paths.join(",").slice(0, 80));
+      return jsonResult(await antiPatternsCheck(input, context));
+    },
   );
 
   server.tool(

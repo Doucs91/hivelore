@@ -78,6 +78,17 @@ export const GetBriefingInputSchema = {
       "Returns the file(s) exporting each symbol so agents don't need to grep. " +
       "Requires `haive index code` to have been run.",
     ),
+  min_semantic_score: z
+    .number()
+    .min(0)
+    .max(1)
+    .default(0)
+    .describe(
+      "Drop semantic-only memory hits whose cosine score is below this threshold. " +
+      "Useful to avoid weakly-related noise when the task is short or the corpus is broad. " +
+      "Has no effect on memories matched via anchor/module/literal — those are always kept. " +
+      "Try 0.25–0.4 for stricter matching.",
+    ),
 };
 
 export type GetBriefingInput = {
@@ -144,6 +155,20 @@ export interface BriefingOutput {
   action_required: ActionRequiredItem[];
   decay_warnings: string[];
   setup_warnings: string[];
+  /**
+   * True when this briefing carries little actionable signal:
+   * - project-context.md is still the default template
+   * - no memories matched the task (or none exist at all)
+   * - no previous session recap
+   * Clients can use this flag to skip surfacing a near-empty briefing to the model.
+   */
+  low_value?: true;
+  /**
+   * Short, action-oriented hints surfaced to the agent based on the briefing payload.
+   * Examples: "haive is uninitialized — use Read/Grep directly", "gotcha memories present — read first".
+   * Always non-empty when low_value=true.
+   */
+  hints?: string[];
   estimated_tokens: number;
   budget: { max_tokens: number; spent: { project: number; modules: number; memories: number } };
 }
@@ -191,6 +216,12 @@ export async function getBriefing(
       return true;
     });
     usage = await loadUsageIndex(ctx.paths);
+    // Build the id→loaded map up-front so the semantic-hits loop below
+    // (and the related-id expansion later) can resolve hits to LoadedMemory.
+    // Pre-fix: byId was assigned only after the semantic loop, so semantic hits
+    // were silently dropped — search_mode said "semantic" but no memory ever
+    // received a semantic_score. Fixed in v0.5.0.
+    byId = new Map(allMemories.map((m) => [m.memory.frontmatter.id, m]));
     const semanticHits = input.task && input.semantic
       ? await trySemanticHits(ctx, input.task, allMemories.length * 2)
       : null;
@@ -270,6 +301,12 @@ export async function getBriefing(
       }
       if (semanticHits) {
         for (const hit of semanticHits) {
+          // Filter out weakly-related semantic hits when caller asked for a stricter threshold.
+          // Memories already attached via anchor/module/literal stay (addOrUpdate just upgrades them).
+          if (hit.score < input.min_semantic_score) {
+            const existing = seen.get(hit.id);
+            if (!existing) continue;
+          }
           const loaded = byId.get(hit.id);
           if (loaded) addOrUpdate(loaded, "semantic", hit.score, "semantic");
         }
@@ -294,7 +331,7 @@ export async function getBriefing(
     });
 
     // Expand related_ids: pull in memories linked from the top results
-    byId = new Map(allMemories.map((m) => [m.memory.frontmatter.id, m]));
+    // (byId was already populated above, before the semantic-hits loop)
     for (const mem of ranked.slice(0, input.max_memories)) {
       if (seen.size >= input.max_memories * 2) break;
       const loaded = byId.get(mem.id);
@@ -573,6 +610,53 @@ export async function getBriefing(
     }
   }
 
+  // ── low_value detection + hints ────────────────────────────────────────
+  // A briefing is "low value" when the project has not been initialized yet
+  // (template context + zero memories + no past session). Clients can short-circuit
+  // and tell the model to use plain Read/Grep instead of paying for a near-empty briefing.
+  const memoriesEmpty = outputMemories.length === 0;
+  const hasMemoriesDir = existsSync(ctx.paths.memoriesDir);
+  const isColdStart =
+    isTemplateContext &&
+    memoriesEmpty &&
+    !lastSession &&
+    !autoContextGenerated;
+
+  const hints: string[] = [];
+  if (isColdStart) {
+    hints.push(
+      "haive is uninitialized for this project (project-context.md is template, " +
+      "0 memories, no past session). Skip future get_briefing calls until memories exist — " +
+      "use Read/Grep directly. Run `haive init` and the bootstrap_project prompt to fix.",
+    );
+  } else {
+    if (outputMemories.some((m) => m.type === "attempt")) {
+      hints.push(
+        "⚠️ One or more 'attempt' memories matched — these document failed approaches. " +
+        "Read them BEFORE writing code to avoid repeating the mistake.",
+      );
+    }
+    if (outputMemories.some((m) => m.type === "gotcha")) {
+      hints.push(
+        "Gotcha memories matched — non-obvious traps. Verify the 'how to apply' line still holds " +
+        "before assuming behavior.",
+      );
+    }
+    if (memoriesEmpty && hasMemoriesDir && input.task) {
+      hints.push(
+        "No memories matched this task. Try mem_search with broader/different terms, " +
+        "or call mem_for_files with the files you intend to edit.",
+      );
+    }
+    if (input.task && outputMemories.length > 0 && actionRequired.length === 0) {
+      // Encourage capturing new knowledge proactively.
+      hints.push(
+        "After completing the task: capture new gotchas with mem_observe, " +
+        "failed approaches with mem_tried, validated patterns with mem_save.",
+      );
+    }
+  }
+
   return {
     ...(input.task ? { task: input.task } : {}),
     search_mode: searchMode,
@@ -592,6 +676,8 @@ export async function getBriefing(
     action_required: actionRequired,
     decay_warnings: decayWarnings,
     setup_warnings: setupWarnings,
+    ...(isColdStart ? { low_value: true as const } : {}),
+    ...(hints.length > 0 ? { hints } : {}),
     estimated_tokens: totalTokens,
     budget: {
       max_tokens: input.max_tokens,

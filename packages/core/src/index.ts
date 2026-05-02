@@ -14,3 +14,4 @@ export * from "./config.js";
 export * from "./cross-repo.js";
 export * from "./dep-tracker.js";
 export * from "./contract-watcher.js";
+export * from "./usage-log.js";

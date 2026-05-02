@@ -28,3 +28,23 @@ export {
   semanticSearch,
   type SemanticHit,
 } from "./search.js";
+
+export {
+  buildCodeEntryText,
+  codeIndexPath,
+  emptyCodeIndex,
+  loadCodeIndex,
+  saveCodeIndex,
+  type CodeEmbeddingEntry,
+  type CodeEmbeddingIndex,
+} from "./code-index-cache.js";
+
+export {
+  rebuildCodeIndex,
+  type CodeIndexUpdateReport,
+} from "./code-indexer.js";
+
+export {
+  codeSemanticSearch,
+  type CodeSearchHit,
+} from "./code-search.js";
