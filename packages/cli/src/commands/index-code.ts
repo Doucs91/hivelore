@@ -73,4 +73,44 @@ export function registerIndexCode(program: Command): void {
         `Indexed ${fileCount} file(s) with ${exportCount} export(s) → ${path.relative(root, codeMapPath(paths))}`,
       );
     });
+
+  idx
+    .command("code-search")
+    .description(
+      "Build the semantic-search embeddings index for code (powers the code_search MCP tool).\n\n" +
+      "  Reads .ai/code-map.json (run `haive index code` first) and embeds each exported\n" +
+      "  symbol's metadata (filename + name + kind + description).\n\n" +
+      "  Re-runs are incremental: unchanged entries keep their cached vectors, only the\n" +
+      "  diff is re-embedded. First run downloads the bge-small-en-v1.5 model (~110MB).\n",
+    )
+    .option("-d, --dir <dir>", "project root")
+    .action(async (opts: IndexCodeOptions) => {
+      const root = findProjectRoot(opts.dir);
+      const paths = resolveHaivePaths(root);
+
+      let mod: typeof import("@hiveai/embeddings");
+      try {
+        mod = await import("@hiveai/embeddings");
+      } catch {
+        ui.error(
+          "@hiveai/embeddings is not installed. Install it (`pnpm add @hiveai/embeddings`) " +
+          "or run `haive embeddings install`.",
+        );
+        process.exit(1);
+      }
+
+      ui.info("Loading embedder (first run downloads ~110MB)…");
+      const embedder = await mod.Embedder.create();
+      ui.info(`Embedding code-map symbols…`);
+      try {
+        const { report } = await mod.rebuildCodeIndex(paths, embedder);
+        ui.success(
+          `Code-search index ready: ${report.total} symbols ` +
+          `(+${report.added} new, ~${report.updated} updated, =${report.unchanged} cached, -${report.removed} removed)`,
+        );
+      } catch (err) {
+        ui.error(err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
+    });
 }
