@@ -33,6 +33,10 @@ import { registerHub } from "./commands/hub.js";
 import { registerStats } from "./commands/stats.js";
 import { registerBench } from "./commands/bench.js";
 import { registerMemorySuggest } from "./commands/memory-suggest.js";
+import { registerMemoryArchive } from "./commands/memory-archive.js";
+import { registerDoctor } from "./commands/doctor.js";
+import { registerPlayback } from "./commands/playback.js";
+import { registerPrecommit } from "./commands/precommit.js";
 
 const program = new Command();
 
@@ -74,6 +78,7 @@ registerMemoryImport(memory);
 registerMemoryImportChangelog(memory);
 registerMemoryDigest(memory);
 registerMemorySuggest(memory);
+registerMemoryArchive(memory);
 
 const session = program.command("session").description("Manage session lifecycle");
 registerSessionEnd(session);
@@ -82,6 +87,9 @@ registerSnapshot(program);
 registerHub(program);
 registerStats(program);
 registerBench(program);
+registerDoctor(program);
+registerPlayback(program);
+registerPrecommit(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   if (isZodError(err)) {

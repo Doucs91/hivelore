@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { Command } from "commander";
 import {
   findProjectRoot,
@@ -24,6 +25,7 @@ interface BriefingOptions {
   includeDraft?: boolean;
   includeStale?: boolean;
   dir?: string;
+  include?: string[];
 }
 
 export function registerBriefing(program: Command): void {
@@ -48,6 +50,13 @@ export function registerBriefing(program: Command): void {
     )
     .option("--include-draft", "include draft memories (excluded by default)")
     .option("--include-stale", "include stale memories (excluded by default — may be outdated)")
+    .option(
+      "--include <path>",
+      "merge memories from another haive-initialized project (repeatable). " +
+      "Useful for teams with multiple coordinated repos (e.g. backend + frontend).",
+      collectInclude,
+      [] as string[],
+    )
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: BriefingOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -64,7 +73,38 @@ export function registerBriefing(program: Command): void {
         return;
       }
 
-      const all = await loadMemoriesFromDir(paths.memoriesDir);
+      type LoadedWithOrigin = Awaited<ReturnType<typeof loadMemoriesFromDir>>[number] & { origin?: string };
+      const ownMemories: LoadedWithOrigin[] = await loadMemoriesFromDir(paths.memoriesDir);
+
+      // Multi-project aggregation: merge memories from --include <path> projects.
+      const externalRoots: string[] = [];
+      if (opts.include && opts.include.length > 0) {
+        for (const includePath of opts.include) {
+          try {
+            const otherRoot = findProjectRoot(includePath);
+            if (otherRoot === root) continue; // skip self
+            const otherPaths = resolveHaivePaths(otherRoot);
+            if (!existsSync(otherPaths.memoriesDir)) {
+              ui.warn(`--include ${includePath}: no .ai/memories at ${otherRoot} — skipping`);
+              continue;
+            }
+            const otherMemories = await loadMemoriesFromDir(otherPaths.memoriesDir);
+            const tag = path.basename(otherRoot);
+            for (const m of otherMemories) {
+              ownMemories.push({ ...m, origin: tag });
+            }
+            externalRoots.push(`${tag} (${otherMemories.length})`);
+          } catch (err) {
+            ui.warn(`--include ${includePath}: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+        if (externalRoots.length > 0) {
+          ui.info(`merged from: ${externalRoots.join(", ")}`);
+          console.log();
+        }
+      }
+
+      const all = ownMemories;
       const filePaths = parseCsv(opts.files);
       const tokens = opts.task ? tokenizeQuery(opts.task) : null;
       const maxMemories = Math.max(1, Number(opts.maxMemories ?? 10));
@@ -157,15 +197,18 @@ export function registerBriefing(program: Command): void {
       }
 
       console.log(`${ui.bold("=== Relevant Memories ===")}\n`);
-      for (const { memory: mem } of top) {
-        const fm = mem.frontmatter;
+      for (const item of top) {
+        const fm = item.memory.frontmatter;
         const badge = ui.statusBadge(fm.status);
         const draftMarker = fm.status === "draft" ? ui.yellow(" [DRAFT]") : "";
         const unverifiedMarker = fm.status === "proposed" ? ui.yellow(" [UNVERIFIED]") : "";
+        const originMarker = (item as LoadedWithOrigin).origin
+          ? ` ${ui.yellow("[from " + (item as LoadedWithOrigin).origin + "]")}`
+          : "";
         console.log(
-          `${ui.bold(fm.id)}  ${ui.dim(fm.scope + "/" + fm.type)}  ${badge}${draftMarker}${unverifiedMarker}`,
+          `${ui.bold(fm.id)}  ${ui.dim(fm.scope + "/" + fm.type)}  ${badge}${draftMarker}${unverifiedMarker}${originMarker}`,
         );
-        console.log(mem.body.trim());
+        console.log(item.memory.body.trim());
         console.log();
       }
       console.log(ui.dim(`${top.length} memor${top.length === 1 ? "y" : "ies"} surfaced`));
@@ -212,4 +255,8 @@ export function registerBriefing(program: Command): void {
 function parseCsv(value: string | undefined): string[] {
   if (!value) return [];
   return value.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+function collectInclude(value: string, previous: string[]): string[] {
+  return [...previous, value];
 }
