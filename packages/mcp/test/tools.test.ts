@@ -302,6 +302,64 @@ describe("hAIve MCP tools", () => {
     });
   });
 
+  describe("inline auto-promote in get_briefing (Phase 4)", () => {
+    it("promotes a proposed memory to validated once read_count >= minReads (5)", async () => {
+      // Save a proposed memory
+      const saved = await memSave(
+        {
+          type: "convention",
+          slug: "auto-promote-me",
+          body: "This should auto-promote after 5 reads.",
+          scope: "team",
+          tags: ["test"],
+          paths: [],
+          topic: undefined,
+          symbols: undefined,
+          author: undefined,
+        },
+        ctx,
+      );
+      // Manually force status to proposed
+      const { loadMemoriesFromDir, serializeMemory } = await import("@hiveai/core");
+      const mems = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+      const target = mems.find((m) => m.memory.frontmatter.id === saved.id);
+      expect(target).toBeDefined();
+      const { writeFile: wf } = await import("node:fs/promises");
+      await wf(
+        target!.filePath,
+        serializeMemory({
+          frontmatter: { ...target!.memory.frontmatter, status: "proposed" },
+          body: target!.memory.body,
+        }),
+        "utf8",
+      );
+
+      // Run get_briefing 5 times — each call increments read_count
+      const briefingOpts = {
+        task: "auto-promote-me convention test",
+        files: [],
+        max_tokens: 4000,
+        max_memories: 10,
+        include_project_context: false,
+        include_module_contexts: false,
+        semantic: false,
+        include_stale: false,
+        track: true,
+        format: "full" as const,
+        symbols: [],
+        min_semantic_score: 0,
+      };
+      for (let i = 0; i < 5; i++) {
+        await getBriefing(briefingOpts, ctx);
+      }
+
+      // The memory should now be validated on disk
+      const afterMems = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+      const promoted = afterMems.find((m) => m.memory.frontmatter.id === saved.id);
+      expect(promoted?.memory.frontmatter.status).toBe("validated");
+    });
+  });
+
   describe("pattern_detect (Phase 3)", () => {
     it("returns empty result when no usage events exist", async () => {
       const out = await patternDetect(

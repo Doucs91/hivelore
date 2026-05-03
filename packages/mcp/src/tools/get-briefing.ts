@@ -1,12 +1,14 @@
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   allocateBudget,
+  DEFAULT_AUTO_PROMOTE_RULE,
   deriveConfidence,
   estimateTokens,
   getUsage,
   inferModulesFromPaths,
+  isAutoPromoteEligible,
   isDecaying,
   literalMatchesAllTokens,
   literalMatchesAnyToken,
@@ -16,6 +18,7 @@ import {
   loadUsageIndex,
   memoryMatchesAnchorPaths,
   queryCodeMap,
+  serializeMemory,
   tokenizeQuery,
   trackReads,
   truncateToTokens,
@@ -348,6 +351,32 @@ export async function getBriefing(
 
     if (input.track && memories.length > 0) {
       await trackReads(ctx.paths, memories.map((m) => m.id));
+
+      // ── Inline auto-promote: promote proposed memories that just crossed minReads
+      // Load fresh usage after trackReads incremented the counters.
+      const freshUsage = await loadUsageIndex(ctx.paths);
+      const rule = {
+        minReads: DEFAULT_AUTO_PROMOTE_RULE.minReads,
+        maxRejections: DEFAULT_AUTO_PROMOTE_RULE.maxRejections,
+      };
+      for (const m of memories) {
+        const loaded = byId.get(m.id);
+        if (!loaded) continue;
+        const u = getUsage(freshUsage, m.id);
+        if (!isAutoPromoteEligible(loaded.memory.frontmatter, u, rule)) continue;
+        // Promote in-place
+        const newFm = { ...loaded.memory.frontmatter, status: "validated" as const };
+        try {
+          await writeFile(
+            loaded.filePath,
+            serializeMemory({ frontmatter: newFm, body: loaded.memory.body }),
+            "utf8",
+          );
+          // Update the in-memory object so the briefing output reflects validated status
+          m.status = "validated";
+          m.confidence = "trusted";
+        } catch { /* non-fatal — auto-promote is best-effort */ }
+      }
     }
   }
 
