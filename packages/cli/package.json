@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/cli",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "hAIve CLI — manage shared AI memories from the terminal",
   "license": "MIT",
   "repository": {

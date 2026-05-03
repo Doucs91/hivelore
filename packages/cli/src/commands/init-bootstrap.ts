@@ -179,13 +179,21 @@ function inferModuleDescriptions(dirs: string[], frameworks: string[] = []): str
 
   const isNestJS = frameworks.includes("NestJS");
 
-  // NestJS pattern: src/ contains feature module subdirectories
+  // When src/ has meaningful subdirectories, list them for any backend/API project
+  // (NestJS, Express, Fastify, Hono, tRPC, GraphQL…) — not just NestJS
+  const isSrcBased = isNestJS ||
+    frameworks.some((f) => ["Express", "Fastify", "Hono", "tRPC", "Apollo", "GraphQL"].includes(f));
+  const isFrontend = frameworks.some((f) => ["React", "Vue", "Svelte", "SvelteKit", "Astro"].includes(f));
   const srcSubdirs = dirs.filter((d) => d.startsWith("src/") && d.split("/").length === 2);
-  if (isNestJS && srcSubdirs.length >= 2) {
-    const result: string[] = [`- \`src/\` — main source (NestJS feature modules)`];
+
+  // Expand src/ for: all backend stacks AND frontend projects with ≥3 src/ subdirs
+  // (shallow frontends like CRA only have src/components + src/index → skip)
+  if ((isSrcBased && srcSubdirs.length >= 2) || (isFrontend && srcSubdirs.length >= 3)) {
+    const label = isNestJS ? "main source (NestJS feature modules)" : "main source";
+    const result: string[] = [`- \`src/\` — ${label}`];
     for (const d of srcSubdirs.slice(0, 12)) {
       const name = d.split("/")[1]!;
-      const desc = known[name.toLowerCase()] ?? "feature module";
+      const desc = known[name.toLowerCase()] ?? "module";
       result.push(`  - \`${name}/\` — ${desc}`);
     }
     // Also list other top-level dirs (prisma/, docker/, etc.)
