@@ -1,11 +1,21 @@
 /**
  * Auto-configure haive-mcp in supported AI clients.
  *
- * Clients supported:
- *   - Cursor  (~/.cursor/mcp.json)
- *   - VS Code (~/.config/Code/User/mcp.json or ~/Library/Application Support/Code/User/mcp.json)
- *   - Claude Code (~/.claude.json mcpServers field)
- *   - Windsurf (~/.codeium/windsurf/mcp_config.json)
+ * Two layers:
+ *   User-level (global, written once):
+ *     - Cursor  (~/.cursor/mcp.json)
+ *     - VS Code (~/.config/Code/User/mcp.json or ~/Library/Application Support/Code/User/mcp.json)
+ *     - Claude Code (~/.claude.json mcpServers field)
+ *     - Windsurf (~/.codeium/windsurf/mcp_config.json)
+ *
+ *   Project-level (per project, written at haive init, includes HAIVE_PROJECT_ROOT):
+ *     - Cursor  (<root>/.cursor/mcp.json)
+ *     - VS Code (<root>/.vscode/mcp.json)
+ *     - Claude Code (<root>/.mcp.json)
+ *
+ * Project-level configs take precedence over user-level when the client opens that
+ * workspace, ensuring the MCP server always resolves the correct project root even
+ * when the same haive-mcp binary serves multiple projects.
  */
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -17,6 +27,14 @@ const HAIVE_MCP_ENTRY = {
   command: "haive-mcp",
   args: [] as string[],
 };
+
+function projectMcpEntry(root: string) {
+  return {
+    command: "haive-mcp",
+    args: [] as string[],
+    env: { HAIVE_PROJECT_ROOT: root },
+  };
+}
 
 // ── Cursor ────────────────────────────────────────────────────────────────────
 
@@ -155,5 +173,70 @@ export async function autoConfigureMcpClients(): Promise<ConfigureResult[]> {
       results.push({ client: name, status: "error", error: String(err) });
     }
   }
+  return results;
+}
+
+/**
+ * Write project-level MCP configs that include HAIVE_PROJECT_ROOT so that
+ * each AI client uses the correct project root regardless of the server's CWD.
+ *
+ * These files are machine-specific (absolute paths) and should be gitignored.
+ * haive init appends them to .gitignore automatically.
+ *
+ * Project-level configs take precedence over user-level configs in Cursor and
+ * VS Code when the workspace is opened. This is the canonical fix for the
+ * "MCP server uses wrong project root in multi-project setups" bug.
+ */
+export async function configureProjectMcpClients(root: string): Promise<ConfigureResult[]> {
+  const entry = projectMcpEntry(root);
+  const results: ConfigureResult[] = [];
+
+  // ── Cursor: <root>/.cursor/mcp.json ──────────────────────────────────────
+  try {
+    const cursorPath = path.join(root, ".cursor", "mcp.json");
+    let config: { mcpServers?: Record<string, unknown> } = {};
+    if (existsSync(cursorPath)) {
+      try { config = JSON.parse(await readFile(cursorPath, "utf8")); } catch { /* keep empty */ }
+    }
+    config.mcpServers ??= {};
+    config.mcpServers["haive"] = entry;
+    await mkdir(path.dirname(cursorPath), { recursive: true });
+    await writeFile(cursorPath, JSON.stringify(config, null, 2) + "\n", "utf8");
+    results.push({ client: "Cursor (project)", status: "configured", path: cursorPath });
+  } catch (err) {
+    results.push({ client: "Cursor (project)", status: "error", error: String(err) });
+  }
+
+  // ── VS Code: <root>/.vscode/mcp.json ─────────────────────────────────────
+  try {
+    const vscodePath = path.join(root, ".vscode", "mcp.json");
+    let config: { servers?: Record<string, unknown> } = {};
+    if (existsSync(vscodePath)) {
+      try { config = JSON.parse(await readFile(vscodePath, "utf8")); } catch { /* keep empty */ }
+    }
+    config.servers ??= {};
+    config.servers["haive"] = { ...entry, type: "stdio" };
+    await mkdir(path.dirname(vscodePath), { recursive: true });
+    await writeFile(vscodePath, JSON.stringify(config, null, 2) + "\n", "utf8");
+    results.push({ client: "VS Code (workspace)", status: "configured", path: vscodePath });
+  } catch (err) {
+    results.push({ client: "VS Code (workspace)", status: "error", error: String(err) });
+  }
+
+  // ── Claude Code: <root>/.mcp.json ────────────────────────────────────────
+  try {
+    const mcpPath = path.join(root, ".mcp.json");
+    let config: { mcpServers?: Record<string, unknown> } = {};
+    if (existsSync(mcpPath)) {
+      try { config = JSON.parse(await readFile(mcpPath, "utf8")); } catch { /* keep empty */ }
+    }
+    config.mcpServers ??= {};
+    config.mcpServers["haive"] = { ...entry, type: "stdio" };
+    await writeFile(mcpPath, JSON.stringify(config, null, 2) + "\n", "utf8");
+    results.push({ client: "Claude Code (project)", status: "configured", path: mcpPath });
+  } catch (err) {
+    results.push({ client: "Claude Code (project)", status: "error", error: String(err) });
+  }
+
   return results;
 }

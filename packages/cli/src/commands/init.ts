@@ -13,7 +13,7 @@ import {
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 import { generateBootstrapContext } from "./init-bootstrap.js";
-import { autoConfigureMcpClients } from "./init-mcp-setup.js";
+import { autoConfigureMcpClients, configureProjectMcpClients } from "./init-mcp-setup.js";
 import {
   autoDetectStacks,
   isValidStack,
@@ -340,6 +340,7 @@ export function registerInit(program: Command): void {
 
       // ── Auto-configure MCP in AI clients ────────────────────────────────
       if (opts.mcpSetup !== false) {
+        // User-level (global, written once per machine)
         const mcpResults = await autoConfigureMcpClients();
         const configured = mcpResults.filter((r) => r.status === "configured");
         const alreadyOk  = mcpResults.filter((r) => r.status === "already_configured");
@@ -357,7 +358,23 @@ export function registerInit(program: Command): void {
             "  See: https://github.com/Doucs91/hAIve#mcp-setup",
           );
         }
-        if (configured.length > 0) {
+
+        // Project-level (per workspace, includes HAIVE_PROJECT_ROOT to fix multi-project CWD)
+        const projectMcpResults = await configureProjectMcpClients(root);
+        for (const r of projectMcpResults) {
+          if (r.status === "configured") {
+            ui.success(`haive-mcp project config written (${path.relative(root, r.path!)})`);
+          }
+        }
+
+        // Ensure project-level MCP configs are gitignored (they contain absolute paths)
+        await ensureGitignoreEntries(root, [
+          ".cursor/mcp.json",
+          ".vscode/mcp.json",
+          ".mcp.json",
+        ]);
+
+        if (configured.length > 0 || projectMcpResults.some((r) => r.status === "configured")) {
           ui.info(
             ui.dim("  → Restart your AI client for MCP changes to take effect."),
           );
@@ -447,5 +464,29 @@ async function writeBridge(root: string, relPath: string): Promise<void> {
   await mkdir(path.dirname(target), { recursive: true });
   await writeFile(target, BRIDGE_BODY, "utf8");
   ui.success(`Created bridge ${relPath}`);
+}
+
+/**
+ * Append gitignore entries if they aren't already present.
+ * Creates .gitignore if it doesn't exist.
+ * Silently no-ops on any filesystem error (non-blocking).
+ */
+async function ensureGitignoreEntries(root: string, patterns: string[]): Promise<void> {
+  try {
+    const gitignorePath = path.join(root, ".gitignore");
+    let existing = "";
+    if (existsSync(gitignorePath)) {
+      existing = await readFile(gitignorePath, "utf8");
+    }
+    const lines = existing.split("\n");
+    const missing = patterns.filter((p) => !lines.some((l) => l.trim() === p));
+    if (missing.length === 0) return;
+    const toAppend = (existing.endsWith("\n") || existing === "" ? "" : "\n") +
+      "# hAIve project-level MCP configs (machine-specific absolute paths)\n" +
+      missing.join("\n") + "\n";
+    await writeFile(gitignorePath, existing + toAppend, "utf8");
+  } catch {
+    // non-fatal
+  }
 }
 

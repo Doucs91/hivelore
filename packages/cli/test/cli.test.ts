@@ -41,6 +41,31 @@ describe("hAIve CLI integration", () => {
     expect(existsSync(path.join(workDir, ".github/copilot-instructions.md"))).toBe(true);
   });
 
+  it("init writes project-level MCP configs with HAIVE_PROJECT_ROOT", async () => {
+    // These files are written by haive init to fix the multi-project CWD bug.
+    const cursorMcp = path.join(workDir, ".cursor", "mcp.json");
+    const vscodeMcp = path.join(workDir, ".vscode", "mcp.json");
+    const claudeMcp = path.join(workDir, ".mcp.json");
+
+    expect(existsSync(cursorMcp)).toBe(true);
+    expect(existsSync(vscodeMcp)).toBe(true);
+    expect(existsSync(claudeMcp)).toBe(true);
+
+    const cursorConfig = JSON.parse(await readFile(cursorMcp, "utf8")) as {
+      mcpServers: Record<string, { command: string; env?: Record<string, string> }>;
+    };
+    expect(cursorConfig.mcpServers["haive"]).toBeDefined();
+    expect(cursorConfig.mcpServers["haive"]!.command).toBe("haive-mcp");
+    expect(cursorConfig.mcpServers["haive"]!.env?.["HAIVE_PROJECT_ROOT"]).toBe(workDir);
+  });
+
+  it("init adds project-level MCP configs to .gitignore", async () => {
+    const gitignore = await readFile(path.join(workDir, ".gitignore"), "utf8");
+    expect(gitignore).toContain(".cursor/mcp.json");
+    expect(gitignore).toContain(".vscode/mcp.json");
+    expect(gitignore).toContain(".mcp.json");
+  });
+
   it("memory add creates a personal memory file by default", async () => {
     await run(workDir, [
       "memory",
