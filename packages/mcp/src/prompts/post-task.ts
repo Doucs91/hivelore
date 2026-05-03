@@ -87,6 +87,8 @@ Call **\`mem_session_end\`** with:
 
 This creates/updates a single rolling recap that **get_briefing automatically surfaces** at the start of every subsequent session — no token waste re-explaining what happened.
 
+Calling \`mem_session_end\` also **clears the pending-distill marker** (if any), confirming that this session's learnings have been properly captured rather than left as an auto-recap skeleton.
+
 When done, respond with a brief summary: "Saved N memories: [list of IDs]. Session recap saved."
 `;
 

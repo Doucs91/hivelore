@@ -25,6 +25,7 @@ import {
 } from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
+import { pendingDistillPath, type PendingDistill } from "../session-tracker.js";
 
 export const GetBriefingInputSchema = {
   task: z
@@ -608,6 +609,45 @@ export async function getBriefing(
           `Veux-tu que j'analyse l'impact et que je propose des mises à jour ?`,
       });
     }
+  }
+
+  // ── pending-distill: prompt agent to run post_task if shallow auto-recap ──
+  // If the previous session was closed by autopilot (no manual post_task),
+  // surface an action_required item so the LLM host distills learnings via
+  // the post_task prompt. Auto-expires after 7 days (stale diff = useless).
+  const pendingDistillFile = pendingDistillPath(ctx);
+  if (existsSync(pendingDistillFile)) {
+    try {
+      const raw = await readFile(pendingDistillFile, "utf8");
+      const pd = JSON.parse(raw) as PendingDistill;
+      const ageMs = Date.now() - new Date(pd.session_end).getTime();
+      const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+      if (ageMs < SEVEN_DAYS) {
+        const savedNote = pd.memories_saved.length > 0
+          ? ` ${pd.memories_saved.length} memor${pd.memories_saved.length === 1 ? "y was" : "ies were"} saved.`
+          : " No memories were saved.";
+        const diffNote = pd.git_diff_available
+          ? " A git diff snapshot is available in the pending-distill file for context."
+          : "";
+        actionRequired.push({
+          id: "__pending_distill__",
+          summary: "Previous session has undistilled learnings — invoke post_task to capture them",
+          developer_message:
+            `The previous session (${pd.total_tool_calls} tool calls, ${pd.tool_summary}) ` +
+            `was closed by autopilot without a full post_task distillation.${savedNote}${diffNote}\n\n` +
+            `**Before starting your task:** invoke the MCP prompt \`post_task\` to capture any ` +
+            `decisions, gotchas, or conventions from that session. This takes ~30 seconds and ` +
+            `prevents institutional knowledge from being lost.\n\n` +
+            `When done, call \`mem_session_end\` to acknowledge — this clears the pending distill marker.`,
+        });
+      } else {
+        // Auto-expire stale pending distill (> 7 days old)
+        try {
+          const { rm } = await import("node:fs/promises");
+          await rm(pendingDistillFile);
+        } catch { /* non-fatal */ }
+      }
+    } catch { /* malformed or deleted between check and read — skip */ }
   }
 
   // ── low_value detection + hints ────────────────────────────────────────

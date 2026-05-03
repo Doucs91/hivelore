@@ -17,6 +17,7 @@ import {
 } from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
+import { clearPendingDistill } from "../session-tracker.js";
 
 export const MemSessionEndInputSchema = {
   goal: z
@@ -136,6 +137,8 @@ export async function memSessionEnd(
       serializeMemory({ frontmatter: newFrontmatter, body }),
       "utf8",
     );
+    // Clear pending distill — a manual post_task flow completed successfully.
+    await clearPendingDistill(ctx);
     return {
       id: fm.id,
       scope: fm.scope,
@@ -166,6 +169,11 @@ export async function memSessionEnd(
   await mkdir(path.dirname(file), { recursive: true });
 
   await writeFile(file, serializeMemory({ frontmatter, body }), "utf8");
+
+  // A successful manual mem_session_end (post_task flow) means the distillation
+  // has been done properly — clear the shallow auto-recap marker so the next
+  // get_briefing doesn't ask again.
+  await clearPendingDistill(ctx);
 
   return {
     id: frontmatter.id,
