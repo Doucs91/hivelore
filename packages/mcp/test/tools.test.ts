@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -12,6 +12,7 @@ import { memList } from "../src/tools/mem-list.js";
 import { memSave } from "../src/tools/mem-save.js";
 import { memSearch } from "../src/tools/mem-search.js";
 import { memSessionEnd } from "../src/tools/mem-session-end.js";
+import { patternDetect } from "../src/tools/pattern-detect.js";
 import { pendingDistillPath, type PendingDistill } from "../src/session-tracker.js";
 
 describe("hAIve MCP tools", () => {
@@ -298,6 +299,51 @@ describe("hAIve MCP tools", () => {
 
       // File should have been auto-deleted
       expect(existsSync(markerPath)).toBe(false);
+    });
+  });
+
+  describe("pattern_detect (Phase 3)", () => {
+    it("returns empty result when no usage events exist", async () => {
+      const out = await patternDetect(
+        { since_days: 7, dry_run: true, scope: "team" },
+        ctx,
+      );
+      expect(out.scanned_events).toBe(0);
+      expect(out.matches).toHaveLength(0);
+      expect(out.saved).toBe(0);
+      expect(out.notice).toBeDefined();
+    });
+
+    it("detects HOT_FILE signal and saves proposed memory", async () => {
+      // Simulate usage events referencing same file 3+ times
+      const usageDir = path.join(ctx.paths.haiveDir, ".usage");
+      await mkdir(usageDir, { recursive: true });
+      const events = [
+        { at: new Date().toISOString(), tool: "mem_save", summary: "src/service.ts" },
+        { at: new Date().toISOString(), tool: "mem_save", summary: "src/service.ts" },
+        { at: new Date().toISOString(), tool: "mem_save", summary: "src/service.ts" },
+      ];
+      await writeFile(
+        path.join(usageDir, "tool-usage.jsonl"),
+        events.map((e) => JSON.stringify(e)).join("\n") + "\n",
+        "utf8",
+      );
+
+      const dry = await patternDetect(
+        { since_days: 1, dry_run: true, scope: "team" },
+        ctx,
+      );
+      expect(dry.matches.some((m) => m.kind === "hot_file")).toBe(true);
+      expect(dry.saved).toBe(0); // dry_run
+
+      const live = await patternDetect(
+        { since_days: 1, dry_run: false, scope: "team" },
+        ctx,
+      );
+      expect(live.saved).toBeGreaterThan(0);
+      // Proposed memory should exist on disk
+      const teamFiles = await readdir(ctx.paths.teamDir);
+      expect(teamFiles.length).toBeGreaterThan(0);
     });
   });
 });

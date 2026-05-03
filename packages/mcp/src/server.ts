@@ -129,6 +129,11 @@ import {
   type PreCommitCheckInput,
 } from "./tools/precommit-check.js";
 import {
+  PatternDetectInputSchema,
+  patternDetect,
+  type PatternDetectInput,
+} from "./tools/pattern-detect.js";
+import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
   type BootstrapProjectArgs,
@@ -203,6 +208,11 @@ export {
   type PreCommitCheckInput,
   type PreCommitCheckOutput,
 } from "./tools/precommit-check.js";
+export {
+  patternDetect,
+  type PatternDetectInput,
+  type PatternDetectOutput,
+} from "./tools/pattern-detect.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -904,6 +914,38 @@ export function createHaiveServer(
     async (input: PreCommitCheckInput) => {
       tracker.record("pre_commit_check", `${input.paths.length}p`);
       return jsonResult(await preCommitCheck(input, context));
+    },
+  );
+
+  server.tool(
+    "pattern_detect",
+    [
+      "Heuristic memory detector — finds knowledge worth saving WITHOUT calling an LLM.",
+      "",
+      "Runs three signals over local git history and the tool-usage log:",
+      "  1. CONFIG_CHANGE — config files modified recently (tsconfig, eslint, prettier, …)",
+      "     → proposes a convention memory with the git diff as body.",
+      "  2. REPEATED_PATH — same file appears ≥3× in mem_tried/mem_observe events",
+      "     → proposes a gotcha memory anchored to that path.",
+      "  3. HOT_FILE — source file referenced ≥3× in writing-tool events",
+      "     → proposes a convention memory (frequent edits = pattern emerging).",
+      "",
+      "Saves memories with status='proposed'. They feed into auto-promote (Phase 4)",
+      "or are surfaced in the next post_task distillation for LLM review.",
+      "",
+      "USE periodically (e.g. end of sprint) or trigger from post-commit hook.",
+      "",
+      "PARAMETERS:",
+      "  since_days — look-back window in days (default 7)",
+      "  dry_run    — report matches without saving (default false)",
+      "  scope      — 'team' (default) | 'personal'",
+      "",
+      "RETURNS: { scanned_events, matches: [{kind, signal, proposed_type, …}], saved, saved_ids }",
+    ].join("\n"),
+    PatternDetectInputSchema,
+    async (input: PatternDetectInput) => {
+      tracker.record("pattern_detect", `since=${input.since_days}d/dry_run=${input.dry_run}`);
+      return jsonResult(await patternDetect(input, context));
     },
   );
 

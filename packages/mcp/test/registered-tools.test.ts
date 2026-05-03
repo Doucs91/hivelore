@@ -51,6 +51,8 @@ const EXPECTED_TOOLS: readonly string[] = [
   "why_this_decision",
   "mem_conflicts_with",
   "pre_commit_check",
+  // v0.9.0 additions
+  "pattern_detect",
 ];
 
 interface InternalServerShape {
