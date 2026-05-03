@@ -26,7 +26,8 @@ interface QueryOptions {
 export function registerMemoryQuery(memory: Command): void {
   memory
     .command("query <text>")
-    .description("Search memories by id, tag, or substring (AND, OR fallback)")
+    .alias("search")
+    .description("Search memories by id, tag, or substring (AND, OR fallback). Alias: search")
     .option("-d, --dir <dir>", "project root")
     .option("--limit <n>", "max results", "20")
     .option("--scope <scope>", "personal | team | module")
