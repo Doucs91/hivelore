@@ -15,6 +15,7 @@ import {
   trackReads,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
+import { buildRadar, radarHasContent, type RadarReport } from "../utils/briefing-radar.js";
 
 interface BriefingOptions {
   task?: string;
@@ -28,9 +29,50 @@ interface BriefingOptions {
   includeStale?: boolean;
   dir?: string;
   include?: string[];
+  radar?: boolean;
 }
 
+const RADAR_AUTO_THRESHOLD = 3;
+
 const CHARS_PER_TOKEN = 4;
+
+function printRadar(
+  radar: RadarReport,
+  out: (text: string) => boolean,
+  reason: "low-memory-signal" | "forced",
+): void {
+  if (!radar.insideGitRepo) return;
+  if (!radarHasContent(radar)) return;
+  const header = reason === "low-memory-signal"
+    ? "=== Project Radar (few relevant memories — surfacing live signals) ==="
+    : "=== Project Radar ===";
+  out(`${ui.bold(header)}\n`);
+
+  if (radar.recentCommits.length > 0) {
+    out(ui.bold("Recent commits:"));
+    for (const c of radar.recentCommits) {
+      const filesBlurb = c.files.slice(0, 3).join(", ");
+      const more = c.files.length > 3 ? ` (+${c.files.length - 3})` : "";
+      out(`  ${ui.dim(c.date)} ${c.sha}  ${c.subject}`);
+      if (filesBlurb) out(ui.dim(`    ${filesBlurb}${more}`));
+    }
+    out("");
+  }
+  if (radar.openTodos.length > 0) {
+    out(ui.bold("Open TODOs/FIXMEs:"));
+    for (const t of radar.openTodos) {
+      out(`  ${ui.dim(t.file + ":" + t.line)}  ${t.text}`);
+    }
+    out("");
+  }
+  if (radar.hotFiles.length > 0) {
+    out(ui.bold("Hot files (most modified recently):"));
+    for (const f of radar.hotFiles) {
+      out(`  ${f.changes}× ${ui.dim(f.path)}`);
+    }
+    out("");
+  }
+}
 
 class TokenBudgetWriter {
   private used = 0;
@@ -69,6 +111,8 @@ export function registerBriefing(program: Command): void {
     .option("--max-memories <n>", "cap on memories surfaced", "10")
     .option("--max-tokens <n>", "approximate token budget for the entire briefing (truncates if exceeded)")
     .option("--explain-source", "annotate each memory with [source: <relative-path> · anchors: <files>] for traceable citations")
+    .option("--radar", "force project radar (recent commits, open TODOs, hot files) even when memories are plentiful")
+    .option("--no-radar", "disable the project radar even when memories are scarce")
     .option(
       "--scope <scope>",
       "personal | team | shared | all (default: all — includes team + shared cross-repo memories)",
@@ -98,12 +142,19 @@ export function registerBriefing(program: Command): void {
       const stopped = (): boolean => writer?.isTruncated() ?? false;
 
       if (!existsSync(paths.memoriesDir)) {
-        // No memories yet — just print project context and exit
+        // No memories yet — print project context (if any) + radar fallback
         if (existsSync(paths.projectContext)) {
           out(`${ui.bold("=== Project Context ===")}\n`);
           out((await readFile(paths.projectContext, "utf8")).trim());
+          out("");
         } else {
           ui.warn("No project-context.md found. Run `haive init` and the `bootstrap_project` MCP prompt to set it up.");
+        }
+        if (opts.radar !== false && !stopped()) {
+          const filePathsEarly = parseCsv(opts.files);
+          const tokensEarly = opts.task ? tokenizeQuery(opts.task) : null;
+          const radar = await buildRadar({ root, taskTokens: tokensEarly, filePaths: filePathsEarly });
+          printRadar(radar, out, "low-memory-signal");
         }
         return;
       }
@@ -228,6 +279,11 @@ export function registerBriefing(program: Command): void {
         if (draftCount > 0) {
           ui.info(`(${draftCount} draft memories excluded — use --include-draft to show)`);
         }
+        if (opts.radar !== false && !stopped()) {
+          const radar = await buildRadar({ root, taskTokens: tokens, filePaths });
+          out("");
+          printRadar(radar, out, "low-memory-signal");
+        }
         return;
       }
 
@@ -263,6 +319,17 @@ export function registerBriefing(program: Command): void {
       const ids = top.map(({ memory: mem }) => mem.frontmatter.id);
       if (ids.length > 0) {
         await trackReads(paths, ids).catch(() => { /* non-fatal */ });
+      }
+
+      // ── Project radar — surface git/TODO/hot-file signals when memories are scarce ──
+      const radarForced = opts.radar === true;
+      const radarAuto = opts.radar !== false && top.length < RADAR_AUTO_THRESHOLD;
+      if ((radarForced || radarAuto) && !stopped()) {
+        const radar = await buildRadar({ root, taskTokens: tokens, filePaths });
+        if (radarHasContent(radar)) {
+          out("");
+          printRadar(radar, out, radarForced ? "forced" : "low-memory-signal");
+        }
       }
 
       // ── Code-map symbol lookup ──────────────────────────────────────────
