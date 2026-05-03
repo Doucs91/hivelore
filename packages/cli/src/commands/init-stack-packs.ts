@@ -22,7 +22,8 @@ interface PackMemory {
   body: string;
 }
 
-type StackName = "nestjs" | "nextjs" | "remix" | "react" | "express" | "fastify" | "prisma" | "drizzle";
+type StackName = "nestjs" | "nextjs" | "remix" | "react" | "express" | "fastify" | "prisma" | "drizzle"
+  | "zustand" | "redux" | "reactquery" | "trpc" | "mongoose" | "graphql";
 
 const PACKS: Record<StackName, PackMemory[]> = {
   nestjs: [
@@ -285,6 +286,331 @@ After changing schema.ts:
 Without this, queries silently operate on stale column definitions and may return wrong data.`,
     },
   ],
+
+  zustand: [
+    {
+      slug: "zustand-select-slices-not-whole-store",
+      type: "convention",
+      tags: ["zustand", "performance", "react"],
+      body: `Always select specific slices — never subscribe to the whole store.
+
+\`\`\`ts
+// ❌ Re-renders on any store change (even unrelated fields)
+const store = useStore();
+
+// ✅ Re-renders only when count changes
+const count = useStore((s) => s.count);
+\`\`\`
+
+Subscribing to the whole store is the single most common Zustand performance mistake.`,
+    },
+    {
+      slug: "zustand-devtools-wrap-dev-only",
+      type: "convention",
+      tags: ["zustand", "devtools", "performance"],
+      body: `Wrap Zustand devtools middleware in a dev-only condition.
+
+\`\`\`ts
+import { devtools } from 'zustand/middleware';
+
+const useStore = create(
+  process.env.NODE_ENV === 'development'
+    ? devtools(storeImpl, { name: 'AppStore' })
+    : storeImpl,
+);
+\`\`\`
+
+Shipping devtools to production adds overhead and exposes store internals in bundle.`,
+    },
+    {
+      slug: "zustand-persist-hydration-ssr",
+      type: "gotcha",
+      tags: ["zustand", "ssr", "nextjs", "hydration"],
+      body: `Zustand persist middleware causes hydration mismatch in SSR (Next.js / Remix).
+
+The server renders with empty state; the client rehydrates from localStorage.
+Fix: use \`skipHydration: true\` and manually call \`rehydrate()\` after mount.
+
+\`\`\`ts
+// In a useEffect or useLayoutEffect on the client:
+useEffect(() => { useStore.persist.rehydrate(); }, []);
+\`\`\``,
+    },
+  ],
+
+  redux: [
+    {
+      slug: "redux-toolkit-immer-mutate-or-return",
+      type: "gotcha",
+      tags: ["redux", "redux-toolkit", "immer"],
+      body: `In RTK createSlice reducers (Immer), you must EITHER mutate the draft OR return a new value — never both.
+
+\`\`\`ts
+// ✅ Mutate draft (Immer converts to immutable update)
+state.count += 1;
+
+// ✅ Return new value
+return { ...state, count: state.count + 1 };
+
+// ❌ Both — causes undefined state
+state.count += 1;
+return state; // DON'T — Immer sees both a mutation and a return
+\`\`\``,
+    },
+    {
+      slug: "redux-toolkit-rtk-query-over-thunk",
+      type: "decision",
+      tags: ["redux", "redux-toolkit", "data-fetching"],
+      body: `Use RTK Query for server data, not createAsyncThunk.
+
+RTK Query automatically handles: caching, loading/error states, cache invalidation, polling, optimistic updates.
+createAsyncThunk is for one-off side effects that don't fit the query/mutation model (e.g. file upload with progress).`,
+    },
+    {
+      slug: "redux-toolkit-normalize-nested-data",
+      type: "convention",
+      tags: ["redux", "redux-toolkit", "normalization"],
+      body: `Normalize nested API responses before storing in Redux — use createEntityAdapter.
+
+Storing deeply nested objects causes:
+- Redundant re-renders when any deeply nested field changes
+- Difficult update logic (deep merge)
+
+\`\`\`ts
+const usersAdapter = createEntityAdapter<User>();
+const usersSlice = createSlice({
+  name: 'users',
+  initialState: usersAdapter.getInitialState(),
+  reducers: { usersReceived: usersAdapter.setAll },
+});
+\`\`\``,
+    },
+  ],
+
+  reactquery: [
+    {
+      slug: "tanstack-query-stale-time-default",
+      type: "gotcha",
+      tags: ["react-query", "tanstack-query", "caching"],
+      body: `By default, TanStack Query marks data as stale immediately (staleTime: 0) and refetches on every window focus.
+
+Set a reasonable staleTime to avoid unnecessary network requests:
+
+\`\`\`ts
+useQuery({
+  queryKey: ['user', id],
+  queryFn: () => getUser(id),
+  staleTime: 5 * 60 * 1000, // 5 minutes
+})
+\`\`\`
+
+Set globally via QueryClient defaultOptions for consistency.`,
+    },
+    {
+      slug: "tanstack-query-invalidate-after-mutation",
+      type: "convention",
+      tags: ["react-query", "tanstack-query", "mutations"],
+      body: `Always invalidate related queries after a mutation to keep the cache fresh.
+
+\`\`\`ts
+useMutation({
+  mutationFn: createUser,
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+})
+\`\`\`
+
+Skipping invalidation causes the UI to show stale data after a write until the next background refetch.`,
+    },
+    {
+      slug: "tanstack-query-querykey-as-dependency",
+      type: "convention",
+      tags: ["react-query", "tanstack-query"],
+      body: `Treat the queryKey array as a dependency array — include all variables the queryFn depends on.
+
+\`\`\`ts
+// ❌ Won't refetch when userId changes
+useQuery({ queryKey: ['user'], queryFn: () => getUser(userId) });
+
+// ✅ Refetches automatically when userId changes
+useQuery({ queryKey: ['user', userId], queryFn: () => getUser(userId) });
+\`\`\``,
+    },
+  ],
+
+  trpc: [
+    {
+      slug: "trpc-always-validate-input-with-zod",
+      type: "convention",
+      tags: ["trpc", "validation", "security"],
+      body: `Always validate procedure inputs with Zod — tRPC infers types but doesn't enforce them at runtime without a schema.
+
+\`\`\`ts
+// ❌ No runtime validation — input is 'unknown'
+t.procedure.query(({ input }) => getUser(input as string));
+
+// ✅ Validated and typed end-to-end
+t.procedure
+  .input(z.object({ id: z.string().uuid() }))
+  .query(({ input }) => getUser(input.id));
+\`\`\``,
+    },
+    {
+      slug: "trpc-server-side-caller-for-ssr",
+      type: "convention",
+      tags: ["trpc", "nextjs", "ssr"],
+      body: `Use the server-side caller in Server Components / SSR — don't call tRPC over HTTP from the server.
+
+\`\`\`ts
+// In Next.js App Router server component
+const caller = appRouter.createCaller(await createContext());
+const data = await caller.users.getAll(); // Direct function call, no HTTP
+\`\`\`
+
+HTTP round-trips from server → server add latency and bypass auth context.`,
+    },
+    {
+      slug: "trpc-context-for-auth",
+      type: "architecture",
+      tags: ["trpc", "auth"],
+      body: `Put auth session on the tRPC context, not in individual procedures.
+
+\`\`\`ts
+// createContext(): resolve session once, share across all procedures
+export async function createContext({ req }: CreateNextContextOptions) {
+  const session = await getServerSession(req);
+  return { session, db };
+}
+
+// In procedure: ctx.session.user is always typed
+const protectedProcedure = t.procedure.use(({ ctx, next }) => {
+  if (!ctx.session?.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+  return next({ ctx: { ...ctx, user: ctx.session.user } });
+});
+\`\`\``,
+    },
+  ],
+
+  mongoose: [
+    {
+      slug: "mongoose-connection-singleton",
+      type: "convention",
+      tags: ["mongoose", "mongodb", "connection", "serverless"],
+      body: `Create one Mongoose connection at startup — never connect inside route handlers.
+
+In serverless (Next.js, Vercel), cache the connection to reuse across warm invocations:
+
+\`\`\`ts
+let cached = (global as any).__mongoose ?? { conn: null, promise: null };
+
+export async function dbConnect() {
+  if (cached.conn) return cached.conn;
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(process.env.MONGODB_URI!);
+  }
+  cached.conn = await cached.promise;
+  (global as any).__mongoose = cached;
+  return cached.conn;
+}
+\`\`\``,
+    },
+    {
+      slug: "mongoose-lean-for-read-only",
+      type: "convention",
+      tags: ["mongoose", "performance"],
+      body: `Add .lean() to read-only queries to get plain JS objects instead of full Mongoose documents.
+
+\`\`\`ts
+// ❌ Full Mongoose document — slow, heavy, has virtuals/methods
+const users = await User.find({});
+
+// ✅ Plain JS object — 2-5x faster on large result sets
+const users = await User.find({}).lean();
+\`\`\`
+
+Never use .lean() when you need to call .save() or Mongoose instance methods.`,
+    },
+    {
+      slug: "mongoose-index-frequently-queried-fields",
+      type: "gotcha",
+      tags: ["mongoose", "mongodb", "performance"],
+      body: `Mongoose does NOT create indexes automatically unless you call syncIndexes() or ensureIndexes().
+
+Declare indexes in the schema and sync them at startup:
+
+\`\`\`ts
+UserSchema.index({ email: 1 }, { unique: true });
+UserSchema.index({ createdAt: -1 });
+
+// At startup (not per-request):
+await User.syncIndexes();
+\`\`\`
+
+Missing indexes cause full collection scans and timeouts at scale.`,
+    },
+  ],
+
+  graphql: [
+    {
+      slug: "graphql-n-plus-one-dataloader",
+      type: "gotcha",
+      tags: ["graphql", "performance", "n+1"],
+      body: `GraphQL resolvers cause N+1 database queries without DataLoader batching.
+
+Every field resolver runs independently — fetching related data naively causes N queries for N items.
+
+\`\`\`ts
+// In context, create one DataLoader per request (NOT per resolver call)
+const userLoader = new DataLoader(async (ids: readonly string[]) =>
+  User.findByIds(ids as string[])
+);
+
+// In resolver:
+author: (post) => userLoader.load(post.authorId),
+\`\`\`
+
+A list of 100 posts with authors = 101 queries without DataLoader, 2 queries with it.`,
+    },
+    {
+      slug: "graphql-mask-internal-errors-in-production",
+      type: "gotcha",
+      tags: ["graphql", "security", "apollo"],
+      body: `Apollo Server exposes full error details (including stack traces) in development.
+
+In production, mask internal errors to prevent leaking implementation details:
+
+\`\`\`ts
+new ApolloServer({
+  formatError: (formattedError) => {
+    if (formattedError.extensions?.code === 'INTERNAL_SERVER_ERROR') {
+      return { message: 'Internal server error', extensions: { code: 'INTERNAL_SERVER_ERROR' } };
+    }
+    return formattedError;
+  },
+});
+\`\`\``,
+    },
+    {
+      slug: "graphql-depth-limit-and-complexity",
+      type: "convention",
+      tags: ["graphql", "security", "dos"],
+      body: `Add query depth and complexity limits to prevent DoS via deeply nested queries.
+
+Without limits, a single query can request exponentially nested data and exhaust the server.
+
+\`\`\`ts
+import depthLimit from 'graphql-depth-limit';
+import { createComplexityLimitRule } from 'graphql-validation-complexity';
+
+new ApolloServer({
+  validationRules: [
+    depthLimit(7),
+    createComplexityLimitRule(1000),
+  ],
+});
+\`\`\``,
+    },
+  ],
+
 };
 
 export const SUPPORTED_STACKS = Object.keys(PACKS) as StackName[];
@@ -297,19 +623,25 @@ export function isValidStack(name: string): name is StackName {
 export function autoDetectStacks(deps: Record<string, string>): StackName[] {
   const detected: StackName[] = [];
   const stackDetectors: [StackName, string[]][] = [
-    ["nestjs",   ["@nestjs/core"]],
-    ["nextjs",   ["next"]],
-    ["remix",    ["@remix-run/react", "@remix-run/node"]],
-    ["react",    ["react"]],
-    ["express",  ["express"]],
-    ["fastify",  ["fastify"]],
-    ["prisma",   ["@prisma/client", "prisma"]],
-    ["drizzle",  ["drizzle-orm"]],
+    ["nestjs",     ["@nestjs/core"]],
+    ["nextjs",     ["next"]],
+    ["remix",      ["@remix-run/react", "@remix-run/node"]],
+    ["react",      ["react"]],
+    ["express",    ["express"]],
+    ["fastify",    ["fastify"]],
+    ["prisma",     ["@prisma/client", "prisma"]],
+    ["drizzle",    ["drizzle-orm"]],
+    ["zustand",    ["zustand"]],
+    ["redux",      ["@reduxjs/toolkit", "redux"]],
+    ["reactquery", ["@tanstack/react-query", "react-query"]],
+    ["trpc",       ["@trpc/server", "@trpc/client"]],
+    ["mongoose",   ["mongoose"]],
+    ["graphql",    ["@apollo/client", "@apollo/server", "apollo-server", "graphql"]],
   ];
   for (const [stack, signals] of stackDetectors) {
     if (signals.some((s) => s in deps)) detected.push(stack);
   }
-  // Avoid react when next/remix already detected (deduplicate)
+  // Deduplicate: avoid react when next/remix already detected
   if (detected.includes("nextjs") || detected.includes("remix")) {
     return detected.filter((s) => s !== "react");
   }

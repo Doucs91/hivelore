@@ -15,23 +15,29 @@ const IGNORE_DIRS = new Set([
 ]);
 
 const FRAMEWORK_SIGNALS: Record<string, string[]> = {
-  "NestJS":      ["@nestjs/core", "@nestjs/common"],
-  "Next.js":     ["next"],
-  "Remix":       ["@remix-run/react", "@remix-run/node"],
-  "React":       ["react", "react-dom"],
-  "Vue":         ["vue"],
-  "Svelte":      ["svelte"],
-  "SvelteKit":   ["@sveltejs/kit"],
-  "Astro":       ["astro"],
-  "Express":     ["express"],
-  "Fastify":     ["fastify"],
-  "Hono":        ["hono"],
-  "tRPC":        ["@trpc/server"],
-  "Prisma":      ["@prisma/client"],
-  "Drizzle":     ["drizzle-orm"],
-  "Vite":        ["vite"],
-  "Vitest":      ["vitest"],
-  "Jest":        ["jest"],
+  "NestJS":         ["@nestjs/core", "@nestjs/common"],
+  "Next.js":        ["next"],
+  "Remix":          ["@remix-run/react", "@remix-run/node"],
+  "React":          ["react", "react-dom"],
+  "Vue":            ["vue"],
+  "Svelte":         ["svelte"],
+  "SvelteKit":      ["@sveltejs/kit"],
+  "Astro":          ["astro"],
+  "Express":        ["express"],
+  "Fastify":        ["fastify"],
+  "Hono":           ["hono"],
+  "tRPC":           ["@trpc/server", "@trpc/client"],
+  "Prisma":         ["@prisma/client"],
+  "Drizzle":        ["drizzle-orm"],
+  "Redux Toolkit":  ["@reduxjs/toolkit"],
+  "Zustand":        ["zustand"],
+  "TanStack Query": ["@tanstack/react-query", "react-query"],
+  "Mongoose":       ["mongoose"],
+  "Apollo":         ["@apollo/client", "@apollo/server", "apollo-server"],
+  "GraphQL":        ["graphql"],
+  "Vite":           ["vite"],
+  "Vitest":         ["vitest"],
+  "Jest":           ["jest"],
 };
 
 const KEY_DEPS = [
@@ -52,6 +58,7 @@ interface PackageJson {
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  workspaces?: string[] | { packages: string[] };
 }
 
 function detectFrameworks(allDeps: Record<string, string>): string[] {
@@ -76,7 +83,14 @@ function detectLanguage(root: string): string {
   return "Unknown";
 }
 
-function detectProjectType(frameworks: string[], scripts: Record<string, string>): string {
+function detectProjectType(frameworks: string[], scripts: Record<string, string>, isMonorepo: boolean): string {
+  if (isMonorepo) {
+    if (frameworks.includes("NestJS")) return "Monorepo (NestJS backend)";
+    if (frameworks.includes("Next.js")) return "Monorepo (Next.js)";
+    if (frameworks.includes("React")) return "Multi-package monorepo (React)";
+    if (frameworks.length > 0) return `Multi-package monorepo (${frameworks.slice(0, 2).join(", ")})`;
+    return "Multi-package monorepo";
+  }
   if (frameworks.includes("NestJS")) return "Backend API (NestJS)";
   if (frameworks.includes("Next.js")) return "Full-stack web app (Next.js)";
   if (frameworks.includes("Remix")) return "Full-stack web app (Remix)";
@@ -109,7 +123,7 @@ async function scanDirs(root: string, maxDepth = 2): Promise<string[]> {
   return results;
 }
 
-function inferModuleDescriptions(dirs: string[]): string[] {
+function inferModuleDescriptions(dirs: string[], frameworks: string[] = []): string[] {
   const known: Record<string, string> = {
     "src":           "main source directory",
     "app":           "application entrypoint / routes (Next.js App Router or similar)",
@@ -123,6 +137,12 @@ function inferModuleDescriptions(dirs: string[]): string[] {
     "modules":       "feature modules",
     "middleware":    "HTTP or business middleware",
     "guards":        "auth / access guards",
+    "decorators":    "custom decorators",
+    "interceptors":  "NestJS interceptors",
+    "filters":       "exception filters",
+    "pipes":         "validation / transformation pipes",
+    "dto":           "Data Transfer Objects",
+    "entities":      "ORM entities / database models",
     "prisma":        "Prisma schema and migrations",
     "migrations":    "database migrations",
     "config":        "configuration files",
@@ -149,7 +169,58 @@ function inferModuleDescriptions(dirs: string[]): string[] {
     "features":      "feature-based modules",
     "routes":        "route definitions",
     "workers":       "background workers / queues",
+    "auth":          "authentication / authorization",
+    "users":         "user management",
+    "products":      "product catalog",
+    "orders":        "order management",
+    "common":        "shared / common utilities",
+    "shared":        "shared code across modules",
   };
+
+  const isNestJS = frameworks.includes("NestJS");
+
+  // NestJS pattern: src/ contains feature module subdirectories
+  const srcSubdirs = dirs.filter((d) => d.startsWith("src/") && d.split("/").length === 2);
+  if (isNestJS && srcSubdirs.length >= 2) {
+    const result: string[] = [`- \`src/\` — main source (NestJS feature modules)`];
+    for (const d of srcSubdirs.slice(0, 12)) {
+      const name = d.split("/")[1]!;
+      const desc = known[name.toLowerCase()] ?? "feature module";
+      result.push(`  - \`${name}/\` — ${desc}`);
+    }
+    // Also list other top-level dirs (prisma/, docker/, etc.)
+    const otherTopLevel = dirs
+      .filter((d) => !d.includes("/") && d !== "src")
+      .slice(0, 6);
+    for (const d of otherTopLevel) {
+      const desc = known[d.toLowerCase()] ?? "module";
+      result.push(`- \`${d}/\` — ${desc}`);
+    }
+    return result;
+  }
+
+  // Monorepo pattern: packages/ contains workspace sub-packages
+  const isMonorepo = dirs.some((d) => d === "packages") &&
+    dirs.some((d) => d.startsWith("packages/") && d.split("/").length === 2);
+  if (isMonorepo) {
+    const packageSubdirs = dirs.filter((d) => d.startsWith("packages/") && d.split("/").length === 2);
+    const result: string[] = [`- \`packages/\` — monorepo sub-packages`];
+    for (const d of packageSubdirs.slice(0, 10)) {
+      const name = d.split("/")[1]!;
+      const desc = known[name.toLowerCase()] ?? "sub-package";
+      result.push(`  - \`${name}/\` — ${desc}`);
+    }
+    const otherTopLevel = dirs
+      .filter((d) => !d.includes("/") && d !== "packages")
+      .slice(0, 5);
+    for (const d of otherTopLevel) {
+      const desc = known[d.toLowerCase()] ?? "module";
+      result.push(`- \`${d}/\` — ${desc}`);
+    }
+    return result;
+  }
+
+  // Default: top-level dirs
   const top = dirs.filter((d) => !d.includes("/")).slice(0, 12);
   return top.map((d) => {
     const desc = known[d.toLowerCase()] ?? "module";
@@ -183,7 +254,9 @@ export async function generateBootstrapContext(root: string): Promise<string> {
   const frameworks = detectFrameworks(allDeps);
   const keyDeps = detectKeyDeps(allDeps);
   const language = detectLanguage(root);
-  const projectType = detectProjectType(frameworks, pkg.scripts ?? {});
+  const isMonorepo = pkg.workspaces !== undefined &&
+    (Array.isArray(pkg.workspaces) ? pkg.workspaces.length > 0 : true);
+  const projectType = detectProjectType(frameworks, pkg.scripts ?? {}, isMonorepo);
   const projectName = pkg.name ?? path.basename(root);
   const projectDesc = pkg.description ?? "";
 
@@ -202,7 +275,7 @@ export async function generateBootstrapContext(root: string): Promise<string> {
 
   // 3. Directory structure
   const dirs = await scanDirs(root, 2);
-  const moduleLines = inferModuleDescriptions(dirs);
+  const moduleLines = inferModuleDescriptions(dirs, frameworks);
 
   // 4. Scripts analysis
   const scripts = pkg.scripts ?? {};
