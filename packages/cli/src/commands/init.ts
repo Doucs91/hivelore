@@ -184,7 +184,9 @@ export function registerInit(program: Command): void {
     .command("init")
     .description(
       "Initialize a hAIve project — autopilot mode ON by default (zero human intervention).\n" +
-      "  Add --manual if you want to control memory approval and session recaps yourself.",
+      "  Auto-bootstraps project-context.md from local files and seeds detected stack packs.\n" +
+      "  Add --manual to control memory approval and session recaps yourself.\n" +
+      "  Add --no-bootstrap and --stack none to disable the auto-features.",
     )
     .option("-d, --dir <dir>", "project root", process.cwd())
     .option("--no-bridges", "do not generate CLAUDE.md / .cursorrules / copilot-instructions.md")
@@ -195,13 +197,17 @@ export function registerInit(program: Command): void {
     )
     .option(
       "--bootstrap",
-      "auto-generate .ai/project-context.md from package.json, README, and directory structure (no AI needed)",
+      "auto-generate .ai/project-context.md from package.json, README, and directory structure (ON by default in autopilot)",
+    )
+    .option(
+      "--no-bootstrap",
+      "skip the project-context auto-generation (only the default template is written)",
     )
     .option(
       "--stack <stacks>",
       `pre-seed validated memory packs for the given stacks (comma-separated).\n` +
       `  Supported: ${SUPPORTED_STACKS.join(", ")}.\n` +
-      `  Use 'auto' to detect from package.json automatically.`,
+      `  Defaults to 'auto' in autopilot mode (detects from package.json). Pass 'none' to disable.`,
     )
     .option(
       "--no-mcp-setup",
@@ -220,6 +226,16 @@ export function registerInit(program: Command): void {
       const paths = resolveHaivePaths(root);
       const autopilot = opts.manual !== true; // autopilot is ON by default
 
+      // In autopilot mode, default-on the value-from-day-zero auto-features
+      // unless the user explicitly opted out. opts.bootstrap is `false` only
+      // when the user passed --no-bootstrap; it's `undefined` when neither flag
+      // was given, which we resolve to autopilot's default.
+      const wantBootstrap = opts.bootstrap === undefined ? autopilot : opts.bootstrap;
+      const wantStack =
+        opts.stack === undefined
+          ? autopilot ? "auto" : undefined
+          : opts.stack === "none" ? undefined : opts.stack;
+
       if (existsSync(paths.haiveDir)) {
         ui.warn(`.ai/ already exists at ${paths.haiveDir} — leaving existing files in place.`);
       }
@@ -231,7 +247,7 @@ export function registerInit(program: Command): void {
 
       // ── project-context.md ───────────────────────────────────────────────
       if (!existsSync(paths.projectContext)) {
-        if (opts.bootstrap) {
+        if (wantBootstrap) {
           ui.info("Bootstrapping project context from local files…");
           try {
             const context = await generateBootstrapContext(root);
@@ -265,7 +281,7 @@ export function registerInit(program: Command): void {
       }
 
       // ── Stack memory packs ───────────────────────────────────────────────
-      const stacksToSeed = await resolveStacksToSeed(root, opts.stack);
+      const stacksToSeed = await resolveStacksToSeed(root, wantStack);
       if (stacksToSeed.length > 0) {
         let totalSeeded = 0;
         for (const stack of stacksToSeed) {
