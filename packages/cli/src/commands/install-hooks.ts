@@ -4,11 +4,21 @@ import path from "node:path";
 import { Command } from "commander";
 import { findProjectRoot } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
+import {
+  defaultClaudeSettingsPath,
+  installClaudeHooksAtPath,
+  uninstallClaudeHooksAtPath,
+} from "../utils/claude-hooks.js";
 
 interface InstallHooksOptions {
   dir?: string;
   force?: boolean;
+  scope?: "user" | "project";
+  uninstall?: boolean;
+  settings?: string;
 }
+
+type Target = "git" | "claude";
 
 const HOOK_MARKER = "# hAIve auto-generated";
 
@@ -62,49 +72,100 @@ const HOOKS: { name: string; body: string }[] = [
   { name: "pre-push",     body: PRE_PUSH_BODY },
 ];
 
+async function installGitHooks(opts: InstallHooksOptions): Promise<void> {
+  const root = findProjectRoot(opts.dir);
+  const gitDir = path.join(root, ".git");
+  if (!existsSync(gitDir)) {
+    ui.error(`No .git directory at ${root}.`);
+    process.exitCode = 1;
+    return;
+  }
+  const hooksDir = path.join(gitDir, "hooks");
+  await mkdir(hooksDir, { recursive: true });
+
+  let installed = 0;
+  let skipped = 0;
+  for (const { name, body } of HOOKS) {
+    const file = path.join(hooksDir, name);
+    if (existsSync(file) && !opts.force) {
+      const existing = await readFile(file, "utf8");
+      if (!existing.includes(HOOK_MARKER)) {
+        ui.warn(`${name} already exists and was not written by hAIve. Re-run with --force to overwrite.`);
+        skipped++;
+        continue;
+      }
+    }
+    await writeFile(file, body, "utf8");
+    await chmod(file, 0o755);
+    installed++;
+  }
+  ui.success(`Installed ${installed} git hook(s) in .git/hooks/${skipped ? `, skipped ${skipped}` : ""}`);
+  ui.info("post-merge: haive sync runs after every pull/merge.");
+  ui.info("pre-push:   haive precommit runs before every push (advisory, never blocks).");
+  ui.info("           Set HAIVE_BLOCK=1 in your shell to make pre-push blocking.");
+}
+
+async function installClaudeHooks(opts: InstallHooksOptions): Promise<void> {
+  const root = findProjectRoot(opts.dir);
+  const scope = opts.scope ?? "user";
+  const settingsPath = opts.settings ?? defaultClaudeSettingsPath(scope, root);
+
+  if (opts.uninstall) {
+    const result = await uninstallClaudeHooksAtPath(settingsPath);
+    ui.success(`Removed hAIve hooks from ${result.settingsPath}`);
+    return;
+  }
+
+  try {
+    const result = await installClaudeHooksAtPath(settingsPath);
+    if (result.created) {
+      ui.success(`Created ${result.settingsPath} with hAIve passive-capture hooks`);
+    } else {
+      ui.success(`Patched ${result.settingsPath} (existing user hooks preserved)`);
+    }
+  } catch (err) {
+    ui.error(err instanceof Error ? err.message : String(err));
+    process.exitCode = 1;
+    return;
+  }
+
+  ui.info("PostToolUse hook: `haive observe` runs after every Edit/Write/Bash");
+  ui.info("                   (appends a JSON line to .ai/.cache/observations.jsonl)");
+  ui.info("SessionEnd hook:   `haive session-end --quiet --auto` distills observations");
+  ui.info("                   into proposed memories at session close");
+  ui.info("Restart Claude Code (or open a new conversation) for the hooks to take effect.");
+  ui.info(`Run \`haive install-hooks claude --uninstall\` to remove.`);
+}
+
 export function registerInstallHooks(program: Command): void {
   program
-    .command("install-hooks")
+    .command("install-hooks [target]")
     .description(
-      "Install git hooks so haive sync runs automatically after every pull or merge.\n\n" +
-      "  Installs:\n" +
-      "    post-merge / post-rewrite — runs haive sync after every pull/merge\n" +
-      "    pre-push                  — runs haive precommit before every push (advisory)\n\n" +
-      "  Installed automatically by haive init (autopilot mode).\n" +
-      "  Use --force to overwrite existing hooks.\n",
+      "Install hAIve hooks. Targets:\n\n" +
+      "    git     (default) post-merge / post-rewrite / pre-push for haive sync + precommit\n" +
+      "    claude  PostToolUse + SessionEnd hooks in ~/.claude/settings.json\n" +
+      "            for passive observation capture (Claude Code only)\n\n" +
+      "  Examples:\n" +
+      "    haive install-hooks           # git hooks (legacy default)\n" +
+      "    haive install-hooks git\n" +
+      "    haive install-hooks claude\n" +
+      "    haive install-hooks claude --scope project\n" +
+      "    haive install-hooks claude --uninstall\n",
     )
     .option("-d, --dir <dir>", "project root")
-    .option("--force", "overwrite existing hooks")
-    .action(async (opts: InstallHooksOptions) => {
-      const root = findProjectRoot(opts.dir);
-      const gitDir = path.join(root, ".git");
-      if (!existsSync(gitDir)) {
-        ui.error(`No .git directory at ${root}.`);
+    .option("--force", "overwrite existing hooks (git target only)")
+    .option("--scope <scope>", "claude target: 'user' (~/.claude) or 'project' (.claude/)", "user")
+    .option("--uninstall", "remove previously installed hAIve hooks (claude target only)")
+    .option("--settings <path>", "explicit path to settings.json (claude target only)")
+    .action(async (target: string | undefined, opts: InstallHooksOptions) => {
+      const t = (target ?? "git").toLowerCase() as Target | string;
+      if (t === "git") {
+        await installGitHooks(opts);
+      } else if (t === "claude") {
+        await installClaudeHooks(opts);
+      } else {
+        ui.error(`Unknown target: ${target}. Available: git, claude`);
         process.exitCode = 1;
-        return;
       }
-      const hooksDir = path.join(gitDir, "hooks");
-      await mkdir(hooksDir, { recursive: true });
-
-      let installed = 0;
-      let skipped = 0;
-      for (const { name, body } of HOOKS) {
-        const file = path.join(hooksDir, name);
-        if (existsSync(file) && !opts.force) {
-          const existing = await readFile(file, "utf8");
-          if (!existing.includes(HOOK_MARKER)) {
-            ui.warn(`${name} already exists and was not written by hAIve. Re-run with --force to overwrite.`);
-            skipped++;
-            continue;
-          }
-        }
-        await writeFile(file, body, "utf8");
-        await chmod(file, 0o755);
-        installed++;
-      }
-      ui.success(`Installed ${installed} hook(s) in .git/hooks/${skipped ? `, skipped ${skipped}` : ""}`);
-      ui.info("post-merge: haive sync runs after every pull/merge.");
-      ui.info("pre-push:   haive precommit runs before every push (advisory, never blocks).");
-      ui.info("           Set HAIVE_BLOCK=1 in your shell to make pre-push blocking.");
     });
 }

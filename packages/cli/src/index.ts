@@ -5,6 +5,7 @@ import { registerEmbeddings } from "./commands/embeddings.js";
 import { registerIndexCode } from "./commands/index-code.js";
 import { registerInit } from "./commands/init.js";
 import { registerInstallHooks } from "./commands/install-hooks.js";
+import { registerObserve } from "./commands/observe.js";
 import { registerMcp } from "./commands/mcp.js";
 import { registerSync } from "./commands/sync.js";
 import { registerMemoryAdd } from "./commands/memory-add.js";
@@ -54,6 +55,7 @@ registerTui(program);
 registerEmbeddings(program);
 registerSync(program);
 registerInstallHooks(program);
+registerObserve(program);
 registerIndexCode(program);
 
 const memory = program.command("memory").description("Manage memory entries");
