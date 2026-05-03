@@ -8,6 +8,7 @@ import {
   literalMatchesAnyToken,
   loadCodeMap,
   loadMemoriesFromDir,
+  loadUsageIndex,
   memoryMatchesAnchorPaths,
   queryCodeMap,
   resolveHaivePaths,
@@ -288,6 +289,7 @@ export function registerBriefing(program: Command): void {
       }
 
       if (stopped()) return;
+      const usageIndex = await loadUsageIndex(paths).catch(() => null);
       out(`${ui.bold("=== Relevant Memories ===")}\n`);
       for (const item of top) {
         if (stopped()) break;
@@ -298,8 +300,10 @@ export function registerBriefing(program: Command): void {
         const originMarker = (item as LoadedWithOrigin).origin
           ? ` ${ui.yellow("[from " + (item as LoadedWithOrigin).origin + "]")}`
           : "";
+        const reads = usageIndex?.by_id[fm.id]?.read_count ?? 0;
+        const hitMarker = reads > 0 ? ` ${ui.dim("· " + reads + "× read")}` : "";
         out(
-          `${ui.bold(fm.id)}  ${ui.dim(fm.scope + "/" + fm.type)}  ${badge}${draftMarker}${unverifiedMarker}${originMarker}`,
+          `${ui.bold(fm.id)}  ${ui.dim(fm.scope + "/" + fm.type)}  ${badge}${draftMarker}${unverifiedMarker}${originMarker}${hitMarker}`,
         );
         if (opts.explainSource) {
           const relPath = path.relative(root, item.filePath);
