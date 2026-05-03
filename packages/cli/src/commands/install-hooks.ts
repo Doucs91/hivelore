@@ -131,8 +131,8 @@ async function installClaudeHooks(opts: InstallHooksOptions): Promise<void> {
 
   ui.info("PostToolUse hook: `haive observe` runs after every Edit/Write/Bash");
   ui.info("                   (appends a JSON line to .ai/.cache/observations.jsonl)");
-  ui.info("SessionEnd hook:   `haive session-end --quiet --auto` distills observations");
-  ui.info("                   into proposed memories at session close");
+  ui.info("SessionEnd hook:   `haive session end --auto --quiet` distills observations");
+  ui.info("                   into a session_recap memory at session close");
   ui.info("Restart Claude Code (or open a new conversation) for the hooks to take effect.");
   ui.info(`Run \`haive install-hooks claude --uninstall\` to remove.`);
 }

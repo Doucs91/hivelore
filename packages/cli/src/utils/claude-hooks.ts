@@ -48,7 +48,7 @@ const SESSION_END_GROUP: ClaudeHookGroup = {
   hooks: [
     {
       type: "command",
-      command: "haive session-end --quiet --auto",
+      command: "haive session end --quiet --auto",
       haive_tag: HAIVE_HOOK_TAG,
     },
   ],
