@@ -28,8 +28,11 @@ export const MemSaveInputSchema = {
     .describe("Markdown body of the memory"),
   scope: z
     .enum(["personal", "team", "module"])
-    .default("personal")
-    .describe("Visibility scope: personal | team | module"),
+    .optional()
+    .describe(
+      "Visibility scope: personal | team | module. " +
+      "When omitted, falls back to defaultScope in haive.config.json (default: personal).",
+    ),
   module: z
     .string()
     .optional()
@@ -91,6 +94,14 @@ export async function memSave(
     ? await loadMemoriesFromDir(ctx.paths.memoriesDir)
     : [];
 
+  // ── Resolve scope once: explicit input wins over config default ────────
+  // Must be computed early so dedup and topic-upsert use the same scope
+  // that the new memory will ultimately be saved under.
+  const haiveConfig = await loadConfig(ctx.paths);
+  const resolvedScope = (
+    input.scope ?? haiveConfig.defaultScope ?? "personal"
+  ) as "personal" | "team" | "module";
+
   // ── Anchor path validation ─────────────────────────────────────────────
   const invalidPaths = input.paths.filter(
     (p) => !existsSync(path.resolve(ctx.paths.root, p)),
@@ -100,7 +111,7 @@ export async function memSave(
   const incomingHash = bodyHash(input.body);
   const hashDuplicate = existing.find(({ memory }) =>
     bodyHash(memory.body) === incomingHash &&
-    memory.frontmatter.scope === input.scope,
+    memory.frontmatter.scope === resolvedScope,
   );
   if (hashDuplicate) {
     throw new Error(
@@ -113,7 +124,7 @@ export async function memSave(
   if (input.topic) {
     const topicMatch = existing.find(({ memory }) =>
       memory.frontmatter.topic === input.topic &&
-      memory.frontmatter.scope === input.scope &&
+      memory.frontmatter.scope === resolvedScope &&
       (!input.module || memory.frontmatter.module === input.module),
     );
 
@@ -147,18 +158,12 @@ export async function memSave(
   }
 
   // ── Create new memory ──────────────────────────────────────────────────
-  const haiveConfig = await loadConfig(ctx.paths);
-
-  // In autopilot mode: memories go directly to validated (skip approval cycle)
-  // Also apply config defaults for scope
-  const resolvedScope = input.scope !== "personal"
-    ? input.scope
-    : (haiveConfig.defaultScope ?? "personal");
+  // resolvedScope and haiveConfig are already computed above.
 
   const frontmatter = buildFrontmatter({
     type: input.type,
     slug: input.slug,
-    scope: resolvedScope as "personal" | "team" | "module",
+    scope: resolvedScope,
     module: input.module,
     tags: input.tags,
     domain: input.domain,

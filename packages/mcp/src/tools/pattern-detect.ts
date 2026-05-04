@@ -119,8 +119,11 @@ export async function patternDetect(
     for (const file of configFiles.slice(0, 5)) {
       const diff = gitFileDiff(ctx.paths.root, file, input.since_days);
       if (!diff) continue;
-      const slug = path.basename(file)
-        .replace(/\.[^.]+$/, "")
+      // Include the nearest parent dir so `cli/vitest.config.ts` and
+      // `core/vitest.config.ts` produce distinct slugs instead of colliding.
+      const parentDir = path.basename(path.dirname(file));
+      const baseName = path.basename(file).replace(/\.[^.]+$/, "");
+      const slug = `${parentDir}-${baseName}`
         .replace(/[^a-z0-9]/gi, "-")
         .toLowerCase()
         .slice(0, 40);

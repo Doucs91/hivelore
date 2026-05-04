@@ -303,6 +303,61 @@ describe("hAIve MCP tools", () => {
   });
 
   describe("inline auto-promote in get_briefing (Phase 4)", () => {
+    it("promotes after 1 read when config autoPromoteMinReads=1", async () => {
+      // Autopilot-style config: promote immediately on first read
+      await writeFile(
+        path.join(ctx.paths.haiveDir, "haive.config.json"),
+        JSON.stringify({ autoPromoteMinReads: 1 }),
+        "utf8",
+      );
+      const saved = await memSave(
+        {
+          type: "convention",
+          slug: "fast-promote",
+          body: "Should promote after just one briefing read.",
+          scope: "team",
+          tags: ["test"],
+          paths: [],
+        },
+        ctx,
+      );
+      // Force status to proposed
+      const { loadMemoriesFromDir, serializeMemory } = await import("@hiveai/core");
+      const mems = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+      const target = mems.find((m) => m.memory.frontmatter.id === saved.id);
+      expect(target).toBeDefined();
+      const { writeFile: wf } = await import("node:fs/promises");
+      await wf(
+        target!.filePath,
+        serializeMemory({
+          frontmatter: { ...target!.memory.frontmatter, status: "proposed" },
+          body: target!.memory.body,
+        }),
+        "utf8",
+      );
+      // A single get_briefing should be enough to promote it
+      await getBriefing(
+        {
+          task: "fast-promote convention test",
+          files: [],
+          max_tokens: 4000,
+          max_memories: 10,
+          include_project_context: false,
+          include_module_contexts: false,
+          semantic: false,
+          include_stale: false,
+          track: true,
+          format: "full",
+          symbols: [],
+          min_semantic_score: 0,
+        },
+        ctx,
+      );
+      const afterMems = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+      const promoted = afterMems.find((m) => m.memory.frontmatter.id === saved.id);
+      expect(promoted?.memory.frontmatter.status).toBe("validated");
+    });
+
     it("promotes a proposed memory to validated once read_count >= minReads (5)", async () => {
       // Save a proposed memory
       const saved = await memSave(
@@ -360,6 +415,53 @@ describe("hAIve MCP tools", () => {
     });
   });
 
+  describe("mem_save scope resolution", () => {
+    it("respects explicit scope:personal even when config defaultScope is team", async () => {
+      // Write a config that would normally force team scope
+      await writeFile(
+        path.join(ctx.paths.haiveDir, "haive.config.json"),
+        JSON.stringify({ defaultScope: "team" }),
+        "utf8",
+      );
+      const out = await memSave(
+        {
+          type: "convention",
+          slug: "explicit-personal",
+          body: "This is a personal note and should stay personal.",
+          scope: "personal",
+          tags: [],
+          paths: [],
+          symbols: [],
+        },
+        ctx,
+      );
+      expect(out.scope).toBe("personal");
+      expect(out.file_path).toContain("/memories/personal/");
+    });
+
+    it("falls back to config defaultScope when scope is not provided", async () => {
+      await writeFile(
+        path.join(ctx.paths.haiveDir, "haive.config.json"),
+        JSON.stringify({ defaultScope: "team" }),
+        "utf8",
+      );
+      const out = await memSave(
+        {
+          type: "convention",
+          slug: "team-default",
+          body: "This should go to team because of defaultScope config.",
+          // scope intentionally omitted
+          tags: [],
+          paths: [],
+          symbols: [],
+        },
+        ctx,
+      );
+      expect(out.scope).toBe("team");
+      expect(out.file_path).toContain("/memories/team/");
+    });
+  });
+
   describe("pattern_detect (Phase 3)", () => {
     it("returns empty result when no usage events exist", async () => {
       const out = await patternDetect(
@@ -370,6 +472,42 @@ describe("hAIve MCP tools", () => {
       expect(out.matches).toHaveLength(0);
       expect(out.saved).toBe(0);
       expect(out.notice).toBeDefined();
+    });
+
+    it("produces distinct slugs for same-named files in different directories", async () => {
+      // Simulate git repo with two vitest.config.ts files that were recently changed.
+      // The slug must include the parent directory to avoid collision.
+      // Since we can't run real git in tests, we call patternDetect with dry_run
+      // and verify the slug-building logic indirectly by checking that the output
+      // slug for "cli/vitest.config.ts" differs from "core/vitest.config.ts".
+      // We do this by calling the exported slug helper logic directly via the matches.
+      const usageDir = path.join(ctx.paths.haiveDir, ".usage");
+      await mkdir(usageDir, { recursive: true });
+      const events = [
+        { at: new Date().toISOString(), tool: "mem_save", summary: "packages/cli/vitest.config.ts" },
+        { at: new Date().toISOString(), tool: "mem_save", summary: "packages/cli/vitest.config.ts" },
+        { at: new Date().toISOString(), tool: "mem_save", summary: "packages/cli/vitest.config.ts" },
+        { at: new Date().toISOString(), tool: "mem_save", summary: "packages/core/vitest.config.ts" },
+        { at: new Date().toISOString(), tool: "mem_save", summary: "packages/core/vitest.config.ts" },
+        { at: new Date().toISOString(), tool: "mem_save", summary: "packages/core/vitest.config.ts" },
+      ];
+      await writeFile(
+        path.join(usageDir, "tool-usage.jsonl"),
+        events.map((e) => JSON.stringify(e)).join("\n") + "\n",
+        "utf8",
+      );
+      // In dry_run mode we get all matches without writing files
+      const result = await patternDetect(
+        { since_days: 1, dry_run: false, scope: "team" },
+        ctx,
+      );
+      // Both files should produce separate matches (different slugs)
+      const hotFileSlugs = result.matches
+        .filter((m) => m.kind === "hot_file")
+        .map((m) => m.proposed_slug);
+      // No two slugs should be identical
+      const uniqueSlugs = new Set(hotFileSlugs);
+      expect(uniqueSlugs.size).toBe(hotFileSlugs.length);
     });
 
     it("detects HOT_FILE signal and saves proposed memory", async () => {

@@ -355,8 +355,9 @@ export async function getBriefing(
       // ── Inline auto-promote: promote proposed memories that just crossed minReads
       // Load fresh usage after trackReads incremented the counters.
       const freshUsage = await loadUsageIndex(ctx.paths);
+      const cfg = await loadConfig(ctx.paths);
       const rule = {
-        minReads: DEFAULT_AUTO_PROMOTE_RULE.minReads,
+        minReads: cfg.autoPromoteMinReads ?? DEFAULT_AUTO_PROMOTE_RULE.minReads,
         maxRejections: DEFAULT_AUTO_PROMOTE_RULE.maxRejections,
       };
       for (const m of memories) {
