@@ -12,10 +12,11 @@ Stop re-explaining your project to every AI session. hAIve stores your team's co
 npm install -g @hiveai/cli
 ```
 
-This installs the `haive` command globally.
+This installs the `haive` command globally. **The MCP server is bundled** — use `haive mcp --stdio` in your AI client (no separate `@hiveai/mcp` install required for normal use).
 
-> **MCP server**: also install `@hiveai/mcp` to expose memories to Claude Code, Cursor, Copilot, and any MCP-compatible AI client.
 > **Semantic search** (optional): install `@hiveai/embeddings` for local embedding-based search (no data leaves your machine).
+
+> Legacy configs may still use the standalone `haive-mcp` binary from `@hiveai/mcp`; prefer `haive` so CLI and MCP versions always match.
 
 ---
 
@@ -29,7 +30,7 @@ haive init                          # autopilot: hooks + CI + code-map auto-conf
 
 # 2. Point your AI client at the MCP server
 # Add to ~/.claude.json / ~/.cursor/mcp.json:
-# { "mcpServers": { "haive": { "command": "haive-mcp", "args": ["--root", "/absolute/path"] } } }
+# { "mcpServers": { "haive": { "command": "haive", "args": ["mcp", "--stdio", "--root", "/absolute/path"] } } }
 
 # 3. Bootstrap the project context (run once in your AI client)
 # → Use the bootstrap_project MCP prompt to analyze the codebase and fill .ai/project-context.md
@@ -101,11 +102,12 @@ Bridge files include mandatory rules that tell agents to call `post_task` and `m
 
 ### `haive mcp`
 
-Start the hAIve MCP server over stdio. Point your AI client at this binary.
+Run the hAIve MCP server over stdio (**bundled into this package** — same tools as legacy `haive-mcp`).
 
 ```bash
-haive mcp                           # Auto-detect project root
-haive mcp --root /path/to/project   # Explicit project root
+haive mcp --stdio                     # typical MCP client args (stdio marker optional but recommended)
+haive mcp -d /path/to/project         # resolve project root from this directory
+haive mcp --root /path/to/project     # alias for legacy haive-mcp --root
 ```
 
 **Claude Code** (`~/.claude.json`):
@@ -113,8 +115,8 @@ haive mcp --root /path/to/project   # Explicit project root
 {
   "mcpServers": {
     "haive": {
-      "command": "haive-mcp",
-      "args": ["--root", "/absolute/path/to/your/project"]
+      "command": "haive",
+      "args": ["mcp", "--stdio", "--root", "/absolute/path/to/your/project"]
     }
   }
 }
@@ -125,8 +127,8 @@ haive mcp --root /path/to/project   # Explicit project root
 {
   "mcpServers": {
     "haive": {
-      "command": "haive-mcp",
-      "args": ["--root", "/absolute/path/to/your/project"]
+      "command": "haive",
+      "args": ["mcp", "--stdio", "--root", "/absolute/path/to/your/project"]
     }
   }
 }
@@ -134,7 +136,7 @@ haive mcp --root /path/to/project   # Explicit project root
 
 **VS Code**:
 ```bash
-code --add-mcp '{"name":"haive","command":"haive-mcp","args":["--root","/path/to/project"]}'
+code --add-mcp '{"name":"haive","command":"haive","args":["mcp","--stdio","--root","/path/to/project"]}'
 ```
 
 ---

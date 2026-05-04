@@ -1,7 +1,10 @@
 import { existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
+import { execSync } from "node:child_process";
 import { Command } from "commander";
+
+declare const __HAIVE_VERSION__: string;
 import {
   codeMapPath,
   findProjectRoot,
@@ -225,6 +228,34 @@ export function registerDoctor(program: Command): void {
           message: "Autopilot is OFF — session recaps are not auto-saved on shutdown.",
           fix: "Edit .ai/haive.config.json: set autoSessionEnd: true (or re-run `haive init` without --manual).",
         });
+      }
+
+      // ── 7. Legacy standalone haive-mcp ──────────────────────────────────────
+      // MCP runs inside `haive mcp --stdio` — updating @hiveai/cli is enough.
+      // Warn only if an old global haive-mcp exists and disagrees with CLI.
+      try {
+        const legacyRaw = execSync("haive-mcp --version", {
+          encoding: "utf8",
+          timeout: 3000,
+          stdio: ["ignore", "pipe", "ignore"],
+        }).trim();
+        const cliVersion = __HAIVE_VERSION__;
+        if (legacyRaw && legacyRaw !== cliVersion) {
+          findings.push({
+            severity: "warn",
+            code: "legacy-haive-mcp-stale",
+            message:
+              `Standalone haive-mcp on PATH is v${legacyRaw} but haive CLI is v${cliVersion}. ` +
+              `Prefer MCP client config with command \"haive\" and args [\"mcp\", \"--stdio\"] — ` +
+              `then removing @hiveai/mcp avoids version skew.`,
+            fix:
+              `npm install -g @hiveai/cli@${cliVersion}\n` +
+              `# optionally uninstall duplicate:\n` +
+              `npm uninstall -g @hiveai/mcp`,
+          });
+        }
+      } catch {
+        // haive-mcp not on PATH — expected when using bundled MCP via haive only
       }
 
       emit(findings, opts);

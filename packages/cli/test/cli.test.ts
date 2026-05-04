@@ -55,7 +55,8 @@ describe("hAIve CLI integration", () => {
       mcpServers: Record<string, { command: string; env?: Record<string, string> }>;
     };
     expect(cursorConfig.mcpServers["haive"]).toBeDefined();
-    expect(cursorConfig.mcpServers["haive"]!.command).toBe("haive-mcp");
+    expect(cursorConfig.mcpServers["haive"]!.command).toBe("haive");
+    expect(cursorConfig.mcpServers["haive"]!.args).toEqual(["mcp", "--stdio"]);
     expect(cursorConfig.mcpServers["haive"]!.env?.["HAIVE_PROJECT_ROOT"]).toBe(workDir);
   });
 

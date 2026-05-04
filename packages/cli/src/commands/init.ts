@@ -211,7 +211,7 @@ export function registerInit(program: Command): void {
     )
     .option(
       "--no-mcp-setup",
-      "skip auto-configuring haive-mcp in Cursor / VS Code / Claude Code",
+      "skip auto-configuring haive MCP (haive mcp --stdio) in Cursor / VS Code / Claude Code",
     )
     .action(async (opts: {
       dir: string;
@@ -346,15 +346,15 @@ export function registerInit(program: Command): void {
         const alreadyOk  = mcpResults.filter((r) => r.status === "already_configured");
 
         for (const r of configured) {
-          ui.success(`haive-mcp configured in ${r.client} (${r.path})`);
+          ui.success(`haive MCP configured in ${r.client} (${r.path})`);
         }
         for (const r of alreadyOk) {
-          ui.info(`haive-mcp already configured in ${r.client} — skipped`);
+          ui.info(`haive MCP already configured in ${r.client} — skipped`);
         }
         if (configured.length === 0 && alreadyOk.length === 0) {
           ui.warn(
             "No supported AI client detected (Cursor, VS Code, Claude Code, Windsurf).\n" +
-            "  Configure manually: add haive-mcp to your client's MCP config.\n" +
+            "  Configure manually: command \"haive\", args [\"mcp\", \"--stdio\"].\n" +
             "  See: https://github.com/Doucs91/hAIve#mcp-setup",
           );
         }
@@ -363,7 +363,7 @@ export function registerInit(program: Command): void {
         const projectMcpResults = await configureProjectMcpClients(root);
         for (const r of projectMcpResults) {
           if (r.status === "configured") {
-            ui.success(`haive-mcp project config written (${path.relative(root, r.path!)})`);
+            ui.success(`haive MCP project config written (${path.relative(root, r.path!)})`);
           }
         }
 

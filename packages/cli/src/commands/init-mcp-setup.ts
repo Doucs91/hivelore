@@ -15,7 +15,7 @@
  *
  * Project-level configs take precedence over user-level when the client opens that
  * workspace, ensuring the MCP server always resolves the correct project root even
- * when the same haive-mcp binary serves multiple projects.
+ * when the same haive process serves multiple projects.
  */
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -24,14 +24,14 @@ import os from "node:os";
 
 const HOME = os.homedir();
 const HAIVE_MCP_ENTRY = {
-  command: "haive-mcp",
-  args: [] as string[],
+  command: "haive",
+  args: ["mcp", "--stdio"],
 };
 
 function projectMcpEntry(root: string) {
   return {
-    command: "haive-mcp",
-    args: [] as string[],
+    command: "haive",
+    args: ["mcp", "--stdio"],
     env: { HAIVE_PROJECT_ROOT: root },
   };
 }

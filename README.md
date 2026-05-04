@@ -33,7 +33,7 @@ Developer C's AI  ─┘
 | Package | Install | Description |
 |---|---|---|
 | [`@hiveai/cli`](./packages/cli) | `npm i -g @hiveai/cli` | CLI tool: `haive init`, `haive memory`, `haive sync`, `haive briefing`, TUI dashboard |
-| [`@hiveai/mcp`](./packages/mcp) | included with CLI | MCP server: exposes memory tools (`get_briefing`, `mem_save`, `mem_tried`, etc.) to any AI client |
+| [`@hiveai/mcp`](./packages/mcp) | bundled into `@hiveai/cli` | MCP tools ship inside `haive` (`haive mcp --stdio`). Standalone `haive-mcp` remains optional for legacy configs |
 | [`@hiveai/core`](./packages/core) | dependency | Internal: memory schema, parser, verifier, token budget utilities |
 | [`@hiveai/embeddings`](./packages/embeddings) | `npm i -g @hiveai/embeddings` | Optional: local semantic search via Transformers.js (no data leaves your machine) |
 
@@ -66,8 +66,8 @@ haive init --with-ci    # Also generates .github/workflows/haive-sync.yml
 {
   "mcpServers": {
     "haive": {
-      "command": "haive-mcp",
-      "args": ["--root", "/absolute/path/to/my-project"]
+      "command": "haive",
+      "args": ["mcp", "--stdio", "--root", "/absolute/path/to/my-project"]
     }
   }
 }
@@ -78,8 +78,8 @@ haive init --with-ci    # Also generates .github/workflows/haive-sync.yml
 {
   "mcpServers": {
     "haive": {
-      "command": "haive-mcp",
-      "args": ["--root", "/absolute/path/to/my-project"]
+      "command": "haive",
+      "args": ["mcp", "--stdio", "--root", "/absolute/path/to/my-project"]
     }
   }
 }
@@ -87,7 +87,7 @@ haive init --with-ci    # Also generates .github/workflows/haive-sync.yml
 
 **VS Code**:
 ```bash
-code --add-mcp '{"name":"haive","command":"haive-mcp","args":["--root","/path/to/project"]}'
+code --add-mcp '{"name":"haive","command":"haive","args":["mcp","--stdio","--root","/path/to/project"]}'
 ```
 
 ### 3. Bootstrap your project context

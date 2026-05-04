@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createContext, type CreateContextOptions, type HaiveContext } from "./context.js";
 import {
   BootstrapProjectSaveInputSchema,
@@ -1005,4 +1006,46 @@ export function createHaiveServer(
   );
 
   return { server, context, tracker };
+}
+
+// ── Stdio runtime (also invoked by `haive mcp --stdio` via bundled CLI) ─────
+
+/** Parse argv for the standalone haive-mcp binary / CLI subprocess parity. */
+export function parseMcpCliArgs(argv: string[]): {
+  root?: string;
+  versionOnly: boolean;
+} {
+  for (let i = 2; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--version" || arg === "-V") {
+      return { versionOnly: true };
+    }
+  }
+  const out: { root?: string } = {};
+  for (let i = 2; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--root" || arg === "-r") {
+      out.root = argv[++i];
+    } else if (arg?.startsWith("--root=")) {
+      out.root = arg.slice("--root=".length);
+    }
+  }
+  return { root: out.root, versionOnly: false };
+}
+
+/** Print MCP server version (same as haive CLI when bundled together). */
+export function printHaiveMcpVersion(): void {
+  console.log(SERVER_VERSION);
+}
+
+/**
+ * Run the MCP server over stdio. Used by `haive-mcp` and by `haive mcp --stdio`
+ * when the MCP implementation is bundled into the CLI.
+ */
+export async function runHaiveMcpStdio(options: { root?: string }): Promise<void> {
+  const { server, context } = createHaiveServer({ root: options.root });
+  console.error(
+    `[haive-mcp] starting server v${SERVER_VERSION} (project root: ${context.paths.root})`,
+  );
+  await server.connect(new StdioServerTransport());
 }

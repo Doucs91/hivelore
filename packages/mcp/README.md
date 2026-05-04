@@ -8,11 +8,15 @@ Connect your AI coding tools to a shared, version-controlled knowledge base. Eve
 
 ## Install
 
+**Recommended:** install only `@hiveai/cli`. The MCP server is **bundled** inside `haive` — configure clients with `command: "haive"` and `args: ["mcp", "--stdio"]` (see `@hiveai/cli` README).
+
+Standalone package (legacy / advanced):
+
 ```bash
 npm install -g @hiveai/mcp
 ```
 
-Also install the CLI to manage memories:
+You usually still want the CLI for `haive init`, `haive sync`, etc.:
 
 ```bash
 npm install -g @hiveai/cli
@@ -50,8 +54,8 @@ Add to `~/.claude.json` (global) or `.claude/settings.json` (per-project):
 {
   "mcpServers": {
     "haive": {
-      "command": "haive-mcp",
-      "args": ["--root", "/absolute/path/to/your/project"]
+      "command": "haive",
+      "args": ["mcp", "--stdio", "--root", "/absolute/path/to/your/project"]
     }
   }
 }
@@ -65,8 +69,8 @@ Add to `~/.cursor/mcp.json`:
 {
   "mcpServers": {
     "haive": {
-      "command": "haive-mcp",
-      "args": ["--root", "/absolute/path/to/your/project"]
+      "command": "haive",
+      "args": ["mcp", "--stdio", "--root", "/absolute/path/to/your/project"]
     }
   }
 }
@@ -75,7 +79,7 @@ Add to `~/.cursor/mcp.json`:
 ### VS Code
 
 ```bash
-code --add-mcp '{"name":"haive","command":"haive-mcp","args":["--root","/absolute/path/to/project"]}'
+code --add-mcp '{"name":"haive","command":"haive","args":["mcp","--stdio","--root","/absolute/path/to/project"]}'
 ```
 
 ### Project-scoped (auto-detected)
@@ -86,8 +90,9 @@ Add a `.mcp.json` at the project root:
 {
   "mcpServers": {
     "haive": {
-      "command": "haive-mcp",
-      "args": ["--root", "."]
+      "command": "haive",
+      "args": ["mcp", "--stdio"],
+      "env": { "HAIVE_PROJECT_ROOT": "/absolute/path/to/your/project" }
     }
   }
 }

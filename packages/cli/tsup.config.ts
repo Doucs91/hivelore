@@ -12,6 +12,8 @@ export default defineConfig({
   sourcemap: true,
   target: "node20",
   define: { __HAIVE_VERSION__: JSON.stringify(version) },
+  /** Ship MCP inside the haive binary — only one global install needed. */
+  noExternal: ["@hiveai/mcp"],
   banner: { js: "#!/usr/bin/env node" },
   esbuildOptions(options) {
     options.jsx = "automatic";
@@ -19,7 +21,6 @@ export default defineConfig({
   },
   external: [
     "@hiveai/core",
-    "@hiveai/mcp",
     "@hiveai/embeddings",
     "@xenova/transformers",
     "@modelcontextprotocol/sdk",
