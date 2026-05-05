@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/core",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "hAIve core — memory types, schema, parser, validator",
   "license": "MIT",
   "repository": {

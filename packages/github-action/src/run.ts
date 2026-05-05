@@ -95,6 +95,41 @@ function parseFrontmatter(raw: string): { fm: Record<string, unknown>; body: str
   return { fm, body };
 }
 
+function extractAnchorPaths(fm: Record<string, unknown>): string[] {
+  const top = fm["paths"];
+  if (Array.isArray(top))
+    return top.filter((x): x is string => typeof x === "string");
+
+  const anchor = fm["anchor"];
+  if (anchor !== null && typeof anchor === "object" && !Array.isArray(anchor)) {
+    const paths = (anchor as Record<string, unknown>)["paths"];
+    if (Array.isArray(paths)) return paths.filter((x): x is string => typeof x === "string");
+  }
+
+  return [];
+}
+
+function collectBrokenAnchors(workspace: string, memories: Iterable<Memory>): Memory[] {
+  const seen = new Set<string>();
+  const bad: Memory[] = [];
+  for (const m of memories) {
+    let hit = false;
+    for (const ap of m.anchorPaths) {
+      const rel = ap.replace(/\\/g, "/").replace(/^\/+/, "");
+      const abs = path.join(workspace, rel);
+      if (!fs.existsSync(abs)) {
+        hit = true;
+        break;
+      }
+    }
+    if (hit && !seen.has(m.id)) {
+      seen.add(m.id);
+      bad.push(m);
+    }
+  }
+  return bad;
+}
+
 function walkDir(dir: string, out: string[] = []): string[] {
   if (!fs.existsSync(dir)) return out;
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -117,7 +152,7 @@ function loadMemories(memoriesDir: string): Memory[] {
       const titleMatch = body.match(/^#{1,3}\s+(.+)$/m);
       const title = titleMatch ? titleMatch[1]! : String(fm["id"]);
 
-      const anchorPaths = (fm["paths"] as string[] | undefined) ?? [];
+      const anchorPaths = extractAnchorPaths(fm);
       const tags = Array.isArray(fm["tags"])
         ? (fm["tags"] as string[])
         : typeof fm["tags"] === "string"
@@ -140,15 +175,33 @@ function loadMemories(memoriesDir: string): Memory[] {
     .filter((m): m is Memory => m !== null);
 }
 
+function pathsOverlap(changeNorm: string, anchorNorm: string): boolean {
+  return (
+    changeNorm === anchorNorm ||
+    changeNorm.endsWith(anchorNorm) ||
+    anchorNorm.endsWith(changeNorm)
+  );
+}
+
+function anchorTouchesChanges(changedNorm: string[], anchorPaths: string[]): boolean {
+  for (const ap of anchorPaths) {
+    const an = ap.replace(/\\/g, "/");
+    for (const cf of changedNorm) {
+      if (pathsOverlap(cf, an)) return true;
+    }
+  }
+  return false;
+}
+
 function memoriesForFiles(memories: Memory[], changedFiles: string[]): Map<string, Memory[]> {
+  const normalizedFiles = changedFiles.map((f) => f.replace(/\\/g, "/"));
   const result = new Map<string, Memory[]>();
 
-  for (const file of changedFiles) {
-    const normalized = file.replace(/\\/g, "/");
+  for (const file of normalizedFiles) {
     const matching = memories.filter((m) =>
       m.anchorPaths.some((ap) => {
         const a = ap.replace(/\\/g, "/");
-        return a === normalized || normalized.endsWith(a) || a.endsWith(normalized);
+        return pathsOverlap(file, a);
       }),
     );
     if (matching.length > 0) result.set(file, matching);
@@ -157,7 +210,6 @@ function memoriesForFiles(memories: Memory[], changedFiles: string[]): Map<strin
   return result;
 }
 
-// ── Comment formatter ─────────────────────────────────────────────────────────
 
 const TYPE_ICON: Record<string, string> = {
   gotcha: "⚠️",
@@ -173,6 +225,7 @@ function formatComment(
   fileMemories: Map<string, Memory[]>,
   allActionRequired: Memory[],
   changedFiles: string[],
+  brokenAnchors: Memory[],
 ): string {
   const lines: string[] = [COMMENT_MARKER, header, ""];
 
@@ -192,6 +245,24 @@ function formatComment(
       lines.push(`\n</details>\n`);
     }
     lines.push("---\n");
+  }
+
+  // ── Broken anchor paths ────────────────────────────────────────────────
+  if (brokenAnchors.length > 0) {
+    lines.push(
+      `### ⚠️ Memories with anchor paths missing in this checkout\n\n` +
+      `Those files might have been renamed/moved/deleted — update anchors or refresh memory status.`,
+    );
+    for (const m of brokenAnchors.slice(0, 12)) {
+      const pathsSnippet = m.anchorPaths.slice(0, 3).map((x) => "`" + x + "`").join(", ");
+      lines.push(`- **${m.title}** (\`${m.id}\`) · paths: ${pathsSnippet}`);
+    }
+    if (brokenAnchors.length > 12) {
+      lines.push(
+        `- *…+${brokenAnchors.length - 12} more — inspect locally with \`haive memory verify\`*`,
+      );
+    }
+    lines.push("\n");
   }
 
   // ── Per-file memories ────────────────────────────────────────────────────
@@ -230,6 +301,12 @@ function formatComment(
 
   // ── Footer ───────────────────────────────────────────────────────────────
   lines.push("---");
+  lines.push("");
+  lines.push(
+    "**Next steps**: run `haive memory verify --update stale` locally after refactoring paths, " +
+    "or `haive memory lint` inside CI.",
+  );
+  lines.push("");
   lines.push(
     `<sub>🧠 Powered by [hAIve](https://github.com/Doucs91/hAIve) · ${changedFiles.length} file${changedFiles.length > 1 ? "s" : ""} scanned · ${new Date().toUTCString()}</sub>`,
   );
@@ -291,6 +368,12 @@ async function main(): Promise<void> {
     const allMemories = loadMemories(memoriesDir);
     console.log(`hAIve: loaded ${allMemories.length} memories`);
 
+    const changedNorm = changedFiles.map((f) => f.replace(/\\/g, "/"));
+    const anchorRelated = allMemories.filter((m) =>
+      anchorTouchesChanges(changedNorm, m.anchorPaths),
+    );
+    const brokenAnchors = collectBrokenAnchors(WORKSPACE, anchorRelated);
+
     const fileMemories = memoriesForFiles(allMemories, changedFiles);
     const allSurfaced = [...fileMemories.values()].flat();
     const uniqueIds = new Set(allSurfaced.map((m) => m.id));
@@ -303,7 +386,7 @@ async function main(): Promise<void> {
       `(${actionRequired.length} action required)`,
     );
 
-    if (uniqueIds.size === 0 && !POST_IF_EMPTY) {
+    if (uniqueIds.size === 0 && brokenAnchors.length === 0 && !POST_IF_EMPTY) {
       console.log("hAIve: no memories found, skipping comment.");
       setOutput("memories_found", "0");
       setOutput("action_required_count", "0");
@@ -312,7 +395,13 @@ async function main(): Promise<void> {
     }
 
     // ── Post / update comment ──────────────────────────────────────────────
-    const body = formatComment(COMMENT_HEADER, fileMemories, actionRequired, changedFiles);
+    const body = formatComment(
+      COMMENT_HEADER,
+      fileMemories,
+      actionRequired,
+      changedFiles,
+      brokenAnchors,
+    );
 
     const [owner, repo] = GH_REPO.split("/") as [string, string];
     const octokit = getOctokit(GH_TOKEN);

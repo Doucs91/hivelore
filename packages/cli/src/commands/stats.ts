@@ -1,7 +1,11 @@
 import { Command } from "commander";
+import { existsSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import {
   aggregateUsage,
   findProjectRoot,
+  loadMemoriesFromDir,
   loadUsageIndex,
   parseSince,
   readUsageEvents,
@@ -14,6 +18,7 @@ interface StatsOptions {
   since?: string;
   json?: boolean;
   memoryHits?: boolean;
+  exportReport?: string;
   dir?: string;
 }
 
@@ -24,10 +29,20 @@ export function registerStats(program: Command): void {
     .option("--since <window>", "ISO date or relative (e.g. '7d', '24h', '30m')", "30d")
     .option("--json", "emit JSON instead of human-readable output", false)
     .option("--memory-hits", "show top-read memories (which mems are actually being used)", false)
+    .option(
+      "--export-report <path>",
+      "write a JSON rollup (tools + briefing counts + heuristic ROI hints). Parent dirs are created if needed.",
+      undefined,
+    )
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: StatsOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
+
+      if (opts.exportReport) {
+        await writeRoiReport(paths, root, opts.since ?? "30d", opts.exportReport);
+        return;
+      }
 
       if (opts.memoryHits) {
         await renderMemoryHits(paths, opts);
@@ -84,7 +99,79 @@ export function registerStats(program: Command): void {
           `${ui.dim(`(${pct}%, last ${t.last_used.slice(0, 19)})`)}`,
         );
       }
-    });
+    }  );
+}
+
+async function writeRoiReport(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  root: string,
+  sinceRaw: string,
+  outRelative: string,
+): Promise<void> {
+  const outAbs = path.isAbsolute(outRelative)
+    ? path.resolve(outRelative)
+    : path.resolve(root, outRelative);
+
+  const size = await usageLogSize(paths);
+  let events = await readUsageEvents(paths);
+
+  let memoryCount = { team: 0, personal: 0, total_skipped_session: 0 };
+  if (existsSync(paths.memoriesDir)) {
+    const mems = await loadMemoriesFromDir(paths.memoriesDir);
+    for (const { memory } of mems) {
+      const fm = memory.frontmatter;
+      if (fm.type === "session_recap") memoryCount.total_skipped_session++;
+      else if (fm.scope === "team") memoryCount.team++;
+      else if (fm.scope === "personal") memoryCount.personal++;
+    }
+  }
+
+  const sinceDt = parseSince(sinceRaw) ?? undefined;
+  const aggregate = aggregateUsage(events, sinceDt);
+  const inWindow = (at: string): boolean =>
+    sinceDt === undefined || Date.parse(at) >= sinceDt.getTime();
+
+  const briefingCalls = events.filter((e) => inWindow(e.at) && e.tool === "get_briefing").length;
+
+  let memoryHitsLeader: { id: string; read_count: number } | null = null;
+  try {
+    const usageIdx = await loadUsageIndex(paths);
+    const tops = Object.entries(usageIdx.by_id)
+      .map(([id, v]) => ({ id, read_count: v.read_count }))
+      .filter((x) => x.read_count > 0)
+      .sort((a, b) => b.read_count - a.read_count);
+    memoryHitsLeader = tops[0] ?? null;
+  } catch {
+    memoryHitsLeader = null;
+  }
+
+  const roiHints = [
+    "Correlate get_briefing calls with skipped multi-file exploration — proxies available via `pnpm benchmark:roi` at repo root.",
+    "Prefer get_briefing(format:'actions') or budget_preset:'quick' for low-risk edits to reduce token pressure.",
+    "Run `haive memory lint` in CI to keep the corpus actionable.",
+    "Install the haive VS Code extension (packages/vscode) for always-on memory surfacing beside the editor.",
+  ];
+
+  if (!size.exists || events.length === 0) {
+    ui.warn("Usage log missing or empty — report still written with partial data.");
+    events = [];
+  }
+
+  await mkdir(path.dirname(outAbs), { recursive: true });
+  const payload = {
+    generated_at: new Date().toISOString(),
+    project_root: root,
+    window_since: sinceRaw,
+    usage_log_meta: size,
+    memory_inventory: memoryCount,
+    aggregate,
+    get_briefing_calls_in_window: briefingCalls,
+    top_memory_reads: memoryHitsLeader,
+    roi_hints: roiHints,
+  };
+
+  await writeFile(outAbs, JSON.stringify(payload, null, 2), "utf8");
+  ui.success(`Wrote ROI / usage rollup → ${outAbs}`);
 }
 
 async function renderMemoryHits(

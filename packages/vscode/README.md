@@ -16,8 +16,12 @@ Files with anchored memories show a count at the top:
 
 Click any lens to jump to the memory file.
 
-### 📋 Sidebar Panel
-Browse all memories in the **hAIve Memories** panel in the Explorer:
+### 📋 Activity bar sidebar
+Browse memories from the dedicated **hAIve** icon in the **Activity Bar** (left strip). Memories are grouped by type; when you edit a file, the tree prioritizes anchors tied to that path.
+
+Older builds placed the panel under Explorer — the activity bar placement keeps institutional knowledge one click away.
+
+Example tree:
 
 ```
 ⚠️ Action Required (2)

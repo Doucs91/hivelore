@@ -220,6 +220,7 @@ export function registerSessionEnd(session: Command): void {
           if (!opts.quiet) {
             ui.success(`Session recap updated (revision #${revisionCount})`);
             ui.info(`id=${fm.id}  file=${path.relative(root, topicMatch.filePath)}`);
+            ui.info("Tip: `haive stats --export-report` generates a usage JSON suitable for dashboards.");
           }
           return;
         }
@@ -245,7 +246,8 @@ export function registerSessionEnd(session: Command): void {
       if (!opts.quiet) {
         ui.success(`Session recap created`);
         ui.info(`id=${frontmatter.id}  scope=${scope}  file=${path.relative(root, file)}`);
-        ui.info("Next session: call \`get_briefing\` — the recap will be surfaced automatically.");
+        ui.info("Next session: call `get_briefing` — the recap will be surfaced automatically.");
+        ui.info("Tip: export a local MCP usage rollup with `haive stats --export-report .ai/tool-usage-roi-report.json`.");
       }
     });
 }

@@ -2,7 +2,7 @@
   "name": "haive-vscode",
   "displayName": "hAIve — Team Memory for AI Agents",
   "description": "Surface team memories, gotchas, and architectural decisions inline while you code. Never let your AI agent forget what your team knows.",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "publisher": "hiveai",
   "icon": "media/icon.png",
   "license": "MIT",
@@ -21,13 +21,22 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "haive-explorer",
+          "title": "hAIve",
+          "icon": "$(book)"
+        }
+      ]
+    },
     "views": {
-      "explorer": [
+      "haive-explorer": [
         {
           "id": "haive.memoriesView",
-          "name": "hAIve Memories",
+          "name": "Memories",
           "icon": "$(book)",
-          "contextualTitle": "Team Knowledge"
+          "contextualTitle": "Team knowledge"
         }
       ]
     },

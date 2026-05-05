@@ -25,9 +25,9 @@ export const MemRelevantToInputSchema = {
     .default(0.25)
     .describe("Drop weakly-related semantic hits below this cosine threshold."),
   format: z
-    .enum(["full", "compact"])
+    .enum(["full", "compact", "actions"])
     .default("full")
-    .describe("'compact' = id + 1-line summary; 'full' = complete bodies."),
+    .describe("'compact' = id + 1-line summary; 'full' = complete bodies; 'actions' = bullet-first excerpts."),
 };
 
 export type MemRelevantToInput = {

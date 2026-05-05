@@ -6,6 +6,7 @@ import {
   DEFAULT_AUTO_PROMOTE_RULE,
   deriveConfidence,
   estimateTokens,
+  extractActionsBriefBody,
   getUsage,
   inferModulesFromPaths,
   isAutoPromoteEligible,
@@ -18,6 +19,7 @@ import {
   loadUsageIndex,
   memoryMatchesAnchorPaths,
   queryCodeMap,
+  resolveBriefingBudget,
   serializeMemory,
   tokenizeQuery,
   trackReads,
@@ -69,10 +71,12 @@ export const GetBriefingInputSchema = {
     .describe("Include stale memories (excluded by default — they may be outdated)"),
   track: z.boolean().default(true).describe("Increment read_count on returned memories"),
   format: z
-    .enum(["full", "compact"])
+    .enum(["full", "compact", "actions"])
     .default("full")
     .describe(
-      "Output format: 'full' returns complete memory bodies; 'compact' returns id + 1-line summary only (call mem_get for details).",
+      "Output format: 'full' returns memory bodies (honors token budget via truncation); " +
+      "'compact' returns a 1-line summary per memory (call mem_get for detail); " +
+      "'actions' squeezes bodies to actionable bullet lines — fewer tokens vs full.",
     ),
   symbols: z
     .array(z.string())
@@ -93,11 +97,19 @@ export const GetBriefingInputSchema = {
       "Has no effect on memories matched via anchor/module/literal — those are always kept. " +
       "Try 0.25–0.4 for stricter matching.",
     ),
+  budget_preset: z
+    .enum(["quick", "balanced", "deep"])
+    .optional()
+    .describe(
+      "Shortcut token budget: 'quick' minimizes tokens/skip module CONTEXT slices; 'balanced' mirrors historical defaults; " +
+      "'deep' uses a larger briefing. When set, overrides max_tokens, max_memories, and include_module_contexts.",
+    ),
 };
 
-export type GetBriefingInput = {
-  [K in keyof typeof GetBriefingInputSchema]: z.infer<(typeof GetBriefingInputSchema)[K]>;
-};
+/** Single inferred type — optional keys are optional (not `| undefined` required everywhere). */
+export const GetBriefingZod = z.object(GetBriefingInputSchema);
+
+export type GetBriefingInput = z.infer<typeof GetBriefingZod>;
 
 export interface BriefingMemory {
   id: string;
@@ -174,13 +186,26 @@ export interface BriefingOutput {
    */
   hints?: string[];
   estimated_tokens: number;
-  budget: { max_tokens: number; spent: { project: number; modules: number; memories: number } };
+  budget: {
+    max_tokens: number;
+    spent: { project: number; modules: number; memories: number };
+    preset_applied?: "quick" | "balanced" | "deep";
+  };
 }
 
 export async function getBriefing(
   input: GetBriefingInput,
   ctx: HaiveContext,
 ): Promise<BriefingOutput> {
+  const resolvedBudget = resolveBriefingBudget(input.budget_preset, {
+    max_tokens: input.max_tokens,
+    max_memories: input.max_memories,
+    include_module_contexts: input.include_module_contexts,
+  });
+  const briefingMaxTokens = resolvedBudget.max_tokens;
+  const briefingMaxMemories = resolvedBudget.max_memories;
+  const briefingIncludeModules = resolvedBudget.include_module_contexts;
+
   const inferred = inferModulesFromPaths(input.files);
   const memories: BriefingMemory[] = [];
   let searchMode: BriefingOutput["search_mode"] = "literal";
@@ -336,8 +361,8 @@ export async function getBriefing(
 
     // Expand related_ids: pull in memories linked from the top results
     // (byId was already populated above, before the semantic-hits loop)
-    for (const mem of ranked.slice(0, input.max_memories)) {
-      if (seen.size >= input.max_memories * 2) break;
+    for (const mem of ranked.slice(0, briefingMaxMemories)) {
+      if (seen.size >= briefingMaxMemories * 2) break;
       const loaded = byId.get(mem.id);
       if (!loaded) continue;
       for (const relId of loaded.memory.frontmatter.related_ids ?? []) {
@@ -347,7 +372,7 @@ export async function getBriefing(
       }
     }
 
-    memories.push(...ranked.slice(0, input.max_memories));
+    memories.push(...ranked.slice(0, briefingMaxMemories));
 
     if (input.track && memories.length > 0) {
       await trackReads(ctx.paths, memories.map((m) => m.id));
@@ -459,7 +484,7 @@ export async function getBriefing(
     }
   }
 
-  const moduleContents = input.include_module_contexts
+  const moduleContents = briefingIncludeModules
     ? await loadModuleContexts(ctx, inferred)
     : [];
 
@@ -482,7 +507,7 @@ export async function getBriefing(
       },
       { key: "memories", text: memoriesText, weight: 4, mode: "head" },
     ],
-    input.max_tokens,
+    briefingMaxTokens,
   );
 
   const projectSlice = slices.find((s) => s.key === "project")!;
@@ -538,11 +563,16 @@ export async function getBriefing(
     if (isDecaying(u, createdAt)) decayWarnings.push(m.id);
   }
 
-  // Compact format: replace body with 1-line summary
+  // Compact / actions: squeeze bodies for fewer downstream tokens
   const outputMemories =
     input.format === "compact"
       ? trimmedMemories.map((m) => ({ ...m, body: compactSummary(m.body) }))
-      : trimmedMemories;
+      : input.format === "actions"
+        ? trimmedMemories.map((m) => ({
+            ...m,
+            body: extractActionsBriefBody(m.body),
+          }))
+        : trimmedMemories;
 
   // ── Code-map symbol lookup ──────────────────────────────────────────────
   // Also auto-look up symbols found in anchor paths of returned memories +
@@ -725,6 +755,17 @@ export async function getBriefing(
         "failed approaches with mem_tried, validated patterns with mem_save.",
       );
     }
+    if (
+      outputMemories.length > 2 &&
+      !input.budget_preset &&
+      input.task &&
+      !hints.some((h) => h.includes("budget_preset"))
+    ) {
+      hints.push(
+        "For tighter token budgets on small tasks pass budget_preset:'quick'; " +
+        "for refactor-sized work use budget_preset:'deep'.",
+      );
+    }
   }
 
   return {
@@ -750,7 +791,8 @@ export async function getBriefing(
     ...(hints.length > 0 ? { hints } : {}),
     estimated_tokens: totalTokens,
     budget: {
-      max_tokens: input.max_tokens,
+      max_tokens: briefingMaxTokens,
+      ...(input.budget_preset ? { preset_applied: input.budget_preset } : {}),
       spent: {
         project: projectSlice.estimatedTokens,
         modules: modulesSlice.estimatedTokens,

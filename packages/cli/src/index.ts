@@ -38,6 +38,8 @@ import { registerMemoryArchive } from "./commands/memory-archive.js";
 import { registerDoctor } from "./commands/doctor.js";
 import { registerPlayback } from "./commands/playback.js";
 import { registerPrecommit } from "./commands/precommit.js";
+import { registerWelcome } from "./commands/welcome.js";
+import { registerMemoryLint } from "./commands/memory-lint.js";
 
 const program = new Command();
 
@@ -49,6 +51,8 @@ program
   .version(__HAIVE_VERSION__);
 
 registerInit(program);
+registerWelcome(program);
+
 registerMcp(program);
 registerBriefing(program);
 registerTui(program);
@@ -81,6 +85,7 @@ registerMemoryImportChangelog(memory);
 registerMemoryDigest(memory);
 registerMemorySuggest(memory);
 registerMemoryArchive(memory);
+registerMemoryLint(memory);
 
 const session = program.command("session").description("Manage session lifecycle");
 registerSessionEnd(session);

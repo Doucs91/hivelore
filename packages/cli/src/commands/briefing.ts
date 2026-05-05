@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import {
+  extractActionsBriefBody,
   findProjectRoot,
   literalMatchesAllTokens,
   literalMatchesAnyToken,
@@ -11,6 +12,7 @@ import {
   loadUsageIndex,
   memoryMatchesAnchorPaths,
   queryCodeMap,
+  resolveBriefingBudget,
   resolveHaivePaths,
   tokenizeQuery,
   trackReads,
@@ -31,6 +33,10 @@ interface BriefingOptions {
   dir?: string;
   include?: string[];
   radar?: boolean;
+  /** quick | balanced | deep — aligns with get_briefing budget_preset */
+  budget?: string;
+  /** full | actions — mimic get_briefing format for printed bodies */
+  memoryFormat?: string;
 }
 
 const RADAR_AUTO_THRESHOLD = 3;
@@ -104,7 +110,7 @@ export function registerBriefing(program: Command): void {
       "  Examples:\n" +
       "    haive briefing\n" +
       "    haive briefing --task \"add Stripe payment\" --files src/payments/PaymentService.ts\n" +
-      "    haive briefing --symbols PaymentService,TenantFilter   # look up where symbols live\n",
+      "    haive briefing --budget quick --task \"tiny fix\"\n",
     )
     .option("--task <text>", "what you are about to do — filters memories by relevance")
     .option("--files <csv>", "comma-separated file paths being worked on (surfaces anchored memories)")
@@ -114,6 +120,16 @@ export function registerBriefing(program: Command): void {
     .option("--explain-source", "annotate each memory with [source: <relative-path> · anchors: <files>] for traceable citations")
     .option("--radar", "force project radar (recent commits, open TODOs, hot files) even when memories are plentiful")
     .option("--no-radar", "disable the project radar even when memories are scarce")
+    .option(
+      "--budget <preset>",
+      "align with MCP get_briefing budget_preset: quick | balanced | deep — sets cap + truncation budget (overrides --max-memories / replaces default open-ended output)",
+      undefined,
+    )
+    .option(
+      "--memory-format <mode>",
+      "printed memory bodies: full (default) | actions (cheap bullet-focused excerpt)",
+      "full",
+    )
     .option(
       "--scope <scope>",
       "personal | team | shared | all (default: all — includes team + shared cross-repo memories)",
@@ -133,8 +149,28 @@ export function registerBriefing(program: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
 
-      const budgetTokens = opts.maxTokens ? Math.max(100, Number(opts.maxTokens)) : null;
-      const writer = budgetTokens ? new TokenBudgetWriter(budgetTokens * CHARS_PER_TOKEN) : null;
+      type BB = "quick" | "balanced" | "deep";
+      let budgetPreset: BB | null = null;
+      if (opts.budget) {
+        const b = opts.budget.trim().toLowerCase();
+        if (b === "quick" || b === "balanced" || b === "deep") budgetPreset = b;
+        else ui.warn(`Unknown --budget '${opts.budget}' — ignoring (use quick|balanced|deep).`);
+      }
+
+      let maxMemories = Math.max(1, Number(opts.maxMemories ?? 10));
+      let budgetTokensCap: number | null = opts.maxTokens ? Math.max(100, Number(opts.maxTokens)) : null;
+
+      if (budgetPreset !== null) {
+        const presetNums = resolveBriefingBudget(budgetPreset, {
+          max_tokens: 8000,
+          max_memories: 8,
+          include_module_contexts: true,
+        });
+        budgetTokensCap = presetNums.max_tokens;
+        maxMemories = presetNums.max_memories;
+      }
+
+      const writer = budgetTokensCap !== null ? new TokenBudgetWriter(budgetTokensCap * CHARS_PER_TOKEN) : null;
       const out = (text: string): boolean => {
         if (writer) return writer.write(text);
         console.log(text);
@@ -194,7 +230,6 @@ export function registerBriefing(program: Command): void {
       const all = ownMemories;
       const filePaths = parseCsv(opts.files);
       const tokens = opts.task ? tokenizeQuery(opts.task) : null;
-      const maxMemories = Math.max(1, Number(opts.maxMemories ?? 10));
       const scopeFilter = opts.scope ?? "all";
 
       // ── 1. Session recap — always shown first so agents start with fresh context ──
@@ -314,7 +349,11 @@ export function registerBriefing(program: Command): void {
           if (anchorSymbols.length > 0) parts.push(`symbols: ${anchorSymbols.join(", ")}`);
           out(ui.dim(`  [${parts.join(" · ")}]`));
         }
-        out(item.memory.body.trim());
+        const memBody =
+          opts.memoryFormat?.toLowerCase() === "actions"
+            ? extractActionsBriefBody(item.memory.body)
+            : item.memory.body.trim();
+        out(memBody);
         out("");
       }
       if (!stopped()) out(ui.dim(`${top.length} memor${top.length === 1 ? "y" : "ies"} surfaced`));
