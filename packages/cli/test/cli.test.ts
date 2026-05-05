@@ -36,6 +36,7 @@ describe("hAIve CLI integration", () => {
     expect(existsSync(path.join(workDir, ".ai/memories/personal"))).toBe(true);
     expect(existsSync(path.join(workDir, ".ai/memories/team"))).toBe(true);
     expect(existsSync(path.join(workDir, ".ai/memories/module"))).toBe(true);
+    expect(existsSync(path.join(workDir, ".ai", ".runtime", "README.md"))).toBe(true);
     expect(existsSync(path.join(workDir, "CLAUDE.md"))).toBe(true);
     expect(existsSync(path.join(workDir, ".cursorrules"))).toBe(true);
     expect(existsSync(path.join(workDir, ".github/copilot-instructions.md"))).toBe(true);

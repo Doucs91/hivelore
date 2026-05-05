@@ -40,6 +40,8 @@ import { registerPlayback } from "./commands/playback.js";
 import { registerPrecommit } from "./commands/precommit.js";
 import { registerWelcome } from "./commands/welcome.js";
 import { registerMemoryLint } from "./commands/memory-lint.js";
+import { registerMemorySuggestTopic } from "./commands/memory-suggest-topic.js";
+import { registerResolveProject } from "./commands/resolve-project.js";
 
 const program = new Command();
 
@@ -52,6 +54,7 @@ program
 
 registerInit(program);
 registerWelcome(program);
+registerResolveProject(program);
 
 registerMcp(program);
 registerBriefing(program);
@@ -84,6 +87,7 @@ registerMemoryImport(memory);
 registerMemoryImportChangelog(memory);
 registerMemoryDigest(memory);
 registerMemorySuggest(memory);
+registerMemorySuggestTopic(memory);
 registerMemoryArchive(memory);
 registerMemoryLint(memory);
 

@@ -23,6 +23,8 @@ export const MEMORIES_DIR = "memories";
 export interface HaivePaths {
   root: string;
   haiveDir: string;
+  /** Disposable local layer (session journal, caches). Not team truth — see `.ai/.runtime/` layout. */
+  runtimeDir: string;
   projectContext: string;
   memoriesDir: string;
   personalDir: string;
@@ -37,6 +39,7 @@ export function resolveHaivePaths(projectRoot: string): HaivePaths {
   return {
     root: projectRoot,
     haiveDir,
+    runtimeDir: path.join(haiveDir, ".runtime"),
     projectContext: path.join(haiveDir, PROJECT_CONTEXT_FILE),
     memoriesDir,
     personalDir: path.join(memoriesDir, "personal"),

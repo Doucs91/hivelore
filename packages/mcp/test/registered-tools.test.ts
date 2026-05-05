@@ -19,12 +19,14 @@ import { createHaiveServer } from "../src/server.js";
 const EXPECTED_TOOLS: readonly string[] = [
   // memory creation
   "mem_save",
+  "mem_suggest_topic",
   "mem_tried",
   "mem_observe",
   "mem_session_end",
   // memory retrieval
   "get_briefing",
   "mem_search",
+  "mem_timeline",
   "mem_for_files",
   "mem_get",
   "mem_list",
@@ -32,6 +34,7 @@ const EXPECTED_TOOLS: readonly string[] = [
   "get_project_context",
   "bootstrap_project_save",
   "code_map",
+  "mem_resolve_project",
   // memory lifecycle
   "mem_update",
   "mem_verify",
@@ -50,6 +53,7 @@ const EXPECTED_TOOLS: readonly string[] = [
   "mem_distill",
   "why_this_decision",
   "mem_conflicts_with",
+  "mem_conflict_candidates",
   "pre_commit_check",
   // v0.9.0 additions
   "pattern_detect",

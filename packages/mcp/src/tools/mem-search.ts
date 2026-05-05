@@ -8,6 +8,7 @@ import {
   loadMemoriesFromDir,
   loadUsageIndex,
   pickSnippetNeedle,
+  rankMemoriesLexical,
   tokenizeQuery,
   trackReads,
   type ConfidenceLevel,
@@ -47,6 +48,12 @@ export const MemSearchInputSchema = {
     .describe(
       "Use semantic similarity from the embeddings index (requires `haive embeddings index`).",
     ),
+  lexical_rank: z
+    .boolean()
+    .default(false)
+    .describe(
+      "When true (and semantic is false), rank the filtered corpus with Okapi-BM25-style lexical scoring instead of literal AND/OR. Helps phrase-like queries without embeddings.",
+    ),
   min_score: z
     .number()
     .min(0)
@@ -85,7 +92,7 @@ export interface MemSearchHit {
 export interface MemSearchOutput {
   matches: MemSearchHit[];
   total: number;
-  mode: "literal" | "semantic" | "literal_fallback";
+  mode: "literal" | "semantic" | "literal_fallback" | "lexical_ranked";
   notice?: string;
 }
 
@@ -112,6 +119,27 @@ export async function memSearch(
         mode: "literal_fallback",
         notice:
           "Semantic search unavailable (embeddings index missing or @hiveai/embeddings not installed). Falling back to literal search.",
+      };
+    }
+  } else if (input.lexical_rank && input.query.trim()) {
+    const { ranked, scores } = rankMemoriesLexical(
+      filtered,
+      input.query,
+      input.limit,
+    );
+    if (ranked.length > 0) {
+      const snippetNeedle = pickSnippetNeedle(input.query);
+      result = {
+        matches: ranked.map((loaded, i) =>
+          lexicalHit(loaded, snippetNeedle, usage, scores[i]!),
+        ),
+        total: ranked.length,
+        mode: "lexical_ranked",
+      };
+    } else {
+      result = {
+        ...buildLiteralResult(input, filtered, usage),
+        notice: "Lexical ranking found no BM25-positive hits — showing literal matches instead.",
       };
     }
   } else {
@@ -238,4 +266,13 @@ function toHit(loaded: LoadedMemory, needle: string, usage: UsageIndex): MemSear
     snippet: extractSnippet(loaded.memory.body, needle),
     file_path: loaded.filePath,
   };
+}
+
+function lexicalHit(
+  loaded: LoadedMemory,
+  needle: string,
+  usage: UsageIndex,
+  lexicalScore: number,
+): MemSearchHit {
+  return { ...toHit(loaded, needle, usage), score: lexicalScore };
 }

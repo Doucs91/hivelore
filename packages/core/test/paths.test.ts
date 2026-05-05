@@ -5,6 +5,7 @@ describe("resolveHaivePaths", () => {
   it("resolves all standard paths under .ai/", () => {
     const p = resolveHaivePaths("/repo");
     expect(p.haiveDir).toBe("/repo/.ai");
+    expect(p.runtimeDir).toBe("/repo/.ai/.runtime");
     expect(p.projectContext).toBe("/repo/.ai/project-context.md");
     expect(p.memoriesDir).toBe("/repo/.ai/memories");
     expect(p.personalDir).toBe("/repo/.ai/memories/personal");

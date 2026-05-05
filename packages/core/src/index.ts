@@ -17,3 +17,8 @@ export * from "./contract-watcher.js";
 export * from "./usage-log.js";
 export * from "./briefing-preset.js";
 export * from "./briefing-body.js";
+export * from "./resolve-project.js";
+export * from "./topic-suggest.js";
+export * from "./lexical-rank.js";
+export * from "./memory-timeline.js";
+export * from "./conflict-candidates.js";

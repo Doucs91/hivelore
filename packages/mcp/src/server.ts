@@ -135,6 +135,26 @@ import {
   type PatternDetectInput,
 } from "./tools/pattern-detect.js";
 import {
+  MemConflictCandidatesInputSchema,
+  memConflictCandidates,
+  type MemConflictCandidatesInput,
+} from "./tools/mem-conflict-candidates.js";
+import {
+  MemResolveProjectInputSchema,
+  memResolveProject,
+  type MemResolveProjectInput,
+} from "./tools/mem-resolve-project.js";
+import {
+  MemSuggestTopicInputSchema,
+  memSuggestTopic,
+  type MemSuggestTopicInput,
+} from "./tools/mem-suggest-topic.js";
+import {
+  MemTimelineInputSchema,
+  memTimeline,
+  type MemTimelineInput,
+} from "./tools/mem-timeline.js";
+import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
   type BootstrapProjectArgs,
@@ -214,6 +234,22 @@ export {
   type PatternDetectInput,
   type PatternDetectOutput,
 } from "./tools/pattern-detect.js";
+export {
+  memResolveProject,
+  type MemResolveProjectInput,
+} from "./tools/mem-resolve-project.js";
+export {
+  memSuggestTopic,
+  type MemSuggestTopicInput,
+} from "./tools/mem-suggest-topic.js";
+export {
+  memTimeline,
+  type MemTimelineInput,
+} from "./tools/mem-timeline.js";
+export {
+  memConflictCandidates,
+  type MemConflictCandidatesInput,
+} from "./tools/mem-conflict-candidates.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -277,6 +313,25 @@ export function createHaiveServer(
       tracker.record("mem_save", input.slug);
       return jsonResult(await memSave(input, context));
     },
+  );
+
+  server.tool(
+    "mem_suggest_topic",
+    [
+      "Propose a stable `topic` key (topic-upsert) from type + short title.",
+      "",
+      "USE BEFORE mem_save when you want deterministic updates to the same memory over time;",
+      "families mimic Engram-style grouping (architecture/*, bug/*, decision/*, …).",
+      "",
+      "PARAMETERS:",
+      "  type  — convention | decision | gotcha | architecture | glossary | attempt | session_recap",
+      "  title — phrase to slugify under the suggested family prefix",
+      "",
+      "RETURNS: { topic_key, family, type }",
+    ].join("\n"),
+    MemSuggestTopicInputSchema,
+    async (input: MemSuggestTopicInput) =>
+      jsonResult(await memSuggestTopic(input, context)),
   );
 
   server.tool(
@@ -378,6 +433,9 @@ export function createHaiveServer(
       "⭐ CALL THIS FIRST at the start of every task. One-shot onboarding that returns",
       "everything relevant in a single call under a token budget.",
       "",
+      "PROGRESSIVE DISCLOSURE — after this, drill down only if needed:",
+      "  mem_relevant_to / mem_search (compact lists) → mem_get (full body + anchors).",
+      "",
       "RETURNS (in order of priority):",
       "  0. action_required — ⚠️ HANDLE THIS FIRST if non-empty (see protocol below)",
       "  1. last_session   — recap of the previous session (goal, what was done, next steps)",
@@ -411,7 +469,7 @@ export function createHaiveServer(
       "  low           — proposed, few reads (take with caution)",
       "  unverified    — draft (unverified: true flag set)",
       "",
-      "Replaces 4–5 separate tool calls. Always call this before any other tool.",
+      "Replaces 4–5 separate tool calls. Prefer this first; use mem_search / mem_get only for follow-up.",
     ].join("\n"),
     GetBriefingInputSchema,
     async (input: GetBriefingInput) => {
@@ -431,6 +489,8 @@ export function createHaiveServer(
       "SEARCH MODES:",
       "  Literal (default): AND search across id, tags, and body — all tokens must match.",
       "  Falls back to OR automatically if no AND results (partial match).",
+      "  Lexical rank (lexical_rank: true, semantic: false): Okapi-BM25-style scoring on the",
+      "  filtered corpus — good for phrase-like queries without embeddings.",
       "  Semantic (semantic: true): embedding-based similarity — finds related memories",
       "  even with different wording. Requires haive embeddings index to be built.",
       "",
@@ -439,6 +499,7 @@ export function createHaiveServer(
       "  scope    — filter by personal | team | module",
       "  type     — filter by convention | decision | gotcha | architecture | glossary",
       "  semantic — true for embedding-based search (requires @hiveai/embeddings)",
+      "  lexical_rank — BM25-style ranking (ignored when semantic is true)",
       "  limit    — max results (default 10)",
       "",
       "RETURNS: array of { id, type, scope, status, confidence, body, match_quality }",
@@ -448,6 +509,23 @@ export function createHaiveServer(
       tracker.record("mem_search", input.query.slice(0, 80));
       return jsonResult(await memSearch(input, context));
     },
+  );
+
+  server.tool(
+    "mem_timeline",
+    [
+      "Chronological view of related memories: by shared frontmatter.topic OR expanded from a seed id",
+      "(related_ids, same topic, overlapping anchor paths — one extra hop on related_ids).",
+      "",
+      "PARAMETERS:",
+      "  memory_id — optional seed memory id",
+      "  topic     — optional topic key (required if memory_id omitted)",
+      "  limit     — max entries (default 30)",
+      "",
+      "RETURNS: { entries: [{ id, type, scope, created_at, one_line, topic? }], total, notice? }",
+    ].join("\n"),
+    MemTimelineInputSchema,
+    async (input: MemTimelineInput) => jsonResult(await memTimeline(input, context)),
   );
 
   server.tool(
@@ -480,7 +558,7 @@ export function createHaiveServer(
     [
       "Fetch a single memory by its full id with all details.",
       "",
-      "USE WHEN get_briefing returned a memory in 'compact' format and you need",
+      "USE WHEN get_briefing / mem_relevant_to / mem_search returned a compact hit and you need",
       "the full body, or when you know the exact id of a memory.",
       "",
       "PARAMETERS:",
@@ -575,6 +653,24 @@ export function createHaiveServer(
     ].join("\n"),
     CodeMapInputSchema,
     async (input: CodeMapInput) => jsonResult(await codeMapTool(input, context)),
+  );
+
+  server.tool(
+    "mem_resolve_project",
+    [
+      "Diagnostics: resolve which project root hAIve is using (never throws).",
+      "",
+      "USE IN multi-root workspaces or when the agent CWD may not be the repo root —",
+      "mirrors HAIVE_PROJECT_ROOT, findProjectRoot markers, and presence of .ai/memories.",
+      "",
+      "PARAMETERS:",
+      "  cwd — optional directory used for discovery when HAIVE_PROJECT_ROOT is unset",
+      "",
+      "RETURNS: { ok: true, info: { cwd, resolved_root, haive_project_root_env, … } }",
+    ].join("\n"),
+    MemResolveProjectInputSchema,
+    async (input: MemResolveProjectInput) =>
+      jsonResult(await memResolveProject(input, context)),
   );
 
   // ── Memory lifecycle ───────────────────────────────────────────────────
@@ -721,6 +817,8 @@ export function createHaiveServer(
     [
       "One-shot ranked memories for a task — use instead of get_briefing when",
       "project context is already loaded and you only want the relevant memory layer.",
+      "",
+      "Second step in progressive disclosure (after get_briefing): narrow here, then mem_get for full text.",
       "",
       "Reuses the same ranking pipeline (anchor / module / literal / semantic) but",
       "skips project_context, modules, action_required, etc.",
@@ -891,6 +989,25 @@ export function createHaiveServer(
     async (input: MemConflictsInput) => {
       tracker.record("mem_conflicts_with", input.id);
       return jsonResult(await memConflicts(input, context));
+    },
+  );
+
+  server.tool(
+    "mem_conflict_candidates",
+    [
+      "Bulk lexical scan for decision/architecture-like pairs that look similar (Jaccard on tokens).",
+      "",
+      "Advisory only — follow with mem_conflicts_with on specific ids for real contradiction checks.",
+      "",
+      "PARAMETERS:",
+      "  since_days, types, min_jaccard, max_pairs, max_scan",
+      "",
+      "RETURNS: { pairs: [{ id_a, id_b, jaccard }], scanned, truncated, notice? }",
+    ].join("\n"),
+    MemConflictCandidatesInputSchema,
+    async (input: MemConflictCandidatesInput) => {
+      tracker.record("mem_conflict_candidates", `${input.since_days}d`);
+      return jsonResult(await memConflictCandidates(input, context));
     },
   );
 

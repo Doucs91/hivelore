@@ -244,6 +244,7 @@ export function registerInit(program: Command): void {
       await mkdir(paths.teamDir, { recursive: true });
       await mkdir(paths.moduleDir, { recursive: true });
       await mkdir(paths.modulesContextDir, { recursive: true });
+      await ensureAiRuntimeLayout(paths.runtimeDir);
 
       // ── project-context.md ───────────────────────────────────────────────
       if (!existsSync(paths.projectContext)) {
@@ -464,6 +465,30 @@ async function writeBridge(root: string, relPath: string): Promise<void> {
   await mkdir(path.dirname(target), { recursive: true });
   await writeFile(target, BRIDGE_BODY, "utf8");
   ui.success(`Created bridge ${relPath}`);
+}
+
+const RUNTIME_README_BODY = `# .ai/.runtime — disposable local layer
+
+Not team truth. Use for machine-local session notes or tooling scratch files.
+Official memories belong in .ai/memories/ (versioned in Git).
+Only .gitignore and this README are meant to commit; everything else stays untracked.
+`;
+
+const RUNTIME_GITIGNORE_BODY = `*
+!.gitignore
+!README.md
+`;
+
+async function ensureAiRuntimeLayout(runtimeDir: string): Promise<void> {
+  await mkdir(runtimeDir, { recursive: true });
+  const gi = path.join(runtimeDir, ".gitignore");
+  if (!existsSync(gi)) {
+    await writeFile(gi, RUNTIME_GITIGNORE_BODY, "utf8");
+  }
+  const readme = path.join(runtimeDir, "README.md");
+  if (!existsSync(readme)) {
+    await writeFile(readme, RUNTIME_README_BODY, "utf8");
+  }
 }
 
 /**
