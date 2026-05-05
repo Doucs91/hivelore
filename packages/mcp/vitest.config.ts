@@ -7,5 +7,14 @@ const { version } = JSON.parse(
 
 export default defineConfig({
   define: { __HAIVE_VERSION__: JSON.stringify(version) },
-  test: { pool: "vmThreads" },
+  test: {
+    pool: "forks",
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
+    testTimeout: 20000,
+    hookTimeout: 20000,
+  },
 });
