@@ -519,6 +519,8 @@ const RUNTIME_README_BODY = `# .ai/.runtime — disposable local layer
 Not team truth. Use for machine-local session notes or tooling scratch files.
 Official memories belong in .ai/memories/ (versioned in Git).
 Only .gitignore and this README are meant to commit; everything else stays untracked.
+
+Session continuity (local): agents may append \`session-journal.ndjson\` via MCP \`runtime_journal_append\` or \`haive runtime journal append\`.
 `;
 
 const RUNTIME_GITIGNORE_BODY = `*

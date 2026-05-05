@@ -155,6 +155,16 @@ import {
   type MemTimelineInput,
 } from "./tools/mem-timeline.js";
 import {
+  RuntimeJournalAppendInputSchema,
+  runtimeJournalAppend,
+  type RuntimeJournalAppendInput,
+} from "./tools/runtime-journal-append.js";
+import {
+  RuntimeJournalTailInputSchema,
+  runtimeJournalTail,
+  type RuntimeJournalTailInput,
+} from "./tools/runtime-journal-tail.js";
+import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
   type BootstrapProjectArgs,
@@ -250,6 +260,14 @@ export {
   memConflictCandidates,
   type MemConflictCandidatesInput,
 } from "./tools/mem-conflict-candidates.js";
+export {
+  runtimeJournalAppend,
+  type RuntimeJournalAppendInput,
+} from "./tools/runtime-journal-append.js";
+export {
+  runtimeJournalTail,
+  type RuntimeJournalTailInput,
+} from "./tools/runtime-journal-tail.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -996,20 +1014,53 @@ export function createHaiveServer(
   server.tool(
     "mem_conflict_candidates",
     [
-      "Bulk lexical scan for decision/architecture-like pairs that look similar (Jaccard on tokens).",
+      "Bulk scan for conflict CANDIDATES (not proof):",
       "",
-      "Advisory only — follow with mem_conflicts_with on specific ids for real contradiction checks.",
+      "  1. Lexical similarity (Jaccard) on decision/architecture-like pairs",
+      "  2. Same frontmatter.topic with validated vs rejected — quick human-review signal",
+      "",
+      "Advisory only — follow with mem_conflicts_with on specific ids.",
       "",
       "PARAMETERS:",
-      "  since_days, types, min_jaccard, max_pairs, max_scan",
+      "  since_days, types, min_jaccard, max_pairs, max_scan, max_topic_pairs",
       "",
-      "RETURNS: { pairs: [{ id_a, id_b, jaccard }], scanned, truncated, notice? }",
+      "RETURNS: { pairs, topic_status_pairs, scanned, truncated, notice? }",
     ].join("\n"),
     MemConflictCandidatesInputSchema,
     async (input: MemConflictCandidatesInput) => {
       tracker.record("mem_conflict_candidates", `${input.since_days}d`);
       return jsonResult(await memConflictCandidates(input, context));
     },
+  );
+
+  server.tool(
+    "runtime_journal_append",
+    [
+      "Append one line to `.ai/.runtime/session-journal.ndjson` — machine-local session continuity.",
+      "",
+      "Does NOT replace team memories; complements mem_session_end recaps for local traces.",
+      "",
+      "PARAMETERS: message, kind (note|session_end|mcp), optional tool",
+      "",
+      "RETURNS: { ok, path_hint }",
+    ].join("\n"),
+    RuntimeJournalAppendInputSchema,
+    async (input: RuntimeJournalAppendInput) =>
+      jsonResult(await runtimeJournalAppend(input, context)),
+  );
+
+  server.tool(
+    "runtime_journal_tail",
+    [
+      "Read the last N entries from the runtime session journal (parsed JSON lines).",
+      "",
+      "PARAMETERS: limit (default 30, max 500)",
+      "",
+      "RETURNS: { entries: [...], empty?: true }",
+    ].join("\n"),
+    RuntimeJournalTailInputSchema,
+    async (input: RuntimeJournalTailInput) =>
+      jsonResult(await runtimeJournalTail(input, context)),
   );
 
   server.tool(

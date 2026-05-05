@@ -29,19 +29,26 @@
 ## Conflits
 
 - **`mem_conflicts_with`** reste l’outil principal (heuristiques + sémantique optionnelle).
-- **`mem_conflict_candidates`** : scan **léger sans id cible** — paires de mémoires (types `decision` / `architecture` par défaut) à fort recouvrement lexical (Jaccard) sur le titre / l’identité, pour alimenter une revue humaine ou un appel suivant à `mem_conflicts_with`.
+- **`mem_conflict_candidates`** : scan **léger sans id cible** — (1) paires à fort recouvrement lexical (Jaccard), (2) paires qui partagent **`topic`** avec statuts **validated** × **rejected**. Suit `mem_conflicts_with` pour une analyse sérieuse.
 
 ## Chronologie
 
 - **`mem_timeline`** : à partir d’un **`memory_id`** et/ou d’un **`topic`**, liste des mémoires liées (`related_ids`, même `topic`, ancres qui se recoupent), tri chronologique (`created_at`).
 
+## Journal runtime (P2)
+
+- Fichier local : `.ai/.runtime/session-journal.ndjson` (une ligne JSON par entrée).
+- **MCP** : `runtime_journal_append`, `runtime_journal_tail`.
+- **CLI** : `haive runtime journal append <message>`, `haive runtime journal tail`.
+- En mode autopilot, une ligne est ajoutée à la **fermeture** du serveur MCP (récap auto + résumé d’outils).
+
 ## Phases (traces d’implémentation)
 
 | Phase | Contenu |
 |-------|---------|
-| **P0** | `mem_resolve_project`, progressive disclosure (descriptions), `mem_suggest_topic`, `.ai/.runtime/` + gitignore interne, `lexical_rank` sur `mem_search` |
-| **P1** | `mem_timeline`, `mem_conflict_candidates`, équivalents CLI là où utile |
-| **P2** | Extensions futures (journal de session dans runtime, autres signaux de conflit) sans dupliquer la logique riche de `mem_conflicts_with` |
+| **P0** | `mem_resolve_project`, progressive disclosure (descriptions), `mem_suggest_topic`, `.ai/.runtime/` + gitignore interne, `lexical_rank` sur `mem_search` — **fait** |
+| **P1** | `mem_timeline`, `mem_conflict_candidates`, équivalents CLI : `memory timeline`, `memory conflict-candidates`, `resolve-project`, `memory suggest-topic` — **fait** |
+| **P2** | Journal runtime (**fait**) ; signal additionnel **`topic_status_pairs`** dans `mem_conflict_candidates` / CLI (même `topic`, validated × rejected), sans dupliquer `mem_conflicts_with` (**fait**). |
 
 ## Cartographie des outils existants
 

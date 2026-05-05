@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { LoadedMemory } from "../src/loader.js";
-import { findLexicalConflictPairs } from "../src/conflict-candidates.js";
+import type { MemoryFrontmatter } from "../src/types.js";
+import {
+  findLexicalConflictPairs,
+  findTopicStatusConflictPairs,
+} from "../src/conflict-candidates.js";
 
 function mem(
   id: string,
   type: string,
   body: string,
   createdDaysAgo = 1,
+  extras?: Partial<MemoryFrontmatter>,
 ): LoadedMemory {
   const at = new Date(Date.now() - createdDaysAgo * 86_400_000).toISOString();
   return {
@@ -15,7 +20,7 @@ function mem(
       frontmatter: {
         id,
         scope: "team",
-        type: type as "decision",
+        type: type as MemoryFrontmatter["type"],
         status: "validated",
         anchor: { paths: [], symbols: [] },
         tags: [],
@@ -27,11 +32,28 @@ function mem(
         last_read_at: null,
         requires_human_approval: false,
         revision_count: 0,
+        ...extras,
       },
       body: `# Title\n${body}`,
     },
   };
 }
+
+describe("findTopicStatusConflictPairs", () => {
+  it("pairs validated vs rejected on same topic", () => {
+    const a = mem("x1", "decision", "A", 1, {
+      topic: "decision/foo",
+      status: "validated",
+    });
+    const b = mem("x2", "decision", "B", 1, {
+      topic: "decision/foo",
+      status: "rejected",
+    });
+    const p = findTopicStatusConflictPairs([a, b], 10);
+    expect(p.length).toBeGreaterThanOrEqual(1);
+    expect(p[0]!.topic).toBe("decision/foo");
+  });
+});
 
 describe("findLexicalConflictPairs", () => {
   it("surfaces lexically overlapping decision pairs", () => {

@@ -57,6 +57,8 @@ const EXPECTED_TOOLS: readonly string[] = [
   "pre_commit_check",
   // v0.9.0 additions
   "pattern_detect",
+  "runtime_journal_append",
+  "runtime_journal_tail",
 ];
 
 interface InternalServerShape {

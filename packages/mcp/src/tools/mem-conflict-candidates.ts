@@ -1,5 +1,9 @@
 import { existsSync } from "node:fs";
-import { findLexicalConflictPairs, loadMemoriesFromDir } from "@hiveai/core";
+import {
+  findLexicalConflictPairs,
+  findTopicStatusConflictPairs,
+  loadMemoriesFromDir,
+} from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -35,6 +39,15 @@ export const MemConflictCandidatesInputSchema = {
     .max(2000)
     .default(500)
     .describe("Maximum memories sampled for O(n²) scan — excess dropped after chronological sort."),
+  max_topic_pairs: z
+    .number()
+    .int()
+    .positive()
+    .max(100)
+    .default(20)
+    .describe(
+      "Cap for extra signal: memories sharing the same topic with validated vs rejected status.",
+    ),
 };
 
 export type MemConflictCandidatesInput = {
@@ -50,6 +63,7 @@ export async function memConflictCandidates(
   if (!existsSync(ctx.paths.memoriesDir)) {
     return {
       pairs: [],
+      topic_status_pairs: [],
       scanned: 0,
       truncated: false,
       notice: "No .ai/memories directory.",
@@ -64,11 +78,12 @@ export async function memConflictCandidates(
     maxPairs: input.max_pairs,
     maxScan: input.max_scan,
   });
+  const topicStatusPairs = findTopicStatusConflictPairs(all, input.max_topic_pairs);
 
   const notice =
-    pairs.length === 0
-      ? "No lexical candidate pairs ≥ threshold — try lowering min_jaccard or widen since_days/types."
+    pairs.length === 0 && topicStatusPairs.length === 0
+      ? "No lexical or topic-status candidates — widen since_days/types or lower min_jaccard."
       : undefined;
 
-  return { pairs, scanned, truncated, notice };
+  return { pairs, topic_status_pairs: topicStatusPairs, scanned, truncated, notice };
 }

@@ -8,7 +8,12 @@
  *      surfaces an action_required item prompting the agent to invoke
  *      post_task for a richer LLM-driven distillation.
  */
-import { appendUsageEvent, loadConfig, type HaiveConfig } from "@hiveai/core";
+import {
+  appendUsageEvent,
+  appendRuntimeJournalEntry,
+  loadConfig,
+  type HaiveConfig,
+} from "@hiveai/core";
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -125,6 +130,17 @@ export class SessionTracker {
       } catch {
         // Non-fatal — never block process exit
       }
+
+      void appendRuntimeJournalEntry(this.ctx.paths, {
+        kind: "session_end",
+        message: recapId
+          ? `auto session close | ${toolSummary} | recap:${recapId}`
+          : `auto session close | ${toolSummary}`,
+        meta: {
+          recap_id: recapId ?? null,
+          total_tool_calls: totalCalls,
+        },
+      });
 
       // ── 3. Write pending-distill.json so next get_briefing can prompt ─────
       // Skip if the agent already ran post_task this session (no shallow recap).

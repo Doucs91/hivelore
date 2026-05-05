@@ -42,6 +42,9 @@ import { registerWelcome } from "./commands/welcome.js";
 import { registerMemoryLint } from "./commands/memory-lint.js";
 import { registerMemorySuggestTopic } from "./commands/memory-suggest-topic.js";
 import { registerResolveProject } from "./commands/resolve-project.js";
+import { registerRuntime } from "./commands/runtime-journal.js";
+import { registerMemoryTimeline } from "./commands/memory-timeline.js";
+import { registerMemoryConflictCandidates } from "./commands/memory-conflict-candidates.js";
 
 const program = new Command();
 
@@ -55,6 +58,7 @@ program
 registerInit(program);
 registerWelcome(program);
 registerResolveProject(program);
+registerRuntime(program);
 
 registerMcp(program);
 registerBriefing(program);
@@ -88,6 +92,8 @@ registerMemoryImportChangelog(memory);
 registerMemoryDigest(memory);
 registerMemorySuggest(memory);
 registerMemorySuggestTopic(memory);
+registerMemoryTimeline(memory);
+registerMemoryConflictCandidates(memory);
 registerMemoryArchive(memory);
 registerMemoryLint(memory);
 

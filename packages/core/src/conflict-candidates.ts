@@ -37,6 +37,54 @@ export interface ConflictCandidatePair {
   jaccard: number;
 }
 
+export interface TopicStatusPair {
+  id_a: string;
+  id_b: string;
+  topic: string;
+  status_a: string;
+  status_b: string;
+}
+
+/**
+ * Same `topic` key with opposed trust (validated vs rejected) — advisory; use `mem_conflicts_with` per id next.
+ */
+export function findTopicStatusConflictPairs(
+  memories: LoadedMemory[],
+  maxPairs: number,
+): TopicStatusPair[] {
+  const byTopic = new Map<string, LoadedMemory[]>();
+  for (const l of memories) {
+    const topic = l.memory.frontmatter.topic;
+    if (!topic || topic.trim() === "") continue;
+    const g = byTopic.get(topic);
+    if (g) g.push(l);
+    else byTopic.set(topic, [l]);
+  }
+  const out: TopicStatusPair[] = [];
+  for (const [topic, group] of byTopic) {
+    if (group.length < 2) continue;
+    for (let i = 0; i < group.length && out.length < maxPairs; i++) {
+      for (let j = i + 1; j < group.length && out.length < maxPairs; j++) {
+        const sa = group[i]!.memory.frontmatter.status;
+        const sb = group[j]!.memory.frontmatter.status;
+        if (
+          (sa === "validated" && sb === "rejected") ||
+          (sa === "rejected" && sb === "validated")
+        ) {
+          out.push({
+            id_a: group[i]!.memory.frontmatter.id,
+            id_b: group[j]!.memory.frontmatter.id,
+            topic,
+            status_a: sa,
+            status_b: sb,
+          });
+        }
+      }
+    }
+  }
+  return out;
+}
+
 /**
  * Bulk heuristic: lexical similarity pairs for human review → often followed by `mem_conflicts_with`.
  */
