@@ -1,0 +1,16 @@
+{"tool":"get_briefing","at":"2026-05-03T14:06:21.698Z","summary":"Find where MCP tools are implemented in this project, list at least 3 by name and file path, and identify the central registration hub."}
+{"tool":"get_briefing","at":"2026-05-03T19:19:40.479Z","summary":"Décrire les conventions de code et structure du projet (naming, organisation fichiers, patterns NestJS, tests, lint, commit)"}
+{"tool":"get_briefing","at":"2026-05-03T19:20:03.558Z","summary":"Explain why imports use .js extensions even for .ts source files in this project"}
+{"tool":"mem_search","at":"2026-05-03T19:20:03.788Z","summary":"esm"}
+{"tool":"get_briefing","at":"2026-05-04T00:59:53.384Z","summary":"Tester la version 0.9.0 d'haive : vérifier que les leviers spécifiés (pattern_detect, distill auto, auto-promote, fix CWD bug) sont implémentés correctement, identifier ce qui marche / ce qui manque / ce qui reste à améliorer"}
+{"tool":"pattern_detect","at":"2026-05-04T01:01:59.258Z","summary":"since=30d/dry_run=true"}
+{"tool":"get_briefing","at":"2026-05-04T01:04:52.873Z","summary":"auto-promote-marker test promotion"}
+{"tool":"get_briefing","at":"2026-05-04T01:04:53.892Z","summary":"auto-promote-marker test promotion"}
+{"tool":"get_briefing","at":"2026-05-04T01:04:54.928Z","summary":"auto-promote-marker test promotion"}
+{"tool":"get_briefing","at":"2026-05-04T01:04:55.951Z","summary":"auto-promote-marker test promotion"}
+{"tool":"get_briefing","at":"2026-05-04T01:04:56.966Z","summary":"auto-promote-marker test promotion"}
+{"tool":"get_briefing","at":"2026-05-04T01:04:57.979Z","summary":"auto-promote-marker test promotion"}
+{"tool":"mem_save","at":"2026-05-04T01:05:36.606Z","summary":"npm-cli-update-leaves-mcp-stale"}
+{"tool":"mem_save","at":"2026-05-04T01:05:44.992Z","summary":"pattern-detect-slug-collision-same-filename"}
+{"tool":"mem_save","at":"2026-05-04T01:05:52.260Z","summary":"mem-save-scope-overridden-by-defaultscope"}
+{"tool":"mem_save","at":"2026-05-04T01:06:01.093Z","summary":"auto-promote-ignores-config-minreads"}

@@ -1,0 +1,209 @@
+{
+  "protocol_version": 1,
+  "started_at": "2026-05-04T22:40:27.829Z",
+  "finished_at": "2026-05-04T22:40:28.595Z",
+  "assumptions": {
+    "chars_per_token": 4,
+    "tool_overhead_per_file_read_tokens": 185,
+    "mcp_tool_overhead_tokens": 440,
+    "naive_paths_are_curated_not_exhaustive": "Curated first-pass reads before locating edit sites — not worst-case exhaustive search."
+  },
+  "note_real_agents": "Live LLM variance is high; combine this proxy with logged multi-agent runs — see team memory 2026-04-28-decision-benchmark-results-v027-token-reduction.md.",
+  "scenarios": [
+    {
+      "scenario_id": "haive-monorepo-mcp",
+      "project_label": "large_ts_monorepo",
+      "task": "Where are MCP tools registered and how do I add a new tool?",
+      "naive_exploration": {
+        "arm": "without_haive_naive_reads",
+        "files_read": 8,
+        "missing_paths": 0,
+        "content_tokens": 16072,
+        "tool_overhead_tokens": 1480,
+        "total_tokens_proxy": 17552,
+        "latency_ms": 281
+      },
+      "with_haive_get_briefing": {
+        "arm": "with_haive",
+        "tool_calls_proxy": 1,
+        "get_briefing_latency_ms": 632,
+        "code_map_latency_ms": 0,
+        "latency_ms": 632,
+        "briefing_payload_tokens": 3235,
+        "briefing_estimated_tokens_field": 2506,
+        "memories_returned": 10,
+        "search_mode": "semantic",
+        "low_value": false,
+        "code_map_included": false,
+        "total_tokens_proxy": 3675
+      },
+      "with_haive_briefing_plus_code_map": {
+        "arm": "with_haive",
+        "tool_calls_proxy": 2,
+        "get_briefing_latency_ms": 24,
+        "code_map_latency_ms": 11,
+        "latency_ms": 35,
+        "briefing_payload_tokens": 3235,
+        "briefing_estimated_tokens_field": 2506,
+        "memories_returned": 10,
+        "search_mode": "semantic",
+        "low_value": false,
+        "code_map_included": true,
+        "total_tokens_proxy": 7496
+      },
+      "token_savings_pct_vs_naive": {
+        "briefing_only": 79.1,
+        "briefing_plus_code_map": 57.3
+      }
+    },
+    {
+      "scenario_id": "haive-monorepo-tokens",
+      "project_label": "large_ts_monorepo",
+      "task": "How does get_briefing allocate token budget across project context and memories?",
+      "naive_exploration": {
+        "arm": "without_haive_naive_reads",
+        "files_read": 4,
+        "missing_paths": 0,
+        "content_tokens": 12087,
+        "tool_overhead_tokens": 740,
+        "total_tokens_proxy": 12827,
+        "latency_ms": 140
+      },
+      "with_haive_get_briefing": {
+        "arm": "with_haive",
+        "tool_calls_proxy": 1,
+        "get_briefing_latency_ms": 23,
+        "code_map_latency_ms": 0,
+        "latency_ms": 23,
+        "briefing_payload_tokens": 3259,
+        "briefing_estimated_tokens_field": 2432,
+        "memories_returned": 10,
+        "search_mode": "semantic",
+        "low_value": false,
+        "code_map_included": false,
+        "total_tokens_proxy": 3699
+      },
+      "with_haive_briefing_plus_code_map": {
+        "arm": "with_haive",
+        "tool_calls_proxy": 2,
+        "get_briefing_latency_ms": 24,
+        "code_map_latency_ms": 1,
+        "latency_ms": 24,
+        "briefing_payload_tokens": 3259,
+        "briefing_estimated_tokens_field": 2432,
+        "memories_returned": 10,
+        "search_mode": "semantic",
+        "low_value": false,
+        "code_map_included": true,
+        "total_tokens_proxy": 7520
+      },
+      "token_savings_pct_vs_naive": {
+        "briefing_only": 71.2,
+        "briefing_plus_code_map": 41.4
+      }
+    },
+    {
+      "scenario_id": "haive-monorepo-sync",
+      "project_label": "large_ts_monorepo",
+      "task": "What does haive sync do after a git merge?",
+      "naive_exploration": {
+        "arm": "without_haive_naive_reads",
+        "files_read": 3,
+        "missing_paths": 0,
+        "content_tokens": 8477,
+        "tool_overhead_tokens": 555,
+        "total_tokens_proxy": 9032,
+        "latency_ms": 105
+      },
+      "with_haive_get_briefing": {
+        "arm": "with_haive",
+        "tool_calls_proxy": 1,
+        "get_briefing_latency_ms": 22,
+        "code_map_latency_ms": 0,
+        "latency_ms": 22,
+        "briefing_payload_tokens": 3231,
+        "briefing_estimated_tokens_field": 2506,
+        "memories_returned": 10,
+        "search_mode": "semantic",
+        "low_value": false,
+        "code_map_included": false,
+        "total_tokens_proxy": 3671
+      },
+      "with_haive_briefing_plus_code_map": {
+        "arm": "with_haive",
+        "tool_calls_proxy": 2,
+        "get_briefing_latency_ms": 20,
+        "code_map_latency_ms": 0,
+        "latency_ms": 20,
+        "briefing_payload_tokens": 3231,
+        "briefing_estimated_tokens_field": 2506,
+        "memories_returned": 10,
+        "search_mode": "semantic",
+        "low_value": false,
+        "code_map_included": true,
+        "total_tokens_proxy": 7492
+      },
+      "token_savings_pct_vs_naive": {
+        "briefing_only": 59.4,
+        "briefing_plus_code_map": 17.1
+      }
+    },
+    {
+      "scenario_id": "tiny-lib-entrypoint",
+      "project_label": "small_ts_library",
+      "task": "Where should I add a new exported function for the public API?",
+      "naive_exploration": {
+        "arm": "without_haive_naive_reads",
+        "files_read": 4,
+        "missing_paths": 0,
+        "content_tokens": 93,
+        "tool_overhead_tokens": 740,
+        "total_tokens_proxy": 833,
+        "latency_ms": 140
+      },
+      "with_haive_get_briefing": {
+        "arm": "with_haive",
+        "tool_calls_proxy": 1,
+        "get_briefing_latency_ms": 2,
+        "code_map_latency_ms": 0,
+        "latency_ms": 2,
+        "briefing_payload_tokens": 146,
+        "briefing_estimated_tokens_field": 15,
+        "memories_returned": 0,
+        "search_mode": "literal_fallback",
+        "low_value": false,
+        "code_map_included": false,
+        "total_tokens_proxy": 586
+      },
+      "with_haive_briefing_plus_code_map": {
+        "arm": "with_haive",
+        "tool_calls_proxy": 2,
+        "get_briefing_latency_ms": 1,
+        "code_map_latency_ms": 0,
+        "latency_ms": 1,
+        "briefing_payload_tokens": 146,
+        "briefing_estimated_tokens_field": 15,
+        "memories_returned": 0,
+        "search_mode": "literal_fallback",
+        "low_value": false,
+        "code_map_included": true,
+        "total_tokens_proxy": 1055
+      },
+      "token_savings_pct_vs_naive": {
+        "briefing_only": 29.7,
+        "briefing_plus_code_map": -26.7
+      }
+    }
+  ],
+  "aggregate_across_scenarios": {
+    "scenarios_count": 4,
+    "sum_naive_proxy_tokens": 40244,
+    "sum_with_haive_briefing_only_tokens": 11631,
+    "sum_with_haive_briefing_plus_code_map_tokens": 23563,
+    "pct_tokens_saved_briefing_vs_naive": 71.1,
+    "pct_tokens_saved_briefing_map_vs_naive": 41.4,
+    "sum_naive_file_reads": 19,
+    "equivalent_tool_calls_haive_briefing_only": 4,
+    "equivalent_tool_calls_haive_with_code_map": 8
+  }
+}
