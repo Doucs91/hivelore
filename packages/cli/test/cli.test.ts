@@ -40,6 +40,9 @@ describe("hAIve CLI integration", () => {
     expect(existsSync(path.join(workDir, "CLAUDE.md"))).toBe(true);
     expect(existsSync(path.join(workDir, ".cursorrules"))).toBe(true);
     expect(existsSync(path.join(workDir, ".github/copilot-instructions.md"))).toBe(true);
+    expect(
+      existsSync(path.join(workDir, ".cursor/rules/haive-mcp-required.mdc")),
+    ).toBe(true);
   });
 
   it("init writes project-level MCP configs with HAIVE_PROJECT_ROOT", async () => {

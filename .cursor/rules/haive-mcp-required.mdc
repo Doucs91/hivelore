@@ -1,0 +1,22 @@
+---
+description: Require hAIve MCP (get_briefing / mem_relevant_to) before substantive repo edits
+alwaysApply: true
+---
+
+# hAIve — required for agents
+
+This repository uses **hAIve**. Running `haive init` means the team expects agents to **use the haive MCP server by default**, not skip it.
+
+## Before you change the repo
+
+1. Call **`get_briefing`** with `task` (and `files` / `symbols` when known), **or** `mem_relevant_to` if full project context is already loaded and you only need ranked memories.
+2. Then read/search the codebase as needed. Do not invert this order for non-trivial work.
+
+## During / after the task
+
+- On failure: **`mem_tried`** immediately.
+- Before closing a substantive session: MCP prompt **`post_task`** when there is something worth capturing.
+
+## If haive MCP is missing
+
+Tell the developer to enable the **haive** server (e.g. `haive mcp --stdio` in client config) and restart the client. Do not silently ignore hAIve.

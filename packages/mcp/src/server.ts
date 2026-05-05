@@ -430,8 +430,9 @@ export function createHaiveServer(
   server.tool(
     "get_briefing",
     [
-      "⭐ CALL THIS FIRST at the start of every task. One-shot onboarding that returns",
-      "everything relevant in a single call under a token budget.",
+      "⭐ DEFAULT-FIRST for coding agents on any repo where `haive init` ran: call this BEFORE",
+      "changing source or project config for the current goal (unless the developer explicitly opts out).",
+      "One-shot onboarding: everything relevant in a single call under a token budget.",
       "",
       "PROGRESSIVE DISCLOSURE — after this, drill down only if needed:",
       "  mem_relevant_to / mem_search (compact lists) → mem_get (full body + anchors).",
