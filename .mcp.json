@@ -3,6 +3,10 @@
     "haive": {
       "command": "node",
       "args": ["packages/mcp/dist/index.js"]
+    },
+    "sonarqube": {
+      "command": "bash",
+      "args": ["scripts/mcp-sonarqube.sh"]
     }
   }
 }

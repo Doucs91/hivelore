@@ -14,3 +14,7 @@ coverage
 # Test projects — not part of the repo
 sandaga-monorepo/
 engram/
+
+# SonarQube MCP (secrets + certificats locaux)
+sonar-mcp.local.env
+sonar-mcp-ca/
