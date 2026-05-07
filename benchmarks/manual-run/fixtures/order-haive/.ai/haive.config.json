@@ -1,0 +1,9 @@
+{
+  "autopilot": true,
+  "defaultScope": "team",
+  "defaultStatus": "validated",
+  "autoApproveDelayHours": 72,
+  "autoPromoteMinReads": 1,
+  "autoSessionEnd": true,
+  "autoContext": true
+}
