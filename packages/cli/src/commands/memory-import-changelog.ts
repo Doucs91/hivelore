@@ -48,8 +48,8 @@ function parseChangelog(content: string): ChangelogEntry[] {
 
   for (const section of sections) {
     const versionMatch = section.match(/^(?:\[?)([0-9]+\.[0-9]+[.0-9]*)/);
-    if (!versionMatch) continue;
-    const version = versionMatch[1];
+    const version = versionMatch?.[1];
+    if (!version) continue;
 
     const entry: ChangelogEntry = {
       version,
@@ -63,7 +63,7 @@ function parseChangelog(content: string): ChangelogEntry[] {
     // Extract sub-sections
     const subSections = section.split(/^#{2,4}\s+/m);
     for (const sub of subSections) {
-      const firstLine = sub.split("\n")[0].toLowerCase().trim();
+      const firstLine = (sub.split("\n")[0] ?? "").toLowerCase().trim();
       const items = sub
         .split("\n")
         .slice(1)
@@ -87,8 +87,9 @@ function parseChangelog(content: string): ChangelogEntry[] {
       for (const sub2 of subSections) {
         for (const line of sub2.split("\n")) {
           const breakingMatch = line.match(/BREAKING CHANGE[S]?:\s*(.+)/i);
-          if (breakingMatch && !entry.breaking.includes(breakingMatch[1].trim())) {
-            entry.breaking.push(breakingMatch[1].trim());
+          const breakingText = breakingMatch?.[1]?.trim();
+          if (breakingText && !entry.breaking.includes(breakingText)) {
+            entry.breaking.push(breakingText);
           }
         }
       }
@@ -161,7 +162,8 @@ export function registerMemoryImportChangelog(memory: Command): void {
       // Filter by versions if specified
       if (opts.versions) {
         if (opts.versions === "latest") {
-          entries = [entries[0]];
+          const latest = entries[0];
+          entries = latest ? [latest] : [];
         } else {
           const requested = opts.versions.split(",").map((v) => v.trim());
           entries = entries.filter((e) => requested.includes(e.version));

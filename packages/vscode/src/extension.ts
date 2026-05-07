@@ -69,9 +69,10 @@ function updateStatusBar(
 export function activate(ctx: vscode.ExtensionContext): void {
   const root = getWorkspaceRoot();
   if (!root) return;
+  const workspaceRoot = root;
 
   // ── Core store ─────────────────────────────────────────────────────────
-  const store = new MemoryStore(root, () => {
+  const store = new MemoryStore(workspaceRoot, () => {
     codeLensProvider.refresh();
     treeProvider.refresh();
     updateStatusBar(statusBarItem, store);
@@ -101,7 +102,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   ctx.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (editor?.document.uri.scheme === "file") {
-        const rel = relativeToWorkspace(editor.document.uri, root);
+        const rel = relativeToWorkspace(editor.document.uri, workspaceRoot);
         treeProvider.filterToFile(rel);
         codeLensProvider.refresh();
       } else {
@@ -131,7 +132,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
     const cfg = vscode.workspace.getConfiguration("haive");
     if (!cfg.get<boolean>("highlightActionRequired", true)) return;
 
-    const rel = relativeToWorkspace(editor.document.uri, root);
+    const rel = relativeToWorkspace(editor.document.uri, workspaceRoot);
     const hasThreat = store
       .forFile(rel)
       .some((m) => m.requiresHumanApproval);
@@ -168,7 +169,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
       async (uri?: vscode.Uri) => {
         const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
         if (targetUri) {
-          const rel = relativeToWorkspace(targetUri, root);
+          const rel = relativeToWorkspace(targetUri, workspaceRoot);
           treeProvider.filterToFile(rel);
         }
         await vscode.commands.executeCommand("haive.memoriesView.focus");

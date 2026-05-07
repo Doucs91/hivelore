@@ -29,6 +29,7 @@ export interface HaivePaths {
   memoriesDir: string;
   personalDir: string;
   teamDir: string;
+  sharedDir: string;
   moduleDir: string;
   modulesContextDir: string;
 }
@@ -44,6 +45,7 @@ export function resolveHaivePaths(projectRoot: string): HaivePaths {
     memoriesDir,
     personalDir: path.join(memoriesDir, "personal"),
     teamDir: path.join(memoriesDir, "team"),
+    sharedDir: path.join(memoriesDir, "shared"),
     moduleDir: path.join(memoriesDir, "module"),
     modulesContextDir: path.join(haiveDir, "modules"),
   };
@@ -51,7 +53,7 @@ export function resolveHaivePaths(projectRoot: string): HaivePaths {
 
 export function memoryFilePath(
   paths: HaivePaths,
-  scope: "personal" | "team" | "module",
+  scope: "personal" | "team" | "module" | "shared",
   id: string,
   module?: string,
 ): string {
@@ -60,6 +62,8 @@ export function memoryFilePath(
       ? paths.personalDir
       : scope === "team"
         ? paths.teamDir
-        : path.join(paths.moduleDir, module ?? "_unscoped");
+        : scope === "shared"
+          ? paths.sharedDir
+          : path.join(paths.moduleDir, module ?? "_unscoped");
   return path.join(base, `${id}.md`);
 }

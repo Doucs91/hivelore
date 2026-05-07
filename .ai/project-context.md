@@ -1,7 +1,7 @@
-# Project context — hAIve (v0.9.3)
+# Project context — hAIve (v0.9.7)
 
 > Team-first persistent memory layer for AI coding agents. Built with TypeScript, published as a pnpm workspace monorepo.
-> **Current version**: 0.9.3 — @hiveai/core, cli, mcp, embeddings are versioned together.
+> **Current version**: 0.9.7 — @hiveai/core, cli, mcp, embeddings are versioned together.
 > **Repo**: `/home/sd/Documents/Dev/New idea` (git, branch: main)
 > **Test project**: `sandaga-monorepo/` (gitignored, large Next.js + NestJS marketplace)
 
@@ -27,9 +27,9 @@ Monorepo with four small, single-purpose packages connected by workspace depende
 - Pure tool handlers: MCP tools are unit-testable async functions; the server is just glue.
 - tsup `external` lists are mandatory for any package that imports a workspace or heavy native dep.
 - Memory IDs follow `YYYY-MM-DD-{type}-{slug}` and live under `.ai/memories/{personal|team|module}/`.
-- v0.1 follows "Personal first": new memories default to `personal`; promotion to `team` is explicit.
+- Default memory scope depends on project config: manual mode defaults to `personal`, autopilot defaults to validated `team` memories.
 
-## Memory types (v0.2.6)
+## Memory types
 
 - `convention` — coding standards, naming rules, patterns to follow
 - `decision` — architecture decisions with rationale (why, not just what)
@@ -38,7 +38,7 @@ Monorepo with four small, single-purpose packages connected by workspace depende
 - `glossary` — domain terminology definitions
 - `attempt` — **failed approaches** ("tried X, failed because Y, use Z instead") — auto-validated, no approval needed. Use `haive memory tried` CLI or `mem_tried` MCP tool.
 
-## Key v0.2.6 features
+## Key features
 
 - `mem_tried` / `haive memory tried` — captures failed approaches as `attempt` memories (auto-validated)
 - AND→OR search fallback — `mem_search` and `haive memory query` fall back to OR when AND returns 0 results

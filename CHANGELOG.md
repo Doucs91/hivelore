@@ -6,6 +6,17 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.7] — enforcement direction and release hygiene
+
+### Fixed
+- Aligned the root package version and project context version with the publishable package line.
+- Added consistent `shared` scope path support for memory file resolution.
+- Restored full `pnpm -r typecheck` health across core, CLI, MCP, embeddings, VS Code, and GitHub Action packages.
+- Updated CLI/MCP call sites for current `code_map` and embeddings APIs.
+
+### Added
+- Added an enforcement strategy plan for narrowing hAIve around briefing gates, PR guardrails, and a smaller default MCP tool surface.
+
 ## [0.2.0] — token-aware briefing, code map, sync hooks
 
 ### Added — token reduction

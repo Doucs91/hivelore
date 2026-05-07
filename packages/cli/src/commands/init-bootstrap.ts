@@ -5,6 +5,7 @@
  * No AI call, no network — pure static analysis.
  */
 import { readdir, readFile } from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
@@ -105,9 +106,9 @@ async function scanDirs(root: string, maxDepth = 2): Promise<string[]> {
   const results: string[] = [];
   async function walk(dir: string, depth: number): Promise<void> {
     if (depth > maxDepth) return;
-    let entries: Awaited<ReturnType<typeof readdir>>;
+    let entries: Dirent<string>[];
     try {
-      entries = await readdir(dir, { withFileTypes: true });
+      entries = await readdir(dir, { withFileTypes: true, encoding: "utf8" });
     } catch {
       return;
     }

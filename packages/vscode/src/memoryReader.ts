@@ -155,7 +155,7 @@ export class MemoryStore {
   private watcher: vscode.FileSystemWatcher | undefined;
 
   constructor(
-    private readonly workspaceRoot: string,
+    public readonly workspaceRoot: string,
     private readonly onChanged: () => void,
   ) {}
 

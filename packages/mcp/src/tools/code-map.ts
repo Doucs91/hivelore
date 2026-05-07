@@ -36,9 +36,8 @@ export const CodeMapInputSchema = {
     ),
 };
 
-export type CodeMapInput = {
-  [K in keyof typeof CodeMapInputSchema]: z.infer<(typeof CodeMapInputSchema)[K]>;
-};
+export const CodeMapInputZod = z.object(CodeMapInputSchema);
+export type CodeMapInput = z.infer<typeof CodeMapInputZod>;
 
 export interface CodeMapToolOutput {
   available: boolean;

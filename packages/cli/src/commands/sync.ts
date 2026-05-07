@@ -474,9 +474,10 @@ export function registerSync(program: Command): void {
       // --embed: rebuild embeddings index after sync
       if (opts.embed) {
         try {
-          const emb = await import("@hiveai/embeddings");
+          const { Embedder, rebuildIndex } = await import("@hiveai/embeddings");
           log(ui.dim("embed: rebuilding index…"));
-          const report = await emb.rebuildIndex(paths);
+          const embedder = await Embedder.create();
+          const { report } = await rebuildIndex(paths, embedder);
           log(ui.dim(`embed: index rebuilt (${report.added} added, ${report.updated} updated, ${report.removed} removed)`));
         } catch {
           ui.warn("--embed: @hiveai/embeddings not available or index build failed. Run `haive embeddings index` manually.");
