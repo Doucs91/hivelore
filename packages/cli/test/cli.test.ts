@@ -64,6 +64,13 @@ describe("hAIve CLI integration", () => {
     const hooks = await readFile(claudeSettings, "utf8");
     expect(hooks).toContain("haive enforce session-start");
     expect(hooks).toContain("haive enforce pre-tool-use");
+    expect(existsSync(path.join(workDir, ".github/workflows/haive-enforcement.yml"))).toBe(true);
+    const config = JSON.parse(await readFile(path.join(workDir, ".ai/haive.config.json"), "utf8")) as {
+      enforcement?: { mode?: string; requireBriefingFirst?: boolean; requireMemoryVerify?: boolean };
+    };
+    expect(config.enforcement?.mode).toBe("strict");
+    expect(config.enforcement?.requireBriefingFirst).toBe(true);
+    expect(config.enforcement?.requireMemoryVerify).toBe(true);
   });
 
   it("init writes project-level MCP configs with HAIVE_PROJECT_ROOT", async () => {
@@ -199,5 +206,18 @@ describe("hAIve CLI integration", () => {
     const allowed = await runWithInput(workDir, ["enforce", "pre-tool-use", "--dir", workDir], payload);
     expect(allowed.code).toBe(0);
     expect(allowed.stderr).toBe("");
+  });
+
+  it("briefing satisfies the agent-agnostic local enforcement gate", async () => {
+    await run(workDir, ["briefing", "--task", "local enforcement smoke", "--budget", "quick", "--dir", workDir]);
+    const { stdout } = await run(workDir, ["enforce", "check", "--stage", "local", "--json", "--dir", workDir]);
+    const report = JSON.parse(stdout) as { should_block: boolean; findings: Array<{ code: string }> };
+    expect(report.should_block).toBe(false);
+    expect(report.findings.some((f) => f.code === "briefing-loaded")).toBe(true);
+  });
+
+  it("run wraps arbitrary agent commands with a hAIve session marker", async () => {
+    const { stdout } = await run(workDir, ["run", "--dir", workDir, "--", "node", "-e", "console.log(process.env.HAIVE_ENFORCEMENT)"]);
+    expect(stdout).toContain("strict");
   });
 });

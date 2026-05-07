@@ -1,0 +1,23 @@
+name: haive-enforcement
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  haive-enforcement:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install hAIve
+        run: npm install -g @hiveai/cli
+      - name: Enforce hAIve policy
+        run: haive enforce ci

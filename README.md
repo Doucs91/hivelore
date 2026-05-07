@@ -108,9 +108,20 @@ The agent gets project context + module contexts + relevant memories in one call
 
 ```bash
 haive sync                          # Verify anchors + auto-promote
-haive install-hooks                 # Auto-run sync after every git pull/merge
+haive enforce install               # Install strict MCP + Git + CI enforcement gates
 haive sync --embed                  # Also rebuild semantic search index
 ```
+
+For CLI-based agents that do not expose blocking hooks, run them through hAIve:
+
+```bash
+haive run -- <agent-command> [args...]
+```
+
+The wrapper creates a hAIve session marker, writes a compact briefing file, and
+exports `HAIVE_PROJECT_ROOT`, `HAIVE_SESSION_ID`, `HAIVE_BRIEFING_FILE`, and
+strict enforcement environment variables. Git hooks and CI remain the final
+agent-agnostic gates.
 
 ---
 
@@ -138,6 +149,7 @@ your-project/
     ├── copilot-instructions.md   # Auto-generated bridge for GitHub Copilot
     └── workflows/
         └── haive-sync.yml        # CI sync workflow (haive init --with-ci)
+        └── haive-enforcement.yml # Required hAIve policy gate
 ```
 
 ---
@@ -177,7 +189,12 @@ haive init [--with-ci] [--no-bridges]       # Initialize .ai/ structure + bridge
 haive mcp [--root <path>]                   # Start MCP server
 haive briefing [--task <text>] [--files]    # Print project context + relevant memories
 haive sync [--since <ref>] [--embed]        # Verify anchors + auto-promote + decay report
-haive install-hooks                         # Auto-run sync after git pull/merge
+haive enforce install                       # Install strict MCP + Git + CI + client-hook policy gates
+haive enforce status                        # Report enforcement posture for this repo
+haive enforce check [--stage pre-commit]    # Universal local policy gate
+haive enforce ci                            # CI required-check entrypoint
+haive run -- <agent command>                # Wrap any CLI agent in a hAIve-enforced session
+haive install-hooks                         # Legacy hook installer; now uses blocking hAIve policy gates
 haive install-hooks claude                  # Enforce briefing before Claude Code edits
 haive enforce session-start                 # Hook helper: load briefing + write marker
 haive enforce pre-tool-use                  # Hook helper: block edits without briefing

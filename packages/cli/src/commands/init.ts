@@ -336,7 +336,7 @@ export function registerInit(program: Command): void {
         }
       }
 
-      // autopilot: CI + git hooks + code-map included automatically
+      // autopilot: CI + enforcement hooks + code-map included automatically
       const wantCi = opts.withCi || autopilot;
       if (wantCi) {
         const ciPath = path.join(root, ".github", "workflows", "haive-sync.yml");
@@ -350,29 +350,18 @@ export function registerInit(program: Command): void {
       }
 
       if (autopilot) {
-        // Install git hooks (post-merge + post-rewrite + pre-push reminder)
+        // Install agent-agnostic enforcement gates (MCP policy config, git hooks,
+        // CI workflow, and supported client hooks such as Claude Code).
         const haiveBin = process.argv[1]!;
-        const hookResult = spawnSync(
+        const enforcementResult = spawnSync(
           process.execPath,
-          [haiveBin, "install-hooks", "--dir", root],
+          [haiveBin, "enforce", "install", "--dir", root],
           { encoding: "utf8" },
         );
-        if (hookResult.status === 0) {
-          ui.success("Git hooks installed (auto-sync after pull/merge)");
+        if (enforcementResult.status === 0) {
+          ui.success("hAIve enforcement installed (MCP, git, CI, client hooks where available)");
         } else {
-          ui.warn("Git hooks not installed (not a git repo or no .git/ found) — run `haive install-hooks` manually");
-        }
-
-        // Install project-scoped Claude Code enforcement hooks when possible.
-        const claudeHookResult = spawnSync(
-          process.execPath,
-          [haiveBin, "install-hooks", "claude", "--scope", "project", "--dir", root],
-          { encoding: "utf8" },
-        );
-        if (claudeHookResult.status === 0) {
-          ui.success("Claude Code enforcement hooks installed (.claude/settings.local.json)");
-        } else {
-          ui.warn("Claude Code hooks not installed — run `haive install-hooks claude --scope project` manually");
+          ui.warn("hAIve enforcement not fully installed — run `haive enforce install` manually");
         }
 
         // Build initial code-map
@@ -438,8 +427,8 @@ export function registerInit(program: Command): void {
         console.log(ui.dim("  ✓ Proposed memories auto-approve after 72h without rejection"));
         console.log(ui.dim("  ✓ Session recap saved automatically when the AI session closes"));
         console.log(ui.dim("  ✓ Code-map refreshes automatically after every pull"));
-        console.log(ui.dim("  ✓ Git hooks installed (auto-sync after pull/merge)"));
-        console.log(ui.dim("  ✓ CI workflow created (pr-stale-check + sync-on-merge)"));
+        console.log(ui.dim("  ✓ Agent-agnostic enforcement gates installed (MCP, git, CI, wrapper-ready)"));
+        console.log(ui.dim("  ✓ CI workflows created (sync + enforcement)"));
         if (stacksToSeed.length > 0) {
           console.log(ui.dim(`  ✓ Stack memory packs pre-seeded (${stacksToSeed.join(", ")})`));
         }

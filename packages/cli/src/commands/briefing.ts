@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import {
@@ -16,6 +16,7 @@ import {
   resolveHaivePaths,
   tokenizeQuery,
   trackReads,
+  writeBriefingMarker,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 import { buildRadar, radarHasContent, type RadarReport } from "../utils/briefing-radar.js";
@@ -148,6 +149,14 @@ export function registerBriefing(program: Command): void {
     .action(async (opts: BriefingOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
+      if (existsSync(paths.haiveDir)) {
+        await mkdir(paths.runtimeDir, { recursive: true });
+        await writeBriefingMarker(paths, {
+          task: opts.task ?? "CLI briefing",
+          source: "haive-briefing-cli",
+          sessionId: process.env.HAIVE_SESSION_ID,
+        }).catch(() => { /* marker is best-effort */ });
+      }
 
       type BB = "quick" | "balanced" | "deep";
       let budgetPreset: BB | null = null;

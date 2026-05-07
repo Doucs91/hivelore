@@ -37,9 +37,8 @@ fi
 const PRE_PUSH_BODY = `#!/bin/sh
 ${HOOK_MARKER} — keep this block to allow upgrades. Hand-edit anything outside it.
 
-# Before pushing, run haive precommit to surface known anti-patterns and stale memories.
-# Exit 0 always — this is advisory only (set HAIVE_BLOCK=1 to make it blocking).
-HAIVE_BLOCK=\${HAIVE_BLOCK:-0}
+# Before pushing, run the hAIve workflow policy gate. This is blocking by default:
+# initialized projects should not accept AI changes that bypass hAIve.
 
 _haive() {
   if command -v haive >/dev/null 2>&1; then haive "$@"
@@ -48,15 +47,7 @@ _haive() {
   fi
 }
 
-# Run pre-commit check on diff between local and remote
-LOCAL_BRANCH=\$(git rev-parse --abbrev-ref HEAD)
-REMOTE_SHA=\$(git rev-parse --verify "@{u}" 2>/dev/null || echo "")
-if [ -n "\$REMOTE_SHA" ]; then
-  DIFF=\$(git diff "\$REMOTE_SHA"..HEAD 2>/dev/null || "")
-  if [ -n "\$DIFF" ]; then
-    _haive precommit --quiet 2>/dev/null || true
-  fi
-fi
+_haive enforce check --stage pre-push --dir . || exit $?
 
 # Remind agent to save session recap if env var is set
 if [ "\$HAIVE_SESSION_REMINDER" = "1" ]; then
@@ -70,6 +61,18 @@ const HOOKS: { name: string; body: string }[] = [
   { name: "post-merge",   body: POST_MERGE_BODY },
   { name: "post-rewrite", body: POST_MERGE_BODY },
   { name: "pre-push",     body: PRE_PUSH_BODY },
+  {
+    name: "pre-commit",
+    body: `#!/bin/sh
+${HOOK_MARKER} — keep this block to allow upgrades. Hand-edit anything outside it.
+
+if command -v haive >/dev/null 2>&1; then
+  haive enforce check --stage pre-commit --dir . || exit $?
+elif [ -x ./node_modules/.bin/haive ]; then
+  ./node_modules/.bin/haive enforce check --stage pre-commit --dir . || exit $?
+fi
+`,
+  },
 ];
 
 async function installGitHooks(opts: InstallHooksOptions): Promise<void> {
@@ -101,8 +104,8 @@ async function installGitHooks(opts: InstallHooksOptions): Promise<void> {
   }
   ui.success(`Installed ${installed} git hook(s) in .git/hooks/${skipped ? `, skipped ${skipped}` : ""}`);
   ui.info("post-merge: haive sync runs after every pull/merge.");
-  ui.info("pre-push:   haive precommit runs before every push (advisory, never blocks).");
-  ui.info("           Set HAIVE_BLOCK=1 in your shell to make pre-push blocking.");
+  ui.info("pre-commit: haive enforce check blocks unsafe staged changes.");
+  ui.info("pre-push:   haive enforce check blocks pushes that bypass briefing/session recap policy.");
 }
 
 async function installClaudeHooks(opts: InstallHooksOptions): Promise<void> {

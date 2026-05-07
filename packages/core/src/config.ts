@@ -119,8 +119,16 @@ export interface HaiveConfig {
    * treat hAIve as infrastructure, not an optional convention.
    */
   enforcement?: {
+    /** Enforcement posture: advisory reports only, warn in hooks, or block workflow gates. */
+    mode?: "off" | "advisory" | "strict";
     /** Require get_briefing / mem_relevant_to before state-changing MCP tools. */
     requireBriefingFirst?: boolean;
+    /** Require a session recap before pre-push / CI gates pass. */
+    requireSessionRecap?: boolean;
+    /** Require memory anchor verification before pre-commit / CI gates pass. */
+    requireMemoryVerify?: boolean;
+    /** Block changes when anchored decisions/gotchas have become stale. */
+    blockStaleDecisionChanges?: boolean;
     /** Default MCP surface: enforcement = small public tool set; full = legacy all tools. */
     toolProfile?: "enforcement" | "full";
   };
@@ -135,7 +143,11 @@ export const DEFAULT_CONFIG: HaiveConfig = {
   autoSessionEnd: false,
   autoContext: false,
   enforcement: {
+    mode: "strict",
     requireBriefingFirst: true,
+    requireSessionRecap: true,
+    requireMemoryVerify: true,
+    blockStaleDecisionChanges: true,
     toolProfile: "enforcement",
   },
 };
@@ -149,7 +161,11 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
   autoSessionEnd: true,
   autoContext: true,
   enforcement: {
+    mode: "strict",
     requireBriefingFirst: true,
+    requireSessionRecap: true,
+    requireMemoryVerify: true,
+    blockStaleDecisionChanges: true,
     toolProfile: "enforcement",
   },
 };

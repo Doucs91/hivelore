@@ -6,15 +6,29 @@ Reposition hAIve from a general-purpose AI memory server into a Git-native enfor
 
 ## Implementation Status
 
-The first enforcement implementation is now in place:
+The first enforcement implementation is now in place and has moved from
+Claude-specific hooks toward workflow-level, agent-agnostic policy:
 
 - Default MCP tool profile is `enforcement` (10 public tools + 2 prompts).
 - `HAIVE_TOOL_PROFILE=full` restores the legacy full MCP surface.
 - MCP state-changing hAIve tools require `get_briefing` or `mem_relevant_to` first unless disabled in `.ai/haive.config.json`.
 - `haive enforce session-start` writes a local briefing marker and prints compact briefing context.
 - `haive enforce pre-tool-use` blocks write-like Claude Code tool calls when no recent briefing marker exists.
+- `haive briefing` also writes a local briefing marker, so CLI-first and custom agents can satisfy the same gate.
+- `haive enforce install` enables strict policy in config and installs git, CI, and supported client hooks.
+- `haive enforce check` is the universal local policy gate for wrappers, git hooks, and any agent client.
+- `haive enforce ci` is the required-check entrypoint for GitHub Actions.
+- `haive enforce status` reports whether the repository is protected.
+- `haive run -- <agent command>` wraps any CLI agent with `HAIVE_PROJECT_ROOT`, `HAIVE_SESSION_ID`, `HAIVE_BRIEFING_FILE`, and strict hAIve environment.
 - `haive install-hooks claude` installs `SessionStart`, `PreToolUse`, `PostToolUse`, and `SessionEnd` hooks.
-- Autopilot `haive init` attempts to install project-scoped Claude Code enforcement hooks.
+- Autopilot `haive init` attempts to install the full workflow-level enforcement set.
+
+Important product principle:
+
+> hAIve cannot control arbitrary agents that directly mutate the filesystem without
+> any integration point. It becomes agent-agnostic by controlling universal workflow
+> gates: MCP, Git hooks, CI required checks, and a `haive run` wrapper. Client hooks
+> such as Claude Code are accelerators, not the foundation.
 
 The product promise should become:
 
@@ -120,6 +134,21 @@ Success criteria:
 
 - hAIve can block unsafe PRs with a clear, auditable reason.
 - Reviewers see relevant team memory without asking the agent.
+
+### Level 6: Agent Wrapper
+
+For agents without blocking hooks, hAIve should provide the execution envelope:
+
+- `haive run -- claude`
+- `haive run -- codex`
+- `haive run -- aider`
+- `haive run -- <custom-agent>`
+
+The wrapper creates a briefing marker, writes a compact briefing file, exports
+`HAIVE_PROJECT_ROOT`, `HAIVE_SESSION_ID`, and `HAIVE_BRIEFING_FILE`, pins the MCP
+tool profile to enforcement by default, and lets Git/CI perform the final block.
+This is the bridge between "works with many agents" and "does not depend on any
+one agent vendor".
 
 ## MCP Tool Simplification
 

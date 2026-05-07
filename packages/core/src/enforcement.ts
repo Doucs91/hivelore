@@ -4,6 +4,7 @@ import path from "node:path";
 import type { HaivePaths } from "./paths.js";
 
 export const BRIEFING_MARKER_TTL_MS = 12 * 60 * 60 * 1000;
+export const SESSION_RECAP_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface BriefingMarker {
   session_id: string;
@@ -78,4 +79,9 @@ export async function hasRecentBriefingMarker(
     }
   }
   return false;
+}
+
+export function isFreshIsoDate(value: string | Date, ttlMs: number, now = Date.now()): boolean {
+  const ts = value instanceof Date ? value.getTime() : Date.parse(value);
+  return Number.isFinite(ts) && now - ts <= ttlMs;
 }

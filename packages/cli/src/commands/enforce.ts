@@ -1,16 +1,28 @@
+import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { Command } from "commander";
 import {
   findProjectRoot,
   hasRecentBriefingMarker,
+  isFreshIsoDate,
+  loadConfig,
+  loadMemoriesFromDir,
   resolveBriefingBudget,
   resolveHaivePaths,
+  saveConfig,
+  SESSION_RECAP_TTL_MS,
+  verifyAnchor,
   writeBriefingMarker,
+  type HaiveConfig,
 } from "@hiveai/core";
-import { getBriefing } from "@hiveai/mcp";
+import { getBriefing, preCommitCheck } from "@hiveai/mcp";
+import { ui } from "../utils/ui.js";
+import { installClaudeHooksAtPath, defaultClaudeSettingsPath } from "../utils/claude-hooks.js";
 
 const MAX_STDIN_BYTES = 256 * 1024;
+const ENFORCE_HOOK_MARKER = "# hAIve enforcement hook";
 
 interface HookPayload {
   cwd?: string;
@@ -25,12 +37,110 @@ interface EnforceOptions {
   task?: string;
   source?: string;
   sessionId?: string;
+  json?: boolean;
+  stage?: "local" | "pre-commit" | "pre-push" | "ci";
+  strict?: boolean;
+  claude?: boolean;
+  git?: boolean;
+  ci?: boolean;
+}
+
+interface EnforcementFinding {
+  severity: "ok" | "info" | "warn" | "error";
+  code: string;
+  message: string;
+  fix?: string;
+}
+
+interface EnforcementReport {
+  root: string;
+  initialized: boolean;
+  mode: "off" | "advisory" | "strict";
+  should_block: boolean;
+  findings: EnforcementFinding[];
 }
 
 export function registerEnforce(program: Command): void {
   const enforce = program
     .command("enforce")
-    .description("Agent enforcement helpers used by hAIve-installed hooks.");
+    .description(
+      "Agent-agnostic enforcement helpers: install policy gates, report status, and block unsafe workflows.",
+    );
+
+  enforce
+    .command("install")
+    .description("Install hAIve enforcement across MCP config, git hooks, CI template, and supported client hooks.")
+    .option("-d, --dir <dir>", "project root")
+    .option("--no-git", "skip git pre-commit/pre-push enforcement hooks")
+    .option("--no-claude", "skip Claude Code hooks")
+    .option("--no-ci", "skip GitHub Actions enforcement workflow")
+    .action(async (opts: EnforceOptions) => {
+      const root = findProjectRoot(opts.dir);
+      const paths = resolveHaivePaths(root);
+      await mkdir(paths.haiveDir, { recursive: true });
+      const current = await loadConfig(paths);
+      await saveConfig(paths, {
+        ...current,
+        enforcement: {
+          ...current.enforcement,
+          mode: "strict",
+          requireBriefingFirst: true,
+          requireSessionRecap: true,
+          requireMemoryVerify: true,
+          blockStaleDecisionChanges: true,
+          toolProfile: "enforcement",
+        },
+      });
+      ui.success("hAIve strict enforcement enabled in .ai/haive.config.json");
+
+      if (opts.git !== false) await installGitEnforcement(root);
+      if (opts.ci !== false) await installCiEnforcement(root);
+      if (opts.claude !== false) {
+        try {
+          const result = await installClaudeHooksAtPath(defaultClaudeSettingsPath("project", root));
+          ui.success(`${result.created ? "Created" : "Patched"} Claude Code hooks (${path.relative(root, result.settingsPath)})`);
+        } catch (err) {
+          ui.warn(`Claude Code hooks not installed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
+      ui.info("Agent-agnostic gates are now active at workflow level: MCP, git, CI, and optional client hooks.");
+      ui.info("Use `haive run -- <agent command>` for agents that do not expose blocking hooks.");
+    });
+
+  enforce
+    .command("status")
+    .description("Show whether this project has agent-agnostic hAIve enforcement installed.")
+    .option("-d, --dir <dir>", "project root")
+    .option("--json", "emit JSON", false)
+    .action(async (opts: EnforceOptions) => {
+      const report = await buildEnforcementReport(opts.dir, "local");
+      printReport(report, Boolean(opts.json));
+      if (report.should_block) process.exitCode = 1;
+    });
+
+  enforce
+    .command("check")
+    .description("Run the hAIve policy gate. Intended for pre-commit, pre-push, wrappers, and any agent client.")
+    .option("-d, --dir <dir>", "project root")
+    .option("--stage <stage>", "local | pre-commit | pre-push | ci", "local")
+    .option("--json", "emit JSON", false)
+    .action(async (opts: EnforceOptions) => {
+      const report = await buildEnforcementReport(opts.dir, opts.stage ?? "local");
+      printReport(report, Boolean(opts.json));
+      if (report.should_block) process.exit(2);
+    });
+
+  enforce
+    .command("ci")
+    .description("CI entrypoint: fail if the repository violates hAIve enforcement policy.")
+    .option("-d, --dir <dir>", "project root")
+    .option("--json", "emit JSON", false)
+    .action(async (opts: EnforceOptions) => {
+      const report = await buildEnforcementReport(opts.dir, "ci");
+      printReport(report, Boolean(opts.json));
+      if (report.should_block) process.exit(2);
+    });
 
   enforce
     .command("session-start")
@@ -131,6 +241,364 @@ export function registerEnforce(program: Command): void {
     });
 }
 
+export async function runWithEnforcement(
+  command: string,
+  args: string[],
+  opts: { dir?: string; task?: string },
+): Promise<void> {
+  const root = findProjectRoot(opts.dir);
+  const paths = resolveHaivePaths(root);
+  if (!existsSync(paths.haiveDir)) {
+    ui.error(`No .ai/ found at ${root}. Run \`haive init\` first.`);
+    process.exit(1);
+  }
+
+  const sessionId = `haive-run-${process.pid}-${Date.now()}`;
+  const task = opts.task ?? `Run agent command: ${[command, ...args].join(" ")}`;
+  await writeBriefingMarker(paths, {
+    sessionId,
+    task,
+    source: "haive-run",
+  });
+  const briefingFile = await writeWrapperBriefing(paths, sessionId, task);
+
+  const before = await buildEnforcementReport(root, "local", sessionId);
+  const blocking = before.findings.filter((f) => f.severity === "error" && f.code !== "session-recap-missing");
+  if (blocking.length > 0) {
+    printReport({ ...before, should_block: true, findings: blocking }, false);
+    process.exit(2);
+  }
+
+  ui.info(`hAIve briefing marker created for wrapped agent session: ${sessionId}`);
+  ui.info(`Briefing written to ${path.relative(root, briefingFile)} and exported as HAIVE_BRIEFING_FILE`);
+  const child = spawn(command, args, {
+    cwd: root,
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      HAIVE_PROJECT_ROOT: root,
+      HAIVE_SESSION_ID: sessionId,
+      HAIVE_BRIEFING_FILE: briefingFile,
+      HAIVE_ENFORCEMENT: "strict",
+      HAIVE_TOOL_PROFILE: process.env.HAIVE_TOOL_PROFILE ?? "enforcement",
+    },
+  });
+  await new Promise<void>((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", (code, signal) => {
+      if (signal) process.exit(128);
+      process.exitCode = code ?? 0;
+      resolve();
+    });
+  });
+}
+
+async function writeWrapperBriefing(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  sessionId: string,
+  task: string,
+): Promise<string> {
+  const budget = resolveBriefingBudget("quick", {
+    max_tokens: 2500,
+    max_memories: 5,
+    include_module_contexts: false,
+  });
+  const briefing = await getBriefing({
+    task,
+    files: [],
+    max_tokens: budget.max_tokens,
+    max_memories: budget.max_memories,
+    include_project_context: true,
+    include_module_contexts: budget.include_module_contexts,
+    semantic: true,
+    include_stale: false,
+    track: true,
+    format: "actions",
+    symbols: [],
+    min_semantic_score: 0.25,
+    budget_preset: "quick",
+  }, { paths });
+  const dir = path.join(paths.runtimeDir, "enforcement", "briefings");
+  await mkdir(dir, { recursive: true });
+  const file = path.join(dir, `${sessionId}.md`);
+  const parts = [
+    "# hAIve Briefing",
+    "",
+    `Task: ${task}`,
+    "",
+  ];
+  if (briefing.last_session) parts.push("## Last Session", briefing.last_session.body.trim(), "");
+  if (briefing.project_context?.content) parts.push("## Project Context", briefing.project_context.content.trim(), "");
+  if (briefing.memories.length > 0) {
+    parts.push("## Relevant Memories");
+    for (const memory of briefing.memories) {
+      parts.push("", `### ${memory.id}`, memory.body.trim());
+    }
+  }
+  if (briefing.setup_warnings.length > 0) {
+    parts.push("", "## Setup Warnings", ...briefing.setup_warnings.map((w) => `- ${w}`));
+  }
+  await writeFile(file, parts.join("\n") + "\n", "utf8");
+  return file;
+}
+
+async function buildEnforcementReport(
+  dir: string | undefined,
+  stage: "local" | "pre-commit" | "pre-push" | "ci",
+  sessionId?: string,
+): Promise<EnforcementReport> {
+  const root = findProjectRoot(dir);
+  const paths = resolveHaivePaths(root);
+  const initialized = existsSync(paths.haiveDir);
+  const config = initialized ? await loadConfig(paths) : {};
+  const mode = config.enforcement?.mode ?? "strict";
+  const findings: EnforcementFinding[] = [];
+
+  if (!initialized) {
+    return {
+      root,
+      initialized,
+      mode,
+      should_block: true,
+      findings: [{
+        severity: "error",
+        code: "not-initialized",
+        message: "This repository is not initialized with hAIve.",
+        fix: "Run `haive init` or `haive enforce install`.",
+      }],
+    };
+  }
+
+  if (mode === "off") {
+    return {
+      root,
+      initialized,
+      mode,
+      should_block: false,
+      findings: [{ severity: "info", code: "enforcement-off", message: "hAIve enforcement is disabled." }],
+    };
+  }
+
+  if (config.enforcement?.requireBriefingFirst !== false && stage !== "ci") {
+    const hasBriefing = await hasRecentBriefingMarker(paths, sessionId);
+    findings.push(hasBriefing
+      ? { severity: "ok", code: "briefing-loaded", message: "A recent hAIve briefing marker exists." }
+      : {
+          severity: "error",
+          code: "briefing-missing",
+          message: "No recent hAIve briefing marker was found for this workflow.",
+          fix: "Run `haive briefing --task \"...\"`, `haive enforce session-start`, or wrap the agent with `haive run -- <agent>`.",
+        });
+  }
+
+  if (config.enforcement?.requireSessionRecap !== false && (stage === "pre-push" || stage === "ci")) {
+    const hasRecap = await hasRecentSessionRecap(paths);
+    findings.push(hasRecap
+      ? { severity: "ok", code: "session-recap-present", message: "A recent session_recap memory exists." }
+      : {
+          severity: "error",
+          code: "session-recap-missing",
+          message: "No recent session_recap memory was found.",
+          fix: "Run `haive session end --goal ... --accomplished ...` before pushing.",
+        });
+  }
+
+  if (config.enforcement?.requireMemoryVerify !== false) {
+    findings.push(...await verifyMemoryPolicy(paths, config));
+  }
+
+  if (stage === "pre-commit" || stage === "ci") {
+    findings.push(...await runPrecommitPolicy(paths));
+  }
+
+  const hasErrors = findings.some((f) => f.severity === "error");
+  return {
+    root,
+    initialized,
+    mode,
+    should_block: mode === "strict" && hasErrors,
+    findings,
+  };
+}
+
+async function hasRecentSessionRecap(paths: ReturnType<typeof resolveHaivePaths>): Promise<boolean> {
+  if (!existsSync(paths.memoriesDir)) return false;
+  const all = await loadMemoriesFromDir(paths.memoriesDir);
+  return all.some(({ memory }) =>
+    memory.frontmatter.type === "session_recap" &&
+    memory.frontmatter.status !== "rejected" &&
+    isFreshIsoDate(memory.frontmatter.created_at, SESSION_RECAP_TTL_MS),
+  );
+}
+
+async function verifyMemoryPolicy(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  config: HaiveConfig,
+): Promise<EnforcementFinding[]> {
+  if (!existsSync(paths.memoriesDir)) return [];
+  const all = await loadMemoriesFromDir(paths.memoriesDir);
+  const findings: EnforcementFinding[] = [];
+  const staleImportant: string[] = [];
+  let verified = 0;
+
+  for (const { memory } of all) {
+    const fm = memory.frontmatter;
+    const anchored = fm.anchor.paths.length > 0 || fm.anchor.symbols.length > 0;
+    if (!anchored || fm.status === "rejected" || fm.status === "deprecated") continue;
+    verified++;
+    if (fm.status === "stale") {
+      if (["decision", "gotcha", "architecture", "convention"].includes(fm.type)) {
+        staleImportant.push(fm.id);
+      }
+      continue;
+    }
+    if (config.enforcement?.blockStaleDecisionChanges !== false && ["decision", "gotcha"].includes(fm.type)) {
+      const result = await verifyAnchor(memory, { projectRoot: paths.root });
+      if (result.stale) staleImportant.push(fm.id);
+    }
+  }
+
+  findings.push({
+    severity: "ok",
+    code: "memory-verify-ran",
+    message: `Checked ${verified} anchored memories for stale enforcement policy.`,
+  });
+
+  if (staleImportant.length > 0) {
+    findings.push({
+      severity: "error",
+      code: "stale-important-memories",
+      message: `${staleImportant.length} important anchored memories are stale: ${staleImportant.slice(0, 8).join(", ")}`,
+      fix: "Run `haive memory verify --update`, then update or delete stale decisions/gotchas before merging.",
+    });
+  }
+  return findings;
+}
+
+async function runPrecommitPolicy(paths: ReturnType<typeof resolveHaivePaths>): Promise<EnforcementFinding[]> {
+  const staged = await runCommand("git", ["diff", "--cached", "--name-only"], paths.root).catch(() => "");
+  const touchedPaths = staged.split("\n").map((s) => s.trim()).filter(Boolean);
+  if (touchedPaths.length === 0) {
+    return [{ severity: "info", code: "no-staged-changes", message: "No staged changes found for pre-commit policy." }];
+  }
+  const diff = await runCommand("git", ["diff", "--cached"], paths.root).catch(() => "");
+  const result = await preCommitCheck({
+    diff,
+    paths: touchedPaths,
+    block_on: "high-confidence",
+    semantic: true,
+  }, { paths });
+  if (!result.should_block) {
+    return [{
+      severity: "ok",
+      code: "precommit-policy-pass",
+      message: `Pre-commit policy passed for ${touchedPaths.length} staged file(s).`,
+    }];
+  }
+  return [{
+    severity: "error",
+    code: "precommit-policy-block",
+    message: `Pre-commit policy matched ${result.summary.anti_patterns} anti-pattern(s), ${result.summary.stale_anchors} stale anchor(s).`,
+    fix: "Review the hAIve warnings, then update the code or the relevant memories.",
+  }];
+}
+
+async function installGitEnforcement(root: string): Promise<void> {
+  const hooksDir = path.join(root, ".git", "hooks");
+  if (!existsSync(path.join(root, ".git"))) {
+    ui.warn("No .git directory found; git enforcement hooks skipped.");
+    return;
+  }
+  await mkdir(hooksDir, { recursive: true });
+  const hooks = [
+    {
+      name: "pre-commit",
+      body: `#!/bin/sh
+${ENFORCE_HOOK_MARKER}
+haive enforce check --stage pre-commit --dir . || exit $?
+`,
+    },
+    {
+      name: "pre-push",
+      body: `#!/bin/sh
+${ENFORCE_HOOK_MARKER}
+haive enforce check --stage pre-push --dir . || exit $?
+`,
+    },
+  ];
+  for (const hook of hooks) {
+    const file = path.join(hooksDir, hook.name);
+    if (existsSync(file)) {
+      const current = await readFile(file, "utf8").catch(() => "");
+      if (current.includes(ENFORCE_HOOK_MARKER)) {
+        await writeFile(file, hook.body, "utf8");
+      } else {
+        await writeFile(file, `${current.trimEnd()}\n\n${hook.body}`, "utf8");
+      }
+    } else {
+      await writeFile(file, hook.body, "utf8");
+    }
+    await chmod(file, 0o755);
+  }
+  ui.success("Installed blocking git enforcement hooks: pre-commit, pre-push");
+}
+
+async function installCiEnforcement(root: string): Promise<void> {
+  const workflowPath = path.join(root, ".github", "workflows", "haive-enforcement.yml");
+  await mkdir(path.dirname(workflowPath), { recursive: true });
+  if (existsSync(workflowPath)) {
+    ui.info("GitHub Actions enforcement workflow already exists — skipped");
+    return;
+  }
+  await writeFile(workflowPath, `name: haive-enforcement
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  haive-enforcement:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install hAIve
+        run: npm install -g @hiveai/cli
+      - name: Enforce hAIve policy
+        run: haive enforce ci
+`, "utf8");
+  ui.success(`Created ${path.relative(root, workflowPath)}`);
+}
+
+function printReport(report: EnforcementReport, json: boolean): void {
+  if (json) {
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+  console.log(ui.bold(`hAIve enforcement — ${report.mode}`));
+  console.log(ui.dim(`  root: ${report.root}`));
+  for (const finding of report.findings) {
+    const marker = finding.severity === "error"
+      ? ui.red("✗")
+      : finding.severity === "warn"
+        ? ui.yellow("⚠")
+        : finding.severity === "ok"
+          ? ui.green("✓")
+          : ui.dim("•");
+    console.log(`${marker} ${finding.code}: ${finding.message}`);
+    if (finding.fix) console.log(ui.dim(`  fix: ${finding.fix}`));
+  }
+  if (report.should_block) ui.error("hAIve enforcement gate failed.");
+  else ui.success("hAIve enforcement gate passed.");
+}
+
 async function readHookPayload(): Promise<HookPayload> {
   const raw = await readStdin(MAX_STDIN_BYTES);
   if (!raw.trim()) return {};
@@ -181,5 +649,20 @@ async function readStdin(maxBytes: number): Promise<string> {
     process.stdin.on("end", finish);
     process.stdin.on("error", finish);
     setTimeout(finish, 2000);
+  });
+}
+
+function runCommand(cmd: string, args: string[], cwd: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
+    proc.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+    proc.on("error", reject);
+    proc.on("close", (code) => {
+      if (code === 0) resolve(stdout);
+      else reject(new Error(stderr || `${cmd} exited with code ${code}`));
+    });
   });
 }

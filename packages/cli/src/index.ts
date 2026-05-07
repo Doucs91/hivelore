@@ -46,6 +46,7 @@ import { registerRuntime } from "./commands/runtime-journal.js";
 import { registerMemoryTimeline } from "./commands/memory-timeline.js";
 import { registerMemoryConflictCandidates } from "./commands/memory-conflict-candidates.js";
 import { registerEnforce } from "./commands/enforce.js";
+import { registerRun } from "./commands/run.js";
 
 const program = new Command();
 
@@ -61,6 +62,7 @@ registerWelcome(program);
 registerResolveProject(program);
 registerRuntime(program);
 registerEnforce(program);
+registerRun(program);
 
 registerMcp(program);
 registerBriefing(program);
