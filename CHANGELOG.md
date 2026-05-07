@@ -6,6 +6,8 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.9] — agent-agnostic enforcement and `haive run`
+
 ### Added
 - Added agent-agnostic enforcement commands: `haive enforce install`, `haive enforce status`, `haive enforce check`, and `haive enforce ci`.
 - Added `haive run -- <agent command>` to wrap any CLI-based coding agent in a hAIve-enforced session with `HAIVE_PROJECT_ROOT`, `HAIVE_SESSION_ID`, and strict enforcement env vars.
