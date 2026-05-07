@@ -1,0 +1,17 @@
+{
+  "autopilot": false,
+  "defaultScope": "personal",
+  "defaultStatus": "draft",
+  "autoApproveDelayHours": null,
+  "autoPromoteMinReads": 5,
+  "autoSessionEnd": false,
+  "autoContext": false,
+  "enforcement": {
+    "mode": "strict",
+    "requireBriefingFirst": true,
+    "requireSessionRecap": true,
+    "requireMemoryVerify": true,
+    "blockStaleDecisionChanges": true,
+    "toolProfile": "enforcement"
+  }
+}
