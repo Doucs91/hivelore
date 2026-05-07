@@ -15,6 +15,9 @@ coverage
 sandaga-monorepo/
 engram/
 
+# Benchmark fixtures — npm install generates locally
+benchmarks/manual-run/fixtures/**/package-lock.json
+
 # SonarQube MCP (secrets + certificats locaux)
 sonar-mcp.local.env
 sonar-mcp-ca/
