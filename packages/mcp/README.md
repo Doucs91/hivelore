@@ -1,8 +1,10 @@
 # @hiveai/mcp
 
-> **hAIve MCP server** — exposes shared team memory and project context to any MCP-compatible AI client (Claude Code, Cursor, GitHub Copilot, VS Code, etc.)
+> **hAIve MCP server** — policy-aware briefing and memory tools for MCP-compatible AI coding agents.
 
-Connect your AI coding tools to a shared, version-controlled knowledge base. Every convention, architectural decision, and gotcha your team has discovered is surfaced automatically when relevant — no more re-explaining the same things in every session.
+The MCP server is how agents load team policy before changing code. By default it exposes a small enforcement-oriented tool surface: briefing, relevant memories, failed-attempt capture, anchor verification, code-map lookup, and pre-commit checks. The larger maintenance surface is still available with `HAIVE_TOOL_PROFILE=full`.
+
+hAIve is not just a memory database. The MCP layer participates in enforcement: state-changing hAIve tools require `get_briefing` or `mem_relevant_to` first, so agents cannot silently skip team context while using hAIve.
 
 ---
 
@@ -30,16 +32,17 @@ npm install -g @hiveai/cli
 # 1. Install the CLI
 npm install -g @hiveai/cli
 
-# 2. Initialize hAIve in your project (autopilot ON by default)
+# 2. Initialize hAIve in your project (strict enforcement ON by default)
 cd my-project
-haive init          # sets up .ai/, hooks, CI workflow, code-map — everything automatic
+haive init          # .ai/, policy config, hooks, CI workflow, code-map
+haive enforce install
 # haive init --manual  # if you want to approve memories yourself
 
 # 3. Point your AI client at the MCP server (see Client configuration below)
 
 # 4. Bootstrap project context — run bootstrap_project prompt in your AI client once
 
-# 5. Your AI client now calls get_briefing at every session start automatically
+# 5. Start every substantive task with get_briefing or mem_relevant_to
 ```
 
 ---
@@ -102,11 +105,33 @@ The project root can also be set via the `HAIVE_PROJECT_ROOT` environment variab
 
 ---
 
-## MCP Tools
+## Default MCP Tools
+
+By default, hAIve runs with `HAIVE_TOOL_PROFILE=enforcement`. This keeps the agent surface small and aligned with the product promise.
+
+Default tools:
+
+- `get_briefing`
+- `mem_relevant_to`
+- `mem_save`
+- `mem_tried`
+- `mem_search`
+- `mem_get`
+- `mem_update`
+- `mem_verify`
+- `code_map`
+- `pre_commit_check`
+
+Default prompts:
+
+- `bootstrap_project`
+- `post_task`
+
+Set `HAIVE_TOOL_PROFILE=full` to expose advanced lifecycle, import, timeline, conflict, runtime-journal, and diagnostic tools.
 
 ### `get_briefing` ⭐ Start every task with this
 
-One-shot onboarding: returns project context + module contexts + ranked relevant memories under a token budget. Replaces 4–5 separate calls at the start of a session.
+One-shot policy briefing: returns project context + module contexts + ranked decisions, gotchas, failed attempts, stale warnings, and setup warnings under a token budget. This is the first call agents should make before substantive edits.
 
 ```json
 {
@@ -148,7 +173,7 @@ One-shot onboarding: returns project context + module contexts + ranked relevant
 
 ### `mem_save`
 
-Save a piece of knowledge as a persistent memory. For failed approaches, use `mem_tried` instead. For code discoveries during reading, use `mem_observe` instead.
+Save a policy-relevant piece of knowledge. For failed approaches, use `mem_tried` immediately so the next agent sees the trap before repeating it.
 
 > **Autopilot mode:** memories go directly to `validated` with `team` scope by default. No approval cycle.
 

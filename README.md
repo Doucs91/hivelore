@@ -1,30 +1,38 @@
 # hAIve
 
-> Team-first persistent memory layer for AI coding agents.
-> *A blend of **hive** and **AI** — the shared knowledge hive that all your team's AI agents draw from.*
+> Policy enforcement layer for AI coding agents.
+> hAIve makes team knowledge actionable: agents must load the right briefing, respect validated decisions, record failed attempts, and pass Git/CI gates before their changes enter the codebase.
 
 ---
 
 ## The problem
 
-When multiple developers each use an AI coding agent on the same project, **every agent starts from zero**. Every session burns tokens re-explaining the same architecture decisions, Flyway conventions, or "don't touch X because of Y" gotchas. Specialized knowledge that one developer's AI discovered never propagates to teammates' AIs.
+AI coding agents are powerful, but most teams still rely on advisory docs and prompt conventions:
 
-hAIve fixes this by storing your team's knowledge as version-controlled Markdown files that every AI tool reads automatically.
+- "Please read our architecture decisions first."
+- "Do not repeat the migration mistake from last sprint."
+- "Remember to capture what you learned."
+- "Do not merge code that invalidates a team decision."
+
+Those rules are easy to skip. hAIve turns them into workflow policy. It gives agents the right context before work starts, then uses MCP, Git hooks, CI checks, and optional client hooks to make bypassing team knowledge visible or blocking.
 
 ---
 
-## How it works
+## How It Works
 
 ```
-Developer A's AI  ─┐
-Developer B's AI  ─┼──▶  .ai/memories/team/  ──▶  git commit/push  ──▶  shared
-Developer C's AI  ─┘
+AI agent ──▶ hAIve briefing ──▶ code change ──▶ hAIve Git/CI gate ──▶ merge
+                 ▲                         │
+                 └──── team decisions, gotchas, failed attempts, anchors
 ```
 
-1. When an AI discovers something worth remembering (a convention, a decision, a gotcha, a failed approach), it saves a memory with `mem_save` or `mem_tried`.
-2. That memory is stored in `.ai/memories/team/` and committed to the repo.
-3. On the next `git pull`, every developer's AI loads these memories via `get_briefing` before starting a task.
-4. `haive sync` verifies anchors after every merge — memories whose code has moved are flagged as stale automatically.
+1. `haive init` creates `.ai/` policy and knowledge files in your repo.
+2. Agents start with `get_briefing`, `haive briefing`, or `haive run -- <agent>` to load the team context.
+3. Validated memories capture decisions, gotchas, conventions, and failed attempts as Markdown anchored to code paths/symbols.
+4. hAIve verifies anchors and flags stale decisions when code moves.
+5. `haive enforce check` and `haive enforce ci` block unsafe workflow states: missing briefing, missing recap, stale important memories, or known anti-patterns.
+
+The memory layer is the substrate. The product promise is enforcement: AI changes should not enter the codebase without consulting the team's current knowledge.
 
 ---
 
@@ -32,10 +40,10 @@ Developer C's AI  ─┘
 
 | Package | Install | Description |
 |---|---|---|
-| [`@hiveai/cli`](./packages/cli) | `npm i -g @hiveai/cli` | CLI tool: `haive init`, `haive memory`, `haive sync`, `haive briefing`, TUI dashboard |
-| [`@hiveai/mcp`](./packages/mcp) | bundled into `@hiveai/cli` | MCP tools ship inside `haive` (`haive mcp --stdio`). Standalone `haive-mcp` remains optional for legacy configs |
-| [`@hiveai/core`](./packages/core) | dependency | Internal: memory schema, parser, verifier, token budget utilities |
-| [`@hiveai/embeddings`](./packages/embeddings) | `npm i -g @hiveai/embeddings` | Optional: local semantic search via Transformers.js (no data leaves your machine) |
+| [`@hiveai/cli`](./packages/cli) | `npm i -g @hiveai/cli` | Main product: init, enforce, run agents, briefing, memory, sync, CI/Git hooks |
+| [`@hiveai/mcp`](./packages/mcp) | bundled into `@hiveai/cli` | Policy-aware MCP tools for any MCP-compatible agent |
+| [`@hiveai/core`](./packages/core) | dependency | Internal: config, memory schema, anchors, policy primitives, token budgets |
+| [`@hiveai/embeddings`](./packages/embeddings) | `npm i -g @hiveai/embeddings` | Optional: local semantic ranking for briefings/search |
 
 ---
 
@@ -51,12 +59,12 @@ npm install -g @hiveai/embeddings
 
 ## Quick start
 
-### 1. Initialize your project
+### 1. Initialize And Enforce Your Project
 
 ```bash
 cd my-project
-haive init              # Creates .ai/, CLAUDE.md, .cursorrules, copilot-instructions.md
-haive init --with-ci    # Also generates .github/workflows/haive-sync.yml
+haive init              # Creates .ai/, bridge files, MCP config, hooks, CI, code-map
+haive enforce install   # Re-apply strict MCP + Git + CI enforcement gates any time
 ```
 
 ### 2. Connect your AI client
@@ -90,11 +98,11 @@ haive init --with-ci    # Also generates .github/workflows/haive-sync.yml
 code --add-mcp '{"name":"haive","command":"haive","args":["mcp","--stdio","--root","/path/to/project"]}'
 ```
 
-### 3. Bootstrap your project context
+### 3. Bootstrap Your Project Context
 
 In your AI client, invoke the `bootstrap_project` MCP prompt. The AI will analyze your codebase and write `.ai/project-context.md`.
 
-### 4. Start a task — always call `get_briefing` first
+### 4. Start Work Through hAIve
 
 ```
 Use get_briefing with:
@@ -104,24 +112,23 @@ Use get_briefing with:
 
 The agent gets project context + module contexts + relevant memories in one call.
 
-### 5. Sync after every pull
-
-```bash
-haive sync                          # Verify anchors + auto-promote
-haive enforce install               # Install strict MCP + Git + CI enforcement gates
-haive sync --embed                  # Also rebuild semantic search index
-```
-
-For CLI-based agents that do not expose blocking hooks, run them through hAIve:
+For CLI agents without blocking hooks, run them through hAIve:
 
 ```bash
 haive run -- <agent-command> [args...]
 ```
 
-The wrapper creates a hAIve session marker, writes a compact briefing file, and
-exports `HAIVE_PROJECT_ROOT`, `HAIVE_SESSION_ID`, `HAIVE_BRIEFING_FILE`, and
-strict enforcement environment variables. Git hooks and CI remain the final
-agent-agnostic gates.
+The wrapper writes a compact briefing file and exports `HAIVE_PROJECT_ROOT`, `HAIVE_SESSION_ID`, and `HAIVE_BRIEFING_FILE`.
+
+### 5. Gate Commits And Pull Requests
+
+```bash
+haive enforce status
+haive enforce check --stage pre-commit
+haive enforce ci
+```
+
+Git hooks and CI are the agent-agnostic backstop. Client hooks are helpful, but the workflow gates are what make hAIve portable across agents.
 
 ---
 
@@ -160,8 +167,8 @@ By default, hAIve now exposes the smaller **enforcement** MCP profile: the tools
 
 | Tool | Description |
 |---|---|
-| `get_briefing` | ⭐ One-shot onboarding: project context + module contexts + ranked memories under a token budget |
-| `mem_save` | Save a new memory (convention, decision, gotcha, architecture, glossary) |
+| `get_briefing` | ⭐ Required policy briefing: context + decisions + gotchas + failed attempts + warnings |
+| `mem_save` | Save policy knowledge (convention, decision, gotcha, architecture, glossary) |
 | `mem_tried` | ⭐ Record a failed approach — surfaces first in future briefings to prevent repeated mistakes |
 | `mem_search` | Search by keyword or semantic similarity |
 | `mem_get` | Fetch a single memory with full details |

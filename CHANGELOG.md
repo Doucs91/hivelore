@@ -6,6 +6,11 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.10] — npm positioning and enforcement narrative
+
+### Changed
+- Reframed npm-facing documentation and package metadata around hAIve as an AI-agent policy enforcement layer, with persistent memory described as the mechanism rather than the headline.
+
 ## [0.9.9] — agent-agnostic enforcement and `haive run`
 
 ### Added

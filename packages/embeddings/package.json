@@ -1,7 +1,7 @@
 {
   "name": "@hiveai/embeddings",
-  "version": "0.9.9",
-  "description": "hAIve embeddings — local sentence embeddings via Transformers.js for semantic memory search",
+  "version": "0.9.10",
+  "description": "hAIve embeddings — optional local semantic ranking for enforcement briefings",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,6 +12,7 @@
   "homepage": "https://github.com/Doucs91/hAIve#readme",
   "keywords": [
     "ai",
+    "enforcement",
     "memory",
     "embeddings",
     "transformers",

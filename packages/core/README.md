@@ -1,12 +1,22 @@
 # @hiveai/core
 
-> Internal library — shared types, schema, parser, and utilities for the hAIve memory system.
+> Internal library — policy, memory, anchor, and enforcement primitives for hAIve.
 
 This package is consumed by `@hiveai/cli` and `@hiveai/mcp`. You do **not** need to install it directly unless you are building a custom hAIve integration or extending the tool.
 
 ---
 
 ## What this package provides
+
+### Enforcement primitives
+
+Core owns the durable types and local runtime markers used by hAIve policy gates:
+
+- `.ai/haive.config.json` config loading/merging
+- strict enforcement settings (`requireBriefingFirst`, session recap, memory verification, stale-decision blocking)
+- briefing markers under `.ai/.runtime/enforcement/briefings/`
+- anchor verification for stale decisions and gotchas
+- path resolution for project, memory, runtime, and module directories
 
 ### Memory schema (Zod)
 

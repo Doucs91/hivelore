@@ -1,8 +1,10 @@
 # @hiveai/cli
 
-> **hAIve** — team-first persistent memory layer for AI coding agents.
+> **hAIve** — policy enforcement for AI coding agents.
 
-Stop re-explaining your project to every AI session. hAIve stores your team's conventions, architectural decisions, gotchas, and discovered patterns as version-controlled Markdown files. Every AI tool on your team reads the same shared knowledge automatically — via the MCP server, bridge files (CLAUDE.md, .cursorrules, Copilot instructions), or the CLI directly.
+hAIve makes your team knowledge enforceable. It gives agents a required briefing before work starts, stores decisions/gotchas/failed attempts as version-controlled Markdown, and adds MCP, Git, CI, and wrapper gates so AI-generated changes cannot quietly bypass project policy.
+
+The memory system is the mechanism. The CLI is the control plane: initialize policy, run agents inside hAIve, check the repo, and block unsafe workflow states.
 
 ---
 
@@ -23,31 +25,32 @@ This installs the `haive` command globally. **The MCP server is bundled** — us
 ## Quick start
 
 ```bash
-# 1. Initialize hAIve in your project (autopilot ON by default)
+# 1. Initialize hAIve in your project (strict enforcement ON by default)
 cd my-project
-haive init                          # autopilot: hooks + CI + code-map auto-configured
-# haive init --manual               # if you prefer to approve memories yourself
+haive init                          # .ai/, MCP config, hooks, CI, code-map
+haive enforce install               # re-apply strict MCP + Git + CI enforcement gates
 
 # 2. Point your AI client at the MCP server
 # Add to ~/.claude.json / ~/.cursor/mcp.json:
 # { "mcpServers": { "haive": { "command": "haive", "args": ["mcp", "--stdio", "--root", "/absolute/path"] } } }
 
-# 3. Bootstrap the project context (run once in your AI client)
+# 3. Bootstrap project context (run once in your AI client)
 # → Use the bootstrap_project MCP prompt to analyze the codebase and fill .ai/project-context.md
 
-# 4. Your AI client now calls get_briefing at every session start — zero config needed
+# 4. Start work through hAIve
+haive briefing --task "add Stripe webhook"
+haive run -- <agent-command> [args...]      # for CLI agents without blocking hooks
 
-# 5. Add a memory manually (or let the AI agent do it via mem_save)
+# 5. Add durable policy knowledge manually (or let the agent use mem_save/mem_tried)
 haive memory add \
   --type gotcha --slug "jpa-open-in-view" --scope team \
   --paths src/main/resources/application.properties \
   --body "spring.jpa.open-in-view=false is intentional — do not re-enable."
 
-# 6. Browse and manage memories in the TUI dashboard
-haive tui
-
-# 7. Sync after a git pull (runs automatically via hooks in autopilot mode)
-haive sync
+# 6. Gate the workflow
+haive enforce status
+haive enforce check --stage pre-commit
+haive enforce ci
 ```
 
 ---
@@ -56,10 +59,10 @@ haive sync
 
 ### `haive init`
 
-Initialize the `.ai/` structure in a project. **Autopilot mode is ON by default** — zero manual steps required.
+Initialize the `.ai/` structure in a project. **Autopilot mode is ON by default** and now installs strict enforcement gates by default.
 
 ```bash
-haive init                    # Autopilot: validates memories automatically, installs hooks, builds code-map
+haive init                    # Autopilot: policy config, hooks, CI, MCP setup, code-map
 haive init --manual           # Manual mode: you approve every memory yourself
 haive init --no-bridges       # Skip bridge file generation (CLAUDE.md, .cursorrules, etc.)
 haive init --dir /other/path  # Initialize in a specific directory
@@ -67,8 +70,8 @@ haive init --dir /other/path  # Initialize in a specific directory
 
 **Autopilot mode** (default):
 - Memories are saved directly as `validated` (no approval cycle)
-- Git hooks installed automatically (`haive sync` after every pull)
-- CI workflow generated (`.github/workflows/haive-sync.yml`)
+- Git hooks installed automatically (`haive enforce check` gates commits/pushes)
+- CI workflows generated (`haive-enforcement.yml` and sync workflow)
 - Initial code-map built (`.ai/code-map.json`) for symbol lookup
 - Session recaps saved automatically when the MCP server exits
 - Configuration stored in `.ai/haive.config.json`
@@ -76,7 +79,7 @@ haive init --dir /other/path  # Initialize in a specific directory
 **Manual mode** (`--manual`):
 - Memories start as `proposed` and require explicit approval (`haive memory approve`)
 - No automatic hooks or CI — set up manually with `haive install-hooks` and `haive init --with-ci`
-- Full control over when knowledge is shared with the team
+- Full control over when knowledge becomes team policy
 
 **What it creates:**
 
@@ -96,7 +99,47 @@ your-project/
     └── copilot-instructions.md   # Bridge for GitHub Copilot (auto-generated)
 ```
 
-Bridge files include mandatory rules that tell agents to call `post_task` and `mem_tried` before closing a session, so knowledge is captured automatically.
+Bridge files include mandatory rules, but they are not the enforcement boundary. hAIve's portable enforcement comes from MCP policy, Git hooks, CI checks, and `haive run -- <agent>` for CLI agents.
+
+---
+
+### `haive enforce`
+
+Install and run the agent-agnostic policy gates.
+
+```bash
+haive enforce install                 # strict config + Git hooks + CI + supported client hooks
+haive enforce status                  # show whether the repo is protected
+haive enforce check --stage local     # local policy gate
+haive enforce check --stage pre-push  # used by Git hooks
+haive enforce ci                      # used by required CI checks
+```
+
+Strict mode checks for:
+
+- a recent hAIve briefing marker before local write workflows
+- recent session recap before push/CI gates
+- stale important memories anchored to changed code
+- known anti-patterns from validated gotchas/decisions
+
+### `haive run`
+
+Wrap any CLI-based coding agent in a hAIve session.
+
+```bash
+haive run -- claude
+haive run -- codex
+haive run -- aider
+haive run -- <custom-agent> [args...]
+```
+
+The wrapper writes a compact briefing file and exports:
+
+- `HAIVE_PROJECT_ROOT`
+- `HAIVE_SESSION_ID`
+- `HAIVE_BRIEFING_FILE`
+- `HAIVE_ENFORCEMENT=strict`
+- `HAIVE_TOOL_PROFILE=enforcement`
 
 ---
 

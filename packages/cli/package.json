@@ -1,7 +1,7 @@
 {
   "name": "@hiveai/cli",
-  "version": "0.9.9",
-  "description": "hAIve CLI — manage shared AI memories from the terminal",
+  "version": "0.9.10",
+  "description": "hAIve CLI — enforce AI agent briefing, memory, Git, and CI policy",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,12 +12,15 @@
   "homepage": "https://github.com/Doucs91/hAIve#readme",
   "keywords": [
     "ai",
+    "enforcement",
+    "policy",
     "memory",
     "mcp",
     "haive",
     "agent",
     "team",
-    "cli"
+    "cli",
+    "ci"
   ],
   "type": "module",
   "bin": {

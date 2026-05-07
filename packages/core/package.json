@@ -1,7 +1,7 @@
 {
   "name": "@hiveai/core",
-  "version": "0.9.9",
-  "description": "hAIve core — memory types, schema, parser, validator",
+  "version": "0.9.10",
+  "description": "hAIve core — policy, memory, anchor, and enforcement primitives",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,6 +12,8 @@
   "homepage": "https://github.com/Doucs91/hAIve#readme",
   "keywords": [
     "ai",
+    "enforcement",
+    "policy",
     "memory",
     "mcp",
     "haive",

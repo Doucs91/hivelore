@@ -1,8 +1,8 @@
 # @hiveai/embeddings
 
-> **Optional add-on for hAIve** — local sentence embeddings and semantic search for your AI memory layer. No data leaves your machine.
+> **Optional add-on for hAIve** — local semantic ranking for hAIve briefings and memory search. No data leaves your machine.
 
-When installed alongside `@hiveai/cli` and `@hiveai/mcp`, this package enables similarity-based memory retrieval: instead of keyword matching, `get_briefing` and `mem_search` can find memories that are *semantically* related to your task description, even if they share no common words.
+When installed alongside `@hiveai/cli`, this package helps hAIve surface the right policy context even when the agent's task wording does not match your memories exactly. It improves `get_briefing`, `mem_relevant_to`, and `mem_search`; it is not required for enforcement.
 
 ---
 

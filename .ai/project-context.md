@@ -1,7 +1,7 @@
-# Project context — hAIve (v0.9.9)
+# Project context — hAIve (v0.9.10)
 
-> Team-first persistent memory layer for AI coding agents. Built with TypeScript, published as a pnpm workspace monorepo.
-> **Current version**: 0.9.9 — @hiveai/core, cli, mcp, embeddings are versioned together.
+> Policy enforcement layer for AI coding agents. Built with TypeScript, published as a pnpm workspace monorepo.
+> **Current version**: 0.9.10 — @hiveai/core, cli, mcp, embeddings are versioned together.
 > **Repo**: `/home/sd/Documents/Dev/New idea` (git, branch: main)
 > **Test project**: `sandaga-monorepo/` (gitignored, large Next.js + NestJS marketplace)
 

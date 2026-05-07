@@ -1,7 +1,7 @@
 {
   "name": "@hiveai/mcp",
-  "version": "0.9.9",
-  "description": "hAIve MCP server — exposes memory + project context to any MCP-compatible AI client",
+  "version": "0.9.10",
+  "description": "hAIve MCP server — policy-aware context and memory tools for AI coding agents",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,6 +12,8 @@
   "homepage": "https://github.com/Doucs91/hAIve#readme",
   "keywords": [
     "ai",
+    "enforcement",
+    "policy",
     "memory",
     "mcp",
     "haive",
