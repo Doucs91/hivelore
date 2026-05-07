@@ -363,6 +363,18 @@ export function registerInit(program: Command): void {
           ui.warn("Git hooks not installed (not a git repo or no .git/ found) — run `haive install-hooks` manually");
         }
 
+        // Install project-scoped Claude Code enforcement hooks when possible.
+        const claudeHookResult = spawnSync(
+          process.execPath,
+          [haiveBin, "install-hooks", "claude", "--scope", "project", "--dir", root],
+          { encoding: "utf8" },
+        );
+        if (claudeHookResult.status === 0) {
+          ui.success("Claude Code enforcement hooks installed (.claude/settings.local.json)");
+        } else {
+          ui.warn("Claude Code hooks not installed — run `haive install-hooks claude --scope project` manually");
+        }
+
         // Build initial code-map
         try {
           ui.info("Building code-map…");
@@ -563,4 +575,3 @@ async function ensureGitignoreEntries(root: string, patterns: string[]): Promise
     // non-fatal
   }
 }
-

@@ -4,6 +4,18 @@
 
 Reposition hAIve from a general-purpose AI memory server into a Git-native enforcement layer for AI coding agents.
 
+## Implementation Status
+
+The first enforcement implementation is now in place:
+
+- Default MCP tool profile is `enforcement` (10 public tools + 2 prompts).
+- `HAIVE_TOOL_PROFILE=full` restores the legacy full MCP surface.
+- MCP state-changing hAIve tools require `get_briefing` or `mem_relevant_to` first unless disabled in `.ai/haive.config.json`.
+- `haive enforce session-start` writes a local briefing marker and prints compact briefing context.
+- `haive enforce pre-tool-use` blocks write-like Claude Code tool calls when no recent briefing marker exists.
+- `haive install-hooks claude` installs `SessionStart`, `PreToolUse`, `PostToolUse`, and `SessionEnd` hooks.
+- Autopilot `haive init` attempts to install project-scoped Claude Code enforcement hooks.
+
 The product promise should become:
 
 > AI agents cannot safely change a repo until they have loaded the team's relevant decisions, gotchas, failed attempts, and stale-memory warnings.

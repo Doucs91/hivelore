@@ -180,6 +180,7 @@ import {
   type ImportDocsArgs,
 } from "./prompts/import-docs.js";
 import { SessionTracker } from "./session-tracker.js";
+import { loadConfigSync } from "@hiveai/core";
 
 // Re-export tool implementations so `@hiveai/cli` (and integrators) can call
 // them programmatically without going through the MCP stdio transport.
@@ -285,10 +286,49 @@ function jsonResult(data: unknown) {
   };
 }
 
+const ENFORCEMENT_PROFILE_TOOLS = new Set([
+  "get_briefing",
+  "mem_save",
+  "mem_tried",
+  "mem_search",
+  "mem_get",
+  "mem_update",
+  "mem_verify",
+  "mem_relevant_to",
+  "code_map",
+  "pre_commit_check",
+]);
+
+const BRIEFING_TOOLS = new Set(["get_briefing", "mem_relevant_to"]);
+
+const MUTATING_TOOLS = new Set([
+  "mem_save",
+  "mem_tried",
+  "mem_observe",
+  "mem_session_end",
+  "bootstrap_project_save",
+  "mem_update",
+  "mem_approve",
+  "mem_reject",
+  "mem_delete",
+  "runtime_journal_append",
+  "pattern_detect",
+]);
+
 export function createHaiveServer(
   options: CreateContextOptions = {},
 ): { server: McpServer; context: HaiveContext; tracker: SessionTracker } {
   const context = createContext(options);
+  const config = loadConfigSync(context.paths);
+  const toolProfile =
+    (options.env?.HAIVE_TOOL_PROFILE as "enforcement" | "full" | undefined) ??
+    config.enforcement?.toolProfile ??
+    "enforcement";
+  const requireBriefingFirst =
+    options.env?.HAIVE_REQUIRE_BRIEFING_FIRST === "0"
+      ? false
+      : config.enforcement?.requireBriefingFirst ?? true;
+  let briefingLoaded = false;
   const tracker = new SessionTracker(context);
   // Init is async — fire-and-forget at startup (registers shutdown handler if autopilot)
   void tracker.init();
@@ -298,9 +338,50 @@ export function createHaiveServer(
     { capabilities: { tools: {}, prompts: {} } },
   );
 
+  const shouldRegisterTool = (name: string): boolean =>
+    toolProfile === "full" || ENFORCEMENT_PROFILE_TOOLS.has(name);
+
+  const registerTool = <TInput>(
+    name: string,
+    description: string,
+    schema: Record<string, unknown>,
+    handler: (input: TInput) => Promise<unknown> | unknown,
+  ): void => {
+    if (!shouldRegisterTool(name)) return;
+    const tool = server.tool.bind(server) as (
+      toolName: string,
+      toolDescription: string,
+      toolSchema: Record<string, unknown>,
+      toolHandler: (input: unknown) => Promise<unknown> | unknown,
+    ) => unknown;
+    tool(
+      name,
+      description,
+      schema,
+      async (input: unknown) => {
+        if (BRIEFING_TOOLS.has(name)) {
+          briefingLoaded = true;
+          return await handler(input as TInput);
+        }
+        if (requireBriefingFirst && MUTATING_TOOLS.has(name) && !briefingLoaded) {
+          return jsonResult({
+            error: "haive_briefing_required",
+            message:
+              "This hAIve project requires get_briefing or mem_relevant_to before state-changing hAIve tools. Call get_briefing({ task: '...' }) first.",
+            tool: name,
+          });
+        }
+        return await handler(input as TInput);
+      },
+    );
+  };
+
+  const shouldRegisterPrompt = (name: string): boolean =>
+    toolProfile === "full" || name === "bootstrap_project" || name === "post_task";
+
   // ── Memory creation ────────────────────────────────────────────────────
 
-  server.tool(
+  registerTool(
     "mem_save",
     [
       "Save a piece of knowledge as a persistent memory that survives across AI sessions.",
@@ -333,7 +414,7 @@ export function createHaiveServer(
     },
   );
 
-  server.tool(
+  registerTool(
     "mem_suggest_topic",
     [
       "Propose a stable `topic` key (topic-upsert) from type + short title.",
@@ -352,7 +433,7 @@ export function createHaiveServer(
       jsonResult(await memSuggestTopic(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "mem_tried",
     [
       "Record a FAILED approach so future agents don't repeat the same mistake.",
@@ -380,7 +461,7 @@ export function createHaiveServer(
     },
   );
 
-  server.tool(
+  registerTool(
     "mem_observe",
     [
       "Capture a code-level discovery made WHILE READING existing code.",
@@ -413,7 +494,7 @@ export function createHaiveServer(
     },
   );
 
-  server.tool(
+  registerTool(
     "mem_session_end",
     [
       "Save an end-of-session recap so the NEXT session starts with fresh context.",
@@ -445,7 +526,7 @@ export function createHaiveServer(
 
   // ── Memory retrieval ───────────────────────────────────────────────────
 
-  server.tool(
+  registerTool(
     "get_briefing",
     [
       "⭐ DEFAULT-FIRST for coding agents on any repo where `haive init` ran: call this BEFORE",
@@ -497,7 +578,7 @@ export function createHaiveServer(
     },
   );
 
-  server.tool(
+  registerTool(
     "mem_search",
     [
       "Search memories by keyword or semantic similarity.",
@@ -530,7 +611,7 @@ export function createHaiveServer(
     },
   );
 
-  server.tool(
+  registerTool(
     "mem_timeline",
     [
       "Chronological view of related memories: by shared frontmatter.topic OR expanded from a seed id",
@@ -547,7 +628,7 @@ export function createHaiveServer(
     async (input: MemTimelineInput) => jsonResult(await memTimeline(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "mem_for_files",
     [
       "Surface memories relevant to the files you are currently editing.",
@@ -572,7 +653,7 @@ export function createHaiveServer(
     async (input: MemForFilesInput) => jsonResult(await memForFiles(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "mem_get",
     [
       "Fetch a single memory by its full id with all details.",
@@ -589,7 +670,7 @@ export function createHaiveServer(
     async (input: MemGetInput) => jsonResult(await memGet(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "mem_list",
     [
       "List memories with optional filters. Use for browsing, not for task onboarding.",
@@ -612,7 +693,7 @@ export function createHaiveServer(
 
   // ── Project context ────────────────────────────────────────────────────
 
-  server.tool(
+  registerTool(
     "get_project_context",
     [
       "Read .ai/project-context.md (and optionally a module context) directly.",
@@ -632,7 +713,7 @@ export function createHaiveServer(
       jsonResult(await getProjectContext(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "bootstrap_project_save",
     [
       "Persist the project context document (.ai/project-context.md) or a module",
@@ -652,7 +733,7 @@ export function createHaiveServer(
       jsonResult(await bootstrapProjectSave(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "code_map",
     [
       "Look up where symbols (classes, functions, interfaces) are defined in the codebase.",
@@ -674,7 +755,7 @@ export function createHaiveServer(
     async (input: CodeMapInput) => jsonResult(await codeMapTool(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "mem_resolve_project",
     [
       "Diagnostics: resolve which project root hAIve is using (never throws).",
@@ -694,7 +775,7 @@ export function createHaiveServer(
 
   // ── Memory lifecycle ───────────────────────────────────────────────────
 
-  server.tool(
+  registerTool(
     "mem_update",
     [
       "Update the body, tags, or anchor of an existing memory in-place.",
@@ -718,7 +799,7 @@ export function createHaiveServer(
     async (input: MemUpdateInput) => jsonResult(await memUpdate(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "mem_verify",
     [
       "Check whether memory anchor paths and symbols still exist in the current code.",
@@ -738,7 +819,7 @@ export function createHaiveServer(
     async (input: MemVerifyInput) => jsonResult(await memVerify(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "mem_approve",
     [
       "Mark a memory as validated (trusted, approved by a human or the team).",
@@ -755,7 +836,7 @@ export function createHaiveServer(
     async (input: MemApproveInput) => jsonResult(await memApprove(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "mem_reject",
     [
       "Mark a memory as rejected and record a reason.",
@@ -774,7 +855,7 @@ export function createHaiveServer(
     async (input: MemRejectInput) => jsonResult(await memReject(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "mem_pending",
     [
       "List memories in 'proposed' status awaiting review, sorted by read count.",
@@ -791,7 +872,7 @@ export function createHaiveServer(
     async (input: MemPendingInput) => jsonResult(await memPending(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "mem_delete",
     [
       "Permanently delete a memory by id.",
@@ -812,7 +893,7 @@ export function createHaiveServer(
   // ── v0.5.0: granular alternatives to get_briefing ─────────────────────
   // Use these when you don't need the full one-shot briefing payload.
 
-  server.tool(
+  registerTool(
     "get_recap",
     [
       "Return ONLY the most recent session_recap. Cheaper than get_briefing when",
@@ -831,7 +912,7 @@ export function createHaiveServer(
     },
   );
 
-  server.tool(
+  registerTool(
     "mem_relevant_to",
     [
       "One-shot ranked memories for a task — use instead of get_briefing when",
@@ -860,7 +941,7 @@ export function createHaiveServer(
 
   // ── v0.5.0: code semantic search ──────────────────────────────────────
 
-  server.tool(
+  registerTool(
     "code_search",
     [
       "Semantic search over the codebase — finds exported symbols (functions, classes,",
@@ -886,7 +967,7 @@ export function createHaiveServer(
 
   // ── v0.5.0: file-context lookup ───────────────────────────────────────
 
-  server.tool(
+  registerTool(
     "why_this_file",
     [
       "One-shot file-context lookup: combines recent git history, memories anchored",
@@ -909,7 +990,7 @@ export function createHaiveServer(
 
   // ── v0.5.0: anti-patterns check ───────────────────────────────────────
 
-  server.tool(
+  registerTool(
     "anti_patterns_check",
     [
       "Scan a diff (or set of paths) against documented attempt/gotcha memories.",
@@ -935,7 +1016,7 @@ export function createHaiveServer(
 
   // ── v0.6.0 additions ───────────────────────────────────────────────────
 
-  server.tool(
+  registerTool(
     "mem_distill",
     [
       "Cluster recurring observations / failed attempts so a human can collapse",
@@ -961,7 +1042,7 @@ export function createHaiveServer(
     },
   );
 
-  server.tool(
+  registerTool(
     "why_this_decision",
     [
       "Trace the genealogy of a memory (especially decision/architecture):",
@@ -984,7 +1065,7 @@ export function createHaiveServer(
     },
   );
 
-  server.tool(
+  registerTool(
     "mem_conflicts_with",
     [
       "Detect memories that potentially CONTRADICT a given memory.",
@@ -1011,7 +1092,7 @@ export function createHaiveServer(
     },
   );
 
-  server.tool(
+  registerTool(
     "mem_conflict_candidates",
     [
       "Bulk scan for conflict CANDIDATES (not proof):",
@@ -1033,7 +1114,7 @@ export function createHaiveServer(
     },
   );
 
-  server.tool(
+  registerTool(
     "runtime_journal_append",
     [
       "Append one line to `.ai/.runtime/session-journal.ndjson` — machine-local session continuity.",
@@ -1049,7 +1130,7 @@ export function createHaiveServer(
       jsonResult(await runtimeJournalAppend(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "runtime_journal_tail",
     [
       "Read the last N entries from the runtime session journal (parsed JSON lines).",
@@ -1063,7 +1144,7 @@ export function createHaiveServer(
       jsonResult(await runtimeJournalTail(input, context)),
   );
 
-  server.tool(
+  registerTool(
     "pre_commit_check",
     [
       "One-shot 'should I block this commit?' check. Combines three signals:",
@@ -1089,7 +1170,7 @@ export function createHaiveServer(
     },
   );
 
-  server.tool(
+  registerTool(
     "pattern_detect",
     [
       "Heuristic memory detector — finds knowledge worth saving WITHOUT calling an LLM.",
@@ -1121,7 +1202,7 @@ export function createHaiveServer(
     },
   );
 
-  server.tool(
+  registerTool(
     "mem_diff",
     [
       "Compare two memories side-by-side to decide if they should be merged.",
@@ -1139,42 +1220,48 @@ export function createHaiveServer(
     async (input: MemDiffInput) => jsonResult(await memDiff(input, context)),
   );
 
-  server.prompt(
-    "bootstrap_project",
-    [
-      "Analyze the project codebase and write .ai/project-context.md — run once after haive init.",
-      "The AI explores the directory structure, reads key files (package.json, README, config),",
-      "identifies the tech stack, architectural patterns, key modules, and conventions,",
-      "then persists everything via bootstrap_project_save.",
-      "For multi-component projects, run with module param to create .ai/modules/<name>/context.md.",
-    ].join(" "),
-    BootstrapProjectArgsSchema,
-    (args: BootstrapProjectArgs) => bootstrapProjectPrompt(args, context),
-  );
+  if (shouldRegisterPrompt("bootstrap_project")) {
+    server.prompt(
+      "bootstrap_project",
+      [
+        "Analyze the project codebase and write .ai/project-context.md — run once after haive init.",
+        "The AI explores the directory structure, reads key files (package.json, README, config),",
+        "identifies the tech stack, architectural patterns, key modules, and conventions,",
+        "then persists everything via bootstrap_project_save.",
+        "For multi-component projects, run with module param to create .ai/modules/<name>/context.md.",
+      ].join(" "),
+      BootstrapProjectArgsSchema,
+      (args: BootstrapProjectArgs) => bootstrapProjectPrompt(args, context),
+    );
+  }
 
-  server.prompt(
-    "post_task",
-    [
-      "⭐ Post-task reflection — run at the end of every session to capture what you learned:",
-      "failed approaches (mem_tried), new conventions/decisions/gotchas (mem_save),",
-      "code discoveries (mem_observe), and an end-of-session recap (mem_session_end).",
-      "In autopilot mode a minimal recap saves automatically; calling this produces a richer one.",
-    ].join(" "),
-    PostTaskArgsSchema,
-    (args: PostTaskArgs) => postTaskPrompt(args, context),
-  );
+  if (shouldRegisterPrompt("post_task")) {
+    server.prompt(
+      "post_task",
+      [
+        "⭐ Post-task reflection — run at the end of every session to capture what you learned:",
+        "failed approaches (mem_tried), new conventions/decisions/gotchas (mem_save),",
+        "code discoveries (mem_observe), and an end-of-session recap (mem_session_end).",
+        "In autopilot mode a minimal recap saves automatically; calling this produces a richer one.",
+      ].join(" "),
+      PostTaskArgsSchema,
+      (args: PostTaskArgs) => postTaskPrompt(args, context),
+    );
+  }
 
-  server.prompt(
-    "import_docs",
-    [
-      "Import knowledge from a document (README, ADR, wiki, API spec) as hAIve memories.",
-      "Pass the full document content; the AI extracts up to 10 actionable memories",
-      "(conventions, decisions, gotchas, architecture) and saves them via mem_save.",
-      "Good candidates: ADRs, onboarding docs, runbooks, team wikis.",
-    ].join(" "),
-    ImportDocsArgsSchema,
-    (args: ImportDocsArgs) => importDocsPrompt(args, context),
-  );
+  if (shouldRegisterPrompt("import_docs")) {
+    server.prompt(
+      "import_docs",
+      [
+        "Import knowledge from a document (README, ADR, wiki, API spec) as hAIve memories.",
+        "Pass the full document content; the AI extracts up to 10 actionable memories",
+        "(conventions, decisions, gotchas, architecture) and saves them via mem_save.",
+        "Good candidates: ADRs, onboarding docs, runbooks, team wikis.",
+      ].join(" "),
+      ImportDocsArgsSchema,
+      (args: ImportDocsArgs) => importDocsPrompt(args, context),
+    );
+  }
 
   return { server, context, tracker };
 }
@@ -1214,7 +1301,7 @@ export function printHaiveMcpVersion(): void {
  * when the MCP implementation is bundled into the CLI.
  */
 export async function runHaiveMcpStdio(options: { root?: string }): Promise<void> {
-  const { server, context } = createHaiveServer({ root: options.root });
+  const { server, context } = createHaiveServer({ root: options.root, env: process.env });
   console.error(
     `[haive-mcp] starting server v${SERVER_VERSION} (project root: ${context.paths.root})`,
   );

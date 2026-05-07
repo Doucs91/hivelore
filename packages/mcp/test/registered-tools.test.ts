@@ -15,51 +15,48 @@ import { createHaiveServer } from "../src/server.js";
  * Add new tools to EXPECTED_TOOLS below when you ship one.
  */
 
-// SINGLE SOURCE OF TRUTH — update this list whenever a new tool is registered.
-const EXPECTED_TOOLS: readonly string[] = [
-  // memory creation
-  "mem_save",
-  "mem_suggest_topic",
-  "mem_tried",
-  "mem_observe",
-  "mem_session_end",
-  // memory retrieval
+const ENFORCEMENT_TOOLS: readonly string[] = [
   "get_briefing",
+  "mem_save",
+  "mem_tried",
   "mem_search",
-  "mem_timeline",
-  "mem_for_files",
   "mem_get",
-  "mem_list",
-  // project context
-  "get_project_context",
-  "bootstrap_project_save",
   "code_map",
-  "mem_resolve_project",
-  // memory lifecycle
   "mem_update",
   "mem_verify",
+  "mem_relevant_to",
+  "pre_commit_check",
+];
+
+// SINGLE SOURCE OF TRUTH — update this list whenever a full-profile tool is registered.
+const FULL_TOOLS: readonly string[] = [
+  ...ENFORCEMENT_TOOLS,
+  "mem_suggest_topic",
+  "mem_observe",
+  "mem_session_end",
+  "mem_timeline",
+  "mem_for_files",
+  "mem_list",
+  "get_project_context",
+  "bootstrap_project_save",
+  "mem_resolve_project",
   "mem_approve",
   "mem_reject",
   "mem_pending",
   "mem_delete",
   "mem_diff",
-  // v0.5.0 granular alternatives + new tools
   "get_recap",
-  "mem_relevant_to",
   "code_search",
   "why_this_file",
   "anti_patterns_check",
-  // v0.6.0 additions
   "mem_distill",
   "why_this_decision",
   "mem_conflicts_with",
   "mem_conflict_candidates",
-  "pre_commit_check",
-  // v0.9.0 additions
   "pattern_detect",
   "runtime_journal_append",
   "runtime_journal_tail",
-];
+].sort();
 
 interface InternalServerShape {
   server?: { _registeredTools?: Record<string, unknown> };
@@ -77,7 +74,7 @@ function readRegisteredTools(server: unknown): string[] {
 }
 
 describe("hAIve MCP server — registered tools", () => {
-  it("registers exactly the expected list of tools (source-level guard)", () => {
+  it("registers the enforcement tool profile by default", () => {
     const { server } = createHaiveServer({ root: process.cwd() });
     const registered = readRegisteredTools(server);
 
@@ -91,12 +88,29 @@ describe("hAIve MCP server — registered tools", () => {
       return;
     }
 
-    const missing = EXPECTED_TOOLS.filter((t) => !registered.includes(t));
-    const unexpected = registered.filter((t) => !EXPECTED_TOOLS.includes(t));
+    const missing = ENFORCEMENT_TOOLS.filter((t) => !registered.includes(t));
+    const unexpected = registered.filter((t) => !ENFORCEMENT_TOOLS.includes(t));
 
     expect(missing, `Missing tools — server.ts forgot to register: ${missing.join(", ")}`)
       .toEqual([]);
-    expect(unexpected, `Unexpected tools — update EXPECTED_TOOLS to include: ${unexpected.join(", ")}`)
+    expect(unexpected, `Unexpected tools in enforcement profile: ${unexpected.join(", ")}`)
+      .toEqual([]);
+  });
+
+  it("registers the full legacy tool profile when requested", () => {
+    const { server } = createHaiveServer({
+      root: process.cwd(),
+      env: { ...process.env, HAIVE_TOOL_PROFILE: "full" },
+    });
+    const registered = readRegisteredTools(server);
+    if (registered.length === 0) return;
+
+    const missing = FULL_TOOLS.filter((t) => !registered.includes(t));
+    const unexpected = registered.filter((t) => !FULL_TOOLS.includes(t));
+
+    expect(missing, `Missing full-profile tools: ${missing.join(", ")}`)
+      .toEqual([]);
+    expect(unexpected, `Unexpected full-profile tools — update FULL_TOOLS to include: ${unexpected.join(", ")}`)
       .toEqual([]);
   });
 
@@ -110,7 +124,7 @@ describe("hAIve MCP server — registered tools", () => {
       return;
     }
     const dist = readFileSync(distFile, "utf8");
-    const missing = EXPECTED_TOOLS.filter((tool) => {
+    const missing = FULL_TOOLS.filter((tool) => {
       // server.tool("name", ...) — match the literal as a JSON-quoted string.
       const re = new RegExp(`["']${tool.replace(/_/g, "_")}["']`);
       return !re.test(dist);

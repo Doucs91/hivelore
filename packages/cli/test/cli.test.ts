@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,6 +13,22 @@ const CLI = path.resolve(__dirname, "../dist/index.js");
 
 async function run(cwd: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
   return await exec("node", [CLI, ...args], { cwd });
+}
+
+async function runWithInput(
+  cwd: string,
+  args: string[],
+  input: string,
+): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  return await new Promise((resolve) => {
+    const child = spawn("node", [CLI, ...args], { cwd });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d: Buffer) => { stdout += d.toString("utf8"); });
+    child.stderr.on("data", (d: Buffer) => { stderr += d.toString("utf8"); });
+    child.on("close", (code) => resolve({ stdout, stderr, code }));
+    child.stdin.end(input);
+  });
 }
 
 describe("hAIve CLI integration", () => {
@@ -43,6 +59,11 @@ describe("hAIve CLI integration", () => {
     expect(
       existsSync(path.join(workDir, ".cursor/rules/haive-mcp-required.mdc")),
     ).toBe(true);
+    const claudeSettings = path.join(workDir, ".claude/settings.local.json");
+    expect(existsSync(claudeSettings)).toBe(true);
+    const hooks = await readFile(claudeSettings, "utf8");
+    expect(hooks).toContain("haive enforce session-start");
+    expect(hooks).toContain("haive enforce pre-tool-use");
   });
 
   it("init writes project-level MCP configs with HAIVE_PROJECT_ROOT", async () => {
@@ -157,5 +178,26 @@ describe("hAIve CLI integration", () => {
       threw = true;
     }
     expect(threw).toBe(true);
+  });
+
+  it("enforce pre-tool-use blocks writes until session-start creates a briefing marker", async () => {
+    const payload = JSON.stringify({
+      cwd: workDir,
+      session_id: "cli-test-session",
+      tool_name: "Write",
+      tool_input: { file_path: "src/new.ts" },
+    });
+
+    const blocked = await runWithInput(workDir, ["enforce", "pre-tool-use", "--dir", workDir], payload);
+    expect(blocked.code).toBe(2);
+    expect(blocked.stderr).toContain("hAIve enforcement blocked this action");
+
+    const started = await runWithInput(workDir, ["enforce", "session-start", "--dir", workDir], payload);
+    expect(started.code).toBe(0);
+    expect(started.stdout).toContain("hAIve briefing loaded");
+
+    const allowed = await runWithInput(workDir, ["enforce", "pre-tool-use", "--dir", workDir], payload);
+    expect(allowed.code).toBe(0);
+    expect(allowed.stderr).toBe("");
   });
 });

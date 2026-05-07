@@ -119,7 +119,7 @@ async function installClaudeHooks(opts: InstallHooksOptions): Promise<void> {
   try {
     const result = await installClaudeHooksAtPath(settingsPath);
     if (result.created) {
-      ui.success(`Created ${result.settingsPath} with hAIve passive-capture hooks`);
+      ui.success(`Created ${result.settingsPath} with hAIve enforcement hooks`);
     } else {
       ui.success(`Patched ${result.settingsPath} (existing user hooks preserved)`);
     }
@@ -129,8 +129,9 @@ async function installClaudeHooks(opts: InstallHooksOptions): Promise<void> {
     return;
   }
 
-  ui.info("PostToolUse hook: `haive observe` runs after every Edit/Write/Bash");
-  ui.info("                   (appends a JSON line to .ai/.cache/observations.jsonl)");
+  ui.info("SessionStart hook: `haive enforce session-start` injects briefing context");
+  ui.info("PreToolUse hook:   blocks Edit/Write/dangerous Bash until briefing is loaded");
+  ui.info("PostToolUse hook:  `haive observe` captures Edit/Write/Bash activity");
   ui.info("SessionEnd hook:   `haive session end --auto --quiet` distills observations");
   ui.info("                   into a session_recap memory at session close");
   ui.info("Restart Claude Code (or open a new conversation) for the hooks to take effect.");
@@ -143,8 +144,8 @@ export function registerInstallHooks(program: Command): void {
     .description(
       "Install hAIve hooks. Targets:\n\n" +
       "    git     (default) post-merge / post-rewrite / pre-push for haive sync + precommit\n" +
-      "    claude  PostToolUse + SessionEnd hooks in ~/.claude/settings.json\n" +
-      "            for passive observation capture (Claude Code only)\n\n" +
+      "    claude  SessionStart + PreToolUse + PostToolUse + SessionEnd hooks\n" +
+      "            for briefing injection, pre-edit blocking, and capture (Claude Code only)\n\n" +
       "  Examples:\n" +
       "    haive install-hooks           # git hooks (legacy default)\n" +
       "    haive install-hooks git\n" +

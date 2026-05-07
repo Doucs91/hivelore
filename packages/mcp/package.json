@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/mcp",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "description": "hAIve MCP server — exposes memory + project context to any MCP-compatible AI client",
   "license": "MIT",
   "repository": {

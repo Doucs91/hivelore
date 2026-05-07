@@ -23,3 +23,4 @@ export * from "./lexical-rank.js";
 export * from "./memory-timeline.js";
 export * from "./conflict-candidates.js";
 export * from "./runtime-journal.js";
+export * from "./enforcement.js";

@@ -13,6 +13,7 @@
  *   - hubPath: local path to a shared team-knowledge hub repo
  */
 import { existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { HaivePaths } from "./paths.js";
@@ -112,6 +113,17 @@ export interface HaiveConfig {
    * Set to [] to disable dependency tracking entirely.
    */
   dependencyFiles?: string[];
+
+  /**
+   * Agent-enforcement settings. Enabled by default so initialized projects
+   * treat hAIve as infrastructure, not an optional convention.
+   */
+  enforcement?: {
+    /** Require get_briefing / mem_relevant_to before state-changing MCP tools. */
+    requireBriefingFirst?: boolean;
+    /** Default MCP surface: enforcement = small public tool set; full = legacy all tools. */
+    toolProfile?: "enforcement" | "full";
+  };
 }
 
 export const DEFAULT_CONFIG: HaiveConfig = {
@@ -122,6 +134,10 @@ export const DEFAULT_CONFIG: HaiveConfig = {
   autoPromoteMinReads: 5,
   autoSessionEnd: false,
   autoContext: false,
+  enforcement: {
+    requireBriefingFirst: true,
+    toolProfile: "enforcement",
+  },
 };
 
 export const AUTOPILOT_DEFAULTS: HaiveConfig = {
@@ -132,6 +148,10 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
   autoPromoteMinReads: 1,
   autoSessionEnd: true,
   autoContext: true,
+  enforcement: {
+    requireBriefingFirst: true,
+    toolProfile: "enforcement",
+  },
 };
 
 export function configPath(paths: HaivePaths): string {
@@ -144,10 +164,10 @@ export async function loadConfig(paths: HaivePaths): Promise<HaiveConfig> {
   try {
     const raw = await readFile(file, "utf8");
     const parsed = JSON.parse(raw) as Partial<HaiveConfig>;
-    const merged = { ...DEFAULT_CONFIG, ...parsed };
+    const merged = mergeConfig(DEFAULT_CONFIG, parsed);
     // In autopilot mode, apply autopilot defaults for any field not explicitly set
     if (merged.autopilot) {
-      return { ...AUTOPILOT_DEFAULTS, ...parsed };
+      return mergeConfig(AUTOPILOT_DEFAULTS, parsed);
     }
     return merged;
   } catch {
@@ -155,6 +175,31 @@ export async function loadConfig(paths: HaivePaths): Promise<HaiveConfig> {
   }
 }
 
+export function loadConfigSync(paths: HaivePaths): HaiveConfig {
+  const file = configPath(paths);
+  if (!existsSync(file)) return { ...DEFAULT_CONFIG };
+  try {
+    const parsed = JSON.parse(readFileSync(file, "utf8")) as Partial<HaiveConfig>;
+    const merged = mergeConfig(DEFAULT_CONFIG, parsed);
+    return merged.autopilot
+      ? mergeConfig(AUTOPILOT_DEFAULTS, parsed)
+      : merged;
+  } catch {
+    return { ...DEFAULT_CONFIG };
+  }
+}
+
 export async function saveConfig(paths: HaivePaths, config: HaiveConfig): Promise<void> {
   await writeFile(configPath(paths), JSON.stringify(config, null, 2) + "\n", "utf8");
+}
+
+function mergeConfig(base: HaiveConfig, override: Partial<HaiveConfig>): HaiveConfig {
+  return {
+    ...base,
+    ...override,
+    enforcement: {
+      ...base.enforcement,
+      ...override.enforcement,
+    },
+  };
 }

@@ -1,12 +1,14 @@
 /**
- * Patch a Claude Code settings.json file with hAIve passive-capture hooks.
+ * Patch a Claude Code settings.json file with hAIve enforcement hooks.
  *
  * Claude Code's hook format:
  *   { "hooks": { "PostToolUse": [{ "matcher": "...", "hooks": [{ "type":"command", "command":"..." }] }] } }
  *
- * We add two hAIve-marked entries so we can find and replace them on re-runs:
- *   - PostToolUse → `haive observe`   (matcher: Edit|Write|Bash)
- *   - SessionEnd  → `haive session-end --quiet`
+ * We add hAIve-marked entries so we can find and replace them on re-runs:
+ *   - SessionStart → `haive enforce session-start`
+ *   - PreToolUse   → `haive enforce pre-tool-use` (matcher: Edit|Write|Bash)
+ *   - PostToolUse  → `haive observe` (passive capture)
+ *   - SessionEnd   → `haive session end --quiet --auto`
  *
  * Existing user-defined hooks are preserved untouched.
  */
@@ -14,7 +16,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-export const HAIVE_HOOK_TAG = "haive-passive-capture";
+export const HAIVE_HOOK_TAG = "haive-enforcement";
 
 interface ClaudeHookEntry {
   type: "command";
@@ -44,6 +46,27 @@ const POST_TOOL_USE_GROUP: ClaudeHookGroup = {
   ],
 };
 
+const PRE_TOOL_USE_GROUP: ClaudeHookGroup = {
+  matcher: "Edit|Write|MultiEdit|NotebookEdit|Bash",
+  hooks: [
+    {
+      type: "command",
+      command: "haive enforce pre-tool-use",
+      haive_tag: HAIVE_HOOK_TAG,
+    },
+  ],
+};
+
+const SESSION_START_GROUP: ClaudeHookGroup = {
+  hooks: [
+    {
+      type: "command",
+      command: "haive enforce session-start",
+      haive_tag: HAIVE_HOOK_TAG,
+    },
+  ],
+};
+
 const SESSION_END_GROUP: ClaudeHookGroup = {
   hooks: [
     {
@@ -63,6 +86,14 @@ function dropHaiveGroups(groups: ClaudeHookGroup[]): ClaudeHookGroup[] {
 export function patchClaudeSettings(input: ClaudeSettings | null): ClaudeSettings {
   const settings: ClaudeSettings = input ? { ...input } : {};
   const hooks = settings.hooks ? { ...settings.hooks } : {};
+  hooks.SessionStart = [
+    ...dropHaiveGroups(hooks.SessionStart ?? []),
+    SESSION_START_GROUP,
+  ];
+  hooks.PreToolUse = [
+    ...dropHaiveGroups(hooks.PreToolUse ?? []),
+    PRE_TOOL_USE_GROUP,
+  ];
   hooks.PostToolUse = [
     ...dropHaiveGroups(hooks.PostToolUse ?? []),
     POST_TOOL_USE_GROUP,

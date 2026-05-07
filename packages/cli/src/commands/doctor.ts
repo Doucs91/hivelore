@@ -221,6 +221,29 @@ export function registerDoctor(program: Command): void {
 
       // ── 6. Config sanity ──────────────────────────────────────────────────
       const config = await loadConfig(paths);
+      if (config.enforcement?.requireBriefingFirst) {
+        const claudeSettings = path.join(root, ".claude", "settings.local.json");
+        let hasClaudeEnforcement = false;
+        if (existsSync(claudeSettings)) {
+          try {
+            const { readFile } = await import("node:fs/promises");
+            const raw = await readFile(claudeSettings, "utf8");
+            hasClaudeEnforcement =
+              raw.includes("haive enforce session-start") &&
+              raw.includes("haive enforce pre-tool-use");
+          } catch {
+            hasClaudeEnforcement = false;
+          }
+        }
+        if (!hasClaudeEnforcement) {
+          findings.push({
+            severity: "info",
+            code: "claude-enforcement-hooks-missing",
+            message: "hAIve enforcement is enabled, but project-scoped Claude Code hooks are not installed.",
+            fix: "haive install-hooks claude --scope project",
+          });
+        }
+      }
       if (!config.autoSessionEnd) {
         findings.push({
           severity: "info",

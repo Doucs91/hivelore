@@ -144,24 +144,20 @@ your-project/
 
 ## MCP tools reference
 
+By default, hAIve now exposes the smaller **enforcement** MCP profile: the tools an agent needs to load team context, avoid repeated mistakes, and check a change before commit. Set `HAIVE_TOOL_PROFILE=full` to expose the legacy full tool surface.
+
 | Tool | Description |
 |---|---|
 | `get_briefing` | ⭐ One-shot onboarding: project context + module contexts + ranked memories under a token budget |
 | `mem_save` | Save a new memory (convention, decision, gotcha, architecture, glossary) |
 | `mem_tried` | ⭐ Record a failed approach — surfaces first in future briefings to prevent repeated mistakes |
 | `mem_search` | Search by keyword or semantic similarity |
-| `mem_list` | List with filters (scope, type, status, tag) |
 | `mem_get` | Fetch a single memory with full details |
-| `mem_for_files` | Surface memories relevant to files you're editing |
 | `mem_update` | Update body, tags, or anchor |
 | `mem_verify` | Check anchor freshness; detect stale memories + suggest renames |
-| `mem_diff` | Compare two memories side-by-side (frontmatter + body diff) |
-| `mem_approve` / `mem_reject` | Lifecycle management |
-| `mem_pending` | List proposed memories awaiting review |
-| `mem_delete` | Delete a memory |
-| `get_project_context` | Read `.ai/project-context.md` directly |
-| `bootstrap_project_save` | Persist AI-generated project context |
+| `mem_relevant_to` | Ranked memories for a task when project context is already loaded |
 | `code_map` | Browse the pre-computed code map (file → exports) without grepping |
+| `pre_commit_check` | Check a diff/paths against known gotchas, decisions, and stale anchors |
 
 ## MCP prompts reference
 
@@ -169,7 +165,8 @@ your-project/
 |---|---|
 | `post_task` | ⭐ Post-task checklist — run before closing every session to capture what you learned |
 | `bootstrap_project` | Instructions for analyzing the project and writing `.ai/project-context.md` |
-| `import_docs` | Analyze a document (README, ADR, wiki) and save its knowledge as memories |
+
+`HAIVE_TOOL_PROFILE=full` also exposes advanced lifecycle, import, timeline, conflict, runtime-journal, and diagnostic tools for maintainers.
 
 ---
 
@@ -181,6 +178,9 @@ haive mcp [--root <path>]                   # Start MCP server
 haive briefing [--task <text>] [--files]    # Print project context + relevant memories
 haive sync [--since <ref>] [--embed]        # Verify anchors + auto-promote + decay report
 haive install-hooks                         # Auto-run sync after git pull/merge
+haive install-hooks claude                  # Enforce briefing before Claude Code edits
+haive enforce session-start                 # Hook helper: load briefing + write marker
+haive enforce pre-tool-use                  # Hook helper: block edits without briefing
 haive tui                                   # Interactive terminal dashboard
 
 haive memory add --type <type> --slug <id>  # Add a memory

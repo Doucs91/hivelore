@@ -45,6 +45,7 @@ import { registerResolveProject } from "./commands/resolve-project.js";
 import { registerRuntime } from "./commands/runtime-journal.js";
 import { registerMemoryTimeline } from "./commands/memory-timeline.js";
 import { registerMemoryConflictCandidates } from "./commands/memory-conflict-candidates.js";
+import { registerEnforce } from "./commands/enforce.js";
 
 const program = new Command();
 
@@ -59,6 +60,7 @@ registerInit(program);
 registerWelcome(program);
 registerResolveProject(program);
 registerRuntime(program);
+registerEnforce(program);
 
 registerMcp(program);
 registerBriefing(program);

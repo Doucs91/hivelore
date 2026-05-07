@@ -6,6 +6,17 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.8] — enforcement hooks and default MCP profile
+
+### Added
+- Added hAIve enforcement mode as the default MCP profile for initialized projects: the default MCP surface is now the smaller enforcement set, with `HAIVE_TOOL_PROFILE=full` available for the legacy full tool list.
+- Added `haive enforce session-start` and `haive enforce pre-tool-use` for agent hooks. Claude Code hooks can now inject a briefing marker at session start and block write-like tools until briefing is loaded.
+- Added `.ai/.runtime/enforcement/briefings/` marker support for local pre-edit enforcement.
+
+### Changed
+- `haive install-hooks claude` now installs `SessionStart`, `PreToolUse`, `PostToolUse`, and `SessionEnd` hooks instead of passive capture only.
+- Autopilot `haive init` installs project-scoped Claude Code enforcement hooks when possible.
+
 ## [0.9.7] — enforcement direction and release hygiene
 
 ### Fixed
