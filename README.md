@@ -30,7 +30,7 @@ AI agent ──▶ hAIve briefing ──▶ code change ──▶ hAIve Git/CI g
 2. Agents start with `get_briefing`, `haive briefing`, or `haive run -- <agent>` to load the team context.
 3. Validated memories capture decisions, gotchas, conventions, and failed attempts as Markdown anchored to code paths/symbols.
 4. hAIve verifies anchors and flags stale decisions when code moves.
-5. `haive enforce check` and `haive enforce ci` block unsafe workflow states: missing briefing, missing recap, stale important memories, or known anti-patterns.
+5. `haive enforce check` and `haive enforce ci` block unsafe workflow states: missing briefing, missing recap, stale important memories, missing decision coverage, visible runtime artifacts, or known anti-patterns.
 
 The memory layer is the substrate. The product promise is enforcement: AI changes should not enter the codebase without consulting the team's current knowledge.
 
@@ -126,6 +126,7 @@ The wrapper writes a compact briefing file and exports `HAIVE_PROJECT_ROOT`, `HA
 haive enforce status
 haive enforce check --stage pre-commit
 haive enforce ci
+haive benchmark report --dir benchmarks/agent-benchmark
 ```
 
 Git hooks and CI are the agent-agnostic backstop. Client hooks are helpful, but the workflow gates are what make hAIve portable across agents.
@@ -163,20 +164,43 @@ your-project/
 
 ## MCP tools reference
 
-By default, hAIve now exposes the smaller **enforcement** MCP profile: the tools an agent needs to load team context, avoid repeated mistakes, and check a change before commit. Set `HAIVE_TOOL_PROFILE=full` to expose the legacy full tool surface.
+By default, hAIve now exposes the smaller **enforcement** MCP profile: the tools an agent needs to load team context, save durable policy knowledge, close the session, and check a change before commit. Set `HAIVE_TOOL_PROFILE=full` to expose the legacy full tool surface.
 
 | Tool | Description |
 |---|---|
 | `get_briefing` | ⭐ Required policy briefing: context + decisions + gotchas + failed attempts + warnings |
 | `mem_save` | Save policy knowledge (convention, decision, gotcha, architecture, glossary) |
-| `mem_tried` | ⭐ Record a failed approach — surfaces first in future briefings to prevent repeated mistakes |
 | `mem_search` | Search by keyword or semantic similarity |
-| `mem_get` | Fetch a single memory with full details |
-| `mem_update` | Update body, tags, or anchor |
 | `mem_verify` | Check anchor freshness; detect stale memories + suggest renames |
 | `mem_relevant_to` | Ranked memories for a task when project context is already loaded |
-| `code_map` | Browse the pre-computed code map (file → exports) without grepping |
 | `pre_commit_check` | Check a diff/paths against known gotchas, decisions, and stale anchors |
+| `mem_session_end` | Save the required end-of-session recap for the next agent |
+
+The legacy full profile still includes admin/debug tools such as `mem_tried`, `mem_get`, `mem_update`, `code_map`, timeline, conflict, and runtime journal tools.
+
+---
+
+## Enforcement Score And Decision Coverage
+
+`haive enforce check` now reports an enforcement score. Strict projects can require a minimum score before local gates, Git hooks, or CI pass.
+
+The score includes:
+
+- briefing loaded for the current workflow
+- anchored decision/gotcha/convention memories verified against changed files
+- relevant decisions surfaced in the latest briefing before commit
+- pre-commit policy checks against known anti-patterns and stale anchors
+- generated runtime/cache artifacts kept out of Git status
+
+If a changed file is covered by an anchored policy memory but that memory was not in the latest briefing, hAIve reports `decision-coverage-missing`. This is the enforcement layer checking not only "did the agent use hAIve?", but "did it consult the decisions relevant to the files it changed?"
+
+Useful commands:
+
+```bash
+haive briefing --files "src/payments.ts" --task "change payment validation"
+haive enforce check --stage pre-commit
+haive enforce cleanup
+```
 
 ## MCP prompts reference
 

@@ -211,13 +211,54 @@ describe("hAIve CLI integration", () => {
   it("briefing satisfies the agent-agnostic local enforcement gate", async () => {
     await run(workDir, ["briefing", "--task", "local enforcement smoke", "--budget", "quick", "--dir", workDir]);
     const { stdout } = await run(workDir, ["enforce", "check", "--stage", "local", "--json", "--dir", workDir]);
-    const report = JSON.parse(stdout) as { should_block: boolean; findings: Array<{ code: string }> };
+    const report = JSON.parse(stdout) as {
+      should_block: boolean;
+      score: { score: number; threshold: number };
+      findings: Array<{ code: string }>;
+    };
     expect(report.should_block).toBe(false);
+    expect(report.score.score).toBeGreaterThanOrEqual(report.score.threshold);
     expect(report.findings.some((f) => f.code === "briefing-loaded")).toBe(true);
   });
 
   it("run wraps arbitrary agent commands with a hAIve session marker", async () => {
     const { stdout } = await run(workDir, ["run", "--dir", workDir, "--", "node", "-e", "console.log(process.env.HAIVE_ENFORCEMENT)"]);
     expect(stdout).toContain("strict");
+  });
+
+  it("benchmark report summarizes agent benchmark reports", async () => {
+    const benchDir = path.join(workDir, "benchmarks", "agent-benchmark");
+    const fixtureDir = path.join(benchDir, "sample-haive");
+    await import("node:fs/promises").then(async ({ mkdir, writeFile }) => {
+      await mkdir(fixtureDir, { recursive: true });
+      await writeFile(path.join(fixtureDir, "BENCHMARK_AGENT_REPORT.md"), [
+        "# Benchmark Agent Report",
+        "",
+        "## Commands Run",
+        "- `haive briefing`",
+        "- `npm test`",
+        "",
+        "## Files Read",
+        "- `src/index.ts`",
+        "",
+        "## Files Modified",
+        "- `src/index.ts`",
+        "",
+        "## Test Iterations",
+        "- Iteration 1: passed",
+        "",
+        "## Key Decisions Made",
+        "- followed policy",
+        "",
+        "## hAIve Memory Impact",
+        "Yes, directly shaped the fix.",
+        "",
+      ].join("\n"), "utf8");
+    });
+
+    const { stdout } = await run(workDir, ["benchmark", "report", "--dir", benchDir]);
+    expect(stdout).toContain("hAIve Agent Benchmark Report");
+    expect(stdout).toContain("sample-haive");
+    expect(stdout).toContain("hAIve impact");
   });
 });

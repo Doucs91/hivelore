@@ -289,14 +289,11 @@ function jsonResult(data: unknown) {
 const ENFORCEMENT_PROFILE_TOOLS = new Set([
   "get_briefing",
   "mem_save",
-  "mem_tried",
   "mem_search",
-  "mem_get",
-  "mem_update",
   "mem_verify",
   "mem_relevant_to",
-  "code_map",
   "pre_commit_check",
+  "mem_session_end",
 ]);
 
 const BRIEFING_TOOLS = new Set(["get_briefing", "mem_relevant_to"]);

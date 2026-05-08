@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import {
@@ -9,6 +9,8 @@ import {
   isFreshIsoDate,
   loadConfig,
   loadMemoriesFromDir,
+  memoryMatchesAnchorPaths,
+  readRecentBriefingMarker,
   resolveBriefingBudget,
   resolveHaivePaths,
   saveConfig,
@@ -50,12 +52,25 @@ interface EnforcementFinding {
   code: string;
   message: string;
   fix?: string;
+  impact?: number;
+}
+
+interface EnforcementScore {
+  score: number;
+  threshold: number;
+  checks: {
+    total: number;
+    ok: number;
+    warn: number;
+    error: number;
+  };
 }
 
 interface EnforcementReport {
   root: string;
   initialized: boolean;
   mode: "off" | "advisory" | "strict";
+  score: EnforcementScore;
   should_block: boolean;
   findings: EnforcementFinding[];
 }
@@ -88,7 +103,11 @@ export function registerEnforce(program: Command): void {
           requireSessionRecap: true,
           requireMemoryVerify: true,
           blockStaleDecisionChanges: true,
+          requireDecisionCoverage: true,
+          scoreThreshold: 85,
+          cleanupGeneratedArtifacts: true,
           toolProfile: "enforcement",
+          policyPacks: ["architecture", "gotchas", "security", "domain", "release"],
         },
       });
       ui.success("hAIve strict enforcement enabled in .ai/haive.config.json");
@@ -132,6 +151,29 @@ export function registerEnforce(program: Command): void {
     });
 
   enforce
+    .command("cleanup")
+    .description("Remove generated hAIve runtime/cache artifacts that should not appear in commits.")
+    .option("-d, --dir <dir>", "project root")
+    .option("--dry-run", "print what would be removed without deleting", false)
+    .action(async (opts: EnforceOptions & { dryRun?: boolean }) => {
+      const root = findProjectRoot(opts.dir);
+      const paths = resolveHaivePaths(root);
+      const targets = [
+        path.join(paths.haiveDir, ".cache"),
+        path.join(paths.haiveDir, ".runtime"),
+      ];
+      for (const target of targets) {
+        if (!existsSync(target)) continue;
+        const rel = path.relative(root, target);
+        if (opts.dryRun) ui.info(`would remove ${rel}`);
+        else {
+          await rm(target, { recursive: true, force: true });
+          ui.success(`removed ${rel}`);
+        }
+      }
+    });
+
+  enforce
     .command("ci")
     .description("CI entrypoint: fail if the repository violates hAIve enforcement policy.")
     .option("-d, --dir <dir>", "project root")
@@ -159,12 +201,6 @@ export function registerEnforce(program: Command): void {
       const sessionId = opts.sessionId ?? payload.session_id;
       const task = opts.task ?? payload.prompt ?? "Start an AI coding session in this hAIve-initialized project.";
 
-      await writeBriefingMarker(paths, {
-        sessionId,
-        task,
-        source: opts.source ?? "claude-session-start",
-      });
-
       const budget = resolveBriefingBudget("quick", {
         max_tokens: 2500,
         max_memories: 5,
@@ -188,6 +224,12 @@ export function registerEnforce(program: Command): void {
         },
         { paths },
       );
+      await writeBriefingMarker(paths, {
+        sessionId,
+        task,
+        source: opts.source ?? "claude-session-start",
+        memoryIds: briefing.memories.map((m) => m.id),
+      });
 
       console.log("hAIve briefing loaded. Agents must consult this before editing.");
       if (briefing.last_session) {
@@ -318,6 +360,12 @@ async function writeWrapperBriefing(
     min_semantic_score: 0.25,
     budget_preset: "quick",
   }, { paths });
+  await writeBriefingMarker(paths, {
+    sessionId,
+    task,
+    source: "haive-run",
+    memoryIds: briefing.memories.map((m) => m.id),
+  });
   const dir = path.join(paths.runtimeDir, "enforcement", "briefings");
   await mkdir(dir, { recursive: true });
   const file = path.join(dir, `${sessionId}.md`);
@@ -359,12 +407,14 @@ async function buildEnforcementReport(
       root,
       initialized,
       mode,
+      score: buildScore([], config.enforcement?.scoreThreshold),
       should_block: true,
       findings: [{
         severity: "error",
         code: "not-initialized",
         message: "This repository is not initialized with hAIve.",
         fix: "Run `haive init` or `haive enforce install`.",
+        impact: 100,
       }],
     };
   }
@@ -374,6 +424,7 @@ async function buildEnforcementReport(
       root,
       initialized,
       mode,
+      score: buildScore([], config.enforcement?.scoreThreshold),
       should_block: false,
       findings: [{ severity: "info", code: "enforcement-off", message: "hAIve enforcement is disabled." }],
     };
@@ -388,6 +439,7 @@ async function buildEnforcementReport(
           code: "briefing-missing",
           message: "No recent hAIve briefing marker was found for this workflow.",
           fix: "Run `haive briefing --task \"...\"`, `haive enforce session-start`, or wrap the agent with `haive run -- <agent>`.",
+          impact: 35,
         });
   }
 
@@ -400,6 +452,7 @@ async function buildEnforcementReport(
           code: "session-recap-missing",
           message: "No recent session_recap memory was found.",
           fix: "Run `haive session end --goal ... --accomplished ...` before pushing.",
+          impact: 20,
         });
   }
 
@@ -407,8 +460,27 @@ async function buildEnforcementReport(
     findings.push(...await verifyMemoryPolicy(paths, config));
   }
 
+  if (config.enforcement?.requireDecisionCoverage !== false) {
+    findings.push(...await verifyDecisionCoverage(paths, stage, sessionId));
+  }
+
   if (stage === "pre-commit" || stage === "ci") {
     findings.push(...await runPrecommitPolicy(paths));
+  }
+
+  if (config.enforcement?.cleanupGeneratedArtifacts !== false) {
+    findings.push(...await findGeneratedArtifacts(paths));
+  }
+
+  const score = buildScore(findings, config.enforcement?.scoreThreshold);
+  if (score.score < score.threshold) {
+    findings.push({
+      severity: "error",
+      code: "enforcement-score-below-threshold",
+      message: `Enforcement score ${score.score}% is below required threshold ${score.threshold}%.`,
+      fix: "Load the relevant briefing, address policy findings, then rerun `haive enforce check`.",
+      impact: 0,
+    });
   }
 
   const hasErrors = findings.some((f) => f.severity === "error");
@@ -416,6 +488,7 @@ async function buildEnforcementReport(
     root,
     initialized,
     mode,
+    score: buildScore(findings, config.enforcement?.scoreThreshold),
     should_block: mode === "strict" && hasErrors,
     findings,
   };
@@ -470,9 +543,60 @@ async function verifyMemoryPolicy(
       code: "stale-important-memories",
       message: `${staleImportant.length} important anchored memories are stale: ${staleImportant.slice(0, 8).join(", ")}`,
       fix: "Run `haive memory verify --update`, then update or delete stale decisions/gotchas before merging.",
+      impact: 40,
     });
   }
   return findings;
+}
+
+async function verifyDecisionCoverage(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  stage: "local" | "pre-commit" | "pre-push" | "ci",
+  sessionId?: string,
+): Promise<EnforcementFinding[]> {
+  if (!existsSync(paths.memoriesDir)) return [];
+  const changedFiles = await getChangedFiles(paths.root, stage);
+  if (changedFiles.length === 0) {
+    return [{ severity: "info", code: "decision-coverage-no-changes", message: "No changed files to match against policy memories." }];
+  }
+
+  const all = await loadMemoriesFromDir(paths.memoriesDir);
+  const policyTypes = new Set(["decision", "gotcha", "architecture", "convention"]);
+  const relevant = all
+    .map(({ memory }) => memory)
+    .filter((memory) => {
+      const fm = memory.frontmatter;
+      if (!policyTypes.has(fm.type)) return false;
+      if (fm.status === "rejected" || fm.status === "deprecated" || fm.status === "stale") return false;
+      return memoryMatchesAnchorPaths(memory, changedFiles);
+    });
+
+  if (relevant.length === 0) {
+    return [{
+      severity: "ok",
+      code: "decision-coverage-none-required",
+      message: `No anchored decisions or policies matched ${changedFiles.length} changed file(s).`,
+    }];
+  }
+
+  const marker = await readRecentBriefingMarker(paths, sessionId);
+  const consulted = new Set(marker?.memory_ids ?? []);
+  const missing = relevant.filter((memory) => !consulted.has(memory.frontmatter.id));
+  if (missing.length === 0) {
+    return [{
+      severity: "ok",
+      code: "decision-coverage-pass",
+      message: `Relevant decisions/policies were surfaced for ${changedFiles.length} changed file(s): ${relevant.length}/${relevant.length}.`,
+    }];
+  }
+
+  return [{
+    severity: stage === "local" ? "warn" : "error",
+    code: "decision-coverage-missing",
+    message: `${missing.length}/${relevant.length} relevant anchored decisions/policies were not present in the latest briefing: ${missing.slice(0, 6).map((m) => m.frontmatter.id).join(", ")}`,
+    fix: `Run \`haive briefing --files "${changedFiles.slice(0, 10).join(",")}" --task "..."\` before committing.`,
+    impact: Math.min(35, 10 + missing.length * 5),
+  }];
 }
 
 async function runPrecommitPolicy(paths: ReturnType<typeof resolveHaivePaths>): Promise<EnforcementFinding[]> {
@@ -500,7 +624,73 @@ async function runPrecommitPolicy(paths: ReturnType<typeof resolveHaivePaths>): 
     code: "precommit-policy-block",
     message: `Pre-commit policy matched ${result.summary.anti_patterns} anti-pattern(s), ${result.summary.stale_anchors} stale anchor(s).`,
     fix: "Review the hAIve warnings, then update the code or the relevant memories.",
+    impact: 45,
   }];
+}
+
+async function findGeneratedArtifacts(paths: ReturnType<typeof resolveHaivePaths>): Promise<EnforcementFinding[]> {
+  const dirty = await runCommand("git", ["status", "--short", "--untracked-files=all"], paths.root).catch(() => "");
+  const generated = dirty
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) =>
+      line.includes(".ai/.cache/") ||
+      line.includes(".ai/.runtime/") ||
+      line.includes("__pycache__/") ||
+      line.endsWith(".pyc"),
+    );
+  if (generated.length === 0) {
+    return [{ severity: "ok", code: "generated-artifacts-clean", message: "No generated runtime/cache artifacts are visible to git." }];
+  }
+  return [{
+    severity: "warn",
+    code: "generated-artifacts-visible",
+    message: `${generated.length} generated artifact(s) are visible in git status.`,
+    fix: "Run `haive enforce cleanup`, update .gitignore, or remove test/runtime outputs before committing.",
+    impact: 10,
+  }];
+}
+
+async function getChangedFiles(
+  root: string,
+  stage: "local" | "pre-commit" | "pre-push" | "ci",
+): Promise<string[]> {
+  const commands =
+    stage === "pre-commit"
+      ? [["diff", "--cached", "--name-only"]]
+      : [
+          ["diff", "--cached", "--name-only"],
+          ["diff", "--name-only"],
+        ];
+  const files = new Set<string>();
+  for (const args of commands) {
+    const out = await runCommand("git", args, root).catch(() => "");
+    for (const line of out.split("\n")) {
+      const file = line.trim();
+      if (file) files.add(file);
+    }
+  }
+  return [...files].filter((file) => !file.startsWith(".ai/.runtime/") && !file.startsWith(".ai/.cache/"));
+}
+
+function buildScore(findings: EnforcementFinding[], threshold = 80): EnforcementScore {
+  const checks = {
+    total: findings.length,
+    ok: findings.filter((f) => f.severity === "ok").length,
+    warn: findings.filter((f) => f.severity === "warn").length,
+    error: findings.filter((f) => f.severity === "error").length,
+  };
+  const penalty = findings.reduce((sum, f) => {
+    if (f.severity === "error") return sum + (f.impact ?? 25);
+    if (f.severity === "warn") return sum + (f.impact ?? 8);
+    return sum;
+  }, 0);
+  return {
+    score: Math.max(0, Math.min(100, 100 - penalty)),
+    threshold,
+    checks,
+  };
 }
 
 async function installGitEnforcement(root: string): Promise<void> {
@@ -584,6 +774,7 @@ function printReport(report: EnforcementReport, json: boolean): void {
   }
   console.log(ui.bold(`hAIve enforcement — ${report.mode}`));
   console.log(ui.dim(`  root: ${report.root}`));
+  console.log(ui.dim(`  score: ${report.score.score}% / threshold ${report.score.threshold}%`));
   for (const finding of report.findings) {
     const marker = finding.severity === "error"
       ? ui.red("✗")

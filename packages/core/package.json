@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/core",
-  "version": "0.9.10",
+  "version": "0.9.11",
   "description": "hAIve core — policy, memory, anchor, and enforcement primitives",
   "license": "MIT",
   "repository": {

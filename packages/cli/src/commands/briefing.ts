@@ -149,12 +149,14 @@ export function registerBriefing(program: Command): void {
     .action(async (opts: BriefingOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
+      const markerFiles = parseCsv(opts.files);
       if (existsSync(paths.haiveDir)) {
         await mkdir(paths.runtimeDir, { recursive: true });
         await writeBriefingMarker(paths, {
           task: opts.task ?? "CLI briefing",
           source: "haive-briefing-cli",
           sessionId: process.env.HAIVE_SESSION_ID,
+          files: markerFiles,
         }).catch(() => { /* marker is best-effort */ });
       }
 
@@ -237,7 +239,7 @@ export function registerBriefing(program: Command): void {
       }
 
       const all = ownMemories;
-      const filePaths = parseCsv(opts.files);
+      const filePaths = markerFiles;
       const tokens = opts.task ? tokenizeQuery(opts.task) : null;
       const scopeFilter = opts.scope ?? "all";
 
@@ -371,6 +373,13 @@ export function registerBriefing(program: Command): void {
       const ids = top.map(({ memory: mem }) => mem.frontmatter.id);
       if (ids.length > 0) {
         await trackReads(paths, ids).catch(() => { /* non-fatal */ });
+        await writeBriefingMarker(paths, {
+          task: opts.task ?? "CLI briefing",
+          source: "haive-briefing-cli",
+          sessionId: process.env.HAIVE_SESSION_ID,
+          memoryIds: ids,
+          files: filePaths,
+        }).catch(() => { /* marker is best-effort */ });
       }
 
       // ── Project radar — surface git/TODO/hot-file signals when memories are scarce ──
