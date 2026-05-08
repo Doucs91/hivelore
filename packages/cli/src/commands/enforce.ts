@@ -447,13 +447,21 @@ async function buildEnforcementReport(
     const hasRecap = await hasRecentSessionRecap(paths);
     findings.push(hasRecap
       ? { severity: "ok", code: "session-recap-present", message: "A recent session_recap memory exists." }
-      : {
-          severity: "error",
-          code: "session-recap-missing",
-          message: "No recent session_recap memory was found.",
-          fix: "Run `haive session end --goal ... --accomplished ...` before pushing.",
-          impact: 20,
-        });
+      : stage === "ci"
+        ? {
+            severity: "warn",
+            code: "session-recap-missing",
+            message: "No recent session_recap memory was found. CI reports this as a warning because personal recaps are usually not committed.",
+            fix: "Run `haive session end --scope team --goal ... --accomplished ...` if you want a team recap visible in CI.",
+            impact: 5,
+          }
+        : {
+            severity: "error",
+            code: "session-recap-missing",
+            message: "No recent session_recap memory was found.",
+            fix: "Run `haive session end --goal ... --accomplished ...` before pushing.",
+            impact: 20,
+          });
   }
 
   if (config.enforcement?.requireMemoryVerify !== false) {

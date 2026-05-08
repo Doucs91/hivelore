@@ -221,6 +221,17 @@ describe("hAIve CLI integration", () => {
     expect(report.findings.some((f) => f.code === "briefing-loaded")).toBe(true);
   });
 
+  it("CI enforcement warns but does not block when only session recap is missing", async () => {
+    const { stdout } = await run(workDir, ["enforce", "ci", "--json", "--dir", workDir]);
+    const report = JSON.parse(stdout) as {
+      should_block: boolean;
+      findings: Array<{ code: string; severity: string }>;
+    };
+    const recap = report.findings.find((f) => f.code === "session-recap-missing");
+    expect(report.should_block).toBe(false);
+    expect(recap?.severity).toBe("warn");
+  });
+
   it("run wraps arbitrary agent commands with a hAIve session marker", async () => {
     const { stdout } = await run(workDir, ["run", "--dir", workDir, "--", "node", "-e", "console.log(process.env.HAIVE_ENFORCEMENT)"]);
     expect(stdout).toContain("strict");
