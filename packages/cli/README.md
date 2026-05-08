@@ -51,6 +51,7 @@ haive memory add \
 haive enforce status
 haive enforce check --stage pre-commit
 haive enforce ci
+haive benchmark report --dir benchmarks/agent-benchmark
 ```
 
 ---
@@ -113,6 +114,7 @@ haive enforce status                  # show whether the repo is protected
 haive enforce check --stage local     # local policy gate
 haive enforce check --stage pre-push  # used by Git hooks
 haive enforce ci                      # used by required CI checks
+haive enforce cleanup                 # remove generated .ai runtime/cache artifacts
 ```
 
 Strict mode checks for:
@@ -120,7 +122,23 @@ Strict mode checks for:
 - a recent hAIve briefing marker before local write workflows
 - recent session recap before push/CI gates
 - stale important memories anchored to changed code
+- decision coverage: changed files must have their relevant anchored policies surfaced in the latest briefing
 - known anti-patterns from validated gotchas/decisions
+- visible generated artifacts such as `.ai/.runtime`, `.ai/.cache`, or Python bytecode
+
+`haive enforce check` prints an enforcement score and fails strict gates when the score drops below the configured threshold.
+
+### `haive benchmark`
+
+Turn hAIve-vs-plain agent trials into a repeatable demo/report.
+
+```bash
+haive benchmark demo
+haive benchmark report --dir benchmarks/agent-benchmark
+haive benchmark report --dir benchmarks/agent-benchmark --out RESULTS.md
+```
+
+The report summarizes agent effort from `BENCHMARK_AGENT_REPORT.md` files: commands, files read, files modified, test iterations, terminal failures, decision mentions, token proxy, and whether hAIve memory shaped the outcome.
 
 ### `haive run`
 

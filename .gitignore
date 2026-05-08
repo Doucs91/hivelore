@@ -23,6 +23,11 @@ engram/
 
 # Benchmark fixtures — npm install generates locally
 benchmarks/manual-run/fixtures/**/package-lock.json
+benchmarks/agent-benchmark/**/.git/
+benchmarks/agent-benchmark/**/package-lock.json
+benchmarks/agent-benchmark/**/__pycache__/
+benchmarks/agent-benchmark/**/BENCHMARK_AGENT_REPORT.md
+benchmarks/agent-benchmark/**/OFFICIAL_REPORT.md
 
 # SonarQube MCP (secrets + certificats locaux)
 sonar-mcp.local.env

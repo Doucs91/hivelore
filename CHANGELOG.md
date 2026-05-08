@@ -6,6 +6,18 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.11] — enforcement scoring and agent benchmark reports
+
+### Added
+- Added enforcement scoring to `haive enforce check/status/ci`, including configurable score thresholds.
+- Added decision coverage checks: changed files now require relevant anchored decisions/gotchas/conventions to be surfaced in the latest briefing.
+- Added `haive enforce cleanup` for generated `.ai/.cache` and `.ai/.runtime` artifacts.
+- Added `haive benchmark demo` and `haive benchmark report` to make hAIve-vs-plain agent trials a repeatable product demo.
+
+### Changed
+- Tightened the default MCP enforcement profile to the core workflow tools: briefing, memory save/search/verify/relevance, pre-commit check, and session recap.
+- Briefing markers now record surfaced memory IDs and target files, allowing enforcement to verify that the right decisions were consulted.
+
 ## [0.9.10] — npm positioning and enforcement narrative
 
 ### Changed

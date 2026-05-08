@@ -129,8 +129,16 @@ export interface HaiveConfig {
     requireMemoryVerify?: boolean;
     /** Block changes when anchored decisions/gotchas have become stale. */
     blockStaleDecisionChanges?: boolean;
+    /** Require changed files to be covered by relevant surfaced decisions/policies. */
+    requireDecisionCoverage?: boolean;
+    /** Minimum score required for strict enforcement gates. */
+    scoreThreshold?: number;
+    /** Remove generated hAIve runtime/cache files during cleanup gates. */
+    cleanupGeneratedArtifacts?: boolean;
     /** Default MCP surface: enforcement = small public tool set; full = legacy all tools. */
     toolProfile?: "enforcement" | "full";
+    /** Named memory/policy families enabled for this project. */
+    policyPacks?: string[];
   };
 }
 
@@ -148,7 +156,11 @@ export const DEFAULT_CONFIG: HaiveConfig = {
     requireSessionRecap: true,
     requireMemoryVerify: true,
     blockStaleDecisionChanges: true,
+    requireDecisionCoverage: true,
+    scoreThreshold: 80,
+    cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",
+    policyPacks: ["architecture", "gotchas", "security", "domain", "release"],
   },
 };
 
@@ -166,7 +178,11 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
     requireSessionRecap: true,
     requireMemoryVerify: true,
     blockStaleDecisionChanges: true,
+    requireDecisionCoverage: true,
+    scoreThreshold: 85,
+    cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",
+    policyPacks: ["architecture", "gotchas", "security", "domain", "release"],
   },
 };
 

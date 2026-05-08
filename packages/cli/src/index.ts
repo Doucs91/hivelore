@@ -33,6 +33,7 @@ import { registerSnapshot } from "./commands/snapshot.js";
 import { registerHub } from "./commands/hub.js";
 import { registerStats } from "./commands/stats.js";
 import { registerBench } from "./commands/bench.js";
+import { registerBenchmark } from "./commands/benchmark.js";
 import { registerMemorySuggest } from "./commands/memory-suggest.js";
 import { registerMemoryArchive } from "./commands/memory-archive.js";
 import { registerDoctor } from "./commands/doctor.js";
@@ -54,7 +55,7 @@ declare const __HAIVE_VERSION__: string;
 
 program
   .name("haive")
-  .description("hAIve — team-first persistent memory layer for AI coding agents")
+  .description("hAIve — policy enforcement layer for AI coding agents")
   .version(__HAIVE_VERSION__);
 
 registerInit(program);
@@ -108,6 +109,7 @@ registerSnapshot(program);
 registerHub(program);
 registerStats(program);
 registerBench(program);
+registerBenchmark(program);
 registerDoctor(program);
 registerPlayback(program);
 registerPrecommit(program);
