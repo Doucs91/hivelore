@@ -23,6 +23,7 @@ engram/
 
 # Benchmark fixtures — npm install generates locally
 benchmarks/manual-run/fixtures/**/package-lock.json
+benchmarks/agent-benchmark/
 benchmarks/agent-benchmark/**/.git/
 benchmarks/agent-benchmark/**/package-lock.json
 benchmarks/agent-benchmark/**/__pycache__/
