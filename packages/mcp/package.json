@@ -2,7 +2,7 @@
   "name": "@hiveai/mcp",
   "version": "0.9.11",
   "description": "hAIve MCP server — policy-aware context and memory tools for AI coding agents",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Doucs91/hAIve.git",

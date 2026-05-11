@@ -2,7 +2,7 @@
   "name": "@hiveai/embeddings",
   "version": "0.9.11",
   "description": "hAIve embeddings — optional local semantic ranking for enforcement briefings",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Doucs91/hAIve.git",

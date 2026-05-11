@@ -2,7 +2,7 @@
   "name": "@hiveai/cli",
   "version": "0.9.11",
   "description": "hAIve CLI — enforce AI agent briefing, memory, Git, and CI policy",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Doucs91/hAIve.git",

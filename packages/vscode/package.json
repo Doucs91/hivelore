@@ -5,7 +5,7 @@
   "version": "0.4.6",
   "publisher": "hiveai",
   "icon": "media/icon.png",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/Doucs91/hAIve.git"

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.9.11",
   "description": "hAIve — policy enforcement layer for AI coding agents",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Doucs91/hAIve.git"

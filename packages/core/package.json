@@ -2,7 +2,7 @@
   "name": "@hiveai/core",
   "version": "0.9.11",
   "description": "hAIve core — policy, memory, anchor, and enforcement primitives",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Doucs91/hAIve.git",

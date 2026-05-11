@@ -2,7 +2,7 @@
   "name": "@hiveai/github-action",
   "version": "0.4.4",
   "description": "GitHub Action that surfaces hAIve team memories on pull requests",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/Doucs91/hAIve.git"
