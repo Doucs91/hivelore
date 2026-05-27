@@ -13,6 +13,7 @@ import { memSave } from "../src/tools/mem-save.js";
 import { memSearch } from "../src/tools/mem-search.js";
 import { memSessionEnd } from "../src/tools/mem-session-end.js";
 import { patternDetect } from "../src/tools/pattern-detect.js";
+import { preCommitCheck } from "../src/tools/precommit-check.js";
 import { pendingDistillPath, type PendingDistill } from "../src/session-tracker.js";
 
 describe("hAIve MCP tools", () => {
@@ -274,6 +275,31 @@ describe("hAIve MCP tools", () => {
       expect(existsSync(markerPath)).toBe(false);
     });
 
+    it("mem_session_end refreshes verified_at when updating an existing recap", async () => {
+      await memSessionEnd(
+        { goal: "first pass", accomplished: "done", discoveries: "",
+          files_touched: ["src/old.ts"], next_steps: "", scope: "team" },
+        ctx,
+      );
+      const { loadMemoriesFromDir } = await import("@hiveai/core");
+      const before = (await loadMemoriesFromDir(ctx.paths.memoriesDir))
+        .find(({ memory }) => memory.frontmatter.type === "session_recap");
+      expect(before).toBeDefined();
+
+      await memSessionEnd(
+        { goal: "second pass", accomplished: "still done", discoveries: "",
+          files_touched: ["src/new.ts"], next_steps: "", scope: "team" },
+        ctx,
+      );
+      const after = (await loadMemoriesFromDir(ctx.paths.memoriesDir))
+        .find(({ memory }) => memory.frontmatter.type === "session_recap");
+
+      expect(after?.memory.frontmatter.id).toBe(before?.memory.frontmatter.id);
+      expect(after?.memory.frontmatter.revision_count).toBe(1);
+      expect(after?.memory.frontmatter.created_at).toBe(before?.memory.frontmatter.created_at);
+      expect(after?.memory.frontmatter.verified_at).toEqual(expect.any(String));
+    });
+
     it("get_briefing auto-expires pending-distill older than 7 days", async () => {
       const cacheDir = path.join(ctx.paths.haiveDir, ".cache");
       await mkdir(cacheDir, { recursive: true });
@@ -459,6 +485,92 @@ describe("hAIve MCP tools", () => {
       );
       expect(out.scope).toBe("team");
       expect(out.file_path).toContain("/memories/team/");
+    });
+  });
+
+  describe("pre_commit_check false-positive handling", () => {
+    it("does not block high-confidence mode on literal-only anti-pattern matches", async () => {
+      const saved = await memSave(
+        {
+          type: "gotcha",
+          slug: "package-json-generic",
+          body: "Avoid changing package.json from npm install output unless dependency changes were intended.",
+          scope: "team",
+          tags: ["tooling"],
+          paths: [],
+        },
+        ctx,
+      );
+      const { loadMemoriesFromDir, serializeMemory } = await import("@hiveai/core");
+      const target = (await loadMemoriesFromDir(ctx.paths.memoriesDir))
+        .find(({ memory }) => memory.frontmatter.id === saved.id);
+      expect(target).toBeDefined();
+      await writeFile(
+        target!.filePath,
+        serializeMemory({
+          frontmatter: { ...target!.memory.frontmatter, status: "validated" },
+          body: target!.memory.body,
+        }),
+        "utf8",
+      );
+
+      const result = await preCommitCheck(
+        {
+          diff: [
+            "diff --git a/src/app.ts b/src/app.ts",
+            "--- a/src/app.ts",
+            "+++ b/src/app.ts",
+            "@@",
+            "+// package json metadata label",
+          ].join("\n"),
+          paths: ["src/app.ts"],
+          block_on: "high-confidence",
+          semantic: false,
+        },
+        ctx,
+      );
+
+      expect(result.warnings.length).toBeGreaterThan(0);
+      expect(result.summary.blocking_warnings).toBe(0);
+      expect(result.should_block).toBe(false);
+      expect(result.warnings[0]?.reasons).toEqual(["literal"]);
+    });
+
+    it("does not block high-confidence mode on anchor-only anti-pattern matches", async () => {
+      await writeFile(path.join(workDir, "package.json"), "{\"version\":\"1.0.0\"}\n", "utf8");
+      await memSave(
+        {
+          type: "gotcha",
+          slug: "package-version-bump",
+          body: "Do not change package versions unless preparing a release.",
+          scope: "team",
+          tags: ["release"],
+          paths: ["package.json"],
+        },
+        ctx,
+      );
+
+      const result = await preCommitCheck(
+        {
+          diff: [
+            "diff --git a/package.json b/package.json",
+            "--- a/package.json",
+            "+++ b/package.json",
+            "@@",
+            '-  \"description\": \"old\"',
+            '+  \"description\": \"new\"',
+          ].join("\n"),
+          paths: ["package.json"],
+          block_on: "high-confidence",
+          semantic: false,
+        },
+        ctx,
+      );
+
+      expect(result.warnings.length).toBeGreaterThan(0);
+      expect(result.summary.blocking_warnings).toBe(0);
+      expect(result.should_block).toBe(false);
+      expect(result.warnings[0]?.reasons).toEqual(["anchor", "literal"]);
     });
   });
 

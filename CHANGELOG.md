@@ -6,6 +6,16 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.13] — enforcement false-positive fixes
+
+### Fixed
+- Session recap updates now refresh `verified_at`, so strict gates count an updated recap as recent without rewriting its original creation date.
+- `haive enforce` now checks recap freshness using `verified_at ?? created_at`.
+- `pre_commit_check` no longer blocks `high-confidence` mode on literal-only or anchor-only anti-pattern matches; blocking now requires a strong semantic signal.
+
+### Changed
+- `haive precommit` now reports blocking anti-pattern warnings separately from advisory anti-pattern matches.
+
 ## [0.9.12] — agent-aware init and setup
 
 ### Added

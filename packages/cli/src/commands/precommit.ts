@@ -76,6 +76,7 @@ export function registerPrecommit(program: Command): void {
       console.log(
         ui.dim(
           `  anti-patterns: ${result.summary.anti_patterns}  ` +
+          `blocking: ${result.summary.blocking_warnings ?? result.summary.anti_patterns}  ` +
           `relevant memories: ${result.summary.relevant_memories}  ` +
           `stale anchors: ${result.summary.stale_anchors}`,
         ),

@@ -126,6 +126,7 @@ export async function memSessionEnd(
     const revisionCount = (fm.revision_count ?? 0) + 1;
     const newFrontmatter = {
       ...fm,
+      verified_at: new Date().toISOString(),
       revision_count: revisionCount,
       anchor: {
         ...fm.anchor,

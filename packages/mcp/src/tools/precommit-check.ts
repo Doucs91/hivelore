@@ -41,6 +41,7 @@ export interface PreCommitCheckOutput {
   /** Per-section summary; clients should surface the warnings + reasons to the user. */
   summary: {
     anti_patterns: number;
+    blocking_warnings?: number;
     relevant_memories: number;
     stale_anchors: number;
   };
@@ -114,13 +115,11 @@ export async function preCommitCheck(
 
   // Determine should_block
   const blockOn = input.block_on;
+  const blockingWarnings = apResult.warnings.filter(isBlockingWarning);
   let should_block = false;
   if (blockOn !== "never") {
-    const high = apResult.warnings.filter(
-      (w) => w.confidence === "authoritative" || w.confidence === "trusted",
-    );
     if (blockOn === "any" && (apResult.warnings.length > 0 || staleHits.length > 0)) should_block = true;
-    if (blockOn === "high-confidence" && (high.length > 0 || staleHits.length > 0)) should_block = true;
+    if (blockOn === "high-confidence" && (blockingWarnings.length > 0 || staleHits.length > 0)) should_block = true;
   }
 
   // Map mem_for_files output to a simpler shape
@@ -135,6 +134,7 @@ export async function preCommitCheck(
     should_block,
     summary: {
       anti_patterns: apResult.warnings.length,
+      blocking_warnings: blockingWarnings.length,
       relevant_memories: relevant_memories.length,
       stale_anchors: staleHits.length,
     },
@@ -149,4 +149,14 @@ export async function preCommitCheck(
       body_preview: r.reason ?? "anchored code drifted; verify before relying on this memory",
     })),
   };
+}
+
+function isBlockingWarning(warning: AntiPatternsWarning): boolean {
+  const highConfidence = warning.confidence === "authoritative" || warning.confidence === "trusted";
+  if (!highConfidence) return false;
+
+  // Anchors and lexical matches prove relevance, not violation. A broad diff
+  // can touch package files or share common tokens with old gotchas. Require
+  // a semantic corroboration strong enough to indicate the same mistake.
+  return warning.reasons.includes("semantic") && (warning.semantic_score ?? 0) >= 0.65;
 }

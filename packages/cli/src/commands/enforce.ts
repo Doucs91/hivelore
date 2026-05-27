@@ -505,11 +505,13 @@ async function buildEnforcementReport(
 async function hasRecentSessionRecap(paths: ReturnType<typeof resolveHaivePaths>): Promise<boolean> {
   if (!existsSync(paths.memoriesDir)) return false;
   const all = await loadMemoriesFromDir(paths.memoriesDir);
-  return all.some(({ memory }) =>
-    memory.frontmatter.type === "session_recap" &&
-    memory.frontmatter.status !== "rejected" &&
-    isFreshIsoDate(memory.frontmatter.created_at, SESSION_RECAP_TTL_MS),
-  );
+  return all.some(({ memory }) => {
+    const fm = memory.frontmatter;
+    const freshnessDate = fm.verified_at ?? fm.created_at;
+    return fm.type === "session_recap" &&
+      fm.status !== "rejected" &&
+      isFreshIsoDate(freshnessDate, SESSION_RECAP_TTL_MS);
+  });
 }
 
 async function verifyMemoryPolicy(
@@ -630,7 +632,7 @@ async function runPrecommitPolicy(paths: ReturnType<typeof resolveHaivePaths>): 
   return [{
     severity: "error",
     code: "precommit-policy-block",
-    message: `Pre-commit policy matched ${result.summary.anti_patterns} anti-pattern(s), ${result.summary.stale_anchors} stale anchor(s).`,
+    message: `Pre-commit policy matched ${result.summary.blocking_warnings ?? result.summary.anti_patterns} blocking anti-pattern(s), ${result.summary.stale_anchors} stale anchor(s).`,
     fix: "Review the hAIve warnings, then update the code or the relevant memories.",
     impact: 45,
   }];

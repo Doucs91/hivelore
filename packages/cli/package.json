@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/cli",
-  "version": "0.9.12",
+  "version": "0.9.13",
   "description": "hAIve CLI — enforce AI agent briefing, memory, Git, and CI policy",
   "license": "Apache-2.0",
   "repository": {
