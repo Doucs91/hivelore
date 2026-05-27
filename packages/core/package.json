@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/core",
-  "version": "0.9.11",
+  "version": "0.9.12",
   "description": "hAIve core — policy, memory, anchor, and enforcement primitives",
   "license": "Apache-2.0",
   "repository": {

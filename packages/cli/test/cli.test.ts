@@ -92,6 +92,30 @@ describe("hAIve CLI integration", () => {
     expect(cursorConfig.mcpServers["haive"]!.env?.["HAIVE_PROJECT_ROOT"]).toBe(workDir);
   });
 
+  it("agent status reports the selected hAIve mode", async () => {
+    const { stdout } = await run(workDir, ["agent", "status", "--json", "--dir", workDir]);
+    const report = JSON.parse(stdout) as {
+      initialized: boolean;
+      recommended_mode: string;
+      project_mcp: Array<{ present: boolean }>;
+    };
+    expect(report.initialized).toBe(true);
+    expect(["mcp", "wrapped", "fallback"]).toContain(report.recommended_mode);
+    expect(report.project_mcp.some((item) => item.present)).toBe(true);
+  });
+
+  it("agent setup writes project configs and mode metadata without global config", async () => {
+    const { stdout } = await run(workDir, ["agent", "setup", "--no-global", "--json", "--dir", workDir]);
+    const report = JSON.parse(stdout) as {
+      detection: { recommended_mode: string };
+      mode_file: string;
+      global_skipped_reason?: string;
+    };
+    expect(["mcp", "wrapped", "fallback"]).toContain(report.detection.recommended_mode);
+    expect(report.global_skipped_reason).toContain("disabled");
+    expect(existsSync(report.mode_file)).toBe(true);
+  });
+
   it("init adds project-level MCP configs to .gitignore", async () => {
     const gitignore = await readFile(path.join(workDir, ".gitignore"), "utf8");
     expect(gitignore).toContain(".cursor/mcp.json");

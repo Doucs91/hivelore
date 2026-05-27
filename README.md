@@ -61,6 +61,8 @@ cd my-project
 haive init          # Creates .ai/, bridge files, MCP config, hooks, CI template
 ```
 
+`haive init` now also runs agent setup. It writes project-level MCP configs, records the best available mode, and asks before changing user-level client configs. In non-interactive shells it skips global config and tells you how to finish setup.
+
 ### 2. Connect your AI client
 
 **Claude Code** (`~/.claude.json`):
@@ -110,6 +112,14 @@ For CLI agents without native MCP, wrap them:
 
 ```bash
 haive run -- claude --dangerously-skip-permissions -p "$(cat task.md)"
+```
+
+Check the selected mode any time:
+
+```bash
+haive agent status
+haive agent setup          # re-run setup later
+haive agent setup --yes    # approve user-level MCP config without prompting
 ```
 
 ### 5. Gate commits and pull requests

@@ -6,6 +6,13 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.12] — agent-aware init and setup
+
+### Added
+- Added `haive agent detect/status/setup` to choose between native MCP, wrapped, and CLI fallback modes per machine.
+- `haive init` now runs agent-aware setup, writes project MCP configs, records `.ai/.runtime/enforcement/agent-mode.json`, and asks before changing user-level AI client configs.
+- Added Codex CLI MCP setup support via `codex mcp add haive ...` when Codex is detected and the user approves global setup.
+
 ## [0.9.11] — enforcement scoring and agent benchmark reports
 
 ### Added

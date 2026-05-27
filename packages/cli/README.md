@@ -28,6 +28,7 @@ This installs the `haive` command globally. **The MCP server is bundled** — us
 # 1. Initialize hAIve in your project (strict enforcement ON by default)
 cd my-project
 haive init                          # .ai/, MCP config, hooks, CI, code-map
+haive agent status                  # confirm MCP/wrapper/fallback mode
 haive enforce install               # re-apply strict MCP + Git + CI enforcement gates
 
 # 2. Point your AI client at the MCP server
@@ -67,6 +68,7 @@ haive init                    # Autopilot: policy config, hooks, CI, MCP setup, 
 haive init --manual           # Manual mode: you approve every memory yourself
 haive init --no-bridges       # Skip bridge file generation (CLAUDE.md, .cursorrules, etc.)
 haive init --dir /other/path  # Initialize in a specific directory
+haive init --yes              # Also approve user-level AI client MCP configuration
 ```
 
 **Autopilot mode** (default):
@@ -101,6 +103,30 @@ your-project/
 ```
 
 Bridge files include mandatory rules, but they are not the enforcement boundary. hAIve's portable enforcement comes from MCP policy, Git hooks, CI checks, and `haive run -- <agent>` for CLI agents.
+
+`haive init` also runs agent-aware setup. It always writes project-level MCP configs and records the selected mode in `.ai/.runtime/enforcement/agent-mode.json`. When it needs to change user-level configs such as Cursor, Claude Code, VS Code, Windsurf, or Codex, it asks for confirmation in an interactive shell. In CI/non-interactive shells, re-run:
+
+```bash
+haive agent setup --yes
+```
+
+### `haive agent`
+
+Detect and configure the best hAIve mode for the current machine.
+
+```bash
+haive agent detect                 # inspect project MCP + installed agents
+haive agent status                 # same report, human-readable or --json
+haive agent setup                  # project MCP + optional global MCP setup
+haive agent setup --no-global      # project-only setup, no user config writes
+haive agent setup --yes            # approve user-level MCP config writes
+```
+
+Modes:
+
+- `mcp`: native hAIve tools are available through the AI client.
+- `wrapped`: use `haive run -- <agent>` when native MCP is unavailable.
+- `fallback`: use `haive briefing` and `haive enforce check` manually.
 
 ---
 

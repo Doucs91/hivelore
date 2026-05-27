@@ -12,8 +12,8 @@ import {
   saveConfig,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
+import { setupAgentMode } from "./agent.js";
 import { generateBootstrapContext } from "./init-bootstrap.js";
-import { autoConfigureMcpClients, configureProjectMcpClients } from "./init-mcp-setup.js";
 import {
   autoDetectStacks,
   isValidStack,
@@ -247,6 +247,11 @@ export function registerInit(program: Command): void {
       "--no-mcp-setup",
       "skip auto-configuring haive MCP (haive mcp --stdio) in Cursor / VS Code / Claude Code",
     )
+    .option(
+      "-y, --yes",
+      "approve user-level AI client configuration prompts during agent setup",
+      false,
+    )
     .action(async (opts: {
       dir: string;
       bridges: boolean;
@@ -255,6 +260,7 @@ export function registerInit(program: Command): void {
       bootstrap?: boolean;
       stack?: string;
       mcpSetup: boolean;
+      yes?: boolean;
     }) => {
       const root = path.resolve(opts.dir);
       const paths = resolveHaivePaths(root);
@@ -377,45 +383,28 @@ export function registerInit(program: Command): void {
 
       // ── Auto-configure MCP in AI clients ────────────────────────────────
       if (opts.mcpSetup !== false) {
-        // User-level (global, written once per machine)
-        const mcpResults = await autoConfigureMcpClients();
-        const configured = mcpResults.filter((r) => r.status === "configured");
-        const alreadyOk  = mcpResults.filter((r) => r.status === "already_configured");
-
-        for (const r of configured) {
-          ui.success(`haive MCP configured in ${r.client} (${r.path})`);
+        const agentSetup = await setupAgentMode(root, {
+          yes: opts.yes === true,
+          global: true,
+          interactive: process.stdin.isTTY,
+        });
+        for (const r of agentSetup.project_results) {
+          if (r.status === "configured" && r.path) ui.success(`haive MCP project config written (${path.relative(root, r.path)})`);
+          else if (r.status === "error") ui.warn(`${r.client}: ${r.error}`);
         }
-        for (const r of alreadyOk) {
-          ui.info(`haive MCP already configured in ${r.client} — skipped`);
+        for (const r of agentSetup.global_results) {
+          if (r.status === "configured") ui.success(`haive MCP configured in ${r.client}${r.path ? ` (${r.path})` : ""}`);
+          else if (r.status === "already_configured") ui.info(`haive MCP already configured in ${r.client} — skipped`);
         }
-        if (configured.length === 0 && alreadyOk.length === 0) {
-          ui.warn(
-            "No supported AI client detected (Cursor, VS Code, Claude Code, Windsurf).\n" +
-            "  Configure manually: command \"haive\", args [\"mcp\", \"--stdio\"].\n" +
-            "  See: https://github.com/Doucs91/hAIve#mcp-setup",
-          );
-        }
-
-        // Project-level (per workspace, includes HAIVE_PROJECT_ROOT to fix multi-project CWD)
-        const projectMcpResults = await configureProjectMcpClients(root);
-        for (const r of projectMcpResults) {
-          if (r.status === "configured") {
-            ui.success(`haive MCP project config written (${path.relative(root, r.path!)})`);
-          }
-        }
-
-        // Ensure project-level MCP configs are gitignored (they contain absolute paths)
+        if (agentSetup.global_skipped_reason) ui.warn(agentSetup.global_skipped_reason);
+        ui.info(`Recommended agent mode: ${agentSetup.detection.recommended_mode}`);
+        ui.info(agentSetup.detection.recommended_command);
         await ensureGitignoreEntries(root, [
           ".cursor/mcp.json",
           ".vscode/mcp.json",
           ".mcp.json",
         ]);
-
-        if (configured.length > 0 || projectMcpResults.some((r) => r.status === "configured")) {
-          ui.info(
-            ui.dim("  → Restart your AI client for MCP changes to take effect."),
-          );
-        }
+        ui.info(ui.dim("  → Restart your AI client for MCP changes to take effect."));
       }
 
       ui.success(`hAIve initialized at ${root}${autopilot ? " (autopilot mode)" : ""}`);
