@@ -5,13 +5,13 @@ type: session_recap
 status: validated
 anchor:
   paths:
-    - packages/cli/src/commands/memory-add.ts
-    - packages/mcp/src/tools/mem-save.ts
-    - packages/mcp/src/tools/mem-session-end.ts
-    - packages/cli/src/commands/session-end.ts
-    - packages/cli/src/commands/briefing.ts
-    - packages/mcp/src/tools/get-briefing.ts
+    - packages/cli/src/commands/agent.ts
     - packages/cli/src/commands/init.ts
+    - packages/cli/src/index.ts
+    - packages/cli/test/cli.test.ts
+    - README.md
+    - packages/cli/README.md
+    - CHANGELOG.md
   symbols: []
 tags:
   - session
@@ -23,25 +23,26 @@ stale_reason: null
 related_ids: []
 last_read_at: null
 topic: session-recap-team
-revision_count: 0
+revision_count: 1
+requires_human_approval: false
 ---
 ## Goal
-Implémenter et publier hAIve v0.2.16 (3 améliorations post-Engram)
+Release v0.9.12 agent-aware init setup
 
 ## Accomplished
-v0.2.16: anchor path validation à la création (CLI + MCP mem_save + mem_session_end); haive memory verify dans le template CI --with-ci + sandaga-monorepo workflow; warning get_briefing/briefing quand project-context.md contient encore le template (is_template flag, setup_warnings[], token budget supprimé pour le boilerplate). Tous tests unitaires OK (16 mcp + 8 cli). Build propre.
+Added haive agent detect/status/setup; integrated agent-aware setup into haive init; added Codex MCP setup support; updated docs and tests; created v0.9.12 tag.
 
 ## Discoveries & surprises
-Le CI template avait encore @haive/cli au lieu de @hiveai/cli — corrigé dans init.ts. La suppression du contenu template du budget tokens évite un gaspillage silencieux non évident. L'is_template flag sur project_context permet aux clients MCP de réagir programmatiquement.
+pre-push requires a recent session recap before pushing; publishing flow should include a team recap or relax local gate.
 
 ## Files touched
-- `packages/cli/src/commands/memory-add.ts`
-- `packages/mcp/src/tools/mem-save.ts`
-- `packages/mcp/src/tools/mem-session-end.ts`
-- `packages/cli/src/commands/session-end.ts`
-- `packages/cli/src/commands/briefing.ts`
-- `packages/mcp/src/tools/get-briefing.ts`
+- `packages/cli/src/commands/agent.ts`
 - `packages/cli/src/commands/init.ts`
+- `packages/cli/src/index.ts`
+- `packages/cli/test/cli.test.ts`
+- `README.md`
+- `packages/cli/README.md`
+- `CHANGELOG.md`
 
 ## Next steps
-Implémenter v0.3: (1) get_briefing utilise code-map pour répondre aux questions 'où se trouve X'; (2) haive tui fonctionnel; (3) mécanique peer-review proposed→validated
+Push main and v0.9.12, then publish packages to npm.
