@@ -1,7 +1,7 @@
 {
   "name": "@hiveai/embeddings",
-  "version": "0.9.13",
-  "description": "hAIve embeddings — optional local semantic ranking for enforcement briefings",
+  "version": "0.9.14",
+  "description": "hAIve embeddings — optional local semantic ranking for context enforcement briefings",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -13,6 +13,8 @@
   "keywords": [
     "ai",
     "enforcement",
+    "context",
+    "breadcrumbs",
     "memory",
     "embeddings",
     "transformers",

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Reposition hAIve from a general-purpose AI memory server into a Git-native enforcement layer for AI coding agents.
+Reposition hAIve from a general-purpose AI memory server into a repo-native context enforcement layer for AI coding agents.
 
 ## Implementation Status
 
@@ -32,9 +32,9 @@ Important product principle:
 
 The product promise should become:
 
-> AI agents cannot safely change a repo until they have loaded the team's relevant decisions, gotchas, failed attempts, and stale-memory warnings.
+> AI agents cannot safely change a repo until they have loaded the team's relevant context breadcrumbs: decisions, gotchas, failed attempts, and stale-anchor warnings.
 
-This is stronger than "persistent memory". It makes hAIve infrastructure: a briefing gate, PR guardrail, and auditable team-memory system.
+This is stronger than "persistent memory". It makes hAIve infrastructure: a briefing gate, PR guardrail, and auditable repo-context policy system.
 
 ## Product Positioning
 
@@ -340,4 +340,4 @@ hAIve is in the right direction when users describe it like this:
 - "It prevented the same failed approach from happening again."
 - "It made our AI usage auditable without adding a heavy platform."
 
-If users only describe it as "a memory database", the positioning is still too broad.
+If users only describe it as "a memory database", the positioning is still too broad. The intended phrase is: repo-native context enforcement.

@@ -1,7 +1,7 @@
-# Project context — hAIve (v0.9.13)
+# Project context — hAIve (v0.9.14)
 
-> Policy enforcement layer for AI coding agents. Built with TypeScript, published as a pnpm workspace monorepo.
-> **Current version**: 0.9.13 — @hiveai/core, cli, mcp, embeddings are versioned together.
+> Repo-native context enforcement for AI coding agents. Built with TypeScript, published as a pnpm workspace monorepo.
+> **Current version**: 0.9.14 — @hiveai/core, cli, mcp, embeddings are versioned together.
 > **Repo**: `/home/sd/Documents/Dev/New idea` (git, branch: main)
 > **Test project**: `sandaga-monorepo/` (gitignored, large Next.js + NestJS marketplace)
 
@@ -26,8 +26,8 @@ Monorepo with four small, single-purpose packages connected by workspace depende
 - ESM only. `type: "module"`, `format: ["esm"]` in tsup, `verbatimModuleSyntax + isolatedModules` in tsconfig. Imports of `.ts` source files use `.js` extensions.
 - Pure tool handlers: MCP tools are unit-testable async functions; the server is just glue.
 - tsup `external` lists are mandatory for any package that imports a workspace or heavy native dep.
-- Memory IDs follow `YYYY-MM-DD-{type}-{slug}` and live under `.ai/memories/{personal|team|module}/`.
-- Default memory scope depends on project config: manual mode defaults to `personal`, autopilot defaults to validated `team` memories.
+- Context record IDs follow `YYYY-MM-DD-{type}-{slug}` and live under `.ai/memories/{personal|team|module}/`.
+- Default record scope depends on project config: manual mode defaults to `personal`, autopilot defaults to validated `team` records.
 
 ## Memory types
 
@@ -40,9 +40,9 @@ Monorepo with four small, single-purpose packages connected by workspace depende
 
 ## Key features
 
-- `mem_tried` / `haive memory tried` — captures failed approaches as `attempt` memories (auto-validated)
+- `mem_tried` / `haive memory tried` — captures failed approaches as `attempt` records (auto-validated)
 - AND→OR search fallback — `mem_search` and `haive memory query` fall back to OR when AND returns 0 results
-- `haive sync --inject-bridge` — injects top N memories into CLAUDE.md between `<!-- haive:memories-start/end -->` markers
+- `haive sync --inject-bridge` — injects top N context breadcrumbs into CLAUDE.md between `<!-- haive:memories-start/end -->` markers
 - Briefing excludes stale by default; marks proposed as `[UNVERIFIED]`
 - `mem_save` dedup warning — warns when a similar slug already exists
 

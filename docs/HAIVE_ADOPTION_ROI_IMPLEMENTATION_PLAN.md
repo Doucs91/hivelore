@@ -1,13 +1,13 @@
 # Plan — Adoption, ROI, tokens, et surface IDE (hAIve)
 
-Ce document liste les chantiers dérivés des recommandations produit techniques (mémoire d’équipe, optimisation de contexte, adoption, friction, PR, IDE). Chaque livrable indique où il vit dans le monorepo.
+Ce document liste les chantiers dérivés des recommandations produit techniques (context enforcement, breadcrumbs repo, optimisation de contexte, adoption, friction, PR, IDE). Chaque livrable indique où il vit dans le monorepo.
 
 ## Objectifs utilisateur
 
 | Objectif | Mécanisme |
 |----------|-----------|
-| Valeur vite | `welcome` liste les mémoires fondatrices ; hints renforcés après `get_briefing` |
-| Moins de tokens | Presets briefing (`quick` / `balanced` / `deep`) ; format mémoires `actions` dans `get_briefing` |
+| Valeur vite | `welcome` liste les décisions/gotchas fondateurs ; hints renforcés après `get_briefing` |
+| Moins de tokens | Presets briefing (`quick` / `balanced` / `deep`) ; format breadcrumbs `actions` dans `get_briefing` |
 | Qualité du corpus | `haive memory lint` ; similarité corps dans `mem_save` (warn) |
 | Preuve ROI | `haive stats --export-report <fichier.json>` (agrégats + métriques outils) |
 | Boucle équipe | Action GitHub : chemins d’ancre absents au checkout + checklist `haive memory verify` |

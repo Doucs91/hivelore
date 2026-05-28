@@ -6,6 +6,13 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.14] — repo-native context enforcement positioning
+
+### Changed
+- Repositioned npm- and GitHub-facing docs around repo-native context enforcement instead of persistent memory.
+- Updated README terminology to describe hAIve records as enforceable context breadcrumbs for AI agents.
+- Refreshed package metadata and VS Code extension wording around policy, breadcrumbs, and context enforcement.
+
 ## [0.9.13] — enforcement false-positive fixes
 
 ### Fixed

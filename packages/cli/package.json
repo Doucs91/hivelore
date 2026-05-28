@@ -1,7 +1,7 @@
 {
   "name": "@hiveai/cli",
-  "version": "0.9.13",
-  "description": "hAIve CLI — enforce AI agent briefing, memory, Git, and CI policy",
+  "version": "0.9.14",
+  "description": "hAIve CLI — enforce repo context, briefings, Git hooks, and CI policy for AI agents",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -14,11 +14,14 @@
     "ai",
     "enforcement",
     "policy",
+    "context",
+    "breadcrumbs",
     "memory",
     "mcp",
     "haive",
     "agent",
     "team",
+    "harness",
     "cli",
     "ci"
   ],

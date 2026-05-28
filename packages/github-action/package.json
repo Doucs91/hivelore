@@ -1,7 +1,7 @@
 {
   "name": "@hiveai/github-action",
   "version": "0.4.4",
-  "description": "GitHub Action that surfaces hAIve team memories on pull requests",
+  "description": "GitHub Action for hAIve context policy and decision enforcement on pull requests",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

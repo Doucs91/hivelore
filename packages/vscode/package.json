@@ -1,7 +1,7 @@
 {
   "name": "haive-vscode",
-  "displayName": "hAIve — Team Memory for AI Agents",
-  "description": "Surface team memories, gotchas, and architectural decisions inline while you code. Never let your AI agent forget what your team knows.",
+  "displayName": "hAIve — Context Enforcement for AI Agents",
+  "description": "Surface repo decisions, gotchas, and context policy inline so AI agents work with the knowledge your team has already validated.",
   "version": "0.4.6",
   "publisher": "hiveai",
   "icon": "media/icon.png",
@@ -14,7 +14,7 @@
     "vscode": "^1.85.0"
   },
   "categories": ["Other", "AI", "Programming Languages"],
-  "keywords": ["ai", "memory", "context", "mcp", "cursor", "copilot", "knowledge"],
+  "keywords": ["ai", "enforcement", "policy", "context", "breadcrumbs", "mcp", "cursor", "copilot", "knowledge"],
   "activationEvents": [
     "workspaceContains:.ai/memories/**",
     "workspaceContains:.ai/haive.config.json"
@@ -34,16 +34,16 @@
       "haive-explorer": [
         {
           "id": "haive.memoriesView",
-          "name": "Memories",
+          "name": "Context Policy",
           "icon": "$(book)",
-          "contextualTitle": "Team knowledge"
+          "contextualTitle": "Repo context policy"
         }
       ]
     },
     "viewsWelcome": [
       {
         "view": "haive.memoriesView",
-        "contents": "No hAIve memories found in this workspace.\n\nRun `haive init` to initialize hAIve in your project.\n[Learn more](https://github.com/Doucs91/hAIve)\n\n[Initialize hAIve](command:haive.init)"
+        "contents": "No hAIve context records found in this workspace.\n\nRun `haive init` to initialize hAIve in your project.\n[Learn more](https://github.com/Doucs91/hAIve)\n\n[Initialize hAIve](command:haive.init)"
       }
     ],
     "commands": [
@@ -112,7 +112,7 @@
         "haive.showCodeLens": {
           "type": "boolean",
           "default": true,
-          "description": "Show inline memory count (CodeLens) at the top of files that have anchored memories."
+          "description": "Show inline context record count (CodeLens) at the top of files with anchored hAIve records."
         },
         "haive.showStatusBar": {
           "type": "boolean",
@@ -122,12 +122,12 @@
         "haive.memoriesDir": {
           "type": "string",
           "default": ".ai/memories",
-          "description": "Path to the memories directory relative to the workspace root."
+          "description": "Path to the hAIve context records directory relative to the workspace root."
         },
         "haive.highlightActionRequired": {
           "type": "boolean",
           "default": true,
-          "description": "Highlight files with action_required memories using a warning decoration."
+          "description": "Highlight files with action_required hAIve context records using a warning decoration."
         }
       }
     }

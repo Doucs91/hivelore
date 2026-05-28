@@ -1,15 +1,15 @@
-# Spécification — inspirations Engram, rester team-first (hAIve)
+# Spécification — inspirations Engram, rester enforcement-first (hAIve)
 
 ## Formule courte
 
-**Vérité durable : Git + équipe** (`.ai/memories/`, PRs, mono ou multi-dépôt via `crossRepoSources`).  
-**Emprunt à l’esprit Engram :** meilleure **récupération**, **réduction du bruit**, et **continuité de session** — soit sur les mêmes markdown d’équipe, soit via une **couche runtime jetable** (`.ai/.runtime/`) qui ne remplace jamais les mémoires promues.
+**Vérité durable : Git + repo policy** (`.ai/memories/`, PRs, mono ou multi-dépôt via `crossRepoSources`).  
+**Emprunt à l’esprit Engram :** meilleure **récupération**, **réduction du bruit**, et **continuité de session** — mais au service d'une couche de **context enforcement**. Les mémoires sont le substrat; les gates et breadcrumbs sont la promesse produit.
 
 ## Modèle à deux couches
 
 | Couche | Rôle | Versionné |
 |--------|------|-----------|
-| **Mémoires** | Conventions, décisions, gotchas, archi — source de vérité | Oui (Git) |
+| **Records de contexte** | Conventions, décisions, gotchas, archi — breadcrumbs de politique repo | Oui (Git) |
 | **Runtime** | Brouillons, journal de session machine-locale, caches non partagés | Non (voir `.gitignore` sous `.ai/.runtime/`) |
 
 ## Progressive disclosure (outils MCP)

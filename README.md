@@ -1,8 +1,8 @@
 # hAIve
 
-**Policy enforcement layer for AI coding agents.**
+**Repo-native context enforcement for AI coding agents.**
 
-hAIve makes your team's knowledge actionable: agents load the right context before touching code, respect validated decisions and known gotchas, record failed attempts, and pass Git/CI gates before changes enter the codebase.
+hAIve turns repo knowledge into enforceable breadcrumbs for agents: load the right context before edits, carry architectural decisions and gotchas into the task, record what was learned, and pass Git/CI policy gates before changes enter the codebase.
 
 [![npm](https://img.shields.io/npm/v/@hiveai/cli?color=blue)](https://www.npmjs.com/package/@hiveai/cli)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
@@ -13,31 +13,33 @@ hAIve makes your team's knowledge actionable: agents load the right context befo
 
 ## The problem
 
-AI coding agents are powerful — but they forget everything between sessions. Most teams work around this with advisory docs and hope:
+AI coding agents are powerful, but they often act with incomplete repo context. Compaction, parallel sessions, agent switches, and stale advisory docs all create the same failure mode: the agent changes code without carrying the team's current decisions into the work.
+
+Most teams work around this with instructions and hope:
 
 - *"Please read our architecture decisions first."*
 - *"Don't repeat the migration mistake from last sprint."*
 - *"Remember to capture what you learned."*
 - *"Don't merge code that invalidates a team decision."*
 
-Those rules are easy to skip. hAIve turns them into **enforced workflow policy**.
+Those rules are easy to skip. hAIve turns them into **repo-native context policy**.
 
 ---
 
 ## How it works
 
 ```
-AI agent ──▶ hAIve briefing ──▶ code change ──▶ hAIve Git/CI gate ──▶ merge
+AI agent ──▶ hAIve briefing ──▶ code change ──▶ hAIve policy gate ──▶ merge
                   ▲                                       │
-                  └── decisions · gotchas · failed attempts · anchors
+                  └── context breadcrumbs · decisions · gotchas · anchors
 ```
 
-1. `haive init` creates a `.ai/` knowledge layer in your repo.
-2. Agents start every session with `get_briefing` — one MCP call that returns context + decisions + gotchas + failed attempts, ranked by relevance.
-3. Team knowledge lives as Markdown files anchored to the code paths they describe. When code moves, hAIve detects stale anchors.
-4. `haive enforce check` and CI enforcement block unsafe states: missing briefing, stale critical decisions, known anti-patterns, uncaptured session knowledge.
+1. `haive init` creates a `.ai/` context policy layer in your repo.
+2. Agents start every session with `get_briefing` — one MCP call that returns small default context plus deeper breadcrumbs ranked by task relevance.
+3. Decisions, gotchas, failed attempts, and session recaps live as Markdown files anchored to the code paths they describe. When code moves, hAIve detects stale anchors.
+4. `haive enforce check` and CI enforcement block unsafe states: missing briefing, stale critical decisions, known anti-patterns, or uncaptured session knowledge.
 
-> **The memory layer is the substrate. Enforcement is the product promise.**
+> **Memory is the substrate. Context enforcement is the product promise.**
 > AI changes should not enter the codebase without consulting the team's current knowledge.
 
 ---
@@ -106,7 +108,7 @@ Every session starts with one call:
 get_briefing(task: "add a Stripe payment integration", files: ["src/payments/PaymentService.ts"])
 ```
 
-The agent gets project context + relevant module contexts + ranked memories in one shot — no more grepping to rediscover what the team already knows.
+The agent gets project context + relevant module contexts + ranked context breadcrumbs in one shot — no more grepping to rediscover what the team already knows.
 
 For CLI agents without native MCP, wrap them:
 
@@ -137,11 +139,11 @@ haive enforce ci            # CI entrypoint (exits 1 on violations)
 
 | Gate | What it checks |
 |---|---|
-| **Briefing loaded** | Agent called `get_briefing` before editing |
-| **Decision coverage** | Changed files are covered by anchored decisions in the last briefing |
+| **Briefing loaded** | Agent loaded fresh context breadcrumbs before editing |
+| **Decision coverage** | Changed files are covered by relevant anchored decisions in the last briefing |
 | **Anti-pattern matching** | Known bad approaches blocked before commit |
 | **Stale anchors** | Memories anchored to deleted/moved paths are flagged |
-| **Session recap** | Agent captured what it learned before closing |
+| **Session recap** | Agent captured what changed and what remains before closing |
 | **CI enforcement** | Required check blocks merge on any gate failure |
 
 ---
@@ -170,7 +172,7 @@ your-project/
 
 ---
 
-## Memory types
+## Context policy records
 
 | Type | Description |
 |---|---|
@@ -180,7 +182,7 @@ your-project/
 | `attempt` | Failed approaches — so agents don't repeat them |
 | `architecture` | Component boundaries, interfaces, data flow |
 
-All memories can be anchored to file paths and symbol names. When anchored code changes, hAIve flags the memory as potentially stale.
+All records can be anchored to file paths and symbol names. When anchored code changes, hAIve flags the record as potentially stale.
 
 ---
 
@@ -188,11 +190,11 @@ All memories can be anchored to file paths and symbol names. When anchored code 
 
 | Tool | Description |
 |---|---|
-| `get_briefing` | ⭐ Project context + decisions + gotchas + ranked memories in one call |
-| `mem_save` | Save policy knowledge (decision, gotcha, convention, attempt, architecture) |
-| `mem_search` | Full-text or semantic search across memories |
-| `mem_relevant_to` | Ranked memories for a task when project context is already loaded |
-| `mem_verify` | Check anchor freshness, detect stale memories |
+| `get_briefing` | ⭐ Project context + decisions + gotchas + ranked breadcrumbs in one call |
+| `mem_save` | Save repo policy knowledge (decision, gotcha, convention, attempt, architecture) |
+| `mem_search` | Full-text or semantic search across context records |
+| `mem_relevant_to` | Ranked context records for a task when project context is already loaded |
+| `mem_verify` | Check anchor freshness, detect stale records |
 | `pre_commit_check` | Diff against known gotchas, decisions, and stale anchors |
 | `mem_session_end` | Save end-of-session recap for the next agent |
 

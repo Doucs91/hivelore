@@ -1,7 +1,7 @@
 {
   "name": "@hiveai/core",
-  "version": "0.9.13",
-  "description": "hAIve core — policy, memory, anchor, and enforcement primitives",
+  "version": "0.9.14",
+  "description": "hAIve core — context policy, anchors, breadcrumbs, and enforcement primitives",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -14,11 +14,14 @@
     "ai",
     "enforcement",
     "policy",
+    "context",
+    "breadcrumbs",
     "memory",
     "mcp",
     "haive",
     "agent",
-    "team"
+    "team",
+    "harness"
   ],
   "type": "module",
   "main": "./dist/index.js",
