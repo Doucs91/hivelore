@@ -116,7 +116,7 @@ export function registerBriefing(program: Command): void {
     .option("--task <text>", "what you are about to do — filters memories by relevance")
     .option("--files <csv>", "comma-separated file paths being worked on (surfaces anchored memories)")
     .option("--symbols <csv>", "symbol names to look up in the code-map (e.g. PaymentService,TenantFilter) — requires haive index code")
-    .option("--max-memories <n>", "cap on memories surfaced", "10")
+    .option("--max-memories <n>", "cap on memories surfaced", "8")
     .option("--max-tokens <n>", "approximate token budget for the entire briefing (truncates if exceeded)")
     .option("--explain-source", "annotate each memory with [source: <relative-path> · anchors: <files>] for traceable citations")
     .option("--radar", "force project radar (recent commits, open TODOs, hot files) even when memories are plentiful")
@@ -168,7 +168,7 @@ export function registerBriefing(program: Command): void {
         else ui.warn(`Unknown --budget '${opts.budget}' — ignoring (use quick|balanced|deep).`);
       }
 
-      let maxMemories = Math.max(1, Number(opts.maxMemories ?? 10));
+      let maxMemories = Math.max(1, Number(opts.maxMemories ?? 8));
       let budgetTokensCap: number | null = opts.maxTokens ? Math.max(100, Number(opts.maxTokens)) : null;
 
       if (budgetPreset !== null) {
@@ -337,7 +337,24 @@ export function registerBriefing(program: Command): void {
       if (stopped()) return;
       const usageIndex = await loadUsageIndex(paths).catch(() => null);
       out(`${ui.bold("=== Relevant Memories ===")}\n`);
-      for (const item of top) {
+      const priorities = top.map((item) =>
+        classifyCliPriority(
+          item,
+          filePaths,
+          tokens,
+          Boolean(andTaskHits?.has(item.memory.frontmatter.id)),
+          Boolean(useOrFallback && tokens && literalMatchesAnyToken(item.memory, tokens)),
+        ),
+      );
+      const mustReadCount = priorities.filter((p) => p === "must_read").length;
+      const usefulCount = priorities.filter((p) => p === "useful").length;
+      const backgroundCount = priorities.filter((p) => p === "background").length;
+      const quality = mustReadCount > 0 || usefulCount > 0
+        ? backgroundCount > mustReadCount + usefulCount && backgroundCount > 2 ? "noisy" : "strong"
+        : "thin";
+      out(ui.dim(`briefing_quality: ${quality} · must_read=${mustReadCount} useful=${usefulCount} background=${backgroundCount}`));
+      out("");
+      for (const [idx, item] of top.entries()) {
         if (stopped()) break;
         const fm = item.memory.frontmatter;
         const badge = ui.statusBadge(fm.status);
@@ -348,8 +365,9 @@ export function registerBriefing(program: Command): void {
           : "";
         const reads = usageIndex?.by_id[fm.id]?.read_count ?? 0;
         const hitMarker = reads > 0 ? ` ${ui.dim("· " + reads + "× read")}` : "";
+        const priority = priorities[idx] ?? "background";
         out(
-          `${ui.bold(fm.id)}  ${ui.dim(fm.scope + "/" + fm.type)}  ${badge}${draftMarker}${unverifiedMarker}${originMarker}${hitMarker}`,
+          `${ui.bold(fm.id)}  ${priorityBadge(priority)}  ${ui.dim(fm.scope + "/" + fm.type)}  ${badge}${draftMarker}${unverifiedMarker}${originMarker}${hitMarker}`,
         );
         if (opts.explainSource) {
           const relPath = path.relative(root, item.filePath);
@@ -427,6 +445,30 @@ export function registerBriefing(program: Command): void {
         }
       }
     });
+}
+
+type CliMemoryPriority = "must_read" | "useful" | "background";
+
+function classifyCliPriority(
+  item: { memory: Awaited<ReturnType<typeof loadMemoriesFromDir>>[number]["memory"]; score: number },
+  filePaths: string[],
+  tokens: string[] | null,
+  exactTaskHit: boolean,
+  partialTaskHit: boolean,
+): CliMemoryPriority {
+  const fm = item.memory.frontmatter;
+  const anchored = filePaths.length > 0 && memoryMatchesAnchorPaths(item.memory, filePaths);
+  if (anchored || (fm.type === "attempt" && exactTaskHit)) return "must_read";
+  if (exactTaskHit || partialTaskHit || item.score >= 4 || (tokens && fm.tags.some((tag) => tokens.includes(tag)))) {
+    return "useful";
+  }
+  return "background";
+}
+
+function priorityBadge(priority: CliMemoryPriority): string {
+  if (priority === "must_read") return ui.red("[must_read]");
+  if (priority === "useful") return ui.yellow("[useful]");
+  return ui.dim("[background]");
 }
 
 function parseCsv(value: string | undefined): string[] {

@@ -187,7 +187,6 @@ export async function memSave(
       const { similarityWarning: simW, body_similar: bs } = bodySimilarWarnings(new Set([fm.id]));
       const newFrontmatter = {
         ...fm,
-        body: input.body,
         tags: input.tags.length ? input.tags : fm.tags,
         revision_count: (fm.revision_count ?? 0) + 1,
         anchor: {
@@ -205,6 +204,7 @@ export async function memSave(
         invalidPaths.length > 0
           ? `Anchor path(s) not found in project: ${invalidPaths.join(", ")}. They will be marked stale by haive sync.`
           : null,
+        criticalAnchorWarning(input.type, fm.status, newFrontmatter.anchor.paths, newFrontmatter.anchor.symbols),
         simW ?? null,
       ]
         .filter(Boolean)
@@ -280,6 +280,7 @@ export async function memSave(
     invalidPaths.length > 0
       ? `Anchor path(s) not found in project: ${invalidPaths.join(", ")}. They will be marked stale by \`haive sync\`.`
       : null,
+    criticalAnchorWarning(frontmatter.type, frontmatter.status, frontmatter.anchor.paths, frontmatter.anchor.symbols),
     warning ?? null,
     simWarnNew ?? null,
   ].filter(Boolean).join(" — ") || undefined;
@@ -294,4 +295,16 @@ export async function memSave(
     ...(bsNew ? { body_similar: bsNew } : {}),
     ...(invalidPaths.length > 0 ? { invalid_paths: invalidPaths } : {}),
   };
+}
+
+function criticalAnchorWarning(
+  type: string,
+  status: string,
+  paths: string[],
+  symbols: string[],
+): string | null {
+  if (!["decision", "gotcha", "architecture"].includes(type)) return null;
+  if (status !== "validated") return null;
+  if (paths.length > 0 || symbols.length > 0) return null;
+  return `${type} is validated without paths or symbols; add anchors so hAIve can detect drift.`;
 }

@@ -24,15 +24,30 @@ interface DoctorOptions {
   json?: boolean;
   dir?: string;
   fix?: boolean;
+  dryRun?: boolean;
 }
 
 type Severity = "info" | "warn" | "error";
+type DoctorSection =
+  | "Protection"
+  | "Agent coverage"
+  | "Context quality"
+  | "Corpus health"
+  | "Index health"
+  | "Next actions";
 
 interface Finding {
   severity: Severity;
   code: string;
   message: string;
   fix?: string;
+  section?: DoctorSection;
+}
+
+interface DoctorScores {
+  protection_score: number;
+  context_quality_score: number;
+  corpus_quality_score: number;
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -48,6 +63,7 @@ export function registerDoctor(program: Command): void {
     )
     .option("--json", "emit JSON instead of human-readable output", false)
     .option("--fix", "include suggested fix commands in human output", false)
+    .option("--dry-run", "with --fix, show delegated repairs without applying them", false)
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: DoctorOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -289,32 +305,127 @@ export function registerDoctor(program: Command): void {
 }
 
 function emit(findings: Finding[], opts: DoctorOptions): void {
+  const classified = findings.map((finding) => ({
+    ...finding,
+    section: finding.section ?? sectionForFinding(finding),
+  }));
+  const scores = computeDoctorScores(classified);
   if (opts.json) {
-    console.log(JSON.stringify({ findings }, null, 2));
+    console.log(JSON.stringify({
+      scores,
+      findings: classified,
+      sections: groupBySection(classified),
+      next_actions: nextActions(classified),
+      fix_mode: opts.fix ? opts.dryRun ? "dry-run" : "suggest" : "off",
+    }, null, 2));
     return;
   }
-  if (findings.length === 0) {
+  if (classified.length === 0) {
     ui.success("hAIve doctor — no issues found.");
     return;
   }
-  console.log(ui.bold(`hAIve doctor — ${findings.length} finding${findings.length === 1 ? "" : "s"}`));
+  console.log(ui.bold(`hAIve doctor — ${classified.length} finding${classified.length === 1 ? "" : "s"}`));
+  console.log(
+    ui.dim(
+      `  protection=${scores.protection_score}  ` +
+      `context=${scores.context_quality_score}  ` +
+      `corpus=${scores.corpus_quality_score}`,
+    ),
+  );
   console.log();
-  const order: Severity[] = ["error", "warn", "info"];
-  for (const sev of order) {
-    for (const f of findings.filter((x) => x.severity === sev)) {
-      const icon = sev === "error" ? ui.red("✗") : sev === "warn" ? ui.yellow("⚠") : ui.dim("ℹ");
-      console.log(`${icon} ${ui.bold(f.code)}  ${f.message}`);
-      if (opts.fix && f.fix) {
-        for (const line of f.fix.split("\n")) {
-          console.log(`     ${ui.dim("$")} ${line}`);
+
+  const sectionOrder: DoctorSection[] = [
+    "Protection",
+    "Agent coverage",
+    "Context quality",
+    "Corpus health",
+    "Index health",
+    "Next actions",
+  ];
+  const severityOrder: Severity[] = ["error", "warn", "info"];
+  for (const section of sectionOrder) {
+    const sectionFindings = classified.filter((f) => f.section === section);
+    if (sectionFindings.length === 0) continue;
+    console.log(ui.bold(section));
+    for (const sev of severityOrder) {
+      for (const f of sectionFindings.filter((x) => x.severity === sev)) {
+        const icon = sev === "error" ? ui.red("✗") : sev === "warn" ? ui.yellow("⚠") : ui.dim("ℹ");
+        console.log(`${icon} ${ui.bold(f.code)}  ${f.message}`);
+        if (opts.fix && f.fix) {
+          for (const line of f.fix.split("\n")) {
+            console.log(`     ${ui.dim(opts.dryRun ? "would run:" : "$")} ${line}`);
+          }
         }
       }
     }
-  }
-  if (!opts.fix && findings.some((f) => f.fix)) {
     console.log();
+  }
+
+  const actions = nextActions(classified);
+  if (actions.length > 0) {
+    console.log(ui.bold("Next actions"));
+    for (const action of actions.slice(0, 5)) console.log(`  ${ui.dim("$")} ${action}`);
+  } else if (!opts.fix && classified.some((f) => f.fix)) {
     ui.info("Re-run with --fix to see suggested commands.");
   }
+}
+
+function sectionForFinding(finding: Finding): DoctorSection {
+  if (
+    finding.code.includes("haive") ||
+    finding.code.includes("integration") ||
+    finding.code.includes("claude") ||
+    finding.code.includes("autopilot")
+  ) return "Agent coverage";
+  if (
+    finding.code.includes("context") ||
+    finding.code.includes("briefing") ||
+    finding.code.includes("search")
+  ) return "Context quality";
+  if (finding.code.includes("code-map") || finding.code.includes("index")) return "Index health";
+  if (
+    finding.code.includes("memory") ||
+    finding.code.includes("anchor") ||
+    finding.code.includes("pending") ||
+    finding.code.includes("decay")
+  ) return "Corpus health";
+  if (finding.severity === "error") return "Protection";
+  return "Next actions";
+}
+
+function computeDoctorScores(findings: Finding[]): DoctorScores {
+  const scoreFor = (sections: DoctorSection[]): number => {
+    const scoped = findings.filter((f) => sections.includes(f.section ?? sectionForFinding(f)));
+    const penalty = scoped.reduce((sum, f) => {
+      if (f.severity === "error") return sum + 35;
+      if (f.severity === "warn") return sum + 15;
+      return sum + 4;
+    }, 0);
+    return Math.max(0, 100 - penalty);
+  };
+  return {
+    protection_score: scoreFor(["Protection", "Agent coverage"]),
+    context_quality_score: scoreFor(["Context quality", "Index health"]),
+    corpus_quality_score: scoreFor(["Corpus health"]),
+  };
+}
+
+function groupBySection(findings: Finding[]): Record<DoctorSection, Finding[]> {
+  const out: Record<DoctorSection, Finding[]> = {
+    "Protection": [],
+    "Agent coverage": [],
+    "Context quality": [],
+    "Corpus health": [],
+    "Index health": [],
+    "Next actions": [],
+  };
+  for (const finding of findings) out[finding.section ?? sectionForFinding(finding)].push(finding);
+  return out;
+}
+
+function nextActions(findings: Finding[]): string[] {
+  return [...new Set(findings.flatMap((finding) => finding.fix ? finding.fix.split("\n") : []))]
+    .filter(Boolean);
 }
 
 function isSearchTool(name: string): boolean {

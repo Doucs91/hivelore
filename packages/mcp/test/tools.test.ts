@@ -72,6 +72,63 @@ describe("hAIve MCP tools", () => {
       expect(out.file_path).toContain("/memories/team/");
     });
 
+    it("does not write body into frontmatter during topic upsert", async () => {
+      const created = await memSave(
+        {
+          type: "decision",
+          slug: "topic-upsert",
+          body: "# Topic upsert\n\nUse the first rule because it is stable.",
+          scope: "team",
+          tags: [],
+          paths: ["src/service.ts"],
+          symbols: [],
+          topic: "decision/topic-upsert",
+        },
+        ctx,
+      );
+
+      await memSave(
+        {
+          type: "decision",
+          slug: "topic-upsert",
+          body: "# Topic upsert\n\nUse the second rule because it is newer.",
+          scope: "team",
+          tags: [],
+          paths: ["src/service.ts"],
+          symbols: [],
+          topic: "decision/topic-upsert",
+        },
+        ctx,
+      );
+
+      const written = await readFile(created.file_path, "utf8");
+      const frontmatter = written.split("---")[1] ?? "";
+      expect(frontmatter).not.toContain("body:");
+      expect(written).toContain("Use the second rule");
+    });
+
+    it("warns when a validated decision is saved without anchors", async () => {
+      await writeFile(
+        path.join(ctx.paths.haiveDir, "haive.config.json"),
+        JSON.stringify({ defaultStatus: "validated" }),
+        "utf8",
+      );
+      const out = await memSave(
+        {
+          type: "decision",
+          slug: "anchorless-validated",
+          body: "# Anchorless validated\n\nAlways explain this decision because future agents need context.",
+          scope: "team",
+          tags: [],
+          paths: [],
+          symbols: [],
+        },
+        ctx,
+      );
+
+      expect(out.warning).toContain("validated without paths or symbols");
+    });
+
     it("rejects when .ai/ does not exist", async () => {
       const emptyCtx: HaiveContext = { paths: resolveHaivePaths(path.join(workDir, "missing")) };
       await expect(
@@ -216,6 +273,148 @@ describe("hAIve MCP tools", () => {
       expect(out.file_path).toContain("/modules/transactions/context.md");
       const written = await readFile(out.file_path, "utf8");
       expect(written).toBe("# transactions");
+    });
+  });
+
+  describe("get_briefing relevance priority", () => {
+    it("surfaces exact and glob anchors ahead of popular background memories", async () => {
+      await mkdir(path.join(workDir, "src", "features"), { recursive: true });
+      await writeFile(path.join(workDir, "src", "features", "app.ts"), "export const app = true;\n", "utf8");
+
+      const anchored = await memSave(
+        {
+          type: "decision",
+          slug: "app-feature-policy",
+          body: "# App feature policy\n\nAlways use the existing feature boundary because it owns app state.",
+          scope: "team",
+          tags: [],
+          paths: ["src/**/*.ts"],
+          symbols: [],
+        },
+        ctx,
+      );
+      const popular = await memSave(
+        {
+          type: "convention",
+          slug: "popular-general-note",
+          body: "# Popular general note\n\nAlways keep release notes tidy because readers scan them.",
+          scope: "team",
+          tags: [],
+          paths: [],
+          symbols: [],
+        },
+        ctx,
+      );
+
+      const { loadMemoriesFromDir, serializeMemory, trackReads } = await import("@hiveai/core");
+      const loaded = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+      for (const item of loaded) {
+        await writeFile(
+          item.filePath,
+          serializeMemory({
+            frontmatter: { ...item.memory.frontmatter, status: "validated" },
+            body: item.memory.body,
+          }),
+          "utf8",
+        );
+      }
+      for (let i = 0; i < 25; i++) await trackReads(ctx.paths, [popular.id]);
+
+      const briefing = await getBriefing(
+        {
+          task: "touch the app feature",
+          files: ["src/features/app.ts"],
+          max_tokens: 4000,
+          max_memories: 8,
+          include_project_context: false,
+          include_module_contexts: false,
+          semantic: false,
+          include_stale: false,
+          track: false,
+          format: "full",
+          symbols: [],
+          min_semantic_score: 0,
+        },
+        ctx,
+      );
+
+      expect(briefing.memories[0]?.id).toBe(anchored.id);
+      expect(briefing.memories[0]?.priority).toBe("must_read");
+      expect(briefing.memories[0]?.why?.some((w) => w.includes("Glob anchor match"))).toBe(true);
+      expect(briefing.briefing_quality.level).toBe("strong");
+    });
+
+    it("keeps directly relevant attempts as must_read", async () => {
+      const attempt = await memSave(
+        {
+          type: "attempt",
+          slug: "wrong-api-shape",
+          body: "# Wrong API shape\n\nDo not use the wrong API shape because it throws; use the typed client instead.",
+          scope: "team",
+          tags: [],
+          paths: [],
+          symbols: [],
+        },
+        ctx,
+      );
+
+      const briefing = await getBriefing(
+        {
+          task: "wrong api shape",
+          files: [],
+          max_tokens: 4000,
+          max_memories: 8,
+          include_project_context: false,
+          include_module_contexts: false,
+          semantic: false,
+          include_stale: false,
+          track: false,
+          format: "full",
+          symbols: [],
+          min_semantic_score: 0,
+        },
+        ctx,
+      );
+
+      expect(briefing.memories[0]?.id).toBe(attempt.id);
+      expect(briefing.memories[0]?.priority).toBe("must_read");
+      expect(briefing.memories[0]?.why?.join(" ")).toContain("Failed-approach");
+    });
+
+    it("classifies weak literal-only results as thin/background", async () => {
+      await memSave(
+        {
+          type: "convention",
+          slug: "single-word-overlap",
+          body: "# Single overlap\n\nAlways document releases because humans read changelogs.",
+          scope: "team",
+          tags: [],
+          paths: [],
+          symbols: [],
+        },
+        ctx,
+      );
+
+      const briefing = await getBriefing(
+        {
+          task: "release postgres cache auth",
+          files: [],
+          max_tokens: 4000,
+          max_memories: 8,
+          include_project_context: false,
+          include_module_contexts: false,
+          semantic: false,
+          include_stale: false,
+          track: false,
+          format: "full",
+          symbols: [],
+          min_semantic_score: 0,
+        },
+        ctx,
+      );
+
+      expect(briefing.memories[0]?.priority).toBe("background");
+      expect(briefing.briefing_quality.level).toBe("thin");
     });
   });
 
@@ -571,6 +770,68 @@ describe("hAIve MCP tools", () => {
       expect(result.summary.blocking_warnings).toBe(0);
       expect(result.should_block).toBe(false);
       expect(result.warnings[0]?.reasons).toEqual(["anchor", "literal"]);
+    });
+
+    it("downgrades docs-only anti-pattern matches to info", async () => {
+      await memSave(
+        {
+          type: "gotcha",
+          slug: "npm-build-runtime",
+          body: "Avoid npm build changes that alter runtime service behavior unless the deployment path is tested.",
+          scope: "team",
+          tags: ["build", "runtime"],
+          paths: [],
+        },
+        ctx,
+      );
+
+      const result = await preCommitCheck(
+        {
+          diff: [
+            "diff --git a/CHANGELOG.md b/CHANGELOG.md",
+            "--- a/CHANGELOG.md",
+            "+++ b/CHANGELOG.md",
+            "@@",
+            "+Mention npm build runtime notes.",
+          ].join("\n"),
+          paths: ["CHANGELOG.md"],
+          block_on: "any",
+          semantic: false,
+        },
+        ctx,
+      );
+
+      expect(result.should_block).toBe(false);
+      expect(result.summary.info_warnings).toBeGreaterThan(0);
+      expect(result.warnings.every((w) => w.level === "info")).toBe(true);
+      expect(result.warnings[0]?.rationale).toContain("docs/changelog-only");
+    });
+
+    it("keeps .ai usage telemetry non-blocking", async () => {
+      await memSave(
+        {
+          type: "gotcha",
+          slug: "usage-log-noise",
+          body: "Avoid committing generated usage logs because they are local telemetry.",
+          scope: "team",
+          tags: ["usage"],
+          paths: [],
+        },
+        ctx,
+      );
+
+      const result = await preCommitCheck(
+        {
+          diff: "+generated usage log entry",
+          paths: [".ai/.usage/tool-usage.jsonl"],
+          block_on: "any",
+          semantic: false,
+        },
+        ctx,
+      );
+
+      expect(result.should_block).toBe(false);
+      expect(result.warnings.every((w) => w.level === "info")).toBe(true);
     });
   });
 

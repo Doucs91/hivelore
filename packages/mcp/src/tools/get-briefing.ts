@@ -9,6 +9,7 @@ import {
   extractActionsBriefBody,
   getUsage,
   inferModulesFromPaths,
+  isGlobPath,
   isAutoPromoteEligible,
   isDecaying,
   literalMatchesAllTokens,
@@ -112,6 +113,13 @@ export const GetBriefingZod = z.object(GetBriefingInputSchema);
 
 export type GetBriefingInput = z.infer<typeof GetBriefingZod>;
 
+export type BriefingMemoryPriority = "must_read" | "useful" | "background";
+
+export interface BriefingQuality {
+  level: "strong" | "thin" | "noisy";
+  reasons: string[];
+}
+
 export interface BriefingMemory {
   id: string;
   scope: string;
@@ -123,9 +131,11 @@ export interface BriefingMemory {
   /** Present when confidence is 'low' or 'unverified' — AI should weight this memory cautiously. */
   unverified?: true;
   read_count: number;
-  reasons: Array<"anchor" | "module" | "domain" | "semantic">;
+  reasons: Array<"anchor" | "module" | "domain" | "semantic" | "symbol">;
   match_quality: "exact" | "partial" | "semantic";
   semantic_score?: number;
+  /** Relevance tier for the current task. `must_read` should be consumed before edits. */
+  priority: BriefingMemoryPriority;
   /** Human/agent-readable explanation for why this record was surfaced. */
   why?: string[];
   body: string;
@@ -164,6 +174,7 @@ export interface BriefingOutput {
   project_context: { content: string; truncated: boolean; is_template?: boolean; auto_generated?: boolean } | null;
   module_contexts: Array<{ name: string; content: string; truncated: boolean }>;
   memories: BriefingMemory[];
+  briefing_quality: BriefingQuality;
   symbol_locations?: CodeMapSymbolHit[];
   /**
    * Memories that require explicit human confirmation before any code action.
@@ -299,6 +310,7 @@ export async function getBriefing(
         reasons: [reason],
         match_quality: matchQuality ?? "partial",
         ...(score !== undefined ? { semantic_score: score } : {}),
+        priority: "background",
         body: loaded.memory.body,
         file_path: loaded.filePath,
       });
@@ -313,6 +325,14 @@ export async function getBriefing(
         if (fm.module && inferred.includes(fm.module)) addOrUpdate(loaded, "module", undefined, "partial");
         if (fm.domain && inferred.includes(fm.domain)) addOrUpdate(loaded, "domain", undefined, "partial");
         if (fm.tags.some((t) => inferred.includes(t))) addOrUpdate(loaded, "module", undefined, "partial");
+      }
+    }
+
+    if (input.symbols.length > 0) {
+      const wanted = new Set(input.symbols.map((s) => s.toLowerCase()));
+      for (const loaded of allMemories) {
+        const symbols = loaded.memory.frontmatter.anchor.symbols.map((s) => s.toLowerCase());
+        if (symbols.some((s) => wanted.has(s))) addOrUpdate(loaded, "symbol", undefined, "exact");
       }
     }
 
@@ -346,9 +366,12 @@ export async function getBriefing(
     }
 
     const ranked = [...seen.values()].sort((a, b) => {
+      const priorityScore = (m: BriefingMemory): number =>
+        priorityRank(classifyMemoryPriority(m, byId.get(m.id), input.files, input.symbols));
       const reasonScore = (m: BriefingMemory): number =>
         (m.type === "attempt" ? 3 : 0) + // attempt = negative knowledge, surface first to prevent repeating mistakes
         (m.reasons.includes("anchor") ? 4 : 0) +
+        (m.reasons.includes("symbol") ? 4 : 0) +
         (m.reasons.includes("module") ? 2 : 0) +
         (m.reasons.includes("semantic") ? 2 : 0) +
         (m.reasons.includes("domain") ? 1 : 0);
@@ -357,8 +380,8 @@ export async function getBriefing(
         m.confidence === "trusted" ? 3 :
         m.confidence === "low" ? 1 :
         m.confidence === "stale" ? -2 : 0;
-      const sa = reasonScore(a) + confidenceScore(a) + (a.semantic_score ?? 0);
-      const sb = reasonScore(b) + confidenceScore(b) + (b.semantic_score ?? 0);
+      const sa = priorityScore(a) * 100 + reasonScore(a) + confidenceScore(a) + (a.semantic_score ?? 0);
+      const sb = priorityScore(b) * 100 + reasonScore(b) + confidenceScore(b) + (b.semantic_score ?? 0);
       return sb - sa;
     });
 
@@ -578,8 +601,15 @@ export async function getBriefing(
         : trimmedMemories;
   const outputMemories = formattedMemories.map((m) => ({
     ...m,
+    priority: classifyMemoryPriority(m, byId.get(m.id), input.files, input.symbols),
     why: explainWhySurfaced(m, byId.get(m.id), input.files, inferred),
   }));
+  const briefingQuality = classifyBriefingQuality(outputMemories, {
+    isTemplateContext,
+    autoContextGenerated,
+    hasLastSession: Boolean(lastSession),
+    searchMode,
+  });
 
   // ── Code-map symbol lookup ──────────────────────────────────────────────
   // Also auto-look up symbols found in anchor paths of returned memories +
@@ -790,6 +820,7 @@ export async function getBriefing(
       : null,
     module_contexts: trimmedModules,
     memories: outputMemories,
+    briefing_quality: briefingQuality,
     ...(symbolLocations ? { symbol_locations: symbolLocations } : {}),
     action_required: actionRequired,
     decay_warnings: decayWarnings,
@@ -817,6 +848,89 @@ function compactSummary(body: string): string {
   return body.slice(0, 120);
 }
 
+function classifyMemoryPriority(
+  memory: BriefingMemory,
+  loaded: LoadedMemory | undefined,
+  inputFiles: string[],
+  inputSymbols: string[],
+): BriefingMemoryPriority {
+  const fm = loaded?.memory.frontmatter;
+  const directAnchor = Boolean(
+    fm && inputFiles.length > 0 &&
+    fm.anchor.paths.some((p) => inputFiles.some((file) => pathsOverlap(p, file))),
+  );
+  const directSymbol = Boolean(
+    fm && inputSymbols.length > 0 &&
+    fm.anchor.symbols.some((sym) =>
+      inputSymbols.some((wanted) => wanted.toLowerCase() === sym.toLowerCase()),
+    ),
+  );
+  const strongSemantic = (memory.semantic_score ?? 0) >= 0.65;
+  const usefulSemantic = (memory.semantic_score ?? 0) >= 0.35;
+
+  if (
+    fm?.requires_human_approval ||
+    directAnchor ||
+    directSymbol ||
+    (memory.type === "attempt" && (memory.match_quality === "exact" || strongSemantic))
+  ) {
+    return "must_read";
+  }
+
+  if (
+    memory.reasons.includes("module") ||
+    memory.reasons.includes("domain") ||
+    memory.match_quality === "exact" ||
+    usefulSemantic
+  ) {
+    return "useful";
+  }
+
+  return "background";
+}
+
+function priorityRank(priority: BriefingMemoryPriority): number {
+  return priority === "must_read" ? 3 : priority === "useful" ? 2 : 1;
+}
+
+function classifyBriefingQuality(
+  memories: BriefingMemory[],
+  context: {
+    isTemplateContext: boolean;
+    autoContextGenerated: boolean;
+    hasLastSession: boolean;
+    searchMode: BriefingOutput["search_mode"];
+  },
+): BriefingQuality {
+  const mustRead = memories.filter((m) => m.priority === "must_read").length;
+  const useful = memories.filter((m) => m.priority === "useful").length;
+  const background = memories.filter((m) => m.priority === "background").length;
+  const weakSemantic = memories.filter((m) =>
+    m.reasons.length === 1 &&
+    m.reasons.includes("semantic") &&
+    (m.semantic_score ?? 0) > 0 &&
+    (m.semantic_score ?? 0) < 0.35,
+  ).length;
+  const reasons: string[] = [];
+
+  if (memories.length === 0) reasons.push("no memories matched the task or files");
+  if (context.isTemplateContext && !context.autoContextGenerated) reasons.push("project context is still a template");
+  if (!context.hasLastSession) reasons.push("no previous session recap");
+  if (mustRead > 0) reasons.push(`${mustRead} must_read memor${mustRead === 1 ? "y" : "ies"} matched directly`);
+  if (useful > 0) reasons.push(`${useful} useful memor${useful === 1 ? "y" : "ies"} matched`);
+  if (background > useful + mustRead && background > 2) reasons.push(`${background} background memories dominate the result`);
+  if (weakSemantic > 0) reasons.push(`${weakSemantic} weak semantic-only match${weakSemantic === 1 ? "" : "es"}`);
+  if (context.searchMode === "literal_fallback") reasons.push("semantic index unavailable or empty; literal fallback used");
+
+  if (memories.length === 0 || (mustRead === 0 && useful === 0)) {
+    return { level: "thin", reasons };
+  }
+  if (background > useful + mustRead && background > 2) {
+    return { level: "noisy", reasons };
+  }
+  return { level: "strong", reasons };
+}
+
 function explainWhySurfaced(
   memory: BriefingMemory,
   loaded: LoadedMemory | undefined,
@@ -830,13 +944,28 @@ function explainWhySurfaced(
       inputFiles.length === 0 || inputFiles.some((file) => pathsOverlap(p, file)),
     );
     if (matching.length > 0) {
-      why.push(`Anchored to touched path${matching.length === 1 ? "" : "s"}: ${matching.slice(0, 4).join(", ")}`);
+      const exact = matching.filter((p) =>
+        !isGlobPath(p) && inputFiles.some((file) => p === file || pathsOverlap(p, file)),
+      );
+      const glob = matching.filter((p) => isGlobPath(p));
+      if (exact.length > 0) {
+        why.push(`Exact/file anchor match: ${exact.slice(0, 4).join(", ")}`);
+      }
+      if (glob.length > 0) {
+        why.push(`Glob anchor match: ${glob.slice(0, 4).join(", ")}`);
+      }
+      if (exact.length === 0 && glob.length === 0) {
+        why.push(`Anchored to touched path${matching.length === 1 ? "" : "s"}: ${matching.slice(0, 4).join(", ")}`);
+      }
     } else if (fm.anchor.paths.length > 0) {
       why.push(`Pulled by related anchor: ${fm.anchor.paths.slice(0, 4).join(", ")}`);
     }
     if (fm.anchor.symbols.length > 0) {
       why.push(`Anchor symbol${fm.anchor.symbols.length === 1 ? "" : "s"}: ${fm.anchor.symbols.slice(0, 4).join(", ")}`);
     }
+  }
+  if (memory.reasons.includes("symbol") && fm) {
+    why.push(`Explicit symbol match: ${fm.anchor.symbols.slice(0, 4).join(", ")}`);
   }
   if (memory.reasons.includes("module")) {
     const moduleHints = [

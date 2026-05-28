@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/mcp",
-  "version": "0.9.16",
+  "version": "0.9.17",
   "description": "hAIve MCP server — policy-aware context breadcrumbs and enforcement tools for AI coding agents",
   "license": "Apache-2.0",
   "repository": {

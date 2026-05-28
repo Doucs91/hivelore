@@ -140,6 +140,8 @@ function printWarnings(
     body_preview: string;
     reasons: string[];
     rationale?: string;
+    affected_files?: string[];
+    repair_command?: string;
   }>,
   tone: "error" | "warn",
 ): void {
@@ -152,7 +154,11 @@ function printWarnings(
       console.log(`     ${ui.dim(line)}`);
     }
     console.log(`     ${ui.dim("reasons:")} ${w.reasons.join(", ")}`);
+    if (w.affected_files && w.affected_files.length > 0) {
+      console.log(`     ${ui.dim("files:")} ${w.affected_files.slice(0, 4).join(", ")}`);
+    }
     if (w.rationale) console.log(`     ${ui.dim("why shown:")} ${w.rationale}`);
+    if (w.repair_command) console.log(`     ${ui.dim("repair:")} ${w.repair_command}`);
   }
   console.log();
 }

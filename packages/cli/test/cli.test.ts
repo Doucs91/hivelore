@@ -116,6 +116,20 @@ describe("hAIve CLI integration", () => {
     expect(existsSync(report.mode_file)).toBe(true);
   });
 
+  it("doctor --json exposes scores and structured sections", async () => {
+    const { stdout } = await run(workDir, ["doctor", "--json", "--dir", workDir]);
+    const report = JSON.parse(stdout) as {
+      scores: { protection_score: number; context_quality_score: number; corpus_quality_score: number };
+      sections: Record<string, unknown[]>;
+      findings: Array<{ code: string; section: string }>;
+    };
+    expect(report.scores.protection_score).toEqual(expect.any(Number));
+    expect(report.scores.context_quality_score).toEqual(expect.any(Number));
+    expect(report.scores.corpus_quality_score).toEqual(expect.any(Number));
+    expect(report.sections["Agent coverage"]).toBeDefined();
+    expect(report.findings.every((finding) => typeof finding.section === "string")).toBe(true);
+  });
+
   it("default help only shows the core harness surface", async () => {
     const { stdout } = await run(workDir, ["--help"]);
     expect(stdout).toContain("Commands:");
@@ -209,6 +223,33 @@ describe("hAIve CLI integration", () => {
     expect(stdout).toContain("scope:");
     expect(stdout).toContain("confidence:");
     expect(stdout).toContain("Always use pnpm");
+  });
+
+  it("memory lint --fix dry-run reports simple fixes and --apply writes headings", async () => {
+    await run(workDir, [
+      "memory", "add",
+      "--type", "decision",
+      "--slug", "lint heading fix",
+      "--scope", "team",
+      "--body", "Always keep API stable because clients depend on it.",
+      "--dir", workDir,
+    ]);
+
+    const dry = await run(workDir, ["memory", "lint", "--fix", "--dry-run", "--json", "--dir", workDir]);
+    const dryReport = JSON.parse(dry.stdout) as {
+      findings: Array<{ id: string; code: string }>;
+      fixes: Array<{ id: string; actions: string[]; applied: boolean }>;
+    };
+    const targetFix = dryReport.fixes.find((f) => f.id.includes("lint-heading-fix"));
+    expect(targetFix?.applied).toBe(false);
+    expect(targetFix?.actions).toContain("add missing Markdown heading");
+
+    await run(workDir, ["memory", "lint", "--fix", "--apply", "--dir", workDir]);
+    const teamFiles = await readdir(path.join(workDir, ".ai/memories/team"));
+    const lintFile = teamFiles.find((f) => f.includes("lint-heading-fix"));
+    expect(lintFile).toBeDefined();
+    const content = await readFile(path.join(workDir, ".ai/memories/team", lintFile!), "utf8");
+    expect(content).toContain("# Decision Lint Heading Fix");
   });
 
   it("memory rm --yes deletes the file and removes the usage entry", async () => {

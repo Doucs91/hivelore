@@ -47,6 +47,7 @@ interface EnforceOptions {
   claude?: boolean;
   git?: boolean;
   ci?: boolean;
+  explain?: boolean;
 }
 
 interface EnforcementFinding {
@@ -75,6 +76,11 @@ interface EnforcementReport {
   score: EnforcementScore;
   should_block: boolean;
   findings: EnforcementFinding[];
+  categories: {
+    blocking: EnforcementFinding[];
+    review: EnforcementFinding[];
+    info: EnforcementFinding[];
+  };
 }
 
 export function registerEnforce(program: Command): void {
@@ -133,10 +139,11 @@ export function registerEnforce(program: Command): void {
     .command("status")
     .description("Show whether this project has agent-agnostic hAIve enforcement installed.")
     .option("-d, --dir <dir>", "project root")
+    .option("--explain", "group findings by blocking/review/info and show repair commands", false)
     .option("--json", "emit JSON", false)
     .action(async (opts: EnforceOptions) => {
       const report = await buildEnforcementReport(opts.dir, "local");
-      printReport(report, Boolean(opts.json));
+      printReport(report, Boolean(opts.json), Boolean(opts.explain));
       if (report.should_block) process.exitCode = 1;
     });
 
@@ -145,10 +152,11 @@ export function registerEnforce(program: Command): void {
     .description("Run the hAIve policy gate. Intended for pre-commit, pre-push, wrappers, and any agent client.")
     .option("-d, --dir <dir>", "project root")
     .option("--stage <stage>", "local | pre-commit | pre-push | ci", "local")
+    .option("--explain", "group findings by blocking/review/info and show repair commands", false)
     .option("--json", "emit JSON", false)
     .action(async (opts: EnforceOptions) => {
       const report = await buildEnforcementReport(opts.dir, opts.stage ?? "local");
-      printReport(report, Boolean(opts.json));
+      printReport(report, Boolean(opts.json), Boolean(opts.explain));
       if (report.should_block) process.exit(2);
     });
 
@@ -179,10 +187,11 @@ export function registerEnforce(program: Command): void {
     .command("ci")
     .description("CI entrypoint: fail if the repository violates hAIve enforcement policy.")
     .option("-d, --dir <dir>", "project root")
+    .option("--explain", "group findings by blocking/review/info and show repair commands", false)
     .option("--json", "emit JSON", false)
     .action(async (opts: EnforceOptions) => {
       const report = await buildEnforcementReport(opts.dir, "ci");
-      printReport(report, Boolean(opts.json));
+      printReport(report, Boolean(opts.json), Boolean(opts.explain));
       if (report.should_block) process.exit(2);
     });
 
@@ -405,7 +414,7 @@ async function buildEnforcementReport(
   const findings: EnforcementFinding[] = [];
 
   if (!initialized) {
-    return {
+    return withCategories({
       root,
       initialized,
       mode,
@@ -418,18 +427,18 @@ async function buildEnforcementReport(
         fix: "Run `haive init` or `haive enforce install`.",
         impact: 100,
       }],
-    };
+    });
   }
 
   if (mode === "off") {
-    return {
+    return withCategories({
       root,
       initialized,
       mode,
       score: buildScore([], config.enforcement?.scoreThreshold),
       should_block: false,
       findings: [{ severity: "info", code: "enforcement-off", message: "hAIve enforcement is disabled." }],
-    };
+    });
   }
 
   findings.push(...await inspectIntegrationVersions(root, __HAIVE_VERSION__));
@@ -496,13 +505,24 @@ async function buildEnforcementReport(
   }
 
   const hasErrors = findings.some((f) => f.severity === "error");
-  return {
+  return withCategories({
     root,
     initialized,
     mode,
     score: buildScore(findings, config.enforcement?.scoreThreshold),
     should_block: mode === "strict" && hasErrors,
     findings,
+  });
+}
+
+function withCategories(report: Omit<EnforcementReport, "categories">): EnforcementReport {
+  return {
+    ...report,
+    categories: {
+      blocking: report.findings.filter((f) => f.severity === "error"),
+      review: report.findings.filter((f) => f.severity === "warn"),
+      info: report.findings.filter((f) => f.severity === "info" || f.severity === "ok"),
+    },
   };
 }
 
@@ -581,7 +601,7 @@ async function verifyDecisionCoverage(
     .filter((memory) => {
       const fm = memory.frontmatter;
       if (!policyTypes.has(fm.type)) return false;
-      if (fm.status === "rejected" || fm.status === "deprecated" || fm.status === "stale") return false;
+      if (fm.status !== "validated") return false;
       return memoryMatchesAnchorPaths(memory, changedFiles);
     });
 
@@ -756,7 +776,12 @@ async function getChangedFiles(
       if (file) files.add(file);
     }
   }
-  return [...files].filter((file) => !file.startsWith(".ai/.runtime/") && !file.startsWith(".ai/.cache/"));
+  return [...files].filter((file) =>
+    !file.startsWith(".ai/.runtime/") &&
+    !file.startsWith(".ai/.cache/") &&
+    !file.startsWith(".ai/.usage/") &&
+    file !== ".ai/.usage/tool-usage.jsonl"
+  );
 }
 
 function buildScore(findings: EnforcementFinding[], threshold = 80): EnforcementScore {
@@ -852,7 +877,7 @@ jobs:
   ui.success(`Created ${path.relative(root, workflowPath)}`);
 }
 
-function printReport(report: EnforcementReport, json: boolean): void {
+function printReport(report: EnforcementReport, json: boolean, explain = false): void {
   if (json) {
     console.log(JSON.stringify(report, null, 2));
     return;
@@ -860,7 +885,35 @@ function printReport(report: EnforcementReport, json: boolean): void {
   console.log(ui.bold(`hAIve enforcement — ${report.mode}`));
   console.log(ui.dim(`  root: ${report.root}`));
   console.log(ui.dim(`  score: ${report.score.score}% / threshold ${report.score.threshold}%`));
-  for (const finding of report.findings) {
+
+  if (explain) {
+    printFindingGroup("Blocking", report.categories.blocking, "error");
+    printFindingGroup("Review", report.categories.review, "warn");
+    printFindingGroup("Info", report.categories.info, "info");
+  } else {
+    for (const finding of report.findings) printFinding(finding);
+  }
+  if (report.should_block) ui.error("hAIve enforcement gate failed.");
+  else ui.success("hAIve enforcement gate passed.");
+}
+
+function printFindingGroup(
+  title: string,
+  findings: EnforcementFinding[],
+  tone: "error" | "warn" | "info",
+): void {
+  if (findings.length === 0) return;
+  console.log();
+  const heading = tone === "error" ? ui.red(title) : tone === "warn" ? ui.yellow(title) : ui.bold(title);
+  console.log(ui.bold(`${heading} (${findings.length})`));
+  const scoreFinding = findings.find((f) => f.code === "enforcement-score-below-threshold");
+  for (const finding of findings.filter((f) => f.code !== "enforcement-score-below-threshold")) {
+    printFinding(finding, true);
+  }
+  if (scoreFinding) printFinding(scoreFinding, true);
+}
+
+function printFinding(finding: EnforcementFinding, explain = false): void {
     const marker = finding.severity === "error"
       ? ui.red("✗")
       : finding.severity === "warn"
@@ -869,10 +922,7 @@ function printReport(report: EnforcementReport, json: boolean): void {
           ? ui.green("✓")
           : ui.dim("•");
     console.log(`${marker} ${finding.code}: ${finding.message}`);
-    if (finding.fix) console.log(ui.dim(`  fix: ${finding.fix}`));
-  }
-  if (report.should_block) ui.error("hAIve enforcement gate failed.");
-  else ui.success("hAIve enforcement gate passed.");
+    if (finding.fix) console.log(ui.dim(`${explain ? "  repair: " : "  fix: "}${finding.fix}`));
 }
 
 async function readHookPayload(): Promise<HookPayload> {

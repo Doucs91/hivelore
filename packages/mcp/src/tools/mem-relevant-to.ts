@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { getBriefing, type BriefingMemory, type GetBriefingInput } from "./get-briefing.js";
+import {
+  getBriefing,
+  type BriefingMemory,
+  type BriefingQuality,
+  type GetBriefingInput,
+} from "./get-briefing.js";
 import type { HaiveContext } from "../context.js";
 
 export const MemRelevantToInputSchema = {
@@ -38,6 +43,7 @@ export interface MemRelevantToOutput {
   task: string;
   search_mode: "semantic" | "literal_fallback" | "literal";
   memories: BriefingMemory[];
+  briefing_quality: BriefingQuality;
   hints?: string[];
   /**
    * True when the search returned zero memories — clients can skip surfacing
@@ -80,6 +86,7 @@ export async function memRelevantTo(
     task: input.task,
     search_mode: briefing.search_mode,
     memories: briefing.memories,
+    briefing_quality: briefing.briefing_quality,
   };
   if (briefing.hints && briefing.hints.length > 0) out.hints = briefing.hints;
   if (briefing.memories.length === 0) out.empty = true;

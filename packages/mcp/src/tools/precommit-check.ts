@@ -74,6 +74,8 @@ export interface ClassifiedAntiPatternsWarning extends AntiPatternsWarning {
    */
   level: AntiPatternLevel;
   rationale: string;
+  affected_files: string[];
+  repair_command: string;
 }
 
 /**
@@ -129,7 +131,7 @@ export async function preCommitCheck(
 
   // Determine should_block
   const blockOn = input.block_on;
-  const classifiedWarnings = apResult.warnings.map(classifyWarning);
+  const classifiedWarnings = apResult.warnings.map((warning) => classifyWarning(warning, input.paths));
   const blockingWarnings = classifiedWarnings.filter((w) => w.level === "blocking");
   const reviewWarnings = classifiedWarnings.filter((w) => w.level === "review");
   const infoWarnings = classifiedWarnings.filter((w) => w.level === "info");
@@ -170,13 +172,29 @@ export async function preCommitCheck(
   };
 }
 
-function classifyWarning(warning: AntiPatternsWarning): ClassifiedAntiPatternsWarning {
+function classifyWarning(warning: AntiPatternsWarning, paths: string[]): ClassifiedAntiPatternsWarning {
+  const affectedFiles = paths.filter((p) => !p.startsWith(".ai/.usage/"));
+  const repairCommand = repairCommandForWarning(warning, affectedFiles);
+  const fileDowngrade = fileTypeDowngradeReason(warning, affectedFiles);
+
+  if (fileDowngrade) {
+    return {
+      ...warning,
+      level: "info",
+      rationale: fileDowngrade,
+      affected_files: affectedFiles,
+      repair_command: repairCommand,
+    };
+  }
+
   if (isBlockingWarning(warning)) {
     return {
       ...warning,
       level: "blocking",
       rationale:
         "authoritative/trusted memory plus strong semantic match to the diff (score >= 0.65)",
+      affected_files: affectedFiles,
+      repair_command: repairCommand,
     };
   }
 
@@ -196,6 +214,8 @@ function classifyWarning(warning: AntiPatternsWarning): ClassifiedAntiPatternsWa
         hasSemantic
           ? "semantic match is plausible but below blocking threshold"
           : "anchored high-confidence memory also matched diff tokens, but no strong semantic proof",
+      affected_files: affectedFiles,
+      repair_command: repairCommand,
     };
   }
 
@@ -204,6 +224,8 @@ function classifyWarning(warning: AntiPatternsWarning): ClassifiedAntiPatternsWa
     level: "info",
     rationale:
       "weak signal only (literal/anchor/low semantic evidence); surfaced for audit, hidden in concise CLI output",
+    affected_files: affectedFiles,
+    repair_command: repairCommand,
   };
 }
 
@@ -215,4 +237,65 @@ function isBlockingWarning(warning: AntiPatternsWarning): boolean {
   // can touch package files or share common tokens with old gotchas. Require
   // a semantic corroboration strong enough to indicate the same mistake.
   return warning.reasons.includes("semantic") && (warning.semantic_score ?? 0) >= 0.65;
+}
+
+function fileTypeDowngradeReason(
+  warning: AntiPatternsWarning,
+  paths: string[],
+): string | null {
+  if (paths.length === 0) return null;
+  if (paths.every((p) => p.startsWith(".ai/.usage/") || p === ".ai/.usage/tool-usage.jsonl")) {
+    return ".ai usage logs are local telemetry and never block commits.";
+  }
+
+  const docsOnly = paths.every(isDocLikePath);
+  if (docsOnly && !hasStrongSemantic(warning)) {
+    return "docs/changelog-only change; anti-pattern is downgraded unless semantic evidence is strong.";
+  }
+
+  const configOnly = paths.every(isPackageOrConfigPath);
+  if (configOnly && looksRuntimeSpecific(warning) && !warning.reasons.includes("anchor") && !hasStrongSemantic(warning)) {
+    return "package/config-only change; runtime-specific gotcha is not anchored or semantically strong.";
+  }
+
+  return null;
+}
+
+function hasStrongSemantic(warning: AntiPatternsWarning): boolean {
+  return warning.reasons.includes("semantic") && (warning.semantic_score ?? 0) >= 0.65;
+}
+
+function isDocLikePath(file: string): boolean {
+  const lower = file.toLowerCase();
+  return lower.endsWith(".md") ||
+    lower.includes("changelog") ||
+    lower.startsWith("docs/") ||
+    lower.startsWith(".github/") && lower.endsWith(".md");
+}
+
+function isPackageOrConfigPath(file: string): boolean {
+  const lower = file.toLowerCase();
+  return lower.endsWith("package.json") ||
+    lower.endsWith("package-lock.json") ||
+    lower.endsWith("pnpm-lock.yaml") ||
+    lower.endsWith("yarn.lock") ||
+    lower.endsWith("bun.lockb") ||
+    lower.endsWith(".config.ts") ||
+    lower.endsWith(".config.js") ||
+    lower.endsWith(".json") ||
+    lower.endsWith(".yml") ||
+    lower.endsWith(".yaml") ||
+    lower.startsWith(".github/workflows/");
+}
+
+function looksRuntimeSpecific(warning: AntiPatternsWarning): boolean {
+  const text = `${warning.body_preview} ${warning.id}`.toLowerCase();
+  return /\b(runtime|controller|request|response|database|transaction|auth|cache|production|service|api|endpoint)\b/.test(text);
+}
+
+function repairCommandForWarning(warning: AntiPatternsWarning, paths: string[]): string {
+  const firstPath = paths[0];
+  return firstPath
+    ? `haive briefing --files "${firstPath}" --task "review ${warning.id}"`
+    : `haive memory show ${warning.id}`;
 }

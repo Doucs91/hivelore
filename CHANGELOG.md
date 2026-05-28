@@ -6,6 +6,23 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.17] — core signal quality and surgical enforcement
+
+### Added
+- `get_briefing` and `mem_relevant_to` now classify returned memories as `must_read`, `useful`, or `background`, and include a `briefing_quality` summary (`strong`, `thin`, or `noisy`).
+- `haive memory lint --fix --dry-run|--apply` now reports simple corpus repairs and can add missing headings plus `needs_anchor` tags for validated anchorless policy records.
+- `haive enforce check/status/ci --explain` now groups findings into blocking, review, and info sections.
+- `haive doctor --json` now exposes protection, context quality, and corpus quality scores with sectioned findings and next actions.
+
+### Changed
+- Briefing ranking now prioritizes direct path/symbol anchors and directly relevant failed attempts ahead of popular but less relevant memories.
+- `haive briefing` defaults to a tighter memory cap and prints memory priorities plus a briefing quality line.
+- Precommit enforcement downgrades weak docs/changelog, config-only, and `.ai/.usage` telemetry matches to reduce false positives.
+
+### Fixed
+- `mem_save` topic upsert no longer writes `body` into frontmatter.
+- `mem_save` now emits a strong warning when validated `decision`, `gotcha`, or `architecture` memories are saved without anchors.
+
 ## [0.9.16] — focused core surface and MCP profiles
 
 ### Added

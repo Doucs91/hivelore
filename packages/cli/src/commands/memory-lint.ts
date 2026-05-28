@@ -2,13 +2,18 @@
  * Lightweight quality checks — no ML, safe to run on CI alongside tests.
  */
 import { existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
 import { Command } from "commander";
 import {
   findProjectRoot,
   getUsage,
+  loadCodeMap,
   loadMemoriesFromDir,
   loadUsageIndex,
   resolveHaivePaths,
+  serializeMemory,
+  type LoadedMemory,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 
@@ -20,20 +25,44 @@ export interface MemoryLintFinding {
   severity: LintSeverity;
   code: string;
   message: string;
+  suggested_anchors?: {
+    paths: string[];
+    symbols: string[];
+  };
 }
 
 interface LintOpts {
   json?: boolean;
   dir?: string;
+  fix?: boolean;
+  dryRun?: boolean;
+  apply?: boolean;
 }
 
-export async function lintMemoriesAsync(root: string): Promise<MemoryLintFinding[]> {
+export interface MemoryLintFix {
+  file: string;
+  id: string;
+  actions: string[];
+  applied: boolean;
+}
+
+export interface MemoryLintReport {
+  findings: MemoryLintFinding[];
+  fixes: MemoryLintFix[];
+}
+
+export async function lintMemoriesAsync(
+  root: string,
+  options: { fix?: boolean; apply?: boolean } = {},
+): Promise<MemoryLintReport> {
   const paths = resolveHaivePaths(root);
   const out: MemoryLintFinding[] = [];
-  if (!existsSync(paths.memoriesDir)) return out;
+  const fixes: MemoryLintFix[] = [];
+  if (!existsSync(paths.memoriesDir)) return { findings: out, fixes };
 
   const loaded = await loadMemoriesFromDir(paths.memoriesDir);
   const usage = await loadUsageIndex(paths);
+  const codeMap = await loadCodeMap(paths);
 
   const ANCHOR_TYPES = new Set(["decision", "architecture", "gotcha"]);
   const actionableWords = /\b(always|never|prefer|use|avoid|because|instead|why|rationale|do not|must|should)\b/i;
@@ -70,6 +99,7 @@ export async function lintMemoriesAsync(root: string): Promise<MemoryLintFinding
       });
     }
 
+    const suggestedAnchors = suggestAnchors(root, { filePath, memory }, codeMap);
     if (ANCHOR_TYPES.has(fm.type) && fm.anchor.paths.length === 0 && fm.status === "validated") {
       out.push({
         file: filePath,
@@ -78,6 +108,9 @@ export async function lintMemoriesAsync(root: string): Promise<MemoryLintFinding
         code: "MISSING_ANCHOR",
         message:
           `${fm.type} is validated without anchor paths — add anchor.paths so haive sync can flag staleness.`,
+        ...(suggestedAnchors.paths.length > 0 || suggestedAnchors.symbols.length > 0
+          ? { suggested_anchors: suggestedAnchors }
+          : {}),
       });
     }
 
@@ -124,6 +157,42 @@ export async function lintMemoriesAsync(root: string): Promise<MemoryLintFinding
           "Validated record has never been surfaced/read. Consider improving tags/anchors or archiving it if it is not useful.",
       });
     }
+
+    if (options.fix) {
+      const actions: string[] = [];
+      let nextBody = memory.body;
+      let nextFrontmatter = memory.frontmatter;
+
+      if (!hasMarkdownHeading) {
+        nextBody = `# ${titleFromId(fm.id)}\n\n${nextBody.trim()}`;
+        actions.push("add missing Markdown heading");
+      }
+
+      if (
+        ANCHOR_TYPES.has(fm.type) &&
+        fm.anchor.paths.length === 0 &&
+        fm.anchor.symbols.length === 0 &&
+        fm.status === "validated" &&
+        !fm.tags.includes("needs_anchor")
+      ) {
+        nextFrontmatter = {
+          ...nextFrontmatter,
+          tags: [...nextFrontmatter.tags, "needs_anchor"],
+        };
+        actions.push("tag validated anchorless record with needs_anchor");
+      }
+
+      if (actions.length > 0) {
+        fixes.push({ file: filePath, id: fm.id, actions, applied: Boolean(options.apply) });
+        if (options.apply) {
+          await writeFile(
+            filePath,
+            serializeMemory({ frontmatter: nextFrontmatter, body: nextBody }),
+            "utf8",
+          );
+        }
+      }
+    }
   }
 
   for (const dup of nearDuplicatePairs(loaded)) {
@@ -137,7 +206,52 @@ export async function lintMemoriesAsync(root: string): Promise<MemoryLintFinding
     });
   }
 
-  return out;
+  return { findings: out, fixes };
+}
+
+function titleFromId(id: string): string {
+  const withoutDate = id.replace(/^\d{4}-\d{2}-\d{2}-/, "");
+  return withoutDate
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function suggestAnchors(
+  root: string,
+  loaded: LoadedMemory,
+  codeMap: Awaited<ReturnType<typeof loadCodeMap>>,
+): { paths: string[]; symbols: string[] } {
+  const body = loaded.memory.body;
+  const paths = new Set<string>();
+  const symbols = new Set<string>();
+
+  for (const match of body.matchAll(/`([^`\n]+\.[A-Za-z0-9]+)`|(?:^|\s)([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)/gm)) {
+    const candidate = (match[1] ?? match[2] ?? "").replace(/^\.?\//, "");
+    if (!candidate || candidate.startsWith("http")) continue;
+    if (existsSync(path.join(root, candidate))) paths.add(candidate);
+  }
+
+  if (codeMap) {
+    const lowered = body.toLowerCase();
+    for (const [file, entry] of Object.entries(codeMap.files)) {
+      for (const exp of entry.exports) {
+        if (!exp.name || exp.name.length < 4) continue;
+        if (lowered.includes(exp.name.toLowerCase())) {
+          paths.add(file);
+          symbols.add(exp.name);
+        }
+        if (paths.size >= 5 && symbols.size >= 5) break;
+      }
+      if (paths.size >= 5 && symbols.size >= 5) break;
+    }
+  }
+
+  return {
+    paths: [...paths].slice(0, 5),
+    symbols: [...symbols].slice(0, 5),
+  };
 }
 
 function nearDuplicatePairs(
@@ -189,13 +303,25 @@ export function registerMemoryLint(parent: Command): void {
       "Heuristic corpus checks (anchors on key types, headings, verbosity). Static analysis only.",
     )
     .option("--json", "emit findings as JSON", false)
+    .option("--fix", "prepare simple automatic fixes (use with --dry-run or --apply)", false)
+    .option("--dry-run", "with --fix, show files that would change without writing", false)
+    .option("--apply", "with --fix, write simple fixes to disk", false)
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: LintOpts) => {
       const root = findProjectRoot(opts.dir);
-      const findings = await lintMemoriesAsync(root);
+      const apply = Boolean(opts.fix && opts.apply);
+      const dryRun = Boolean(opts.fix && (opts.dryRun || !opts.apply));
+      const report = await lintMemoriesAsync(root, { fix: Boolean(opts.fix), apply });
+      const findings = report.findings;
 
       if (opts.json) {
-        console.log(JSON.stringify({ findings_count: findings.length, findings }, null, 2));
+        console.log(JSON.stringify({
+          findings_count: findings.length,
+          findings,
+          fixes_count: report.fixes.length,
+          fixes: report.fixes,
+          fix_mode: opts.fix ? apply ? "apply" : "dry-run" : "off",
+        }, null, 2));
         process.exitCode = findings.some((f) => f.severity === "error") ? 1 : 0;
         return;
       }
@@ -206,6 +332,16 @@ export function registerMemoryLint(parent: Command): void {
       }
 
       console.log(ui.bold(`memory lint (${findings.length} finding${findings.length === 1 ? "" : "s"})`) + `\n`);
+      if (opts.fix) {
+        const mode = apply ? "apply" : dryRun ? "dry-run" : "dry-run";
+        const verb = apply ? "changed" : "would change";
+        console.log(ui.bold(`fix ${mode}: ${report.fixes.length} file${report.fixes.length === 1 ? "" : "s"} ${verb}`));
+        for (const fix of report.fixes) {
+          console.log(`  ${ui.dim(fix.id)} ${fix.actions.join("; ")}`);
+          console.log(ui.dim(`       → ${fix.file}`));
+        }
+        console.log();
+      }
 
       const order: Record<LintSeverity, number> = { error: 0, warn: 1, info: 2 };
       findings.sort((a, b) => order[a.severity] - order[b.severity] || a.id.localeCompare(b.id));
@@ -217,6 +353,15 @@ export function registerMemoryLint(parent: Command): void {
           `${color(f.severity.padEnd(5))} ${ui.dim(f.code)} ${f.id}`,
         );
         console.log(`       ${f.message}`);
+        if (f.suggested_anchors) {
+          const pathHints = f.suggested_anchors.paths.length > 0
+            ? `paths: ${f.suggested_anchors.paths.join(", ")}`
+            : "";
+          const symbolHints = f.suggested_anchors.symbols.length > 0
+            ? `symbols: ${f.suggested_anchors.symbols.join(", ")}`
+            : "";
+          console.log(ui.dim(`       suggested anchors: ${[pathHints, symbolHints].filter(Boolean).join(" · ")}`));
+        }
         console.log(ui.dim(`       → ${f.file}`));
       }
 
