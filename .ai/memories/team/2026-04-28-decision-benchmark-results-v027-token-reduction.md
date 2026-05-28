@@ -57,3 +57,7 @@ Méthodologie : 4 agents en parallèle, 2 tâches identiques avec/sans hAIve.
 ## Conclusion
 
 Le gain principal n'est pas uniquement les tokens économisés mais la **réduction du tâtonnement** : l'agent avec hAIve arrive directement au bon fichier, avec le bon nom de classe, au premier essai.
+
+## How to apply
+
+Use these benchmark numbers as directional ROI evidence, not as a universal guarantee. When presenting hAIve externally, prefer reproducible current benchmarks from `haive bench` or `haive benchmark report`, and cite this record only as historical context for why reducing exploration/tool calls matters.

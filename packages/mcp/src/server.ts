@@ -296,6 +296,7 @@ export const ENFORCEMENT_PROFILE_TOOLS = [
   "mem_verify",
   "mem_relevant_to",
   "code_map",
+  "code_search",
   "pre_commit_check",
   "mem_session_end",
 ] as const;

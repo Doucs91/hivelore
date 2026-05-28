@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/mcp",
-  "version": "0.9.18",
+  "version": "0.9.19",
   "description": "hAIve MCP server — policy-aware context breadcrumbs and enforcement tools for AI coding agents",
   "license": "Apache-2.0",
   "repository": {
@@ -50,15 +50,8 @@
   },
   "dependencies": {
     "@hiveai/core": "workspace:*",
+    "@hiveai/embeddings": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.23.8"
-  },
-  "peerDependencies": {
-    "@hiveai/embeddings": "workspace:*"
-  },
-  "peerDependenciesMeta": {
-    "@hiveai/embeddings": {
-      "optional": true
-    }
   }
 }

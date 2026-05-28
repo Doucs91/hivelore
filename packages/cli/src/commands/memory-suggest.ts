@@ -6,6 +6,7 @@ import {
   aggregateUsage,
   buildFrontmatter,
   findProjectRoot,
+  loadConfig,
   loadMemoriesFromDir,
   memoryFilePath,
   parseSince,
@@ -32,6 +33,12 @@ const SEARCH_TOOLS = new Set([
   "get_briefing",
 ]);
 
+const SYNTHETIC_QUERY_RE = /\b(auto-promote-marker|local enforcement smoke|cli-test-session)\b/i;
+
+export function isSyntheticSuggestionQuery(query: string): boolean {
+  return SYNTHETIC_QUERY_RE.test(query);
+}
+
 interface QuerySuggestion {
   query: string;
   count: number;
@@ -46,14 +53,14 @@ export function registerMemorySuggest(memory: Command): void {
     .command("suggest")
     .description(
       "Suggest memories to create based on recurring search queries in the usage log.\n\n" +
-      "  Use --auto-save to draft the top-N suggestions as draft memories. They land\n" +
-      "  in personal scope by default with status=draft, ready for you to edit and promote.",
+      "  Use --auto-save to save the top-N suggestions using the project defaults.\n" +
+      "  In autopilot, suggestions land as validated team records; in manual mode they stay draft.",
     )
     .option("--since <window>", "ISO date or relative (e.g. '7d', '24h')", "30d")
     .option("--min <count>", "minimum repeat count to surface a query", "2")
     .option("--top-n <n>", "with --auto-save, draft this many top suggestions", "3")
-    .option("--scope <scope>", "with --auto-save, scope of drafted memories (personal | team)", "personal")
-    .option("--auto-save", "draft top-N suggestions as draft memories on disk", false)
+    .option("--scope <scope>", "with --auto-save, scope of saved memories (personal | team; default: config default)")
+    .option("--auto-save", "save top-N suggestions as memories on disk", false)
     .option("--json", "emit JSON instead of human-readable output", false)
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: SuggestOptions) => {
@@ -79,6 +86,7 @@ export function registerMemorySuggest(memory: Command): void {
         if (!SEARCH_TOOLS.has(e.tool)) continue;
         const key = (e.summary ?? "").toLowerCase().trim();
         if (!key) continue;
+        if (isSyntheticSuggestionQuery(key)) continue;
         const prior = queries.get(key);
         if (prior) {
           prior.count++;
@@ -103,11 +111,16 @@ export function registerMemorySuggest(memory: Command): void {
 
       // ── Auto-save flow ────────────────────────────────────────────────────
       if (opts.autoSave) {
+        const config = await loadConfig(paths);
         const topN = Math.max(1, parseInt(opts.topN ?? "3", 10));
-        const scope: "personal" | "team" = opts.scope === "team" ? "team" : "personal";
+        const scope: "personal" | "team" =
+          opts.scope === "personal" || opts.scope === "team"
+            ? opts.scope
+            : config.defaultScope ?? "personal";
+        const status = config.defaultStatus === "validated" ? "validated" : "draft";
         const top = suggestions.slice(0, topN);
         if (top.length === 0) {
-          ui.warn(`No suggestions met --min=${minCount} — nothing to draft.`);
+          ui.warn(`No suggestions met --min=${minCount} — nothing to save.`);
           return;
         }
         const created: Array<{ id: string; file: string; query: string }> = [];
@@ -135,10 +148,9 @@ export function registerMemorySuggest(memory: Command): void {
             tags: ["auto-suggested", ...s.tools],
             paths: [],
             symbols: [],
+            status,
           });
-          // Drafts wait for human review.
-          fm.status = "draft";
-          const body = renderTemplate(s);
+          const body = renderTemplate(s, fm.id, status);
           const file = memoryFilePath(paths, fm.scope, fm.id, fm.module);
           await mkdir(path.dirname(file), { recursive: true });
           if (existsSync(file)) {
@@ -154,7 +166,7 @@ export function registerMemorySuggest(memory: Command): void {
           return;
         }
         for (const c of created) {
-          ui.success(`Drafted ${c.id} → ${c.file}`);
+          ui.success(`${status === "validated" ? "Saved" : "Drafted"} ${c.id} → ${c.file}`);
           console.log(`     ${ui.dim("from query:")} ${truncate(c.query, 60)}`);
         }
         for (const s of skipped) {
@@ -162,7 +174,11 @@ export function registerMemorySuggest(memory: Command): void {
         }
         if (created.length > 0) {
           console.log();
-          ui.info("Drafts are status=draft — edit them, then `haive memory promote` to validate.");
+          if (status === "validated") {
+            ui.info("Autopilot defaults applied: suggestions are status=validated and active.");
+          } else {
+            ui.info("Drafts are status=draft — edit them, then run `haive memory promote <id>`.");
+          }
         }
         return;
       }
@@ -190,7 +206,7 @@ export function registerMemorySuggest(memory: Command): void {
         console.log(`     ${ui.dim("→")} ${s.reason}`);
       }
       console.log();
-      ui.info("Run with --auto-save to draft the top-3 as draft memories.");
+      ui.info("Run with --auto-save to save the top-3 using the project defaults.");
     });
 }
 
@@ -214,7 +230,10 @@ function inferType(tools: Set<string>, query: string): QuerySuggestion["inferred
   return "convention";
 }
 
-function renderTemplate(s: QuerySuggestion): string {
+function renderTemplate(s: QuerySuggestion, id: string, status: "draft" | "validated"): string {
+  const nextStep = status === "validated"
+    ? `This record is already active because project autopilot defaults set status=validated. Replace the template body with the actual answer when known.`
+    : `Then run \`haive memory promote ${id}\` to move it into team review.`;
   return [
     `# Auto-drafted from recurring searches`,
     ``,
@@ -234,7 +253,7 @@ function renderTemplate(s: QuerySuggestion): string {
     `- **Why** — the rationale or root cause`,
     `- **How to apply** — what an agent should do when this comes up again`,
     ``,
-    `Then run \`haive memory promote ${truncate(s.query, 30)}\` to mark it validated.`,
+    nextStep,
   ].join("\n");
 }
 

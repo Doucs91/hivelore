@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/cli",
-  "version": "0.9.18",
+  "version": "0.9.19",
   "description": "hAIve CLI — enforce repo context, briefings, Git hooks, and CI policy for AI agents",
   "license": "Apache-2.0",
   "repository": {
@@ -42,6 +42,7 @@
   },
   "dependencies": {
     "@hiveai/core": "workspace:*",
+    "@hiveai/embeddings": "workspace:*",
     "@hiveai/mcp": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "commander": "^12.1.0",
@@ -49,14 +50,6 @@
     "picocolors": "^1.1.1",
     "react": "^19.2.5",
     "zod": "^3.23.8"
-  },
-  "peerDependencies": {
-    "@hiveai/embeddings": "workspace:*"
-  },
-  "peerDependenciesMeta": {
-    "@hiveai/embeddings": {
-      "optional": true
-    }
   },
   "devDependencies": {
     "@types/react": "^19.2.14"

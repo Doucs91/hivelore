@@ -6,6 +6,17 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.19] — bundled semantic autopilot
+
+### Added
+- `@hiveai/cli` and `@hiveai/mcp` now install `@hiveai/embeddings` as a real dependency, so a normal global hAIve install includes semantic memory ranking and code-search support.
+- `haive doctor` now checks embeddings availability, memory semantic index health, and code-search index health instead of reporting a healthy context score while semantic features are unavailable.
+- The default MCP enforcement profile now exposes `code_search`, matching the code-search index that autopilot maintains.
+
+### Changed
+- `haive memory suggest --auto-save` now follows project defaults: autopilot projects save validated team records, while manual projects keep draft review flow.
+- Generated memory-suggest templates now reference the real memory id in follow-up commands instead of a truncated query string.
+
 ## [0.9.18] — self-maintaining autopilot
 
 ### Added

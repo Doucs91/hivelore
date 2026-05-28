@@ -8,6 +8,8 @@ import {
   projectContextVersionStatus,
   type AutopilotRepair,
 } from "../utils/autopilot.js";
+import { lintMemoriesAsync } from "./memory-lint.js";
+import { isSyntheticSuggestionQuery } from "./memory-suggest.js";
 
 declare const __HAIVE_VERSION__: string;
 import {
@@ -75,6 +77,7 @@ export function registerDoctor(program: Command): void {
       const paths = resolveHaivePaths(root);
       const findings: Finding[] = [];
       const repairs: AutopilotRepair[] = [];
+      const config = await loadConfig(paths);
 
       // ── 1. Init state ─────────────────────────────────────────────────────
       if (!existsSync(paths.haiveDir)) {
@@ -201,6 +204,21 @@ export function registerDoctor(program: Command): void {
         }
       }
 
+      const lintReport = await lintMemoriesAsync(root);
+      if (lintReport.findings.length > 0) {
+        const warnCount = lintReport.findings.filter((finding) => finding.severity === "warn").length;
+        const errorCount = lintReport.findings.filter((finding) => finding.severity === "error").length;
+        const severity: Severity = errorCount > 0 ? "error" : warnCount > 0 ? "warn" : "info";
+        findings.push({
+          severity,
+          code: "memory-lint-findings",
+          message:
+            `memory lint reports ${lintReport.findings.length} finding${lintReport.findings.length === 1 ? "" : "s"} ` +
+            `(${errorCount} error, ${warnCount} warn, ${lintReport.findings.length - errorCount - warnCount} info).`,
+          fix: "haive memory lint --fix --apply",
+        });
+      }
+
       // ── 4. Code-map freshness ─────────────────────────────────────────────
       const codeMap = await loadCodeMap(paths);
       if (!codeMap) {
@@ -224,6 +242,8 @@ export function registerDoctor(program: Command): void {
         }
       }
 
+      findings.push(...await collectSemanticIndexFindings(paths, config, memories.length, codeMap));
+
       // ── 5. Usage log signals ──────────────────────────────────────────────
       const events = await readUsageEvents(paths);
       if (events.length === 0) {
@@ -239,6 +259,7 @@ export function registerDoctor(program: Command): void {
           if (!isSearchTool(e.tool)) continue;
           const key = (e.summary ?? "").toLowerCase().trim();
           if (!key) continue;
+          if (isSyntheticSuggestionQuery(key)) continue;
           queryRepeats.set(key, (queryRepeats.get(key) ?? 0) + 1);
         }
         const repeated = [...queryRepeats.entries()].filter(([, n]) => n >= 3);
@@ -265,7 +286,6 @@ export function registerDoctor(program: Command): void {
       }
 
       // ── 6. Config sanity ──────────────────────────────────────────────────
-      const config = await loadConfig(paths);
       if (config.enforcement?.requireBriefingFirst) {
         const claudeSettings = path.join(root, ".claude", "settings.local.json");
         let hasClaudeEnforcement = false;
@@ -471,6 +491,69 @@ function groupBySection(findings: Finding[]): Record<DoctorSection, Finding[]> {
 function nextActions(findings: Finding[]): string[] {
   return [...new Set(findings.flatMap((finding) => finding.fix ? finding.fix.split("\n") : []))]
     .filter(Boolean);
+}
+
+async function collectSemanticIndexFindings(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  config: Awaited<ReturnType<typeof loadConfig>>,
+  memoryCount: number,
+  codeMap: Awaited<ReturnType<typeof loadCodeMap>>,
+): Promise<Finding[]> {
+  const findings: Finding[] = [];
+  const autoWantsCodeSearch = Boolean(config.autopilot || config.autoRepair?.codeSearch);
+  let mod: typeof import("@hiveai/embeddings");
+  try {
+    mod = await import("@hiveai/embeddings");
+  } catch {
+    findings.push({
+      severity: autoWantsCodeSearch ? "warn" : "info",
+      code: "embeddings-unavailable",
+      message:
+        "@hiveai/embeddings is not available, so get_briefing falls back to lexical ranking and code_search cannot run.",
+      fix: "npm install -g @hiveai/cli@latest\nhaive embeddings status",
+      section: "Index health",
+    });
+    return findings;
+  }
+
+  if (memoryCount > 0) {
+    const stat = await mod.indexStat(paths).catch(() => ({ exists: false, count: 0 }));
+    if (!stat.exists || stat.count === 0) {
+      findings.push({
+        severity: "warn",
+        code: "semantic-memory-index-missing",
+        message:
+          "Memory embeddings index is missing or empty; get_briefing will report literal_fallback instead of semantic ranking.",
+        fix: "haive embeddings index",
+        section: "Index health",
+      });
+    }
+  }
+
+  if (autoWantsCodeSearch || codeMap) {
+    const codeIndex = await mod.loadCodeIndex(paths).catch(() => null);
+    if (!codeIndex || codeIndex.entries.length === 0) {
+      findings.push({
+        severity: autoWantsCodeSearch ? "warn" : "info",
+        code: "code-search-index-missing",
+        message:
+          "Code-search embeddings index is missing or empty; MCP code_search is unavailable until it is built.",
+        fix: "haive index code-search",
+        section: "Index health",
+      });
+    } else if (codeMap && codeIndex.source_generated_at !== codeMap.generated_at) {
+      findings.push({
+        severity: "info",
+        code: "code-search-index-outdated",
+        message:
+          "Code-search embeddings index was built from an older code-map; semantic code search may miss recent symbols.",
+        fix: "haive index code-search",
+        section: "Index health",
+      });
+    }
+  }
+
+  return findings;
 }
 
 function isSearchTool(name: string): boolean {
