@@ -1,7 +1,7 @@
 {
   "name": "@hiveai/core",
-  "version": "0.9.19",
-  "description": "hAIve core — context policy, anchors, breadcrumbs, and enforcement primitives",
+  "version": "0.9.20",
+  "description": "hAIve core — memory schema, anchors, and enforcement primitives for agent harness engineering",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -21,7 +21,8 @@
     "haive",
     "agent",
     "team",
-    "harness"
+    "harness",
+    "harness-engineering"
   ],
   "type": "module",
   "main": "./dist/index.js",

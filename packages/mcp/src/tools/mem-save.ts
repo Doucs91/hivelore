@@ -14,9 +14,11 @@ import type { HaiveContext } from "../context.js";
 
 export const MemSaveInputSchema = {
   type: z
-    .enum(["convention", "decision", "gotcha", "architecture", "glossary", "attempt", "session_recap"])
+    .enum(["convention", "decision", "gotcha", "architecture", "glossary", "skill", "attempt", "session_recap"])
     .describe(
-      "Kind of memory being saved. Use 'attempt' for failed approaches (auto-validated). " +
+      "Kind of memory being saved. " +
+      "Use 'skill' for reusable procedures/playbooks agents should follow for recurring tasks (feedforward harness guide). " +
+      "Use 'attempt' for failed approaches (auto-validated). " +
       "Use 'session_recap' via mem_session_end instead.",
     ),
   slug: z

@@ -40,6 +40,7 @@ type DoctorSection =
   | "Agent coverage"
   | "Context quality"
   | "Corpus health"
+  | "Harness coverage"
   | "Index health"
   | "Next actions";
 
@@ -55,6 +56,7 @@ interface DoctorScores {
   protection_score: number;
   context_quality_score: number;
   corpus_quality_score: number;
+  harness_coverage_score: number;
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -172,11 +174,13 @@ export function registerDoctor(program: Command): void {
         }
 
         // Anchorless = no paths AND no symbols → cannot detect drift automatically
+        // (skill, glossary, session_recap are procedure/reference types that don't need code anchors)
         const anchorless = memories.filter((m) =>
           m.memory.frontmatter.anchor.paths.length === 0 &&
           m.memory.frontmatter.anchor.symbols.length === 0 &&
           m.memory.frontmatter.type !== "session_recap" &&
-          m.memory.frontmatter.type !== "glossary"
+          m.memory.frontmatter.type !== "glossary" &&
+          m.memory.frontmatter.type !== "skill"
         );
         if (anchorless.length / Math.max(memories.length, 1) > 0.3) {
           findings.push({
@@ -242,6 +246,7 @@ export function registerDoctor(program: Command): void {
         }
       }
 
+      findings.push(...await collectHarnessCoverageFindings(codeMap, memories));
       findings.push(...await collectSemanticIndexFindings(paths, config, memories.length, codeMap));
 
       // ── 5. Usage log signals ──────────────────────────────────────────────
@@ -388,7 +393,8 @@ function emit(findings: Finding[], opts: DoctorOptions, repairs: AutopilotRepair
     ui.dim(
       `  protection=${scores.protection_score}  ` +
       `context=${scores.context_quality_score}  ` +
-      `corpus=${scores.corpus_quality_score}`,
+      `corpus=${scores.corpus_quality_score}  ` +
+      `harness-coverage=${scores.harness_coverage_score}%`,
     ),
   );
   console.log();
@@ -398,6 +404,7 @@ function emit(findings: Finding[], opts: DoctorOptions, repairs: AutopilotRepair
     "Agent coverage",
     "Context quality",
     "Corpus health",
+    "Harness coverage",
     "Index health",
     "Next actions",
   ];
@@ -447,6 +454,7 @@ function sectionForFinding(finding: Finding): DoctorSection {
     finding.code.includes("briefing") ||
     finding.code.includes("search")
   ) return "Context quality";
+  if (finding.code.includes("harness-coverage")) return "Harness coverage";
   if (finding.code.includes("code-map") || finding.code.includes("index")) return "Index health";
   if (
     finding.code.includes("memory") ||
@@ -468,10 +476,16 @@ function computeDoctorScores(findings: Finding[]): DoctorScores {
     }, 0);
     return Math.max(0, 100 - penalty);
   };
+  // harness_coverage_score is injected by collectHarnessCoverageFindings via the finding payload
+  const coverageFinding = findings.find((f) => f.code === "harness-coverage");
+  const harnessCoverageScore = coverageFinding
+    ? parseInt((coverageFinding.message.match(/\((\d+)%\)/) ?? [])[1] ?? "0", 10)
+    : 0;
   return {
     protection_score: scoreFor(["Protection", "Agent coverage"]),
     context_quality_score: scoreFor(["Context quality", "Index health"]),
     corpus_quality_score: scoreFor(["Corpus health"]),
+    harness_coverage_score: harnessCoverageScore,
   };
 }
 
@@ -481,6 +495,7 @@ function groupBySection(findings: Finding[]): Record<DoctorSection, Finding[]> {
     "Agent coverage": [],
     "Context quality": [],
     "Corpus health": [],
+    "Harness coverage": [],
     "Index health": [],
     "Next actions": [],
   };
@@ -491,6 +506,60 @@ function groupBySection(findings: Finding[]): Record<DoctorSection, Finding[]> {
 function nextActions(findings: Finding[]): string[] {
   return [...new Set(findings.flatMap((finding) => finding.fix ? finding.fix.split("\n") : []))]
     .filter(Boolean);
+}
+
+async function collectHarnessCoverageFindings(
+  codeMap: Awaited<ReturnType<typeof loadCodeMap>>,
+  memories: LoadedMemory[],
+): Promise<Finding[]> {
+  if (!codeMap) return [];
+  const codeFiles = Object.keys(codeMap.files);
+  const total = codeFiles.length;
+  if (total === 0) return [];
+
+  const validatedWithAnchors = memories.filter(
+    (m) =>
+      (m.memory.frontmatter.status === "validated" || m.memory.frontmatter.status === "proposed") &&
+      m.memory.frontmatter.anchor.paths.length > 0,
+  );
+
+  const coveredFiles = new Set<string>();
+  for (const m of validatedWithAnchors) {
+    for (const anchorPath of m.memory.frontmatter.anchor.paths) {
+      const normalized = anchorPath.replace(/^\/+/, "");
+      for (const codeFile of codeFiles) {
+        if (
+          codeFile === normalized ||
+          codeFile.startsWith(normalized + "/") ||
+          normalized.startsWith(codeFile + "/")
+        ) {
+          coveredFiles.add(codeFile);
+        }
+      }
+    }
+  }
+
+  const covered = coveredFiles.size;
+  const pct = Math.round((covered / total) * 100);
+
+  const findings: Finding[] = [];
+  findings.push({
+    severity: pct < 10 && total > 10 ? "info" : "info",
+    code: "harness-coverage",
+    message:
+      `${covered}/${total} code-map files have validated memory anchors (${pct}%). ` +
+      (pct < 10 && total > 10
+        ? "Low coverage — add memory anchors on key modules to improve harness enforcement."
+        : pct < 30
+        ? "Partial coverage — consider anchoring critical modules and patterns."
+        : "Good harness coverage."),
+    fix: pct < 10 && total > 10
+      ? "haive memory add --type gotcha|convention|architecture --paths <key-file> --scope team"
+      : undefined,
+    section: "Harness coverage",
+  });
+
+  return findings;
 }
 
 async function collectSemanticIndexFindings(

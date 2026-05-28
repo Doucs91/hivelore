@@ -1,7 +1,7 @@
 {
   "name": "@hiveai/mcp",
-  "version": "0.9.19",
-  "description": "hAIve MCP server — policy-aware context breadcrumbs and enforcement tools for AI coding agents",
+  "version": "0.9.20",
+  "description": "hAIve MCP server — harness engineering tools for AI coding agents (briefing, enforcement, skills, memory lifecycle)",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -22,7 +22,8 @@
     "model-context-protocol",
     "agent",
     "team",
-    "harness"
+    "harness",
+    "harness-engineering"
   ],
   "type": "module",
   "main": "./dist/server.js",

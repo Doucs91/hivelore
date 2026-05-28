@@ -872,12 +872,14 @@ function classifyMemoryPriority(
     fm?.requires_human_approval ||
     directAnchor ||
     directSymbol ||
-    (memory.type === "attempt" && (memory.match_quality === "exact" || strongSemantic))
+    (memory.type === "attempt" && (memory.match_quality === "exact" || strongSemantic)) ||
+    (memory.type === "skill" && (memory.match_quality === "exact" || strongSemantic))
   ) {
     return "must_read";
   }
 
   if (
+    memory.type === "skill" ||
     memory.reasons.includes("module") ||
     memory.reasons.includes("domain") ||
     memory.match_quality === "exact" ||
@@ -986,6 +988,7 @@ function explainWhySurfaced(
   }
   why.push(`Confidence: ${memory.confidence}; read ${memory.read_count} time${memory.read_count === 1 ? "" : "s"}.`);
   if (memory.type === "attempt") why.push("Failed-approach record; read before repeating the same path.");
+  if (memory.type === "skill") why.push("Skill (reusable procedure/playbook) — follow the steps described when doing this type of task.");
   if (memory.status === "proposed" || memory.status === "draft") {
     why.push("Unvalidated record; use cautiously or ask a human before treating it as policy.");
   }

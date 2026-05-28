@@ -7,6 +7,7 @@ const TYPE_TO_FAMILY: Partial<Record<MemoryType, string>> = {
   gotcha: "bug",
   attempt: "bug",
   glossary: "discovery",
+  skill: "skill",
   session_recap: "session",
 };
 

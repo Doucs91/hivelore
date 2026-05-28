@@ -6,6 +6,18 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.20] — harness engineering positioning + skill type + harness coverage
+
+### Added
+- New memory type `skill` — reusable procedure/playbook for recurring tasks (e.g. deploy checklist, code-review protocol). Equivalent to OpenAI's SKILL.md pattern. Skills are always surfaced as at least `useful` in briefings, `must_read` when they match semantically. No anchor required.
+- `haive doctor` now reports a `harness_coverage_score` — the percentage of code-map files that have at least one validated memory anchor. Visible in both `--json` output and the human-readable "Harness coverage" section.
+- `haive welcome` now lists `skill` memories first (before decisions, architecture, conventions) as they are the primary feedforward guides for new team members.
+
+### Changed
+- CLI description updated to "the memory and enforcement layer of your agent harness" to align with the harness engineering vocabulary (see [OpenAI harness engineering](https://openai.com/index/harness-engineering/)).
+- All package descriptions and keywords updated with "harness-engineering".
+- `skill`, `glossary`, and `session_recap` types are now excluded from the anchorless-majority warning in `haive doctor` and the per-memory anchor warning in `haive memory add` — these types are procedural/reference records that don't track code drift.
+
 ## [0.9.19] — bundled semantic autopilot
 
 ### Added

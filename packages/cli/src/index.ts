@@ -56,7 +56,7 @@ declare const __HAIVE_VERSION__: string;
 
 program
   .name("haive")
-  .description("hAIve — policy enforcement layer for AI coding agents")
+  .description("hAIve — the memory and enforcement layer of your agent harness")
   .version(__HAIVE_VERSION__)
   .option("--advanced", "show maintenance and experimental commands in help");
 
@@ -169,7 +169,7 @@ function applySurfaceVisibility(root: Command): void {
     "after",
     [
       "",
-      "Default help shows the core hAIve harness: init, doctor, agent setup, briefing, enforcement,",
+      "Default help shows the core harness workflow: init, doctor, agent setup, briefing, enforcement,",
       "sync, session recaps, and high-signal memory commands.",
       "Run `haive --advanced --help` or set HAIVE_SHOW_ADVANCED=1 to show maintenance and experimental commands.",
     ].join("\n"),

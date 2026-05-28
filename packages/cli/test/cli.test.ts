@@ -147,7 +147,7 @@ describe("hAIve CLI integration", () => {
     expect(stdout).toContain("doctor");
     expect(stdout).toContain("briefing");
     expect(stdout).toContain("enforce");
-    expect(stdout).toContain("Default help shows the core hAIve harness");
+    expect(stdout).toContain("Default help shows the core harness workflow");
     expect(stdout).not.toContain("playback");
     expect(stdout).not.toContain("snapshot");
     expect(stdout).not.toContain("benchmark");

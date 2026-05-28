@@ -42,6 +42,7 @@ export function registerMemoryAdd(memory: Command): void {
     .description(
       "Save a piece of knowledge as a persistent memory.\n\n" +
       "  Memory types:\n" +
+      "    skill       — reusable procedure/playbook agents follow for a recurring task (e.g. deploy, review)\n" +
       "    convention  — how things are done here (naming, patterns, tooling)\n" +
       "    decision    — a choice made and WHY (tradeoffs, constraints)\n" +
       "    gotcha      — non-obvious behavior that surprises newcomers\n" +
@@ -59,7 +60,7 @@ export function registerMemoryAdd(memory: Command): void {
       "    haive memory add --type convention --slug flyway-no-modify --topic flyway \\\\\n" +
       "      --scope team --body \"Never modify existing migrations. Create V{n+1}__desc.sql.\"\n",
     )
-    .requiredOption("--type <type>", "convention | decision | gotcha | architecture | glossary | attempt")
+    .requiredOption("--type <type>", "skill | convention | decision | gotcha | architecture | glossary | attempt")
     .requiredOption("--slug <slug>", "short kebab-case identifier used in the file name")
     .option("--title <text>", "memory title — becomes the first heading of the body")
     .option("--scope <scope>", "personal | team | module (default: config default; team in autopilot)")
@@ -214,7 +215,9 @@ export function registerMemoryAdd(memory: Command): void {
       }
 
       // Anchorless warning: without paths the memory cannot be verified for staleness
-      if (anchorPaths.length === 0) {
+      // (skill, glossary, session_recap are procedure/reference types that don't need code anchors)
+      const typeNeedsAnchor = !["skill", "glossary", "session_recap"].includes(opts.type as string);
+      if (anchorPaths.length === 0 && typeNeedsAnchor) {
         ui.warn(
           `This memory has no anchor paths — staleness cannot be detected automatically.` +
           `\n  Add file anchors: haive memory update ${frontmatter.id} --paths <file1,file2>`,

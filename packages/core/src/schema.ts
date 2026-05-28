@@ -17,7 +17,8 @@ export const MemoryTypeSchema = z.enum([
   "gotcha",
   "architecture",
   "glossary",
-  "attempt",      // failed approach — "tried X, failed because Y, use Z instead"
+  "skill",         // reusable procedure/playbook for a recurring task (feedforward harness guide)
+  "attempt",       // failed approach — "tried X, failed because Y, use Z instead"
   "session_recap", // end-of-session summary: goal / accomplished / discoveries / next steps
 ]);
 

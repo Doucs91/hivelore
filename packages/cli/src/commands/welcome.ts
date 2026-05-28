@@ -11,12 +11,13 @@ import {
 import { ui } from "../utils/ui.js";
 
 const TYPE_RANK: Record<string, number> = {
-  decision: 0,
-  architecture: 1,
-  convention: 2,
-  glossary: 3,
-  gotcha: 4,
-  attempt: 5,
+  skill: 0,
+  decision: 1,
+  architecture: 2,
+  convention: 3,
+  glossary: 4,
+  gotcha: 5,
+  attempt: 6,
 };
 
 interface WelcomeOpts {
