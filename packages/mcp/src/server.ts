@@ -274,6 +274,7 @@ declare const __HAIVE_VERSION__: string;
 
 export const SERVER_NAME = "haive";
 export const SERVER_VERSION = __HAIVE_VERSION__;
+export type ToolProfile = "enforcement" | "maintenance" | "experimental" | "full";
 
 function jsonResult(data: unknown) {
   return {
@@ -286,7 +287,7 @@ function jsonResult(data: unknown) {
   };
 }
 
-const ENFORCEMENT_PROFILE_TOOLS = new Set([
+export const ENFORCEMENT_PROFILE_TOOLS = [
   "get_briefing",
   "mem_save",
   "mem_tried",
@@ -297,7 +298,51 @@ const ENFORCEMENT_PROFILE_TOOLS = new Set([
   "code_map",
   "pre_commit_check",
   "mem_session_end",
-]);
+] as const;
+
+export const MAINTENANCE_PROFILE_TOOLS = [
+  ...ENFORCEMENT_PROFILE_TOOLS,
+  "mem_suggest_topic",
+  "mem_for_files",
+  "mem_list",
+  "get_project_context",
+  "bootstrap_project_save",
+  "mem_resolve_project",
+  "mem_update",
+  "mem_approve",
+  "mem_reject",
+  "mem_pending",
+  "mem_delete",
+  "mem_diff",
+  "get_recap",
+  "code_search",
+  "anti_patterns_check",
+  "mem_distill",
+  "mem_timeline",
+  "mem_conflict_candidates",
+] as const;
+
+export const EXPERIMENTAL_PROFILE_TOOLS = [
+  ...MAINTENANCE_PROFILE_TOOLS,
+  "mem_observe",
+  "why_this_file",
+  "why_this_decision",
+  "mem_conflicts_with",
+  "pattern_detect",
+  "runtime_journal_append",
+  "runtime_journal_tail",
+] as const;
+
+export const TOOL_PROFILES: Record<Exclude<ToolProfile, "full">, ReadonlySet<string>> = {
+  enforcement: new Set(ENFORCEMENT_PROFILE_TOOLS),
+  maintenance: new Set(MAINTENANCE_PROFILE_TOOLS),
+  experimental: new Set(EXPERIMENTAL_PROFILE_TOOLS),
+};
+
+export function getAllowedToolsForProfile(profile: ToolProfile): ReadonlySet<string> {
+  if (profile === "full") return TOOL_PROFILES.experimental;
+  return TOOL_PROFILES[profile] ?? TOOL_PROFILES.enforcement;
+}
 
 const BRIEFING_TOOLS = new Set(["get_briefing", "mem_relevant_to"]);
 
@@ -321,7 +366,7 @@ export function createHaiveServer(
   const context = createContext(options);
   const config = loadConfigSync(context.paths);
   const toolProfile =
-    (options.env?.HAIVE_TOOL_PROFILE as "enforcement" | "full" | undefined) ??
+    (options.env?.HAIVE_TOOL_PROFILE as ToolProfile | undefined) ??
     config.enforcement?.toolProfile ??
     "enforcement";
   const requireBriefingFirst =
@@ -338,8 +383,9 @@ export function createHaiveServer(
     { capabilities: { tools: {}, prompts: {} } },
   );
 
-  const shouldRegisterTool = (name: string): boolean =>
-    toolProfile === "full" || ENFORCEMENT_PROFILE_TOOLS.has(name);
+  const allowedTools = getAllowedToolsForProfile(toolProfile);
+
+  const shouldRegisterTool = (name: string): boolean => allowedTools.has(name);
 
   const registerTool = <TInput>(
     name: string,
@@ -376,8 +422,11 @@ export function createHaiveServer(
     );
   };
 
-  const shouldRegisterPrompt = (name: string): boolean =>
-    toolProfile === "full" || name === "bootstrap_project" || name === "post_task";
+  const shouldRegisterPrompt = (name: string): boolean => {
+    if (name === "bootstrap_project" || name === "post_task") return true;
+    if (name === "import_docs") return toolProfile !== "enforcement";
+    return toolProfile === "experimental" || toolProfile === "full";
+  };
 
   // ── Memory creation ────────────────────────────────────────────────────
 

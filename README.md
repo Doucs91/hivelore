@@ -192,13 +192,21 @@ All records can be anchored to file paths and symbol names. When anchored code c
 |---|---|
 | `get_briefing` | ⭐ Project context + decisions + gotchas + ranked breadcrumbs in one call |
 | `mem_save` | Save repo policy knowledge (decision, gotcha, convention, attempt, architecture) |
+| `mem_tried` | Record a failed approach so future agents do not repeat it |
 | `mem_search` | Full-text or semantic search across context records |
 | `mem_relevant_to` | Ranked context records for a task when project context is already loaded |
+| `mem_get` | Fetch one context record after a compact briefing/search result |
+| `code_map` | Look up symbols without manual grep when code-map is indexed |
 | `mem_verify` | Check anchor freshness, detect stale records |
 | `pre_commit_check` | Diff against known gotchas, decisions, and stale anchors |
 | `mem_session_end` | Save end-of-session recap for the next agent |
 
-Set `HAIVE_TOOL_PROFILE=full` to expose the complete tool surface (admin, debug, timeline, conflict detection).
+MCP profiles keep the product focused:
+
+- `HAIVE_TOOL_PROFILE=enforcement` (default): compact coding-agent harness.
+- `HAIVE_TOOL_PROFILE=maintenance`: corpus review, lifecycle, distillation, code-search, and project-context maintenance.
+- `HAIVE_TOOL_PROFILE=experimental`: broader diagnostics such as runtime journal, pattern detection, why-this-file, why-this-decision, and conflict analysis.
+- `HAIVE_TOOL_PROFILE=full`: legacy alias for `experimental`.
 
 ---
 

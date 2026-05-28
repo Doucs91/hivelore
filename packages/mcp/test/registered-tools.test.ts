@@ -2,7 +2,13 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createHaiveServer } from "../src/server.js";
+import {
+  createHaiveServer,
+  ENFORCEMENT_PROFILE_TOOLS,
+  EXPERIMENTAL_PROFILE_TOOLS,
+  MAINTENANCE_PROFILE_TOOLS,
+  getAllowedToolsForProfile,
+} from "../src/server.js";
 
 /**
  * Pre-publish guard. The published v0.5.0 mcp dist was missing 5 tools because
@@ -15,48 +21,9 @@ import { createHaiveServer } from "../src/server.js";
  * Add new tools to EXPECTED_TOOLS below when you ship one.
  */
 
-const ENFORCEMENT_TOOLS: readonly string[] = [
-  "get_briefing",
-  "mem_save",
-  "mem_tried",
-  "mem_search",
-  "mem_get",
-  "mem_verify",
-  "mem_relevant_to",
-  "code_map",
-  "pre_commit_check",
-  "mem_session_end",
-];
-
-// SINGLE SOURCE OF TRUTH — update this list whenever a full-profile tool is registered.
-const FULL_TOOLS: readonly string[] = [
-  ...ENFORCEMENT_TOOLS,
-  "mem_suggest_topic",
-  "mem_observe",
-  "mem_timeline",
-  "mem_for_files",
-  "mem_list",
-  "get_project_context",
-  "bootstrap_project_save",
-  "mem_resolve_project",
-  "mem_update",
-  "mem_approve",
-  "mem_reject",
-  "mem_pending",
-  "mem_delete",
-  "mem_diff",
-  "get_recap",
-  "code_search",
-  "why_this_file",
-  "anti_patterns_check",
-  "mem_distill",
-  "why_this_decision",
-  "mem_conflicts_with",
-  "mem_conflict_candidates",
-  "pattern_detect",
-  "runtime_journal_append",
-  "runtime_journal_tail",
-].sort();
+const ENFORCEMENT_TOOLS = [...ENFORCEMENT_PROFILE_TOOLS].sort();
+const MAINTENANCE_TOOLS = [...MAINTENANCE_PROFILE_TOOLS].sort();
+const FULL_TOOLS = [...EXPERIMENTAL_PROFILE_TOOLS].sort();
 
 interface InternalServerShape {
   server?: { _registeredTools?: Record<string, unknown> };
@@ -112,6 +79,31 @@ describe("hAIve MCP server — registered tools", () => {
       .toEqual([]);
     expect(unexpected, `Unexpected full-profile tools — update FULL_TOOLS to include: ${unexpected.join(", ")}`)
       .toEqual([]);
+  });
+
+  it("registers the maintenance profile without experimental diagnostics", () => {
+    const { server } = createHaiveServer({
+      root: process.cwd(),
+      env: { ...process.env, HAIVE_TOOL_PROFILE: "maintenance" },
+    });
+    const registered = readRegisteredTools(server);
+    if (registered.length === 0) return;
+
+    const missing = MAINTENANCE_TOOLS.filter((t) => !registered.includes(t));
+    const unexpected = registered.filter((t) => !MAINTENANCE_TOOLS.includes(t));
+
+    expect(missing, `Missing maintenance-profile tools: ${missing.join(", ")}`)
+      .toEqual([]);
+    expect(unexpected, `Unexpected maintenance-profile tools: ${unexpected.join(", ")}`)
+      .toEqual([]);
+    expect(registered).not.toContain("pattern_detect");
+    expect(registered).not.toContain("runtime_journal_append");
+    expect(registered).not.toContain("why_this_file");
+  });
+
+  it("keeps full as a legacy alias for experimental", () => {
+    expect([...getAllowedToolsForProfile("full")].sort())
+      .toEqual([...getAllowedToolsForProfile("experimental")].sort());
   });
 
   it("dist/server.js mentions every expected tool (publish-time guard)", () => {

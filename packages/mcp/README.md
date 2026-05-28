@@ -2,7 +2,7 @@
 
 > **hAIve MCP server** — policy-aware briefing and memory tools for MCP-compatible AI coding agents.
 
-The MCP server is how agents load team policy before changing code. By default it exposes a small enforcement-oriented tool surface: briefing, relevant memories, failed-attempt capture, anchor verification, code-map lookup, and pre-commit checks. The larger maintenance surface is still available with `HAIVE_TOOL_PROFILE=full`.
+The MCP server is how agents load team policy before changing code. By default it exposes a small enforcement-oriented tool surface: briefing, relevant memories, failed-attempt capture, anchor verification, code-map lookup, and pre-commit checks. Larger maintenance and experimental surfaces are opt-in via `HAIVE_TOOL_PROFILE`.
 
 hAIve is not just a memory database. The MCP layer participates in enforcement: state-changing hAIve tools require `get_briefing` or `mem_relevant_to` first, so agents cannot silently skip team context while using hAIve.
 
@@ -117,17 +117,26 @@ Default tools:
 - `mem_tried`
 - `mem_search`
 - `mem_get`
-- `mem_update`
 - `mem_verify`
 - `code_map`
 - `pre_commit_check`
+- `mem_session_end`
 
 Default prompts:
 
 - `bootstrap_project`
 - `post_task`
 
-Set `HAIVE_TOOL_PROFILE=full` to expose advanced lifecycle, import, timeline, conflict, runtime-journal, and diagnostic tools.
+### Tool Profiles
+
+`HAIVE_TOOL_PROFILE` controls how much hAIve surface an agent sees:
+
+- `enforcement` (default): compact repo-native context harness for coding agents.
+- `maintenance`: adds corpus review, lifecycle, distillation, code-search, and project-context maintenance tools.
+- `experimental`: adds exploratory diagnostics such as runtime journal, pattern detection, why-this-file, why-this-decision, and conflict analysis.
+- `full`: legacy alias for `experimental`.
+
+Use `maintenance` for human/team stewardship sessions and `experimental` only when you are intentionally working on hAIve's broader research tooling.
 
 ### `get_briefing` ⭐ Start every task with this
 

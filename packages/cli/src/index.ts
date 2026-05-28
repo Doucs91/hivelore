@@ -57,7 +57,8 @@ declare const __HAIVE_VERSION__: string;
 program
   .name("haive")
   .description("hAIve — policy enforcement layer for AI coding agents")
-  .version(__HAIVE_VERSION__);
+  .version(__HAIVE_VERSION__)
+  .option("--advanced", "show maintenance and experimental commands in help");
 
 registerInit(program);
 registerWelcome(program);
@@ -116,6 +117,36 @@ registerDoctor(program);
 registerPlayback(program);
 registerPrecommit(program);
 
+const CORE_ROOT_COMMANDS = new Set([
+  "init",
+  "doctor",
+  "agent",
+  "enforce",
+  "run",
+  "briefing",
+  "sync",
+  "mcp",
+  "memory",
+  "session",
+  "precommit",
+  "welcome",
+]);
+
+const CORE_MEMORY_COMMANDS = new Set([
+  "add",
+  "list",
+  "query",
+  "show",
+  "verify",
+  "lint",
+  "tried",
+  "rm",
+]);
+
+const CORE_SESSION_COMMANDS = new Set(["end"]);
+
+applySurfaceVisibility(program);
+
 program.parseAsync(process.argv).catch((err: unknown) => {
   if (isZodError(err)) {
     for (const issue of err.issues) {
@@ -127,6 +158,50 @@ program.parseAsync(process.argv).catch((err: unknown) => {
   }
   process.exit(1);
 });
+
+function applySurfaceVisibility(root: Command): void {
+  const showAdvanced =
+    process.argv.includes("--advanced") || process.env.HAIVE_SHOW_ADVANCED === "1";
+
+  if (!showAdvanced) hideNonCoreCommands(root);
+
+  root.addHelpText(
+    "after",
+    [
+      "",
+      "Default help shows the core hAIve harness: init, doctor, agent setup, briefing, enforcement,",
+      "sync, session recaps, and high-signal memory commands.",
+      "Run `haive --advanced --help` or set HAIVE_SHOW_ADVANCED=1 to show maintenance and experimental commands.",
+    ].join("\n"),
+  );
+  const memoryCommand = root.commands.find((cmd) => cmd.name() === "memory");
+  memoryCommand?.addHelpText(
+    "after",
+    [
+      "",
+      "Default help shows the memory commands that support the core harness workflow.",
+      "Run `haive --advanced memory --help` or set HAIVE_SHOW_ADVANCED=1 to show review, import, digest, timeline, and conflict tools.",
+    ].join("\n"),
+  );
+}
+
+function hideNonCoreCommands(command: Command): void {
+  for (const child of command.commands) {
+    if (!isCoreCommand(command, child)) {
+      (child as unknown as { _hidden: boolean })._hidden = true;
+    }
+    hideNonCoreCommands(child);
+  }
+}
+
+function isCoreCommand(parent: Command, child: Command): boolean {
+  const parentName = parent.name();
+  const childName = child.name();
+  if (parentName === "haive") return CORE_ROOT_COMMANDS.has(childName);
+  if (parentName === "memory") return CORE_MEMORY_COMMANDS.has(childName);
+  if (parentName === "session") return CORE_SESSION_COMMANDS.has(childName);
+  return true;
+}
 
 function isZodError(
   err: unknown,

@@ -6,6 +6,17 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.16] — focused core surface and MCP profiles
+
+### Added
+- Added explicit MCP tool profiles: `enforcement` for the compact agent harness, `maintenance` for corpus/team stewardship, and `experimental` for broad research diagnostics; `full` remains a legacy alias for `experimental`.
+- Added exported MCP profile constants and `getAllowedToolsForProfile()` so tests and integrators share the same source of truth.
+
+### Changed
+- The default CLI help now shows the core hAIve workflow first: init, doctor, agent setup, briefing, enforcement, sync, session recaps, and high-signal memory commands.
+- Maintenance and experimental CLI commands remain callable but are hidden from default help; use `haive --advanced --help`, `haive --advanced memory --help`, or `HAIVE_SHOW_ADVANCED=1` to show the broader surface.
+- The `maintenance` MCP profile exposes lifecycle, review, lint/distill, import-adjacent, and code-search tools without enabling runtime journal, pattern detection, or exploratory why/conflict diagnostics.
+
 ## [0.9.15] — harness diagnostics and quieter enforcement
 
 ### Added

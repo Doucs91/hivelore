@@ -116,6 +116,35 @@ describe("hAIve CLI integration", () => {
     expect(existsSync(report.mode_file)).toBe(true);
   });
 
+  it("default help only shows the core harness surface", async () => {
+    const { stdout } = await run(workDir, ["--help"]);
+    expect(stdout).toContain("Commands:");
+    expect(stdout).toContain("doctor");
+    expect(stdout).toContain("briefing");
+    expect(stdout).toContain("enforce");
+    expect(stdout).toContain("Default help shows the core hAIve harness");
+    expect(stdout).not.toContain("playback");
+    expect(stdout).not.toContain("snapshot");
+    expect(stdout).not.toContain("benchmark");
+  });
+
+  it("advanced help exposes maintenance and experimental commands", async () => {
+    const { stdout } = await run(workDir, ["--advanced", "--help"]);
+    expect(stdout).toContain("playback");
+    expect(stdout).toContain("snapshot");
+    expect(stdout).toContain("benchmark");
+  });
+
+  it("default memory help hides corpus maintenance commands", async () => {
+    const { stdout } = await run(workDir, ["memory", "--help"]);
+    expect(stdout).toContain("add");
+    expect(stdout).toContain("tried");
+    expect(stdout).toContain("lint");
+    expect(stdout).not.toContain("conflict-candidates");
+    expect(stdout).not.toContain("import-changelog");
+    expect(stdout).not.toContain("auto-promote");
+  });
+
   it("init adds project-level MCP configs to .gitignore", async () => {
     const gitignore = await readFile(path.join(workDir, ".gitignore"), "utf8");
     expect(gitignore).toContain(".cursor/mcp.json");

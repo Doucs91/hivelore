@@ -135,8 +135,14 @@ export interface HaiveConfig {
     scoreThreshold?: number;
     /** Remove generated hAIve runtime/cache files during cleanup gates. */
     cleanupGeneratedArtifacts?: boolean;
-    /** Default MCP surface: enforcement = small public tool set; full = legacy all tools. */
-    toolProfile?: "enforcement" | "full";
+    /**
+     * MCP tool surface:
+     * - enforcement: compact default harness for coding agents
+     * - maintenance: corpus/admin tools for humans and team stewards
+     * - experimental: research/diagnostic tools that are not core product surface
+     * - full: legacy alias for experimental
+     */
+    toolProfile?: "enforcement" | "maintenance" | "experimental" | "full";
     /** Named memory/policy families enabled for this project. */
     policyPacks?: string[];
   };

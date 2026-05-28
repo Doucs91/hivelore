@@ -52,12 +52,27 @@ haive memory add \
 haive enforce status
 haive enforce check --stage pre-commit
 haive enforce ci
-haive benchmark report --dir benchmarks/agent-benchmark
 ```
 
 ---
 
 ## Commands
+
+The default help is intentionally small and centered on the core harness workflow. Run:
+
+```bash
+haive --help
+haive memory --help
+```
+
+to see the focused surface. Maintenance and experimental commands remain available, but are hidden from default help:
+
+```bash
+haive --advanced --help
+haive --advanced memory --help
+```
+
+This keeps hAIve from feeling like a grab bag: day-to-day users see context loading, enforcement, diagnostics, sync, recaps, and the high-signal memory operations first.
 
 ### `haive init`
 
