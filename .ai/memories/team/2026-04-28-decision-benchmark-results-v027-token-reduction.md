@@ -4,7 +4,8 @@ scope: team
 type: decision
 status: validated
 anchor:
-  paths: []
+  paths:
+    - CLAUDE.md
   symbols: []
 tags:
   - benchmark
@@ -15,6 +16,10 @@ created_at: '2026-04-28T15:04:31.053Z'
 expires_when: null
 verified_at: null
 stale_reason: null
+related_ids: []
+last_read_at: null
+revision_count: 0
+requires_human_approval: false
 ---
 # Benchmark v0.2.7 — Résultats mesurés de réduction de tokens
 

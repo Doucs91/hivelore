@@ -1,11 +1,17 @@
 {
-  "autopilot": false,
-  "defaultScope": "personal",
-  "defaultStatus": "draft",
-  "autoApproveDelayHours": null,
-  "autoPromoteMinReads": 5,
-  "autoSessionEnd": false,
-  "autoContext": false,
+  "autopilot": true,
+  "defaultScope": "team",
+  "defaultStatus": "validated",
+  "autoApproveDelayHours": 72,
+  "autoPromoteMinReads": 1,
+  "autoSessionEnd": true,
+  "autoContext": true,
+  "autoRepair": {
+    "context": true,
+    "corpus": true,
+    "codeMap": true,
+    "codeSearch": true
+  },
   "enforcement": {
     "mode": "strict",
     "requireBriefingFirst": true,

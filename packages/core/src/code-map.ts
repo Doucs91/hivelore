@@ -1,5 +1,6 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import type { HaivePaths } from "./paths.js";
 
@@ -37,6 +38,8 @@ export interface CodeMap {
 export interface BuildCodeMapOptions {
   includeExtensions?: string[];
   excludeDirs?: string[];
+  /** Include untracked/gitignored files. Default: false when the root is a git repo. */
+  includeUntracked?: boolean;
 }
 
 const DEFAULT_INCLUDE = [
@@ -96,7 +99,7 @@ export async function buildCodeMap(
   const exclude = new Set(options.excludeDirs ?? DEFAULT_EXCLUDE);
   const files: Record<string, CodeFileEntry> = {};
 
-  for await (const abs of walkSourceFiles(root, include, exclude)) {
+  for await (const abs of collectSourceFiles(root, include, exclude, options.includeUntracked)) {
     const rel = path.relative(root, abs).replace(/\\/g, "/");
     if (rel.startsWith(".ai/")) continue;
     const content = await readFile(abs, "utf8");
@@ -111,6 +114,57 @@ export async function buildCodeMap(
     root,
     files,
   };
+}
+
+async function* collectSourceFiles(
+  root: string,
+  include: Set<string>,
+  exclude: Set<string>,
+  includeUntracked: boolean | undefined,
+): AsyncGenerator<string> {
+  if (!includeUntracked) {
+    const tracked = gitTrackedSourceFiles(root, include, exclude);
+    if (tracked) {
+      for (const rel of tracked) yield path.join(root, rel);
+      return;
+    }
+  }
+
+  yield* walkSourceFiles(root, include, exclude);
+}
+
+function gitTrackedSourceFiles(
+  root: string,
+  include: Set<string>,
+  exclude: Set<string>,
+): string[] | null {
+  const result = spawnSync("git", ["ls-files"], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  if (result.status !== 0) return null;
+
+  return result.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((rel) => isIncludedSourcePath(rel, include, exclude))
+    .sort();
+}
+
+function isIncludedSourcePath(
+  rel: string,
+  include: Set<string>,
+  exclude: Set<string>,
+): boolean {
+  const normalized = rel.replace(/\\/g, "/");
+  if (normalized.startsWith(".ai/")) return false;
+  const parts = normalized.split("/");
+  if (parts.some((part) => exclude.has(part))) return false;
+  const base = parts.at(-1) ?? "";
+  const ext = path.extname(base).toLowerCase();
+  return include.has(ext) && !TEST_FILE_RE.test(base);
 }
 
 async function* walkSourceFiles(

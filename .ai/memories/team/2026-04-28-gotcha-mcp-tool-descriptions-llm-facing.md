@@ -4,8 +4,10 @@ scope: team
 type: gotcha
 status: validated
 anchor:
-  paths: []
-  symbols: []
+  paths:
+    - packages/mcp/src/tools/mem-search.ts
+  symbols:
+    - memSearch
 tags:
   - mcp
   - dx
@@ -15,6 +17,10 @@ created_at: '2026-04-28T04:18:31.207Z'
 expires_when: null
 verified_at: null
 stale_reason: null
+related_ids: []
+last_read_at: null
+revision_count: 0
+requires_human_approval: false
 ---
 # MCP tool descriptions are LLM-facing — write them for an AI, not a human
 

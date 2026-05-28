@@ -4,8 +4,10 @@ scope: team
 type: decision
 status: validated
 anchor:
-  paths: []
-  symbols: []
+  paths:
+    - packages/core/src/config.ts
+  symbols:
+    - loadConfig
 tags: []
 created_at: '2026-05-04T02:44:21.853Z'
 expires_when: null

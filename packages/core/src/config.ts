@@ -6,6 +6,8 @@
  *   - `haive sync` auto-approves proposed memories after the delay
  *   - The MCP server saves a session recap automatically on exit
  *   - `get_briefing` auto-generates a minimal project context if none exists
+ *   - `haive sync` applies safe self-maintenance repairs (context version, headings,
+ *     needs_anchor tags, code-map refresh) without human intervention
  *
  * Multi-repo support:
  *   - crossRepoSources: pull shared memories from other repos on haive sync
@@ -78,6 +80,23 @@ export interface HaiveConfig {
    * the template. Default: true in autopilot, false otherwise.
    */
   autoContext?: boolean;
+
+  /**
+   * Safe self-maintenance performed automatically in autopilot mode.
+   * These repairs are intentionally conservative: no guessed anchor is applied
+   * without strong evidence, but headings/tags/indexes/context metadata can be
+   * kept fresh by the tool itself.
+   */
+  autoRepair?: {
+    /** Keep .ai/project-context.md version metadata aligned with package.json. */
+    context?: boolean;
+    /** Apply safe memory lint fixes: headings and `needs_anchor` tags. */
+    corpus?: boolean;
+    /** Refresh .ai/code-map.json during sync when needed. */
+    codeMap?: boolean;
+    /** Best-effort build of code-search embeddings when @hiveai/embeddings is available. */
+    codeSearch?: boolean;
+  };
 
   // ── Multi-repo support ──────────────────────────────────────────────────
 
@@ -156,6 +175,12 @@ export const DEFAULT_CONFIG: HaiveConfig = {
   autoPromoteMinReads: 5,
   autoSessionEnd: false,
   autoContext: false,
+  autoRepair: {
+    context: false,
+    corpus: false,
+    codeMap: false,
+    codeSearch: false,
+  },
   enforcement: {
     mode: "strict",
     requireBriefingFirst: true,
@@ -178,6 +203,12 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
   autoPromoteMinReads: 1,
   autoSessionEnd: true,
   autoContext: true,
+  autoRepair: {
+    context: true,
+    corpus: true,
+    codeMap: true,
+    codeSearch: true,
+  },
   enforcement: {
     mode: "strict",
     requireBriefingFirst: true,
@@ -235,6 +266,10 @@ function mergeConfig(base: HaiveConfig, override: Partial<HaiveConfig>): HaiveCo
   return {
     ...base,
     ...override,
+    autoRepair: {
+      ...base.autoRepair,
+      ...override.autoRepair,
+    },
     enforcement: {
       ...base.enforcement,
       ...override.enforcement,

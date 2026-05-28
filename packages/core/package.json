@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/core",
-  "version": "0.9.17",
+  "version": "0.9.18",
   "description": "hAIve core — context policy, anchors, breadcrumbs, and enforcement primitives",
   "license": "Apache-2.0",
   "repository": {

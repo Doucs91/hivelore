@@ -4,8 +4,13 @@ scope: team
 type: gotcha
 status: validated
 anchor:
-  paths: []
-  symbols: []
+  paths:
+    - packages/core/src/parser.ts
+    - packages/core/src/types.ts
+    - packages/vscode/src/memoryReader.ts
+  symbols:
+    - serializeMemory
+    - Memory
 tags:
   - core
   - parser
@@ -15,6 +20,10 @@ created_at: '2026-04-28T04:18:31.116Z'
 expires_when: null
 verified_at: null
 stale_reason: null
+related_ids: []
+last_read_at: null
+revision_count: 0
+requires_human_approval: false
 ---
 # serializeMemory crashes on undefined values in frontmatter
 

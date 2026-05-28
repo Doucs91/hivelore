@@ -3,6 +3,11 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { execFileSync, execSync } from "node:child_process";
 import { Command } from "commander";
+import {
+  applyAutopilotRepairs,
+  projectContextVersionStatus,
+  type AutopilotRepair,
+} from "../utils/autopilot.js";
 
 declare const __HAIVE_VERSION__: string;
 import {
@@ -69,6 +74,7 @@ export function registerDoctor(program: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       const findings: Finding[] = [];
+      const repairs: AutopilotRepair[] = [];
 
       // ── 1. Init state ─────────────────────────────────────────────────────
       if (!existsSync(paths.haiveDir)) {
@@ -79,6 +85,18 @@ export function registerDoctor(program: Command): void {
           fix: "haive init",
         });
         return emit(findings, opts);
+      }
+
+      if (opts.fix && !opts.dryRun) {
+        repairs.push(
+          ...await applyAutopilotRepairs(root, paths, {
+            applyConfig: true,
+            applyContext: true,
+            applyCorpus: true,
+            applyCodeMap: true,
+            applyCodeSearch: true,
+          }),
+        );
       }
 
       // ── 2. Project context ────────────────────────────────────────────────
@@ -100,6 +118,17 @@ export function registerDoctor(program: Command): void {
             code: "template-context",
             message: "project-context.md still contains the default template — get_briefing returns little value until filled.",
             fix: "Invoke the bootstrap_project MCP prompt from your AI client.",
+          });
+        }
+        const versionStatus = await projectContextVersionStatus(root, paths);
+        if (versionStatus.mismatch) {
+          findings.push({
+            severity: "warn",
+            code: "project-context-version-mismatch",
+            message:
+              `.ai/project-context.md version metadata (${versionStatus.currentVersion ?? "missing"}) ` +
+              `does not match package.json (${versionStatus.expectedVersion}).`,
+            fix: "haive doctor --fix",
           });
         }
       }
@@ -300,11 +329,20 @@ export function registerDoctor(program: Command): void {
         // haive-mcp not on PATH — expected when using bundled MCP via haive only
       }
 
-      emit(findings, opts);
+      if (repairs.length > 0) {
+        findings.push({
+          severity: "info",
+          code: "autopilot-repairs-applied",
+          message: repairs.map((repair) => repair.message).join(" "),
+          section: "Next actions",
+        });
+      }
+
+      emit(findings, opts, repairs);
     });
 }
 
-function emit(findings: Finding[], opts: DoctorOptions): void {
+function emit(findings: Finding[], opts: DoctorOptions, repairs: AutopilotRepair[] = []): void {
   const classified = findings.map((finding) => ({
     ...finding,
     section: finding.section ?? sectionForFinding(finding),
@@ -316,12 +354,13 @@ function emit(findings: Finding[], opts: DoctorOptions): void {
       findings: classified,
       sections: groupBySection(classified),
       next_actions: nextActions(classified),
-      fix_mode: opts.fix ? opts.dryRun ? "dry-run" : "suggest" : "off",
+      repairs,
+      fix_mode: opts.fix ? opts.dryRun ? "dry-run" : "apply" : "off",
     }, null, 2));
     return;
   }
   if (classified.length === 0) {
-    ui.success("hAIve doctor — no issues found.");
+    ui.success(repairs.length > 0 ? "hAIve doctor — autopilot repairs applied." : "hAIve doctor — no issues found.");
     return;
   }
   console.log(ui.bold(`hAIve doctor — ${classified.length} finding${classified.length === 1 ? "" : "s"}`));
@@ -358,6 +397,12 @@ function emit(findings: Finding[], opts: DoctorOptions): void {
         }
       }
     }
+    console.log();
+  }
+
+  if (repairs.length > 0) {
+    console.log(ui.bold("Autopilot repairs applied"));
+    for (const repair of repairs) console.log(`  ${ui.dim("✓")} ${repair.message}`);
     console.log();
   }
 

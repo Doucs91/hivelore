@@ -6,6 +6,22 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.18] — self-maintaining autopilot
+
+### Added
+- Added `autoRepair` config so autopilot can safely maintain project context metadata, corpus lint fixes, code-map refreshes, and code-search indexes without manual intervention.
+- Added shared autopilot repair utilities used by `haive doctor --fix` and `haive sync`.
+- `haive init` now writes autopilot projects with validated team memories, self-repair enabled, code-map creation, MCP setup, hooks, and CI from day zero.
+
+### Changed
+- `haive memory add` now follows project config defaults: autopilot projects create validated team records unless a scope is explicitly provided.
+- `haive sync` now applies safe corpus/context repairs in autopilot mode and rebuilds both memory and code embedding indexes when code-search auto-repair is enabled.
+- `haive doctor` reports project-context version drift without mutating files unless `--fix` is used.
+
+### Fixed
+- Autopilot init no longer suggests bootstrapping project context when the default autopilot bootstrap already ran.
+- Memory lint anchor suggestions now ignore generated, ignored, and untracked paths to avoid polluting context records with noisy anchors.
+
 ## [0.9.17] — core signal quality and surgical enforcement
 
 ### Added

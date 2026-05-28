@@ -423,7 +423,7 @@ export function registerInit(program: Command): void {
         }
         console.log();
 
-        if (!opts.bootstrap) {
+        if (!wantBootstrap) {
           console.log(ui.bold("One remaining step (optional but recommended):"));
           console.log("  " + ui.bold("haive init --bootstrap") + ui.dim("  ← fill project-context.md without AI"));
           console.log("  " + ui.dim("Or in your AI client: invoke the MCP prompt ") + ui.bold("bootstrap_project"));
@@ -438,7 +438,7 @@ export function registerInit(program: Command): void {
         console.log(ui.dim("    haive memory import README.md   — from README / docs"));
       } else {
         console.log(ui.bold("Next steps:"));
-        if (!opts.bootstrap) {
+        if (!wantBootstrap) {
           console.log(ui.dim("  1. Fill project context (pick one):"));
           console.log("     " + ui.bold("haive init --bootstrap") + ui.dim("  ← instant, no AI needed"));
           console.log("     or invoke the MCP prompt " + ui.bold("bootstrap_project") + ui.dim(" in your AI client"));

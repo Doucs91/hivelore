@@ -3,6 +3,7 @@
  */
 import { existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { Command } from "commander";
 import {
@@ -63,9 +64,11 @@ export async function lintMemoriesAsync(
   const loaded = await loadMemoriesFromDir(paths.memoriesDir);
   const usage = await loadUsageIndex(paths);
   const codeMap = await loadCodeMap(paths);
+  const trackedFiles = gitTrackedFiles(root);
 
   const ANCHOR_TYPES = new Set(["decision", "architecture", "gotcha"]);
-  const actionableWords = /\b(always|never|prefer|use|avoid|because|instead|why|rationale|do not|must|should)\b/i;
+  const actionableWords =
+    /\b(always|never|prefer|use|run|avoid|because|instead|why|rationale|do not|must|should|require|required|requires|fix|fail|failed|fails|prevent|prevents|allow|allows|lets|ensure|ensures|catch|catches)\b/i;
 
   for (const { filePath, memory } of loaded) {
     const fm = memory.frontmatter;
@@ -99,7 +102,7 @@ export async function lintMemoriesAsync(
       });
     }
 
-    const suggestedAnchors = suggestAnchors(root, { filePath, memory }, codeMap);
+    const suggestedAnchors = suggestAnchors(root, { filePath, memory }, codeMap, trackedFiles);
     if (ANCHOR_TYPES.has(fm.type) && fm.anchor.paths.length === 0 && fm.status === "validated") {
       out.push({
         file: filePath,
@@ -171,7 +174,31 @@ export async function lintMemoriesAsync(
       if (
         ANCHOR_TYPES.has(fm.type) &&
         fm.anchor.paths.length === 0 &&
+        fm.status === "validated" &&
+        suggestedAnchors.paths.length > 0
+      ) {
+        nextFrontmatter = {
+          ...nextFrontmatter,
+          anchor: {
+            ...nextFrontmatter.anchor,
+            paths: [...new Set([...nextFrontmatter.anchor.paths, ...suggestedAnchors.paths])],
+            symbols: [
+              ...new Set([...nextFrontmatter.anchor.symbols, ...suggestedAnchors.symbols]),
+            ],
+          },
+          tags: nextFrontmatter.tags.filter((tag) => tag !== "needs_anchor"),
+        };
+        actions.push("add suggested tracked anchor paths");
+        if (suggestedAnchors.symbols.length > 0) {
+          actions.push("add suggested anchor symbols");
+        }
+      }
+
+      if (
+        ANCHOR_TYPES.has(fm.type) &&
+        fm.anchor.paths.length === 0 &&
         fm.anchor.symbols.length === 0 &&
+        suggestedAnchors.paths.length === 0 &&
         fm.status === "validated" &&
         !fm.tags.includes("needs_anchor")
       ) {
@@ -222,6 +249,7 @@ function suggestAnchors(
   root: string,
   loaded: LoadedMemory,
   codeMap: Awaited<ReturnType<typeof loadCodeMap>>,
+  trackedFiles: ReadonlySet<string> | null,
 ): { paths: string[]; symbols: string[] } {
   const body = loaded.memory.body;
   const paths = new Set<string>();
@@ -230,7 +258,9 @@ function suggestAnchors(
   for (const match of body.matchAll(/`([^`\n]+\.[A-Za-z0-9]+)`|(?:^|\s)([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)/gm)) {
     const candidate = (match[1] ?? match[2] ?? "").replace(/^\.?\//, "");
     if (!candidate || candidate.startsWith("http")) continue;
-    if (existsSync(path.join(root, candidate))) paths.add(candidate);
+    if (existsSync(path.join(root, candidate)) && isSafeAnchorPath(candidate, trackedFiles)) {
+      paths.add(candidate);
+    }
   }
 
   if (codeMap) {
@@ -239,8 +269,10 @@ function suggestAnchors(
       for (const exp of entry.exports) {
         if (!exp.name || exp.name.length < 4) continue;
         if (lowered.includes(exp.name.toLowerCase())) {
-          paths.add(file);
-          symbols.add(exp.name);
+          if (isSafeAnchorPath(file, trackedFiles)) {
+            paths.add(file);
+            symbols.add(exp.name);
+          }
         }
         if (paths.size >= 5 && symbols.size >= 5) break;
       }
@@ -252,6 +284,29 @@ function suggestAnchors(
     paths: [...paths].slice(0, 5),
     symbols: [...symbols].slice(0, 5),
   };
+}
+
+function gitTrackedFiles(root: string): ReadonlySet<string> | null {
+  const result = spawnSync("git", ["ls-files"], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  if (result.status !== 0) return null;
+  const files = result.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return new Set(files);
+}
+
+function isSafeAnchorPath(file: string, trackedFiles: ReadonlySet<string> | null): boolean {
+  const normalized = file.replace(/\\/g, "/").replace(/^\.?\//, "");
+  if (normalized.startsWith(".ai/.cache/") || normalized.startsWith(".ai/.runtime/")) return false;
+  if (normalized.includes("/node_modules/") || normalized.startsWith("node_modules/")) return false;
+  if (normalized.includes("/dist/") || normalized.startsWith("dist/")) return false;
+  if (trackedFiles && !trackedFiles.has(normalized)) return false;
+  return true;
 }
 
 function nearDuplicatePairs(

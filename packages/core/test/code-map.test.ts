@@ -1,8 +1,12 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildCodeMap, queryCodeMap } from "../src/code-map.js";
+
+const exec = promisify(execFile);
 
 describe("buildCodeMap", () => {
   let workDir: string;
@@ -88,6 +92,22 @@ const SECRET = 42;
       "utf8",
     );
     const map = await buildCodeMap(workDir, { excludeDirs: ["node_modules", "out"] });
+    expect(Object.keys(map.files)).toEqual(["src/math.ts"]);
+  });
+
+  it("uses tracked git files when available and skips ignored worktrees", async () => {
+    await exec("git", ["init"], { cwd: workDir });
+    await writeFile(path.join(workDir, ".gitignore"), "sandbox/\n", "utf8");
+    await mkdir(path.join(workDir, "sandbox"), { recursive: true });
+    await writeFile(
+      path.join(workDir, "sandbox", "ignored.ts"),
+      `export const IGNORED = true;`,
+      "utf8",
+    );
+    await exec("git", ["add", ".gitignore", "src/math.ts"], { cwd: workDir });
+
+    const map = await buildCodeMap(workDir);
+
     expect(Object.keys(map.files)).toEqual(["src/math.ts"]);
   });
 });

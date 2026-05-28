@@ -23,6 +23,7 @@ import {
   watchContracts,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
+import { applyAutopilotRepairs } from "../utils/autopilot.js";
 
 const BRIDGE_START = "<!-- haive:memories-start -->";
 const BRIDGE_END = "<!-- haive:memories-end -->";
@@ -93,6 +94,7 @@ export function registerSync(program: Command): void {
       const config = await loadConfig(paths);
       const autoApproveDelayHours = config.autoApproveDelayHours ?? null;
       const autoPromoteMinReads = config.autoPromoteMinReads ?? DEFAULT_AUTO_PROMOTE_RULE.minReads;
+      const autoRepair = config.autoRepair ?? {};
 
       let staleMarked = 0;
       let revalidated = 0;
@@ -216,6 +218,16 @@ export function registerSync(program: Command): void {
             }
           }
         }
+      }
+
+      if (config.autopilot || autoRepair.context || autoRepair.corpus) {
+        const repairs = await applyAutopilotRepairs(root, paths, {
+          applyContext: autoRepair.context ?? config.autopilot,
+          applyCorpus: autoRepair.corpus ?? config.autopilot,
+          applyCodeMap: false,
+          applyCodeSearch: false,
+        });
+        for (const repair of repairs) log(ui.dim(`autopilot: ${repair.message}`));
       }
 
       const sinceReport = opts.since ? collectSinceChanges(root, opts.since) : null;
@@ -435,7 +447,17 @@ export function registerSync(program: Command): void {
 
       // ── Auto-refresh code-map if source files changed since it was generated ──
       const existingMap = await loadCodeMap(paths);
-      if (existingMap) {
+      if (!existingMap && (config.autopilot || autoRepair.codeMap)) {
+        try {
+          const { buildCodeMap, saveCodeMap } = await import("@hiveai/core");
+          log(ui.dim("code-map: missing — building index…"));
+          const newMap = await buildCodeMap(root);
+          await saveCodeMap(paths, newMap);
+          log(ui.dim(`code-map: built (${Object.keys(newMap.files).length} files)`));
+        } catch {
+          // Non-fatal — code-map refresh is best-effort
+        }
+      } else if (existingMap) {
         const mapAge = new Date(existingMap.generated_at).getTime();
         // Check if any tracked source files are newer than the map
         const gitResult = spawnSync(
@@ -471,14 +493,24 @@ export function registerSync(program: Command): void {
         }
       }
 
-      // --embed: rebuild embeddings index after sync
-      if (opts.embed) {
+      // --embed or autopilot autoRepair.codeSearch: rebuild embeddings index after sync
+      if (opts.embed || autoRepair.codeSearch) {
         try {
-          const { Embedder, rebuildIndex } = await import("@hiveai/embeddings");
+          const { Embedder, rebuildCodeIndex, rebuildIndex } = await import("@hiveai/embeddings");
           log(ui.dim("embed: rebuilding index…"));
           const embedder = await Embedder.create();
           const { report } = await rebuildIndex(paths, embedder);
-          log(ui.dim(`embed: index rebuilt (${report.added} added, ${report.updated} updated, ${report.removed} removed)`));
+          const { report: codeReport } = await rebuildCodeIndex(paths, embedder);
+          log(
+            ui.dim(
+              `embed: memory index rebuilt (${report.added} added, ${report.updated} updated, ${report.removed} removed)`,
+            ),
+          );
+          log(
+            ui.dim(
+              `embed: code index rebuilt (${codeReport.total} symbols, ${codeReport.added} added, ${codeReport.updated} updated, ${codeReport.removed} removed)`,
+            ),
+          );
         } catch {
           ui.warn("--embed: @hiveai/embeddings not available or index build failed. Run `haive embeddings index` manually.");
         }

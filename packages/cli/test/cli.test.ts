@@ -66,8 +66,19 @@ describe("hAIve CLI integration", () => {
     expect(hooks).toContain("haive enforce pre-tool-use");
     expect(existsSync(path.join(workDir, ".github/workflows/haive-enforcement.yml"))).toBe(true);
     const config = JSON.parse(await readFile(path.join(workDir, ".ai/haive.config.json"), "utf8")) as {
+      autopilot?: boolean;
+      defaultScope?: string;
+      defaultStatus?: string;
+      autoRepair?: { context?: boolean; corpus?: boolean; codeMap?: boolean; codeSearch?: boolean };
       enforcement?: { mode?: string; requireBriefingFirst?: boolean; requireMemoryVerify?: boolean };
     };
+    expect(config.autopilot).toBe(true);
+    expect(config.defaultScope).toBe("team");
+    expect(config.defaultStatus).toBe("validated");
+    expect(config.autoRepair?.context).toBe(true);
+    expect(config.autoRepair?.corpus).toBe(true);
+    expect(config.autoRepair?.codeMap).toBe(true);
+    expect(config.autoRepair?.codeSearch).toBe(true);
     expect(config.enforcement?.mode).toBe("strict");
     expect(config.enforcement?.requireBriefingFirst).toBe(true);
     expect(config.enforcement?.requireMemoryVerify).toBe(true);
@@ -166,7 +177,7 @@ describe("hAIve CLI integration", () => {
     expect(gitignore).toContain(".mcp.json");
   });
 
-  it("memory add creates a personal memory file by default", async () => {
+  it("memory add uses autopilot defaults by default", async () => {
     await run(workDir, [
       "memory",
       "add",
@@ -176,12 +187,12 @@ describe("hAIve CLI integration", () => {
       "--body", "Always use pnpm in this project.",
       "--dir", workDir,
     ]);
-    const personalDir = path.join(workDir, ".ai/memories/personal");
-    const files = await readdir(personalDir);
+    const teamDir = path.join(workDir, ".ai/memories/team");
+    const files = await readdir(teamDir);
     expect(files.length).toBe(1);
-    const content = await readFile(path.join(personalDir, files[0]!), "utf8");
-    expect(content).toContain("scope: personal");
-    expect(content).toContain("status: draft");
+    const content = await readFile(path.join(teamDir, files[0]!), "utf8");
+    expect(content).toContain("scope: team");
+    expect(content).toContain("status: validated");
     expect(content).toContain("Always use pnpm in this project.");
   });
 
@@ -197,6 +208,16 @@ describe("hAIve CLI integration", () => {
   });
 
   it("memory promote moves a memory from personal to team with status=proposed", async () => {
+    await run(workDir, [
+      "memory",
+      "add",
+      "--type", "gotcha",
+      "--slug", "manual review",
+      "--scope", "personal",
+      "--body", "Keep this local until promoted.",
+      "--dir", workDir,
+    ]);
+
     const personalDir = path.join(workDir, ".ai/memories/personal");
     const beforeFiles = await readdir(personalDir);
     const id = beforeFiles[0]!.replace(/\.md$/, "");
@@ -208,8 +229,9 @@ describe("hAIve CLI integration", () => {
 
     const teamDir = path.join(workDir, ".ai/memories/team");
     const teamFiles = await readdir(teamDir);
-    expect(teamFiles.length).toBe(1);
-    const promoted = await readFile(path.join(teamDir, teamFiles[0]!), "utf8");
+    const promotedFile = teamFiles.find((file) => file.includes("manual-review"));
+    expect(promotedFile).toBeDefined();
+    const promoted = await readFile(path.join(teamDir, promotedFile!), "utf8");
     expect(promoted).toContain("scope: team");
     expect(promoted).toContain("status: proposed");
   });
@@ -257,6 +279,7 @@ describe("hAIve CLI integration", () => {
       "memory", "add",
       "--type", "gotcha",
       "--slug", "deleteme",
+      "--scope", "personal",
       "--body", "x",
       "--dir", workDir,
     ]);

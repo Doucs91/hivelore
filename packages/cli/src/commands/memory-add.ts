@@ -7,6 +7,7 @@ import {
   buildFrontmatter,
   findProjectRoot,
   inferModulesFromPaths,
+  loadConfig,
   loadMemoriesFromDir,
   memoryFilePath,
   resolveHaivePaths,
@@ -61,7 +62,7 @@ export function registerMemoryAdd(memory: Command): void {
     .requiredOption("--type <type>", "convention | decision | gotcha | architecture | glossary | attempt")
     .requiredOption("--slug <slug>", "short kebab-case identifier used in the file name")
     .option("--title <text>", "memory title — becomes the first heading of the body")
-    .option("--scope <scope>", "personal | team | module (default: personal, or team in autopilot)", "personal")
+    .option("--scope <scope>", "personal | team | module (default: config default; team in autopilot)")
     .option("--module <name>", "module name (required when scope=module)")
     .option("--tags <csv>", "comma-separated tags for easier retrieval")
     .option("--domain <domain>", "domain (e.g. transactions)")
@@ -82,6 +83,7 @@ export function registerMemoryAdd(memory: Command): void {
         process.exitCode = 1;
         return;
       }
+      const config = await loadConfig(paths);
 
       const userTags = parseCsv(opts.tags);
       const anchorPaths = parseCsv(opts.paths);
@@ -119,7 +121,7 @@ export function registerMemoryAdd(memory: Command): void {
       }
 
       // ── Dedup by content hash ─────────────────────────────────────────
-      const scope = opts.scope ?? "personal";
+      const scope = opts.scope ?? config.defaultScope ?? "personal";
       if (existsSync(paths.memoriesDir)) {
         const incomingHash = createHash("sha256").update(body.trim()).digest("hex").slice(0, 12);
         const allForHash = await loadMemoriesFromDir(paths.memoriesDir);
@@ -175,6 +177,7 @@ export function registerMemoryAdd(memory: Command): void {
         symbols: parseCsv(opts.symbols),
         commit: opts.commit,
         topic: opts.topic,
+        status: config.defaultStatus === "validated" ? "validated" : undefined,
       });
 
       const file = memoryFilePath(paths, frontmatter.scope, frontmatter.id, frontmatter.module);
@@ -219,7 +222,9 @@ export function registerMemoryAdd(memory: Command): void {
       }
 
       // Workflow hint
-      if (scope === "personal") {
+      if (frontmatter.status === "validated") {
+        console.log(ui.dim("→ autopilot: memory is already validated and active"));
+      } else if (scope === "personal") {
         console.log(
           ui.dim(
             `→ next: haive memory approve ${frontmatter.id}  (activate)` +

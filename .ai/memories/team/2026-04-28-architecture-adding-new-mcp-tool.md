@@ -4,7 +4,9 @@ scope: team
 type: architecture
 status: validated
 anchor:
-  paths: []
+  paths:
+    - packages/mcp/src/server.ts
+    - packages/cli/src/index.ts
   symbols: []
 tags:
   - mcp
@@ -14,6 +16,10 @@ created_at: '2026-04-28T04:18:16.056Z'
 expires_when: null
 verified_at: null
 stale_reason: null
+related_ids: []
+last_read_at: null
+revision_count: 0
+requires_human_approval: false
 ---
 # How to add a new MCP tool
 

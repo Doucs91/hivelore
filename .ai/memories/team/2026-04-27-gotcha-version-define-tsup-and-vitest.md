@@ -20,7 +20,13 @@ created_at: '2026-04-27T17:20:23.358Z'
 expires_when: null
 verified_at: '2026-04-27T17:21:21.343Z'
 stale_reason: null
+related_ids: []
+last_read_at: null
+revision_count: 0
+requires_human_approval: false
 ---
+# Gotcha Version Define Tsup And Vitest
+
 When using tsup `define` to inject a constant (e.g. `__HAIVE_VERSION__`), vitest does NOT apply the tsup config — it runs source files directly. Any package whose tests import source files referencing a `define`-injected global must have its own `vitest.config.ts` with the same `define`, reading the version from `package.json` at config-load time.
 
 Also: scan ALL files for hardcoded version strings before publishing — `server.ts` and `index.ts` both had `v0.1.0` in the startup log of `@hiveai/mcp`.
