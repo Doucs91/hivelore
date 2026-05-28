@@ -18,9 +18,12 @@ import { createHaiveServer } from "../src/server.js";
 const ENFORCEMENT_TOOLS: readonly string[] = [
   "get_briefing",
   "mem_save",
+  "mem_tried",
   "mem_search",
+  "mem_get",
   "mem_verify",
   "mem_relevant_to",
+  "code_map",
   "pre_commit_check",
   "mem_session_end",
 ];
@@ -29,12 +32,10 @@ const ENFORCEMENT_TOOLS: readonly string[] = [
 const FULL_TOOLS: readonly string[] = [
   ...ENFORCEMENT_TOOLS,
   "mem_suggest_topic",
-  "mem_tried",
   "mem_observe",
   "mem_timeline",
   "mem_for_files",
   "mem_list",
-  "mem_get",
   "get_project_context",
   "bootstrap_project_save",
   "mem_resolve_project",
@@ -45,7 +46,6 @@ const FULL_TOOLS: readonly string[] = [
   "mem_delete",
   "mem_diff",
   "get_recap",
-  "code_map",
   "code_search",
   "why_this_file",
   "anti_patterns_check",

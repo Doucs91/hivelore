@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -22,6 +22,8 @@ import {
 import { getBriefing, preCommitCheck } from "@hiveai/mcp";
 import { ui } from "../utils/ui.js";
 import { installClaudeHooksAtPath, defaultClaudeSettingsPath } from "../utils/claude-hooks.js";
+
+declare const __HAIVE_VERSION__: string;
 
 const MAX_STDIN_BYTES = 256 * 1024;
 const ENFORCE_HOOK_MARKER = "# hAIve enforcement hook";
@@ -430,6 +432,8 @@ async function buildEnforcementReport(
     };
   }
 
+  findings.push(...await inspectIntegrationVersions(root, __HAIVE_VERSION__));
+
   if (config.enforcement?.requireBriefingFirst !== false && stage !== "ci") {
     const hasBriefing = await hasRecentBriefingMarker(paths, sessionId);
     findings.push(hasBriefing
@@ -660,6 +664,77 @@ async function findGeneratedArtifacts(paths: ReturnType<typeof resolveHaivePaths
     fix: "Run `haive enforce cleanup`, update .gitignore, or remove test/runtime outputs before committing.",
     impact: 10,
   }];
+}
+
+async function inspectIntegrationVersions(
+  root: string,
+  expectedVersion: string,
+): Promise<EnforcementFinding[]> {
+  const files = [
+    ".git/hooks/pre-commit",
+    ".git/hooks/pre-push",
+    ".claude/settings.local.json",
+    ".mcp.json",
+    ".cursor/mcp.json",
+    ".vscode/mcp.json",
+  ];
+  const findings: EnforcementFinding[] = [];
+  for (const rel of files) {
+    const file = path.join(root, rel);
+    if (!existsSync(file)) continue;
+    const text = await readFile(file, "utf8").catch(() => "");
+    for (const bin of extractAbsoluteHaiveBins(text)) {
+      const version = versionForBinary(bin);
+      if (!version) {
+        findings.push({
+          severity: "warn",
+          code: "integration-haive-binary-missing",
+          message: `${rel} references ${bin}, but that binary could not be executed.`,
+          fix: "Run `haive agent setup --no-global` or `haive enforce install` to refresh project integrations.",
+          impact: 0,
+        });
+      } else if (version !== expectedVersion) {
+        findings.push({
+          severity: "warn",
+          code: "integration-haive-version-mismatch",
+          message: `${rel} references hAIve ${version} at ${bin}; current hAIve is ${expectedVersion}.`,
+          fix: "Run `haive agent setup --no-global` and `haive enforce install` to repair stale hooks/configs.",
+          impact: 0,
+        });
+      }
+    }
+  }
+  if (findings.length === 0) {
+    return [{
+      severity: "ok",
+      code: "integration-version-check",
+      message: "No stale absolute hAIve binary paths were found in project hooks/MCP configs.",
+    }];
+  }
+  return findings;
+}
+
+function extractAbsoluteHaiveBins(text: string): string[] {
+  const out = new Set<string>();
+  const re = /(["'\s])((?:\/[^"'\s]+)*\/haive)\b/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text))) {
+    if (match[2]) out.add(match[2]);
+  }
+  return [...out].sort();
+}
+
+function versionForBinary(bin: string): string | null {
+  try {
+    const out = execFileSync(bin, ["--version"], {
+      encoding: "utf8",
+      timeout: 3000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return out.match(/\d+\.\d+\.\d+/)?.[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function getChangedFiles(

@@ -5,7 +5,9 @@ import { existsSync } from "node:fs";
 import { Command } from "commander";
 import {
   findProjectRoot,
+  getUsage,
   loadMemoriesFromDir,
+  loadUsageIndex,
   resolveHaivePaths,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
@@ -31,8 +33,10 @@ export async function lintMemoriesAsync(root: string): Promise<MemoryLintFinding
   if (!existsSync(paths.memoriesDir)) return out;
 
   const loaded = await loadMemoriesFromDir(paths.memoriesDir);
+  const usage = await loadUsageIndex(paths);
 
   const ANCHOR_TYPES = new Set(["decision", "architecture", "gotcha"]);
+  const actionableWords = /\b(always|never|prefer|use|avoid|because|instead|why|rationale|do not|must|should)\b/i;
 
   for (const { filePath, memory } of loaded) {
     const fm = memory.frontmatter;
@@ -48,6 +52,21 @@ export async function lintMemoriesAsync(root: string): Promise<MemoryLintFinding
         severity: "warn",
         code: "SHORT_BODY",
         message: "Body looks very short (< ~40 chars of prose after headings). Prefer actionable detail.",
+      });
+    }
+
+    if (
+      ["decision", "gotcha", "convention", "architecture", "attempt"].includes(fm.type) &&
+      fm.status !== "rejected" &&
+      !actionableWords.test(naked)
+    ) {
+      out.push({
+        file: filePath,
+        id: fm.id,
+        severity: "info",
+        code: "LOW_ACTIONABILITY",
+        message:
+          "Record does not contain obvious action/rationale words. Add the concrete rule, why it exists, and what to do instead.",
       });
     }
 
@@ -93,9 +112,74 @@ export async function lintMemoriesAsync(root: string): Promise<MemoryLintFinding
           "No Markdown heading (#/##/###) — add one so humans and auditors can skim the memo quickly.",
       });
     }
+
+    const u = getUsage(usage, fm.id);
+    if (fm.status === "validated" && u.read_count === 0) {
+      out.push({
+        file: filePath,
+        id: fm.id,
+        severity: "info",
+        code: "NEVER_READ",
+        message:
+          "Validated record has never been surfaced/read. Consider improving tags/anchors or archiving it if it is not useful.",
+      });
+    }
+  }
+
+  for (const dup of nearDuplicatePairs(loaded)) {
+    out.push({
+      file: dup.file,
+      id: dup.id,
+      severity: "warn",
+      code: "NEAR_DUPLICATE",
+      message:
+        `Body overlaps ~${Math.round(dup.score * 100)}% with ${dup.otherId}. Merge or deprecate one record to reduce briefing noise.`,
+    });
   }
 
   return out;
+}
+
+function nearDuplicatePairs(
+  loaded: Awaited<ReturnType<typeof loadMemoriesFromDir>>,
+): Array<{ id: string; otherId: string; file: string; score: number }> {
+  const out: Array<{ id: string; otherId: string; file: string; score: number }> = [];
+  const candidates = loaded.filter(({ memory }) => {
+    const fm = memory.frontmatter;
+    return fm.type !== "session_recap" && fm.status !== "rejected" && fm.status !== "deprecated";
+  });
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = i + 1; j < candidates.length; j++) {
+      const a = candidates[i]!;
+      const b = candidates[j]!;
+      if (a.memory.frontmatter.scope !== b.memory.frontmatter.scope) continue;
+      if (a.memory.frontmatter.type !== b.memory.frontmatter.type) continue;
+      const score = jaccard(tokenSet(a.memory.body), tokenSet(b.memory.body));
+      if (score >= 0.72) {
+        out.push({
+          id: a.memory.frontmatter.id,
+          otherId: b.memory.frontmatter.id,
+          file: a.filePath,
+          score,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function tokenSet(body: string): Set<string> {
+  return new Set(
+    (body.toLowerCase().match(/\b[a-z0-9]{4,}\b/g) ?? [])
+      .filter((word) => !["this", "that", "with", "from", "have"].includes(word)),
+  );
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const item of a) if (b.has(item)) inter++;
+  return inter / (a.size + b.size - inter);
 }
 
 export function registerMemoryLint(parent: Command): void {

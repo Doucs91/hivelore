@@ -6,6 +6,18 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.15] — harness diagnostics and quieter enforcement
+
+### Added
+- Added install/version diagnostics to `haive doctor` and `haive enforce status` for stale absolute hAIve binaries in hooks and MCP configs.
+- Added `why` explanations to `get_briefing` memory results so agents can see why each context record was surfaced.
+- Added glob-style anchor matching (`*`, `**`, `?`) and directory-symbol verification for broader module/pattern policies.
+
+### Changed
+- `pre_commit_check` now classifies anti-pattern matches as `blocking`, `review`, or `info`, with rationale text; the CLI hides weak FYI matches by default.
+- The default MCP enforcement profile now includes `mem_tried`, `mem_get`, and `code_map` as focused core workflow tools.
+- `haive memory lint` now flags low-actionability records, never-read validated records, and near-duplicate records.
+
 ## [0.9.14] — repo-native context enforcement positioning
 
 ### Changed

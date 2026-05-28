@@ -1,6 +1,7 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { globToRegExp, isGlobPath } from "./relevance.js";
 import type { Memory } from "./types.js";
 
 export interface VerifyResult {
@@ -40,9 +41,18 @@ export async function verifyAnchor(
   const missingPaths: string[] = [];
   const existingAbsPaths: string[] = [];
   for (const rel of checkedPaths) {
+    if (isGlobPath(rel)) {
+      const matches = await findGlobMatches(rel, options.projectRoot);
+      if (matches.length > 0) {
+        existingAbsPaths.push(...matches.map((m) => path.join(options.projectRoot, m)));
+      } else {
+        missingPaths.push(rel);
+      }
+      continue;
+    }
     const abs = path.isAbsolute(rel) ? rel : path.join(options.projectRoot, rel);
     if (existsSync(abs)) {
-      existingAbsPaths.push(abs);
+      existingAbsPaths.push(...await readableFilesForAnchor(abs));
     } else {
       missingPaths.push(rel);
     }
@@ -111,6 +121,84 @@ async function findPossibleRenames(
     // best-effort
   }
   return found;
+}
+
+async function findGlobMatches(pattern: string, projectRoot: string): Promise<string[]> {
+  const re = globToRegExp(pattern);
+  const found: string[] = [];
+  try {
+    await walkAllFiles(projectRoot, projectRoot, found, 0, re);
+  } catch {
+    // best-effort
+  }
+  return found;
+}
+
+async function readableFilesForAnchor(abs: string): Promise<string[]> {
+  try {
+    const s = await stat(abs);
+    if (s.isDirectory()) {
+      const out: string[] = [];
+      await walkReadableFiles(abs, out, 0);
+      return out;
+    }
+    if (s.isFile()) return [abs];
+  } catch {
+    return [abs];
+  }
+  return [abs];
+}
+
+async function walkReadableFiles(dir: string, found: string[], depth: number): Promise<void> {
+  if (depth > 6) return;
+  let entries: string[];
+  try {
+    entries = await readdir(dir, { encoding: "utf8" });
+  } catch {
+    return;
+  }
+  for (const name of entries) {
+    if (name.startsWith(".") || name === "node_modules") continue;
+    const abs = path.join(dir, name);
+    try {
+      const s = await stat(abs);
+      if (s.isDirectory()) await walkReadableFiles(abs, found, depth + 1);
+      else if (s.isFile()) found.push(abs);
+    } catch {
+      continue;
+    }
+  }
+}
+
+async function walkAllFiles(
+  dir: string,
+  root: string,
+  found: string[],
+  depth: number,
+  match: RegExp,
+): Promise<void> {
+  if (depth > 12) return;
+  let entries: string[];
+  try {
+    entries = await readdir(dir, { encoding: "utf8" });
+  } catch {
+    return;
+  }
+  for (const name of entries) {
+    if (name === "node_modules" || name === ".git" || name === ".ai") continue;
+    const abs = path.join(dir, name);
+    try {
+      const s = await stat(abs);
+      if (s.isDirectory()) {
+        await walkAllFiles(abs, root, found, depth + 1, match);
+      } else if (s.isFile()) {
+        const rel = path.relative(root, abs).replace(/\\/g, "/");
+        if (match.test(rel)) found.push(rel);
+      }
+    } catch {
+      continue;
+    }
+  }
 }
 
 async function walkDir(

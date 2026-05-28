@@ -18,6 +18,7 @@ import {
   loadMemoriesFromDir,
   loadUsageIndex,
   memoryMatchesAnchorPaths,
+  pathsOverlap,
   queryCodeMap,
   resolveBriefingBudget,
   serializeMemory,
@@ -125,6 +126,8 @@ export interface BriefingMemory {
   reasons: Array<"anchor" | "module" | "domain" | "semantic">;
   match_quality: "exact" | "partial" | "semantic";
   semantic_score?: number;
+  /** Human/agent-readable explanation for why this record was surfaced. */
+  why?: string[];
   body: string;
   file_path: string;
 }
@@ -564,7 +567,7 @@ export async function getBriefing(
   }
 
   // Compact / actions: squeeze bodies for fewer downstream tokens
-  const outputMemories =
+  const formattedMemories =
     input.format === "compact"
       ? trimmedMemories.map((m) => ({ ...m, body: compactSummary(m.body) }))
       : input.format === "actions"
@@ -573,6 +576,10 @@ export async function getBriefing(
             body: extractActionsBriefBody(m.body),
           }))
         : trimmedMemories;
+  const outputMemories = formattedMemories.map((m) => ({
+    ...m,
+    why: explainWhySurfaced(m, byId.get(m.id), input.files, inferred),
+  }));
 
   // ── Code-map symbol lookup ──────────────────────────────────────────────
   // Also auto-look up symbols found in anchor paths of returned memories +
@@ -808,6 +815,52 @@ function compactSummary(body: string): string {
     if (trimmed.length > 0) return trimmed.slice(0, 120);
   }
   return body.slice(0, 120);
+}
+
+function explainWhySurfaced(
+  memory: BriefingMemory,
+  loaded: LoadedMemory | undefined,
+  inputFiles: string[],
+  inferredModules: string[],
+): string[] {
+  const why: string[] = [];
+  const fm = loaded?.memory.frontmatter;
+  if (memory.reasons.includes("anchor") && fm) {
+    const matching = fm.anchor.paths.filter((p) =>
+      inputFiles.length === 0 || inputFiles.some((file) => pathsOverlap(p, file)),
+    );
+    if (matching.length > 0) {
+      why.push(`Anchored to touched path${matching.length === 1 ? "" : "s"}: ${matching.slice(0, 4).join(", ")}`);
+    } else if (fm.anchor.paths.length > 0) {
+      why.push(`Pulled by related anchor: ${fm.anchor.paths.slice(0, 4).join(", ")}`);
+    }
+    if (fm.anchor.symbols.length > 0) {
+      why.push(`Anchor symbol${fm.anchor.symbols.length === 1 ? "" : "s"}: ${fm.anchor.symbols.slice(0, 4).join(", ")}`);
+    }
+  }
+  if (memory.reasons.includes("module")) {
+    const moduleHints = [
+      ...(memory.module ? [memory.module] : []),
+      ...memory.tags.filter((tag) => inferredModules.includes(tag)),
+    ];
+    const shown = moduleHints.length > 0 ? [...new Set(moduleHints)].join(", ") : inferredModules.join(", ");
+    why.push(shown ? `Matched inferred module/tag: ${shown}` : "Matched inferred module context.");
+  }
+  if (memory.reasons.includes("domain")) {
+    why.push("Matched inferred domain from the target file paths.");
+  }
+  if (memory.reasons.includes("semantic")) {
+    const score = memory.semantic_score !== undefined
+      ? ` score=${Math.round(memory.semantic_score * 100) / 100}`
+      : "";
+    why.push(`${memory.match_quality === "exact" ? "Literal task match" : "Semantic/task relevance"}${score}.`);
+  }
+  why.push(`Confidence: ${memory.confidence}; read ${memory.read_count} time${memory.read_count === 1 ? "" : "s"}.`);
+  if (memory.type === "attempt") why.push("Failed-approach record; read before repeating the same path.");
+  if (memory.status === "proposed" || memory.status === "draft") {
+    why.push("Unvalidated record; use cautiously or ask a human before treating it as policy.");
+  }
+  return why;
 }
 
 async function trySemanticHits(

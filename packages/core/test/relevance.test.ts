@@ -64,6 +64,15 @@ describe("pathsOverlap", () => {
   it("ignores leading ./ and trailing /", () => {
     expect(pathsOverlap("./packages/core/", "packages/core/src")).toBe(true);
   });
+
+  it("supports glob anchors", () => {
+    expect(pathsOverlap("packages/*/src/**/*.ts", "packages/core/src/parser.ts")).toBe(true);
+    expect(pathsOverlap("packages/*/src/**/*.ts", "packages/core/test/parser.test.ts")).toBe(false);
+  });
+
+  it("treats a directory as overlapping a glob below it", () => {
+    expect(pathsOverlap("packages/core", "packages/core/src/**/*.ts")).toBe(true);
+  });
 });
 
 describe("memoryMatchesAnchorPaths", () => {
@@ -85,5 +94,10 @@ describe("memoryMatchesAnchorPaths", () => {
   it("does not match unrelated paths", () => {
     const m = memoryWithPaths(["packages/cli"]);
     expect(memoryMatchesAnchorPaths(m, ["packages/core"])).toBe(false);
+  });
+
+  it("matches glob anchor paths", () => {
+    const m = memoryWithPaths(["packages/*/src/**/*.ts"]);
+    expect(memoryMatchesAnchorPaths(m, ["packages/core/src/parser.ts"])).toBe(true);
   });
 });

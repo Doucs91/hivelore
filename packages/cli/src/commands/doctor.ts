@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { Command } from "commander";
 
 declare const __HAIVE_VERSION__: string;
@@ -253,7 +253,10 @@ export function registerDoctor(program: Command): void {
         });
       }
 
-      // ── 7. Legacy standalone haive-mcp ──────────────────────────────────────
+      // ── 7. Installation / integration version sanity ──────────────────────
+      findings.push(...await collectInstallFindings(root, __HAIVE_VERSION__));
+
+      // ── 8. Legacy standalone haive-mcp ──────────────────────────────────────
       // MCP runs inside `haive mcp --stdio` — updating @hiveai/cli is enough.
       // Warn only if an old global haive-mcp exists and disagrees with CLI.
       try {
@@ -316,4 +319,114 @@ function emit(findings: Finding[], opts: DoctorOptions): void {
 
 function isSearchTool(name: string): boolean {
   return ["mem_search", "code_search", "mem_relevant_to", "get_briefing"].includes(name);
+}
+
+async function collectInstallFindings(root: string, expectedVersion: string): Promise<Finding[]> {
+  const findings: Finding[] = [];
+
+  const haiveBins = listHaiveBins();
+  if (haiveBins.length === 0) {
+    findings.push({
+      severity: "warn",
+      code: "haive-not-on-path",
+      message: "No `haive` binary was found on PATH. Hooks and MCP configs that call `haive` may fail.",
+      fix: `npm install -g @hiveai/cli@${expectedVersion}`,
+    });
+  } else {
+    const first = haiveBins[0]!;
+    const firstVersion = versionForBinary(first);
+    if (firstVersion && firstVersion !== expectedVersion) {
+      findings.push({
+        severity: "warn",
+        code: "path-haive-version-mismatch",
+        message: `PATH resolves haive to ${first} (${firstVersion}), but this build expects ${expectedVersion}.`,
+        fix: `npm install -g @hiveai/cli@${expectedVersion}\nwhich -a haive`,
+      });
+    }
+    const skewed = haiveBins
+      .map((bin) => ({ bin, version: versionForBinary(bin) }))
+      .filter((item) => item.version && item.version !== expectedVersion);
+    if (skewed.length > 0) {
+      findings.push({
+        severity: "info",
+        code: "multiple-haive-binaries",
+        message:
+          `Found ${haiveBins.length} haive binar${haiveBins.length === 1 ? "y" : "ies"} on PATH; ` +
+          `${skewed.length} do not match ${expectedVersion}.`,
+        fix: "Remove stale global installs or ensure hooks call the intended `haive` binary.",
+      });
+    }
+  }
+
+  const integrationFiles = [
+    ".git/hooks/pre-commit",
+    ".git/hooks/pre-push",
+    ".claude/settings.local.json",
+    ".mcp.json",
+    ".cursor/mcp.json",
+    ".vscode/mcp.json",
+  ];
+  for (const rel of integrationFiles) {
+    const file = path.join(root, rel);
+    if (!existsSync(file)) continue;
+    const text = await readFile(file, "utf8").catch(() => "");
+    for (const bin of extractAbsoluteHaiveBins(text)) {
+      const version = versionForBinary(bin);
+      if (!version) {
+        findings.push({
+          severity: "warn",
+          code: "integration-haive-binary-missing",
+          message: `${rel} references ${bin}, but it could not be executed.`,
+          fix: "Run `haive agent setup --no-global` or `haive enforce install` to rewrite project integrations.",
+        });
+      } else if (version !== expectedVersion) {
+        findings.push({
+          severity: "warn",
+          code: "integration-haive-version-mismatch",
+          message: `${rel} references ${bin} (${version}), but current hAIve is ${expectedVersion}.`,
+          fix: "Run `haive agent setup --no-global` and `haive enforce install` to refresh stale paths.",
+        });
+      }
+    }
+  }
+
+  return findings;
+}
+
+function listHaiveBins(): string[] {
+  try {
+    return execSync("which -a haive", {
+      encoding: "utf8",
+      timeout: 3000,
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function versionForBinary(bin: string): string | null {
+  try {
+    const out = execFileSync(bin, ["--version"], {
+      encoding: "utf8",
+      timeout: 3000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return out.match(/\d+\.\d+\.\d+/)?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function extractAbsoluteHaiveBins(text: string): string[] {
+  const out = new Set<string>();
+  const re = /(["'\s])((?:\/[^"'\s]+)*\/haive)\b/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text))) {
+    if (match[2]) out.add(match[2]);
+  }
+  return [...out].sort();
 }

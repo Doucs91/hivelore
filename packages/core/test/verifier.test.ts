@@ -87,4 +87,22 @@ describe("verifyAnchor", () => {
     const result = await verifyAnchor(m, { projectRoot: "/different/root" });
     expect(result.stale).toBe(false);
   });
+
+  it("resolves glob anchor paths", async () => {
+    const m = makeMemory({
+      paths: ["src/*.ts"],
+      symbols: ["processPayment"],
+    });
+    const result = await verifyAnchor(m, { projectRoot: workDir });
+    expect(result.stale).toBe(false);
+  });
+
+  it("searches symbols inside directory anchors", async () => {
+    const m = makeMemory({
+      paths: ["src"],
+      symbols: ["processPayment"],
+    });
+    const result = await verifyAnchor(m, { projectRoot: workDir });
+    expect(result.stale).toBe(false);
+  });
 });

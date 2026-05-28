@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/embeddings",
-  "version": "0.9.14",
+  "version": "0.9.15",
   "description": "hAIve embeddings — optional local semantic ranking for context enforcement briefings",
   "license": "Apache-2.0",
   "repository": {

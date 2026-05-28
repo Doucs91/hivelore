@@ -42,10 +42,12 @@ export interface PreCommitCheckOutput {
   summary: {
     anti_patterns: number;
     blocking_warnings?: number;
+    review_warnings?: number;
+    info_warnings?: number;
     relevant_memories: number;
     stale_anchors: number;
   };
-  warnings: AntiPatternsWarning[];
+  warnings: ClassifiedAntiPatternsWarning[];
   /** Memories anchored to the touched files — convention reminders for the change author. */
   relevant_memories: Array<{
     id: string;
@@ -60,6 +62,18 @@ export interface PreCommitCheckOutput {
     body_preview: string;
   }>;
   notice?: string;
+}
+
+export type AntiPatternLevel = "blocking" | "review" | "info";
+
+export interface ClassifiedAntiPatternsWarning extends AntiPatternsWarning {
+  /**
+   * blocking = commit gate should fail for the configured threshold;
+   * review = plausible but not strong enough to block;
+   * info = weak signal, hidden by default in human CLI output.
+   */
+  level: AntiPatternLevel;
+  rationale: string;
 }
 
 /**
@@ -115,10 +129,13 @@ export async function preCommitCheck(
 
   // Determine should_block
   const blockOn = input.block_on;
-  const blockingWarnings = apResult.warnings.filter(isBlockingWarning);
+  const classifiedWarnings = apResult.warnings.map(classifyWarning);
+  const blockingWarnings = classifiedWarnings.filter((w) => w.level === "blocking");
+  const reviewWarnings = classifiedWarnings.filter((w) => w.level === "review");
+  const infoWarnings = classifiedWarnings.filter((w) => w.level === "info");
   let should_block = false;
   if (blockOn !== "never") {
-    if (blockOn === "any" && (apResult.warnings.length > 0 || staleHits.length > 0)) should_block = true;
+    if (blockOn === "any" && (blockingWarnings.length > 0 || reviewWarnings.length > 0 || staleHits.length > 0)) should_block = true;
     if (blockOn === "high-confidence" && (blockingWarnings.length > 0 || staleHits.length > 0)) should_block = true;
   }
 
@@ -135,10 +152,12 @@ export async function preCommitCheck(
     summary: {
       anti_patterns: apResult.warnings.length,
       blocking_warnings: blockingWarnings.length,
+      review_warnings: reviewWarnings.length,
+      info_warnings: infoWarnings.length,
       relevant_memories: relevant_memories.length,
       stale_anchors: staleHits.length,
     },
-    warnings: apResult.warnings,
+    warnings: classifiedWarnings,
     relevant_memories,
     stale_anchors: staleHits.map((r) => ({
       id: r.id,
@@ -148,6 +167,43 @@ export async function preCommitCheck(
         : [],
       body_preview: r.reason ?? "anchored code drifted; verify before relying on this memory",
     })),
+  };
+}
+
+function classifyWarning(warning: AntiPatternsWarning): ClassifiedAntiPatternsWarning {
+  if (isBlockingWarning(warning)) {
+    return {
+      ...warning,
+      level: "blocking",
+      rationale:
+        "authoritative/trusted memory plus strong semantic match to the diff (score >= 0.65)",
+    };
+  }
+
+  const hasSemantic = warning.reasons.includes("semantic");
+  const semanticScore = warning.semantic_score ?? 0;
+  const highConfidence =
+    warning.confidence === "authoritative" || warning.confidence === "trusted";
+
+  if (
+    (hasSemantic && semanticScore >= 0.45) ||
+    (highConfidence && warning.reasons.includes("anchor") && warning.reasons.includes("literal"))
+  ) {
+    return {
+      ...warning,
+      level: "review",
+      rationale:
+        hasSemantic
+          ? "semantic match is plausible but below blocking threshold"
+          : "anchored high-confidence memory also matched diff tokens, but no strong semantic proof",
+    };
+  }
+
+  return {
+    ...warning,
+    level: "info",
+    rationale:
+      "weak signal only (literal/anchor/low semantic evidence); surfaced for audit, hidden in concise CLI output",
   };
 }
 

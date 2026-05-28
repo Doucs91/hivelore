@@ -1,7 +1,7 @@
-# Project context — hAIve (v0.9.14)
+# Project context — hAIve (v0.9.15)
 
 > Repo-native context enforcement for AI coding agents. Built with TypeScript, published as a pnpm workspace monorepo.
-> **Current version**: 0.9.14 — @hiveai/core, cli, mcp, embeddings are versioned together.
+> **Current version**: 0.9.15 — @hiveai/core, cli, mcp, embeddings are versioned together.
 > **Repo**: `/home/sd/Documents/Dev/New idea` (git, branch: main)
 > **Test project**: `sandaga-monorepo/` (gitignored, large Next.js + NestJS marketplace)
 

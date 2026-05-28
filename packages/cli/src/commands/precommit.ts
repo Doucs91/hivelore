@@ -77,21 +77,27 @@ export function registerPrecommit(program: Command): void {
         ui.dim(
           `  anti-patterns: ${result.summary.anti_patterns}  ` +
           `blocking: ${result.summary.blocking_warnings ?? result.summary.anti_patterns}  ` +
+          `review: ${result.summary.review_warnings ?? 0}  ` +
+          `info: ${result.summary.info_warnings ?? 0}  ` +
           `relevant memories: ${result.summary.relevant_memories}  ` +
           `stale anchors: ${result.summary.stale_anchors}`,
         ),
       );
       console.log();
 
-      if (result.warnings.length > 0) {
-        console.log(ui.bold("⚠ Anti-patterns matched:"));
-        for (const w of result.warnings.slice(0, 10)) {
-          console.log(`  ${ui.yellow("⚠")} ${w.id} ${ui.dim(`(${w.type}, ${w.confidence})`)}`);
-          for (const line of w.body_preview.split("\n").slice(0, 3)) {
-            console.log(`     ${ui.dim(line)}`);
-          }
-          console.log(`     ${ui.dim("reasons:")} ${w.reasons.join(", ")}`);
-        }
+      const blocking = result.warnings.filter((w) => w.level === "blocking");
+      const review = result.warnings.filter((w) => w.level === "review");
+      const info = result.warnings.filter((w) => w.level === "info");
+
+      printWarnings("Blocking anti-patterns", blocking, "error");
+      printWarnings("Review anti-patterns", review.slice(0, 8), "warn");
+      if (info.length > 0) {
+        console.log(
+          ui.dim(
+            `${info.length} weak anti-pattern signal${info.length === 1 ? "" : "s"} hidden. ` +
+            "Use --json to inspect FYI matches.",
+          ),
+        );
         console.log();
       }
 
@@ -123,6 +129,32 @@ export function registerPrecommit(program: Command): void {
         ui.success("Check passed (block_on threshold not met).");
       }
     });
+}
+
+function printWarnings(
+  title: string,
+  warnings: Array<{
+    id: string;
+    type: string;
+    confidence: string;
+    body_preview: string;
+    reasons: string[];
+    rationale?: string;
+  }>,
+  tone: "error" | "warn",
+): void {
+  if (warnings.length === 0) return;
+  console.log(ui.bold(tone === "error" ? `✗ ${title}:` : `⚠ ${title}:`));
+  for (const w of warnings) {
+    const marker = tone === "error" ? ui.red("✗") : ui.yellow("⚠");
+    console.log(`  ${marker} ${w.id} ${ui.dim(`(${w.type}, ${w.confidence})`)}`);
+    for (const line of w.body_preview.split("\n").slice(0, 3)) {
+      console.log(`     ${ui.dim(line)}`);
+    }
+    console.log(`     ${ui.dim("reasons:")} ${w.reasons.join(", ")}`);
+    if (w.rationale) console.log(`     ${ui.dim("why shown:")} ${w.rationale}`);
+  }
+  console.log();
 }
 
 function runCommand(cmd: string, args: string[], cwd: string): Promise<string> {
