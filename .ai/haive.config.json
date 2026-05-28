@@ -12,6 +12,16 @@
     "requireSessionRecap": true,
     "requireMemoryVerify": true,
     "blockStaleDecisionChanges": true,
-    "toolProfile": "enforcement"
+    "requireDecisionCoverage": true,
+    "scoreThreshold": 85,
+    "cleanupGeneratedArtifacts": true,
+    "toolProfile": "enforcement",
+    "policyPacks": [
+      "architecture",
+      "gotchas",
+      "security",
+      "domain",
+      "release"
+    ]
   }
 }

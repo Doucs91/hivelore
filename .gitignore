@@ -16,6 +16,7 @@ coverage
 # hAIve project-level MCP configs generated per machine (absolute paths)
 .cursor/mcp.json
 .vscode/mcp.json
+.mcp.json
 
 # Test projects — not part of the repo
 sandaga-monorepo/
