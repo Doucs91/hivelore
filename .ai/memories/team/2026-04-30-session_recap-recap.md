@@ -5,45 +5,50 @@ type: session_recap
 status: validated
 anchor:
   paths:
-    - packages/mcp/src/tools/mem-for-files.ts
-    - packages/mcp/src/tools/precommit-check.ts
-    - packages/mcp/test/anti-patterns.test.ts
-    - packages/mcp/test/pattern-detect.test.ts
+    - CLAUDE.md
+    - packages/cli/src/commands/observe.ts
+    - packages/cli/src/commands/session-end.ts
+    - .ai/memories/team/2026-05-29-skill-capture-failed-approach-immediately.md
+    - .ai/memories/team/2026-05-29-skill-save-decision-or-gotcha-mid-task.md
+    - .ai/memories/team/2026-05-29-skill-close-session-properly.md
   symbols: []
 tags:
   - session
   - recap
 created_at: '2026-04-30T00:02:07.282Z'
 expires_when: null
-verified_at: '2026-05-29T03:33:10.455Z'
+verified_at: '2026-05-29T19:51:32.782Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 topic: session-recap-team
-revision_count: 4
+revision_count: 5
 requires_human_approval: false
 ---
 ## Goal
-Analyse complète de hAIve après pull des changements d'un autre agent, puis implémentation de tous les correctifs jugés nécessaires pour atteindre la qualité production.
+Analyser les changements de l'autre agent pour rendre hAIve naturel, puis implémenter des améliorations complémentaires ciblant les vrais angles morts.
 
 ## Accomplished
-- Re-analyse codebase après pull (commit 1f09dec): --format alias CLI briefing, doctor workspace version checks, enforce cleanup smart, init cache layout, memory-add slug optionnel, memory-lint grace 7j, autopilot semantic index refresh
-- Identifié 4 problèmes résiduels non traités par l'autre agent
-- Fix P0: bug stale_anchors — ajouté `anchor_paths: string[]` à `MemMatch` dans mem-for-files.ts, corrigé le mapping dans precommit-check.ts (filtre ne dépendait pas de `p`)
-- Fix P1: faux positifs pre-commit sur commits config-only — supprimé la condition `looksRuntimeSpecific` dans fileTypeDowngradeReason; tout warning non-ancré sans forte sémantique est maintenant downgraded sur commit config-only
-- Ajouté tests anti-patterns.test.ts: 16 tests couvrant antiPatternsCheck (anchor, literal, dedup, limit, rejected skip) et preCommitCheck (config-only regression P1, stale_anchors paths P0, level consistency)
-- Ajouté tests pattern-detect.test.ts: 9 tests couvrant no-init, empty events, window cutoff, REPEATED_PATH signal, HOT_FILE signal, dry_run, save, no-overwrite idempotency, scanned_events count
-- 210 tests, 0 échec (vs 183 avant)
+- Analysé commit d32ddb0 (autre agent): haive observe PostToolUse, session-end auto depuis git, pre-tool-use vérifie mémoires ancrées aux fichiers édités, briefing déclenche autopilot repairs
+- Identifié 3 angles morts résiduels: mem_tried non déclenché après échec, mem_save pour décisions jamais fait spontanément, session-end sans discoveries
+- Créé 3 skill memories (surfacées must_read dans get_briefing): capture-failed-approach-immediately, save-decision-or-gotcha-mid-task, close-session-properly
+- Amélioré CLAUDE.md: ajouté table "Behavioral triggers" avec situation→action→outil, règle sur discoveries obligatoires
+- Amélioré haive observe: détecte failures depuis tool_response (exit code ≠ 0, ERR_MODULE_NOT_FOUND, TS errors, command not found), ajoute failure_hint: true
+- Amélioré session-end --auto: collecte les observations avec failure_hint et les injecte dans discoveries comme candidats mem_tried
+- 218 tests, 0 échec (was 210)
 
 ## Discoveries & surprises
-- `collectAnchorPathTokens` indexe chaque segment de chemin (src/service.ts → "service", "src") — un diff contenant "service" matche anchor path via literal, pas seulement via le body. Attention lors de l'écriture de tests qui assertent un niveau spécifique.
-- La condition `looksRuntimeSpecific` dans fileTypeDowngradeReason était trop restrictive: les gotchas génériques (npm install, haive init, workspace:*) ne matchaient pas les mots-clés runtime/controller/api, donc ils passaient quand même sur les commits config-only. Le fix retire cette condition pour les commits config-only purs.
+- Le marker de briefing est écrit par `haive enforce session-start` (CLI), PAS par `get_briefing` (MCP). Si le SessionStart hook écrit le marker mais avec un session_id qui ne correspond pas au PreToolUse, tout Bash est bloqué. Fix: appeler `haive enforce session-start` manuellement quand bloqué.
+- Les skill memories sont surfacées `must_read` dans get_briefing seulement quand elles matchent la tâche ou les fichiers. Pour les skills comportementaux généraux (pas ancrés à des fichiers), le match vient du semantic score sur la description de la tâche.
+- `haive observe` reçoit `tool_response` dans le payload PostToolUse — ce champ était ignoré avant. Il contient l'exit code pour Bash et les erreurs pour Edit/Write.
 
 ## Files touched
-- `packages/mcp/src/tools/mem-for-files.ts`
-- `packages/mcp/src/tools/precommit-check.ts`
-- `packages/mcp/test/anti-patterns.test.ts`
-- `packages/mcp/test/pattern-detect.test.ts`
+- `CLAUDE.md`
+- `packages/cli/src/commands/observe.ts`
+- `packages/cli/src/commands/session-end.ts`
+- `.ai/memories/team/2026-05-29-skill-capture-failed-approach-immediately.md`
+- `.ai/memories/team/2026-05-29-skill-save-decision-or-gotcha-mid-task.md`
+- `.ai/memories/team/2026-05-29-skill-close-session-properly.md`
 
 ## Next steps
-Prochaines améliorations potentielles avant nouvelle feature: (1) `compactSummary` dans get-briefing.ts prend juste le premier titre — trivial, peu utile; (2) `mem_distill` utilise keyword-only clustering sans sémantique — faux clusters sur courtes mémoires; (3) guard explicite dans CLI tests qui exige le dist pré-buildé.
+Les 3 skills ne s'affichent que si le score sémantique est suffisant. Pour maximiser leur visibilité: (1) tester que les skills apparaissent bien dans get_briefing pour des tâches de codage typiques, (2) éventuellement ajouter des tags ou anchor symbols pour améliorer le recall.
