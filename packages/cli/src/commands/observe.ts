@@ -34,6 +34,8 @@ interface Observation {
   tool: string;
   summary: string;
   files?: string[];
+  /** True when the tool response signals a failure — candidate for mem_tried. */
+  failure_hint?: true;
 }
 
 function truncate(s: unknown, max = TRUNCATE_FIELD): string {
@@ -93,6 +95,44 @@ async function readStdin(maxBytes: number): Promise<string> {
   });
 }
 
+/**
+ * Detect whether the tool response signals a failure worth capturing as mem_tried.
+ * Checks exit codes for Bash and error patterns in all tool responses.
+ * Best-effort — false negatives are acceptable; false positives create noise.
+ */
+function detectFailure(payload: HookPayload): boolean {
+  const response = payload.tool_response;
+  if (!response) return false;
+
+  const responseText = typeof response === "string" ? response : JSON.stringify(response);
+
+  // Bash: non-zero exit code is the clearest failure signal
+  if (payload.tool_name === "Bash") {
+    if (typeof response === "object") {
+      const code = (response as Record<string, unknown>)["exit_code"] ??
+                   (response as Record<string, unknown>)["exitCode"];
+      if (typeof code === "number" && code !== 0) return true;
+    }
+    // Text patterns that reliably indicate a hard failure in Bash output
+    if (/\b(command not found|No such file or directory|ERR_MODULE_NOT_FOUND|ENOENT|EACCES)\b/.test(responseText)) return true;
+    if (/\berror TS\d+:/i.test(responseText)) return true; // TypeScript compile error
+  }
+
+  // Edit/Write/Read: tool-level error (file not found, permission denied)
+  if (["Edit", "Write", "Read"].includes(payload.tool_name ?? "")) {
+    if (typeof response === "object") {
+      const err = (response as Record<string, unknown>)["error"] ??
+                  (response as Record<string, unknown>)["message"];
+      if (typeof err === "string" && err.length > 0) return true;
+    }
+  }
+
+  // Generic: error messages that suggest something went wrong
+  if (/^\s*(Error|FAILED|ENOENT|EACCES|unknown option|Cannot find module)\b/m.test(responseText)) return true;
+
+  return false;
+}
+
 export function registerObserve(program: Command): void {
   program
     .command("observe")
@@ -123,6 +163,7 @@ export function registerObserve(program: Command): void {
         const paths = resolveHaivePaths(root);
         if (!existsSync(paths.haiveDir)) return; // not a haive project
 
+        const failureHint = detectFailure(payload);
         const observation: Observation = {
           ts: new Date().toISOString(),
           session_id: payload.session_id,
@@ -130,6 +171,7 @@ export function registerObserve(program: Command): void {
           tool: payload.tool_name ?? "?",
           summary: buildSummary(payload),
           files: extractFiles(payload),
+          ...(failureHint ? { failure_hint: true as const } : {}),
         };
 
         const cacheDir = path.join(paths.haiveDir, ".cache");

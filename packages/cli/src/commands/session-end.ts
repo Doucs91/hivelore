@@ -41,6 +41,7 @@ interface Observation {
   tool: string;
   summary: string;
   files?: string[];
+  failure_hint?: true;
 }
 
 async function buildAutoRecap(
@@ -80,9 +81,20 @@ async function buildAutoRecap(
     ? `Recent activity:\n${summaries.join("\n")}`
     : `Activity captured but no parseable summaries.`;
 
+  // Surface failed observations as mem_tried candidates so the agent doesn't miss them
+  const failures = obs.filter((o) => o.failure_hint);
+  const discoveriesParts: string[] = [];
+  if (failures.length > 0) {
+    discoveriesParts.push(
+      `⚠️ ${failures.length} failure${failures.length === 1 ? "" : "s"} detected — call \`mem_tried\` for each unresolved one:`,
+      ...failures.slice(0, 8).map((o) => `- ${o.summary.slice(0, 180)}`),
+    );
+  }
+
   return {
     goal,
     accomplished,
+    ...(discoveriesParts.length > 0 ? { discoveries: discoveriesParts.join("\n") } : {}),
     files: topFiles.map(([f]) => f),
     rawCount: obs.length,
   };

@@ -48,3 +48,7 @@
 {"tool":"get_briefing","at":"2026-05-29T19:13:44.626Z","summary":"Créer les commits et le tag de release pour les correctifs d'autopilot/indexing/precommit déjà implémentés, puis bumper hAIve de 0.9.23 vers 0.9.24."}
 {"tool":"get_briefing","at":"2026-05-29T19:27:22.793Z","summary":"Implémenter les 6 améliorations pour rendre hAIve plus naturel: briefing automatique, rappels pre-tool-use ciblés, moins de bruit, auto-réparation légère, meilleure boucle session-end, et gates pédagogiques dans les commandes existantes."}
 {"tool":"mem_session_end","at":"2026-05-29T19:34:10.331Z","summary":"Implémenter les six améliorations qui rendent hAIve plus naturel pour les agents"}
+{"tool":"get_briefing","at":"2026-05-29T19:41:49.101Z","summary":"Analyser les nouveaux changements pour rendre hAIve naturel pour les agents, puis implémenter des améliorations supplémentaires"}
+{"tool":"mem_save","at":"2026-05-29T19:47:24.569Z","summary":"capture-failed-approach-immediately"}
+{"tool":"mem_save","at":"2026-05-29T19:47:35.407Z","summary":"save-decision-or-gotcha-mid-task"}
+{"tool":"mem_save","at":"2026-05-29T19:47:47.893Z","summary":"close-session-properly"}

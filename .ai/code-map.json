@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "generated_at": "2026-05-29T19:32:51.742Z",
-  "root": "/home/sd/Documents/Dev/New idea",
+  "generated_at": "2026-05-29T19:50:54.951Z",
+  "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
       "exports": [
@@ -564,10 +564,10 @@
         {
           "name": "registerObserve",
           "kind": "function",
-          "line": 96
+          "line": 136
         }
       ],
-      "loc": 147
+      "loc": 189
     },
     "packages/cli/src/commands/playback.ts": {
       "exports": [
@@ -625,10 +625,10 @@
         {
           "name": "registerSessionEnd",
           "kind": "function",
-          "line": 165
+          "line": 177
         }
       ],
-      "loc": 309
+      "loc": 321
     },
     "packages/cli/src/commands/snapshot.ts": {
       "summary": "haive snapshot — take or compare an API contract snapshot.",

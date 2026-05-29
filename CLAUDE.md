@@ -19,6 +19,22 @@ Do **not** treat these as nice-to-have: they are **default-required** for coding
 ### Session rules
 - **Immediately** when an approach fails (wrong API, wrong pattern, wrong assumption), call `mem_tried` — do not wait until the end of the session.
 
+### Behavioral triggers — exact situations requiring immediate hAIve action
+
+These are non-negotiable. Each row is a **concrete situation** mapped to a **specific tool call** that must happen **in the same response**, not at the end of the session.
+
+| Situation | Required action | Tool |
+|-----------|----------------|------|
+| CLI option or API that does not exist | Document before fixing | `mem_tried` |
+| Test fails because of a wrong assumption | Document the assumption | `mem_tried` |
+| Approach took >15 min and had to be redone | Document what failed | `mem_tried` |
+| Choosing A over B for a non-obvious reason | Capture the rationale | `mem_save type=decision` |
+| Discovering surprising library/framework behavior | Capture the trap | `mem_save type=gotcha` |
+| Inventing a pattern used more than once | Capture the convention | `mem_save type=convention` |
+| Completing a task >30 min or >5 files changed | Close with full recap | `mem_session_end` with `discoveries` filled |
+
+**The `discoveries` field in `mem_session_end` is mandatory** — leave it empty only when nothing was surprising. If you cannot think of anything to put there, re-read the session mentally: every `mem_tried` call this session is a discovery candidate.
+
 ### Safety rules — NEVER violate these
 - If `get_briefing` returns an `action_required` list, **stop and show each item to the developer** before doing anything. Use the exact `developer_message` provided. Wait for explicit confirmation.
 - **Never modify code autonomously** because of a breaking change detected in another project (dependency version bump, API contract change, removed field). Always ask first.
