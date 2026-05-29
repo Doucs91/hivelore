@@ -6,6 +6,12 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+### Fixed
+- `haive index code` now includes untracked source files that are not ignored by git, so fresh or in-progress repos get useful code-map and code-search indexes before the first commit.
+- `haive precommit --json` now emits valid JSON even when no files are staged.
+- `haive memory add` in autopilot mode now refreshes the memory embeddings index immediately after creating or updating a record.
+- `haive doctor --fix` now forces a code-map refresh when repairing autopilot indexes, while avoiding rewrites when the indexed file set is unchanged.
+
 ## [0.9.23] — cleanup and precommit signal polish
 
 ### Fixed

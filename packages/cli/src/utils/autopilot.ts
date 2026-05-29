@@ -220,11 +220,11 @@ async function refreshCodeMap(
   paths: HaivePaths,
   force: boolean,
 ): Promise<boolean> {
-  if (!force) {
-    const existing = await loadCodeMap(paths);
-    if (existing) return false;
-  }
+  const existing = await loadCodeMap(paths);
+  if (existing && !force) return false;
+
   const map = await buildCodeMap(root, {
+    includeUntracked: true,
     excludeDirs: [
       "node_modules",
       "dist",
@@ -237,6 +237,13 @@ async function refreshCodeMap(
       "coverage",
     ],
   });
+  if (
+    existing &&
+    existing.root === map.root &&
+    JSON.stringify(existing.files) === JSON.stringify(map.files)
+  ) {
+    return false;
+  }
   await saveCodeMap(paths, map);
   return true;
 }

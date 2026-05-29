@@ -95,7 +95,7 @@ const SECRET = 42;
     expect(Object.keys(map.files)).toEqual(["src/math.ts"]);
   });
 
-  it("uses tracked git files when available and skips ignored worktrees", async () => {
+  it("uses tracked git files by default and skips untracked worktrees", async () => {
     await exec("git", ["init"], { cwd: workDir });
     await writeFile(path.join(workDir, ".gitignore"), "sandbox/\n", "utf8");
     await mkdir(path.join(workDir, "sandbox"), { recursive: true });
@@ -104,11 +104,37 @@ const SECRET = 42;
       `export const IGNORED = true;`,
       "utf8",
     );
+    await writeFile(
+      path.join(workDir, "src", "draft.ts"),
+      `export function draftFeature() { return true; }`,
+      "utf8",
+    );
     await exec("git", ["add", ".gitignore", "src/math.ts"], { cwd: workDir });
 
     const map = await buildCodeMap(workDir);
 
     expect(Object.keys(map.files)).toEqual(["src/math.ts"]);
+  });
+
+  it("can include untracked git files without indexing ignored files", async () => {
+    await exec("git", ["init"], { cwd: workDir });
+    await writeFile(path.join(workDir, ".gitignore"), "sandbox/\n", "utf8");
+    await mkdir(path.join(workDir, "sandbox"), { recursive: true });
+    await writeFile(
+      path.join(workDir, "sandbox", "ignored.ts"),
+      `export const IGNORED = true;`,
+      "utf8",
+    );
+    await writeFile(
+      path.join(workDir, "src", "draft.ts"),
+      `export function draftFeature() { return true; }`,
+      "utf8",
+    );
+    await exec("git", ["add", ".gitignore", "src/math.ts"], { cwd: workDir });
+
+    const map = await buildCodeMap(workDir, { includeUntracked: true });
+
+    expect(Object.keys(map.files)).toEqual(["src/draft.ts", "src/math.ts"]);
   });
 });
 

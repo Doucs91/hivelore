@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-05-29T05:47:24.370Z",
+  "generated_at": "2026-05-29T12:44:14.685Z",
   "root": "/home/sd/Documents/Dev/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -113,7 +113,7 @@
           "line": 65
         }
       ],
-      "loc": 845
+      "loc": 846
     },
     "packages/cli/src/commands/embeddings.ts": {
       "exports": [
@@ -159,7 +159,7 @@
           "line": 17
         }
       ],
-      "loc": 117
+      "loc": 118
     },
     "packages/cli/src/commands/init-bootstrap.ts": {
       "summary": "Bootstrap: auto-generate .ai/project-context.md from local filesystem signals.",
@@ -269,10 +269,10 @@
         {
           "name": "registerMemoryAdd",
           "kind": "function",
-          "line": 39
+          "line": 40
         }
       ],
-      "loc": 294
+      "loc": 315
     },
     "packages/cli/src/commands/memory-approve.ts": {
       "exports": [
@@ -587,7 +587,7 @@
           "line": 18
         }
       ],
-      "loc": 180
+      "loc": 198
     },
     "packages/cli/src/commands/resolve-project.ts": {
       "exports": [
@@ -730,7 +730,7 @@
           "line": 187
         }
       ],
-      "loc": 268
+      "loc": 275
     },
     "packages/cli/src/utils/briefing-radar.ts": {
       "exports": [
@@ -923,15 +923,15 @@
         {
           "name": "CodeMapQueryOptions",
           "kind": "interface",
-          "line": 454
+          "line": 456
         },
         {
           "name": "queryCodeMap",
           "kind": "function",
-          "line": 459
+          "line": 461
         }
       ],
-      "loc": 475
+      "loc": 477
     },
     "packages/core/src/confidence.ts": {
       "exports": [

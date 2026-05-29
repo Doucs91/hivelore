@@ -16,6 +16,7 @@ import {
   type MemoryScope,
   type MemoryType,
 } from "@hiveai/core";
+import { applyAutopilotRepairs } from "../utils/autopilot.js";
 import { ui } from "../utils/ui.js";
 
 interface AddOptions {
@@ -163,6 +164,7 @@ export function registerMemoryAdd(memory: Command): void {
           await writeFile(topicMatch.filePath, serializeMemory({ frontmatter: newFrontmatter, body }), "utf8");
           ui.success(`Updated (topic upsert) ${path.relative(root, topicMatch.filePath)}`);
           ui.info(`id=${fm.id}  revision=${revisionCount}`);
+          await runPostMemoryAutopilot(root, paths, config);
           return;
         }
       }
@@ -211,6 +213,7 @@ export function registerMemoryAdd(memory: Command): void {
       await writeFile(file, serializeMemory({ frontmatter, body }), "utf8");
       ui.success(`Created ${path.relative(root, file)}`);
       ui.info(`id=${frontmatter.id}  scope=${frontmatter.scope}  status=${frontmatter.status}`);
+      await runPostMemoryAutopilot(root, paths, config);
       if (inferredTags.length > 0) {
         ui.info(`auto-tagged: ${inferredTags.join(", ")}  (use --no-auto-tag to disable)`);
       }
@@ -241,6 +244,24 @@ export function registerMemoryAdd(memory: Command): void {
         );
       }
     });
+}
+
+async function runPostMemoryAutopilot(
+  root: string,
+  paths: ReturnType<typeof resolveHaivePaths>,
+  config: Awaited<ReturnType<typeof loadConfig>>,
+): Promise<void> {
+  if (!config.autopilot && config.autoRepair?.corpus !== true) return;
+  const repairs = await applyAutopilotRepairs(root, paths, {
+    applyConfig: false,
+    applyContext: false,
+    applyCorpus: true,
+    applyCodeMap: false,
+    applyCodeSearch: false,
+  });
+  for (const repair of repairs) {
+    ui.info(repair.message);
+  }
 }
 
 function parseCsv(value: string | undefined): string[] {

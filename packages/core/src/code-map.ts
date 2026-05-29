@@ -38,7 +38,7 @@ export interface CodeMap {
 export interface BuildCodeMapOptions {
   includeExtensions?: string[];
   excludeDirs?: string[];
-  /** Include untracked/gitignored files. Default: false when the root is a git repo. */
+  /** Include untracked files that are not ignored by git. Default: false when the root is a git repo. */
   includeUntracked?: boolean;
 }
 
@@ -122,23 +122,25 @@ async function* collectSourceFiles(
   exclude: Set<string>,
   includeUntracked: boolean | undefined,
 ): AsyncGenerator<string> {
-  if (!includeUntracked) {
-    const tracked = gitTrackedSourceFiles(root, include, exclude);
-    if (tracked) {
-      for (const rel of tracked) yield path.join(root, rel);
-      return;
-    }
+  const gitFiles = gitSourceFiles(root, include, exclude, includeUntracked === true);
+  if (gitFiles) {
+    for (const rel of gitFiles) yield path.join(root, rel);
+    return;
   }
 
   yield* walkSourceFiles(root, include, exclude);
 }
 
-function gitTrackedSourceFiles(
+function gitSourceFiles(
   root: string,
   include: Set<string>,
   exclude: Set<string>,
+  includeUntracked: boolean,
 ): string[] | null {
-  const result = spawnSync("git", ["ls-files"], {
+  const args = includeUntracked
+    ? ["ls-files", "--cached", "--others", "--exclude-standard"]
+    : ["ls-files", "--cached"];
+  const result = spawnSync("git", args, {
     cwd: root,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
@@ -151,20 +153,6 @@ function gitTrackedSourceFiles(
     .filter(Boolean)
     .filter((rel) => isIncludedSourcePath(rel, include, exclude))
     .sort();
-}
-
-function isIncludedSourcePath(
-  rel: string,
-  include: Set<string>,
-  exclude: Set<string>,
-): boolean {
-  const normalized = rel.replace(/\\/g, "/");
-  if (normalized.startsWith(".ai/")) return false;
-  const parts = normalized.split("/");
-  if (parts.some((part) => exclude.has(part))) return false;
-  const base = parts.at(-1) ?? "";
-  const ext = path.extname(base).toLowerCase();
-  return include.has(ext) && !TEST_FILE_RE.test(base);
 }
 
 async function* walkSourceFiles(
@@ -192,6 +180,20 @@ async function* walkSourceFiles(
       if (include.has(ext) && !TEST_FILE_RE.test(entry.name)) yield full;
     }
   }
+}
+
+function isIncludedSourcePath(
+  rel: string,
+  include: Set<string>,
+  exclude: Set<string>,
+): boolean {
+  const normalized = rel.replace(/\\/g, "/");
+  if (normalized.startsWith(".ai/")) return false;
+  const parts = normalized.split("/");
+  if (parts.some((part) => exclude.has(part))) return false;
+  const base = parts.at(-1) ?? "";
+  const ext = path.extname(base).toLowerCase();
+  return include.has(ext) && !TEST_FILE_RE.test(base);
 }
 
 const EXPORT_RE =

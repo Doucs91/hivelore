@@ -194,6 +194,7 @@ describe("hAIve CLI integration", () => {
     expect(content).toContain("scope: team");
     expect(content).toContain("status: validated");
     expect(content).toContain("Always use pnpm in this project.");
+    expect(existsSync(path.join(workDir, ".ai/.cache/embeddings/embeddings-index.json"))).toBe(true);
   });
 
   it("memory list returns the added memory", async () => {
@@ -366,6 +367,30 @@ describe("hAIve CLI integration", () => {
     const report = JSON.parse(stdout) as { should_block: boolean; findings: Array<{ code: string }> };
     expect(report.should_block).toBe(false);
     expect(report.findings.some((f) => f.code === "briefing-loaded")).toBe(true);
+  });
+
+  it("precommit --json stays machine-readable when no files are staged", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-precommit-json-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
+
+      const { stdout, stderr } = await run(repo, ["precommit", "--json", "--dir", repo]);
+      const report = JSON.parse(stdout) as {
+        should_block: boolean;
+        summary: { anti_patterns: number; relevant_memories: number; stale_anchors: number };
+        notice?: string;
+      };
+
+      expect(stderr).toBe("");
+      expect(report.should_block).toBe(false);
+      expect(report.summary.anti_patterns).toBe(0);
+      expect(report.summary.relevant_memories).toBe(0);
+      expect(report.summary.stale_anchors).toBe(0);
+      expect(report.notice).toContain("No staged changes");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
   });
 
   it("CI enforcement warns but does not block when only session recap is missing", async () => {

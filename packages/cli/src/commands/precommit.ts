@@ -49,6 +49,24 @@ export function registerPrecommit(program: Command): void {
         try {
           diff = await runCommand("git", ["diff", "--cached"], root);
           if (!diff.trim()) {
+            if (opts.json) {
+              console.log(JSON.stringify({
+                should_block: false,
+                summary: {
+                  anti_patterns: 0,
+                  blocking_warnings: 0,
+                  review_warnings: 0,
+                  info_warnings: 0,
+                  relevant_memories: 0,
+                  stale_anchors: 0,
+                },
+                warnings: [],
+                relevant_memories: [],
+                stale_anchors: [],
+                notice: "No staged changes — nothing to check.",
+              }, null, 2));
+              return;
+            }
             ui.warn("No staged changes — nothing to check. Stage with `git add` first.");
             return;
           }

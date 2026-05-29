@@ -375,7 +375,7 @@ export function registerInit(program: Command): void {
         // Build initial code-map
         try {
           ui.info("Building code-map…");
-          const map = await buildCodeMap(root);
+          const map = await buildCodeMap(root, { includeUntracked: true });
           await saveCodeMap(paths, map);
           ui.success(`Code-map built (${Object.keys(map.files).length} files)`);
         } catch {

@@ -52,6 +52,7 @@ export function registerIndexCode(program: Command): void {
 
       ui.info(`Indexing source files in ${root}…`);
       const map = await buildCodeMap(root, {
+        includeUntracked: true,
         excludeDirs: [
           "node_modules",
           "dist",

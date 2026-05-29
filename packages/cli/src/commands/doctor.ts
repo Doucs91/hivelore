@@ -101,6 +101,7 @@ export function registerDoctor(program: Command): void {
             applyCorpus: true,
             applyCodeMap: true,
             applyCodeSearch: true,
+            forceCodeMap: true,
           }),
         );
       }
