@@ -34,3 +34,9 @@ benchmarks/agent-benchmark/**/OFFICIAL_REPORT.md
 # SonarQube MCP (secrets + certificats locaux)
 sonar-mcp.local.env
 sonar-mcp-ca/
+# hAIve project-level MCP configs (machine-specific absolute paths)
+.ai/.cache/*
+!.ai/.cache/.gitignore
+.ai/.runtime/*
+!.ai/.runtime/.gitignore
+!.ai/.runtime/README.md

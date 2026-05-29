@@ -14,3 +14,25 @@
 {"tool":"mem_save","at":"2026-05-04T01:05:44.992Z","summary":"pattern-detect-slug-collision-same-filename"}
 {"tool":"mem_save","at":"2026-05-04T01:05:52.260Z","summary":"mem-save-scope-overridden-by-defaultscope"}
 {"tool":"mem_save","at":"2026-05-04T01:06:01.093Z","summary":"auto-promote-ignores-config-minreads"}
+{"tool":"get_briefing","at":"2026-05-28T03:46:06.283Z","summary":"Assess hAIve honestly: what it currently does but does poorly, where defects remain, where implementation or UX falls short of the repo-native context enforcement positioning."}
+{"tool":"get_briefing","at":"2026-05-28T03:56:26.430Z","summary":"Analyser le projet en détail pour comprendre son architecture, sa stack, ses points d’entrée et ses conventions avant toute modification."}
+{"tool":"get_briefing","at":"2026-05-28T05:24:07.723Z","summary":"Implémenter les améliorations produit identifiées pour hAIve: diagnostics d'installation multi-agent, réduction du bruit pre-commit, explications de briefing, qualité du corpus, anchors plus intelligents et recaps plus naturels."}
+{"tool":"mem_session_end","at":"2026-05-28T05:32:05.050Z","summary":"Implémenter les améliorations produit demandées pour rapprocher hAIve d'un vrai "}
+{"tool":"get_briefing","at":"2026-05-28T15:49:49.012Z","summary":"Analyser hAIve en profondeur pour identifier ce qui existe déjà mais n'est pas parfait, ce qui dilue le produit, et ce qui devrait être retiré ou caché pour simplifier l'outil autour du repo-native context enforcement."}
+{"tool":"get_briefing","at":"2026-05-28T15:57:42.813Z","summary":"Simplify hAIve around repo-native context enforcement by hiding or grouping non-core commands/tools, clarifying core/advanced/experimental profiles, and improving CLI discoverability without deleting useful internals."}
+{"tool":"get_briefing","at":"2026-05-28T16:09:58.492Z","summary":"Analyser en détail le projet Haive pour comprendre ce que l'outil fait actuellement et identifier les améliorations à fort impact pour en faire un outil vraiment excellent."}
+{"tool":"get_briefing","at":"2026-05-28T16:29:22.442Z","summary":"Implémenter le plan hAIve 0.9.17: améliorer get_briefing avec priorité et qualité, ajouter lint --fix, rendre enforcement plus explicable et chirurgical, restructurer doctor, puis bump versions/changelog/tests/commit/tag."}
+{"tool":"get_briefing","at":"2026-05-28T21:31:27.273Z","summary":"Implement self-maintaining autopilot mode for hAIve: make initialized projects operate without human maintenance by default, auto-fix safe corpus issues, keep project context/version/indexes synchronized, and surface/repair missing optional semantic search setup where possible."}
+{"tool":"get_briefing","at":"2026-05-28T21:36:16.907Z","summary":"Finish implementing hAIve self-maintaining autopilot mode: make auto-repair safe, update tests/docs/version, validate with build/test/typecheck and hAIve checks."}
+{"tool":"mem_save","at":"2026-05-28T21:47:09.966Z","summary":"codemap-tracked-files-by-default"}
+{"tool":"mem_session_end","at":"2026-05-28T21:48:16.015Z","summary":"Implement self-maintaining autopilot mode so hAIve can configure, repair, index,"}
+{"tool":"get_briefing","at":"2026-05-28T21:57:36.300Z","summary":"Analyser hAIve installé globalement et le projet local en détail pour identifier ce que l'outil fait actuellement, ses forces, ses défauts et ce qui n'est pas encore parfait. Aucun changement de code prévu dans cette passe."}
+{"tool":"get_briefing","at":"2026-05-28T22:05:19.131Z","summary":"Analyze and fix hAIve 0.9.18 gaps reported by another agent, especially global embeddings availability, doctor diagnostics, memory suggest autopilot alignment, and MCP code_search surface."}
+{"tool":"mem_save","at":"2026-05-28T22:13:25.007Z","summary":"ship-embeddings-with-cli-mcp"}
+{"tool":"mem_session_end","at":"2026-05-28T22:14:20.922Z","summary":"Analyze and fix the post-0.9.18 audit findings, especially missing global embedd"}
+{"tool":"get_briefing","at":"2026-05-28T22:31:07.131Z","summary":"Analyse approfondie du projet hAIve : ce qu'il fait, ce qui peut être amélioré, et évaluation du positionnement produit"}
+{"tool":"get_briefing","at":"2026-05-28T23:36:42.605Z","summary":"Release 0.9.20: skill memory type, harness coverage score in doctor, harness engineering vocabulary"}
+{"tool":"get_briefing","at":"2026-05-29T01:01:47.464Z","summary":"Redesign the VS Code extension v0.5.0 — added Harness Health view, skill type, search, briefing panel, sync/tried/approve commands, pending review group"}
+{"tool":"get_briefing","at":"2026-05-29T03:09:06.948Z","summary":"Deep analysis and audit of hAIve — run tests, evaluate quality of every feature, identify what's not yet production-ready"}
+{"tool":"mem_tried","at":"2026-05-29T03:32:47.973Z","summary":"asserting `warning.level === \"info\"` pour un anchor-only match sans diff littéra"}
+{"tool":"mem_session_end","at":"2026-05-29T03:33:10.436Z","summary":"Analyse complète de hAIve après pull des changements d'un autre agent, puis impl"}

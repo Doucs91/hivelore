@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "generated_at": "2026-05-29T03:04:42.724Z",
-  "root": "/home/sd/Documents/Dev/New idea",
+  "generated_at": "2026-05-29T03:19:28.243Z",
+  "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
       "exports": [
@@ -100,20 +100,20 @@
         {
           "name": "registerBriefing",
           "kind": "function",
-          "line": 105
+          "line": 107
         }
       ],
-      "loc": 482
+      "loc": 490
     },
     "packages/cli/src/commands/doctor.ts": {
       "exports": [
         {
           "name": "registerDoctor",
           "kind": "function",
-          "line": 64
+          "line": 65
         }
       ],
-      "loc": 741
+      "loc": 845
     },
     "packages/cli/src/commands/embeddings.ts": {
       "exports": [
@@ -135,10 +135,10 @@
         {
           "name": "runWithEnforcement",
           "kind": "function",
-          "line": 297
+          "line": 303
         }
       ],
-      "loc": 995
+      "loc": 1043
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -170,7 +170,7 @@
           "line": 254
         }
       ],
-      "loc": 355
+      "loc": 356
     },
     "packages/cli/src/commands/init-mcp-setup.ts": {
       "summary": "Auto-configure haive-mcp in supported AI clients.",
@@ -239,10 +239,10 @@
         {
           "name": "registerInit",
           "kind": "function",
-          "line": 216
+          "line": 217
         }
       ],
-      "loc": 556
+      "loc": 584
     },
     "packages/cli/src/commands/install-hooks.ts": {
       "exports": [
@@ -272,7 +272,7 @@
           "line": 39
         }
       ],
-      "loc": 252
+      "loc": 294
     },
     "packages/cli/src/commands/memory-approve.ts": {
       "exports": [
@@ -408,10 +408,10 @@
         {
           "name": "registerMemoryLint",
           "kind": "function",
-          "line": 354
+          "line": 358
         }
       ],
-      "loc": 426
+      "loc": 430
     },
     "packages/cli/src/commands/memory-list.ts": {
       "exports": [
@@ -697,40 +697,40 @@
         {
           "name": "AutopilotRepair",
           "kind": "interface",
-          "line": 16
+          "line": 17
         },
         {
           "name": "AutopilotRepairOptions",
           "kind": "interface",
-          "line": 21
+          "line": 22
         },
         {
           "name": "ProjectContextVersionStatus",
           "kind": "interface",
-          "line": 30
+          "line": 31
         },
         {
           "name": "applyAutopilotRepairs",
           "kind": "function",
-          "line": 37
+          "line": 38
         },
         {
           "name": "ensureAutopilotConfig",
           "kind": "function",
-          "line": 102
+          "line": 111
         },
         {
           "name": "syncProjectContextVersion",
           "kind": "function",
-          "line": 141
+          "line": 150
         },
         {
           "name": "projectContextVersionStatus",
           "kind": "function",
-          "line": 171
+          "line": 187
         }
       ],
-      "loc": 238
+      "loc": 268
     },
     "packages/cli/src/utils/briefing-radar.ts": {
       "exports": [
@@ -2503,14 +2503,9 @@
           "name": "getBriefing",
           "kind": "function",
           "line": 210
-        },
-        {
-          "name": "estimateTokens",
-          "kind": "const",
-          "line": 1037
         }
       ],
-      "loc": 1038
+      "loc": 1035
     },
     "packages/mcp/src/tools/get-project-context.ts": {
       "exports": [

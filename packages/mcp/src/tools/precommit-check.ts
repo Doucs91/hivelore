@@ -161,14 +161,21 @@ export async function preCommitCheck(
     },
     warnings: classifiedWarnings,
     relevant_memories,
-    stale_anchors: staleHits.map((r) => ({
-      id: r.id,
-      // The matching `relevantMatches` entry tells us which paths overlap.
-      paths: relevantMatches.find((m) => m.id === r.id)
-        ? input.paths.filter((p) => relevantMatches.some((m) => m.id === r.id))
-        : [],
-      body_preview: r.reason ?? "anchored code drifted; verify before relying on this memory",
-    })),
+    stale_anchors: staleHits.map((r) => {
+      const match = relevantMatches.find((m) => m.id === r.id);
+      // Intersect the stale memory's anchor paths with the paths the caller provided
+      // so the output lists only the touched files that are actually anchored to this memory.
+      const overlapping = match
+        ? input.paths.filter((p) =>
+            match.anchor_paths.some((ap) => ap === p || p.startsWith(ap + "/") || ap.startsWith(p + "/")),
+          )
+        : [];
+      return {
+        id: r.id,
+        paths: overlapping.length > 0 ? overlapping : (match ? input.paths : []),
+        body_preview: r.reason ?? "anchored code drifted; verify before relying on this memory",
+      };
+    }),
   };
 }
 
@@ -254,8 +261,11 @@ function fileTypeDowngradeReason(
   }
 
   const configOnly = paths.every(isPackageOrConfigPath);
-  if (configOnly && looksRuntimeSpecific(warning) && !warning.reasons.includes("anchor") && !hasStrongSemantic(warning)) {
-    return "package/config-only change; runtime-specific gotcha is not anchored or semantically strong.";
+  // Any non-anchored, non-strongly-semantic warning is suppressed on config/workflow-only commits.
+  // Gotchas that happen to share tokens with config file names (npm, install, package.json,
+  // haive init, workspace:*) would otherwise fire on every dependency bump or workflow change.
+  if (configOnly && !warning.reasons.includes("anchor") && !hasStrongSemantic(warning)) {
+    return "package/config-only change; warning has no anchor on these files and no strong semantic match — downgraded to info.";
   }
 
   return null;

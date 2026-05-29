@@ -44,6 +44,8 @@ export interface MemMatch {
   confidence: ConfidenceLevel;
   read_count: number;
   reason: "anchor_overlap" | "module" | "domain";
+  /** Anchor paths recorded in the memory frontmatter — used by pre_commit_check to scope stale warnings. */
+  anchor_paths: string[];
   file_path: string;
   body: string;
 }
@@ -149,6 +151,7 @@ function toMatch(
     confidence: deriveConfidence(fm, u),
     read_count: u.read_count,
     reason,
+    anchor_paths: fm.anchor.paths,
     file_path: loaded.filePath,
     body: loaded.memory.body,
   };
