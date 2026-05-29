@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resolveHaivePaths } from "@hiveai/core";
 import type { HaiveContext } from "../src/context.js";
 import { antiPatternsCheck } from "../src/tools/anti-patterns-check.js";
-import { preCommitCheck } from "../src/tools/precommit-check.js";
+import { classifyAntiPatternWarningForTest, preCommitCheck } from "../src/tools/precommit-check.js";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -380,5 +380,50 @@ describe("preCommitCheck", () => {
       (result.summary.review_warnings ?? 0) +
       (result.summary.info_warnings ?? 0);
     expect(totalInWarnings).toBe(result.warnings.length);
+  });
+
+  it("does not block on generic unanchored semantic matches below the stricter threshold", () => {
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-attempt-generic-test-note",
+      type: "attempt",
+      scope: "team",
+      confidence: "trusted",
+      body_preview: "A historical test methodology note with broadly similar wording.",
+      reasons: ["literal", "semantic"],
+      semantic_score: 0.68,
+    }, ["packages/cli/test/cli.test.ts"]);
+
+    expect(warning.level).toBe("review");
+    expect(warning.rationale).toContain("below blocking threshold");
+  });
+
+  it("keeps anchored high-confidence semantic matches below 0.75 in review", () => {
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-anchored-production-risk",
+      type: "gotcha",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "A gotcha anchored to exactly the changed file.",
+      reasons: ["anchor", "semantic"],
+      semantic_score: 0.68,
+    }, ["src/service.ts"]);
+
+    expect(warning.level).toBe("review");
+    expect(warning.rationale).toContain("below blocking threshold");
+  });
+
+  it("can still block very strong high-confidence semantic matches", () => {
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-anchored-production-risk",
+      type: "gotcha",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "A gotcha anchored to exactly the changed file.",
+      reasons: ["anchor", "semantic"],
+      semantic_score: 0.81,
+    }, ["src/service.ts"]);
+
+    expect(warning.level).toBe("blocking");
+    expect(warning.rationale).toContain("0.75");
   });
 });

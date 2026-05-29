@@ -199,7 +199,7 @@ function classifyWarning(warning: AntiPatternsWarning, paths: string[]): Classif
       ...warning,
       level: "blocking",
       rationale:
-        "authoritative/trusted memory plus strong semantic match to the diff (score >= 0.65)",
+        "authoritative/trusted memory plus very strong semantic match to the diff (score >= 0.75)",
       affected_files: affectedFiles,
       repair_command: repairCommand,
     };
@@ -242,8 +242,18 @@ function isBlockingWarning(warning: AntiPatternsWarning): boolean {
 
   // Anchors and lexical matches prove relevance, not violation. A broad diff
   // can touch package files or share common tokens with old gotchas. Require
-  // a semantic corroboration strong enough to indicate the same mistake.
-  return warning.reasons.includes("semantic") && (warning.semantic_score ?? 0) >= 0.65;
+  // a semantic corroboration strong enough to indicate the same mistake. Scores
+  // in the 0.65-0.75 range are still useful review signals, but are too noisy
+  // to block commits reliably even when the memory is anchored to a test file.
+  if (!warning.reasons.includes("semantic")) return false;
+  return (warning.semantic_score ?? 0) >= 0.75;
+}
+
+export function classifyAntiPatternWarningForTest(
+  warning: AntiPatternsWarning,
+  paths: string[],
+): ClassifiedAntiPatternsWarning {
+  return classifyWarning(warning, paths);
 }
 
 function fileTypeDowngradeReason(

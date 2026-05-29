@@ -36,3 +36,9 @@
 {"tool":"get_briefing","at":"2026-05-29T03:09:06.948Z","summary":"Deep analysis and audit of hAIve — run tests, evaluate quality of every feature, identify what's not yet production-ready"}
 {"tool":"mem_tried","at":"2026-05-29T03:32:47.973Z","summary":"asserting `warning.level === \"info\"` pour un anchor-only match sans diff littéra"}
 {"tool":"mem_session_end","at":"2026-05-29T03:33:10.436Z","summary":"Analyse complète de hAIve après pull des changements d'un autre agent, puis impl"}
+{"tool":"get_briefing","at":"2026-05-29T02:25:33.993Z","summary":"Audit hAIve end-to-end after another agent's improvements: test global/local behavior, inspect existing product surface, and report maturity, current imperfections, and quality improvements without adding new commands."}
+{"tool":"get_briefing","at":"2026-05-29T02:34:10.264Z","summary":"Refaire l’audit de validation hAIve après installation de la dernière version globale: versions, tests workspace, doctor/enforce/lint/embeddings/bench et smoke test sur projet neuf."}
+{"tool":"get_briefing","at":"2026-05-29T03:04:37.944Z","summary":"Implémenter les corrections issues de l’audit 0.9.21: init/doctor --fix convergent, cleanup sans casser le briefing, memory add autopilot propre par défaut, alias briefing --format, diagnostics version/couverture plus stricts, nettoyage warnings build/pnpm, puis bump version commit/tag."}
+{"tool":"mem_session_end","at":"2026-05-29T03:14:19.578Z","summary":"Implémenter les corrections de convergence autopilot hAIve 0.9.22 et créer le co"}
+{"tool":"get_briefing","at":"2026-05-29T05:39:20.960Z","summary":"Analyser hAIve après pull d’un autre agent, tester complètement le produit, identifier ce qui reste imparfait dans l’existant et corriger avant de revenir."}
+{"tool":"mem_session_end","at":"2026-05-29T05:49:46.977Z","summary":"Analyser hAIve après un pull externe, tester le produit de fond en comble, ident"}

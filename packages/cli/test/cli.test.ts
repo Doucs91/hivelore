@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -343,6 +343,28 @@ describe("hAIve CLI integration", () => {
     };
     expect(report.should_block).toBe(false);
     expect(report.score.score).toBeGreaterThanOrEqual(report.score.threshold);
+    expect(report.findings.some((f) => f.code === "briefing-loaded")).toBe(true);
+  });
+
+  it("enforce cleanup preserves cache ignores and briefing markers", async () => {
+    await run(workDir, ["briefing", "--task", "cleanup preservation smoke", "--budget", "quick", "--dir", workDir]);
+    const cacheDir = path.join(workDir, ".ai/.cache");
+    const runtimeScratch = path.join(workDir, ".ai/.runtime/scratch");
+    await mkdir(cacheDir, { recursive: true });
+    await mkdir(runtimeScratch, { recursive: true });
+    await writeFile(path.join(cacheDir, "temporary.json"), "{}", "utf8");
+    await writeFile(path.join(runtimeScratch, "temporary.txt"), "scratch", "utf8");
+
+    await run(workDir, ["enforce", "cleanup", "--dir", workDir]);
+
+    expect(existsSync(path.join(cacheDir, ".gitignore"))).toBe(true);
+    expect(existsSync(path.join(cacheDir, "temporary.json"))).toBe(false);
+    expect(existsSync(runtimeScratch)).toBe(false);
+    expect(existsSync(path.join(workDir, ".ai/.runtime/enforcement/briefings/default.json"))).toBe(true);
+
+    const { stdout } = await run(workDir, ["enforce", "status", "--json", "--dir", workDir]);
+    const report = JSON.parse(stdout) as { should_block: boolean; findings: Array<{ code: string }> };
+    expect(report.should_block).toBe(false);
     expect(report.findings.some((f) => f.code === "briefing-loaded")).toBe(true);
   });
 

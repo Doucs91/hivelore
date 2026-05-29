@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "generated_at": "2026-05-29T03:19:28.243Z",
-  "root": "/home/sd/Documents/Dev/haive/New idea",
+  "generated_at": "2026-05-29T05:47:24.370Z",
+  "root": "/home/sd/Documents/Dev/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
       "exports": [
@@ -135,10 +135,10 @@
         {
           "name": "runWithEnforcement",
           "kind": "function",
-          "line": 303
+          "line": 299
         }
       ],
-      "loc": 1043
+      "loc": 1052
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -2740,15 +2740,15 @@
         {
           "name": "MemForFilesOutput",
           "kind": "interface",
-          "line": 51
+          "line": 53
         },
         {
           "name": "memForFiles",
           "kind": "function",
-          "line": 59
+          "line": 61
         }
       ],
-      "loc": 207
+      "loc": 210
     },
     "packages/mcp/src/tools/mem-get.ts": {
       "exports": [
@@ -3199,9 +3199,14 @@
           "kind": "function",
           "description": "One-shot \"should I block this commit?\" check.",
           "line": 92
+        },
+        {
+          "name": "classifyAntiPatternWarningForTest",
+          "kind": "function",
+          "line": 252
         }
       ],
-      "loc": 302
+      "loc": 322
     },
     "packages/mcp/src/tools/runtime-journal-append.ts": {
       "exports": [

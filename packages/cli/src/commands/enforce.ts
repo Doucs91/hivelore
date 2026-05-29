@@ -168,16 +168,12 @@ export function registerEnforce(program: Command): void {
     .action(async (opts: EnforceOptions & { dryRun?: boolean }) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
-      const targets = [
-        path.join(paths.haiveDir, ".cache"),
-      ];
-      for (const target of targets) {
-        if (!existsSync(target)) continue;
-        const rel = path.relative(root, target);
-        if (opts.dryRun) ui.info(`would remove ${rel}`);
+      const cacheDir = path.join(paths.haiveDir, ".cache");
+      if (existsSync(cacheDir)) {
+        if (opts.dryRun) ui.info(`would clean ${path.relative(root, cacheDir)} (preserving .gitignore)`);
         else {
-          await rm(target, { recursive: true, force: true });
-          ui.success(`removed ${rel}`);
+          const removed = await cleanupCacheDir(cacheDir);
+          ui.success(`cleaned ${path.relative(root, cacheDir)}${removed > 0 ? ` (${removed} item${removed === 1 ? "" : "s"} removed)` : ""}`);
         }
       }
       if (existsSync(paths.runtimeDir)) {
@@ -720,6 +716,19 @@ async function cleanupRuntimeDir(runtimeDir: string): Promise<number> {
       "utf8",
     );
   }
+  return removed;
+}
+
+async function cleanupCacheDir(cacheDir: string): Promise<number> {
+  let removed = 0;
+  await mkdir(cacheDir, { recursive: true });
+  const entries = await readdir(cacheDir, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries) {
+    if (entry.name === ".gitignore") continue;
+    await rm(path.join(cacheDir, entry.name), { recursive: true, force: true });
+    removed++;
+  }
+  await writeFile(path.join(cacheDir, ".gitignore"), "*\n!.gitignore\n", "utf8");
   return removed;
 }
 
