@@ -7,6 +7,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 
 export type MemoryType =
+  | "skill"
   | "architecture"
   | "convention"
   | "decision"
@@ -30,6 +31,9 @@ export interface Memory {
   body: string;
   filePath: string;
   createdAt: string;
+  readCount: number;
+  module?: string;
+  domain?: string;
 }
 
 // ── Frontmatter parser (handles the specific hAIve YAML subset) ────────────
@@ -132,6 +136,9 @@ function parseMemoryFile(filePath: string): Memory | null {
     body,
     filePath,
     createdAt: String(fm["created_at"] ?? ""),
+    readCount: Number(fm["read_count"] ?? 0),
+    module: fm["module"] ? String(fm["module"]) : undefined,
+    domain: fm["domain"] ? String(fm["domain"]) : undefined,
   };
 }
 
@@ -197,6 +204,13 @@ export class MemoryStore {
   /** Count of action_required memories. */
   actionRequiredCount(): number {
     return this.memories.filter((m) => m.requiresHumanApproval && m.status !== "rejected").length;
+  }
+
+  /** Count of draft/proposed memories awaiting review. */
+  pendingCount(): number {
+    return this.memories.filter(
+      (m) => (m.status === "draft" || m.status === "proposed") && !m.requiresHumanApproval,
+    ).length;
   }
 
   startWatcher(): void {

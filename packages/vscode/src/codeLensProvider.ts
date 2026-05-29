@@ -1,14 +1,9 @@
-/**
- * CodeLens provider — shows an inline "🧠 N memories" lens at the top of
- * files that have anchored hAIve memories.
- *
- * Clicking the lens opens the hAIve sidebar and filters to that file.
- */
 import * as vscode from "vscode";
 import * as path from "path";
 import type { MemoryStore } from "./memoryReader.js";
 
 const TYPE_ICON: Record<string, string> = {
+  skill: "⚡",
   gotcha: "⚠️",
   architecture: "🏗",
   convention: "📐",
@@ -16,6 +11,9 @@ const TYPE_ICON: Record<string, string> = {
   glossary: "📖",
   attempt: "🔁",
 };
+
+// Skills and gotchas shown before other types in the summary
+const TYPE_ORDER = ["skill", "gotcha", "decision", "architecture", "convention", "glossary", "attempt"];
 
 export class HaiveCodeLensProvider implements vscode.CodeLensProvider {
   private readonly _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
@@ -48,8 +46,12 @@ export class HaiveCodeLensProvider implements vscode.CodeLensProvider {
       return acc;
     }, {});
 
-    const typeSummary = Object.entries(byType)
-      .map(([t, n]) => `${TYPE_ICON[t] ?? "📝"} ${n} ${t}`)
+    // Sort by TYPE_ORDER priority
+    const typeSummary = [
+      ...TYPE_ORDER.filter((t) => byType[t]),
+      ...Object.keys(byType).filter((t) => !TYPE_ORDER.includes(t)),
+    ]
+      .map((t) => `${TYPE_ICON[t] ?? "📝"} ${byType[t]} ${t}`)
       .join(" · ");
 
     const label = actionRequired.length > 0
@@ -65,16 +67,21 @@ export class HaiveCodeLensProvider implements vscode.CodeLensProvider {
       }),
     );
 
-    // ── Per-memory lenses (shown as sub-items) ────────────────────────────
-    for (const m of memories) {
-      const icon = m.requiresHumanApproval
-        ? "⚠️"
-        : (TYPE_ICON[m.type] ?? "📝");
+    // ── Per-memory lenses — skills first, then by type order ──────────────
+    const sorted = [...memories].sort((a, b) => {
+      const ai = TYPE_ORDER.indexOf(a.type);
+      const bi = TYPE_ORDER.indexOf(b.type);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+
+    for (const m of sorted) {
+      const icon = m.requiresHumanApproval ? "⚠️" : (TYPE_ICON[m.type] ?? "📝");
       const shortTitle = m.title.length > 60 ? m.title.slice(0, 57) + "…" : m.title;
+      const staleTag = m.status === "stale" ? " [stale]" : "";
 
       lenses.push(
         new vscode.CodeLens(range, {
-          title: `  ${icon} ${shortTitle}`,
+          title: `  ${icon} ${shortTitle}${staleTag}`,
           command: "haive.openMemory",
           arguments: [m.filePath],
           tooltip: m.body.slice(0, 300).replace(/^#+\s*/gm, "").trim(),

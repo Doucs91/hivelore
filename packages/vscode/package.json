@@ -1,8 +1,8 @@
 {
   "name": "haive-vscode",
-  "displayName": "hAIve — Context Enforcement for AI Agents",
-  "description": "Surface repo decisions, gotchas, and context policy inline so AI agents work with the knowledge your team has already validated.",
-  "version": "0.4.6",
+  "displayName": "hAIve — Agent Harness & Context Enforcement",
+  "description": "Harness engineering for AI coding agents: surface skills, decisions, gotchas, and harness health inline so agents work with the knowledge your team has validated.",
+  "version": "0.5.0",
   "publisher": "hiveai",
   "icon": "media/icon.png",
   "license": "Apache-2.0",
@@ -14,7 +14,7 @@
     "vscode": "^1.85.0"
   },
   "categories": ["Other", "AI", "Programming Languages"],
-  "keywords": ["ai", "enforcement", "policy", "context", "breadcrumbs", "mcp", "cursor", "copilot", "knowledge"],
+  "keywords": ["ai", "enforcement", "policy", "context", "mcp", "harness", "cursor", "copilot", "knowledge", "skills"],
   "activationEvents": [
     "workspaceContains:.ai/memories/**",
     "workspaceContains:.ai/haive.config.json"
@@ -36,7 +36,13 @@
           "id": "haive.memoriesView",
           "name": "Context Policy",
           "icon": "$(book)",
-          "contextualTitle": "Repo context policy"
+          "contextualTitle": "Context records"
+        },
+        {
+          "id": "haive.harnessView",
+          "name": "Harness Health",
+          "icon": "$(pulse)",
+          "contextualTitle": "Harness health scores"
         }
       ]
     },
@@ -44,6 +50,10 @@
       {
         "view": "haive.memoriesView",
         "contents": "No hAIve context records found in this workspace.\n\nRun `haive init` to initialize hAIve in your project.\n[Learn more](https://github.com/Doucs91/hAIve)\n\n[Initialize hAIve](command:haive.init)"
+      },
+      {
+        "view": "haive.harnessView",
+        "contents": "Run a harness health check to see doctor scores.\n\n[Run Health Check](command:haive.runDoctor)"
       }
     ],
     "commands": [
@@ -57,6 +67,11 @@
         "title": "hAIve: Show Memories for This File"
       },
       {
+        "command": "haive.showAllMemories",
+        "title": "hAIve: Show All Memories",
+        "icon": "$(list-unordered)"
+      },
+      {
         "command": "haive.openMemory",
         "title": "hAIve: Open Memory File"
       },
@@ -67,11 +82,51 @@
       },
       {
         "command": "haive.copyMemoryBody",
-        "title": "hAIve: Copy Memory Content"
+        "title": "hAIve: Copy Memory Content",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "haive.searchMemories",
+        "title": "hAIve: Search Memories…",
+        "icon": "$(search)"
+      },
+      {
+        "command": "haive.memTried",
+        "title": "hAIve: Record Failed Attempt…",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "haive.runBriefing",
+        "title": "hAIve: Get Briefing for This File",
+        "icon": "$(book)"
+      },
+      {
+        "command": "haive.runDoctor",
+        "title": "hAIve: Run Health Check",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "haive.syncMemories",
+        "title": "hAIve: Sync Memories",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "haive.approveMemory",
+        "title": "hAIve: Approve Memory",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "haive.rejectMemory",
+        "title": "hAIve: Reject Memory",
+        "icon": "$(trash)"
       },
       {
         "command": "haive.init",
         "title": "hAIve: Initialize in This Workspace"
+      },
+      {
+        "command": "haive.showOutput",
+        "title": "hAIve: Show Output"
       }
     ],
     "menus": {
@@ -82,8 +137,23 @@
           "group": "navigation@1"
         },
         {
+          "command": "haive.searchMemories",
+          "when": "view == haive.memoriesView",
+          "group": "navigation@2"
+        },
+        {
           "command": "haive.refreshMemories",
           "when": "view == haive.memoriesView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "haive.runDoctor",
+          "when": "view == haive.harnessView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "haive.syncMemories",
+          "when": "view == haive.harnessView",
           "group": "navigation@2"
         }
       ],
@@ -91,21 +161,62 @@
         {
           "command": "haive.openMemory",
           "when": "view == haive.memoriesView && viewItem == memory",
-          "group": "inline"
+          "group": "inline@1"
         },
         {
           "command": "haive.copyMemoryBody",
-          "when": "view == haive.memoriesView && viewItem == memory"
+          "when": "view == haive.memoriesView && viewItem == memory",
+          "group": "inline@2"
+        },
+        {
+          "command": "haive.approveMemory",
+          "when": "view == haive.memoriesView && viewItem == memory",
+          "group": "haive@1"
+        },
+        {
+          "command": "haive.rejectMemory",
+          "when": "view == haive.memoriesView && viewItem == memory",
+          "group": "haive@2"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "haive.runBriefing",
+          "when": "resourceScheme == file",
+          "group": "haive"
         }
       ],
       "editor/context": [
         {
           "command": "haive.showMemoriesForFile",
-          "group": "haive",
+          "group": "haive@1",
+          "when": "resourceScheme == file"
+        },
+        {
+          "command": "haive.runBriefing",
+          "group": "haive@2",
+          "when": "resourceScheme == file"
+        },
+        {
+          "command": "haive.memTried",
+          "group": "haive@3",
           "when": "resourceScheme == file"
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "haive.searchMemories",
+        "key": "ctrl+shift+h",
+        "mac": "cmd+shift+h"
+      },
+      {
+        "command": "haive.runBriefing",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b",
+        "when": "editorFocus"
+      }
+    ],
     "configuration": {
       "title": "hAIve",
       "properties": {
@@ -128,6 +239,17 @@
           "type": "boolean",
           "default": true,
           "description": "Highlight files with action_required hAIve context records using a warning decoration."
+        },
+        "haive.cliPath": {
+          "type": "string",
+          "default": "haive",
+          "description": "Path to the haive CLI binary. Use an absolute path if haive is not on PATH (e.g. /usr/local/bin/haive)."
+        },
+        "haive.briefingBudget": {
+          "type": "string",
+          "enum": ["default", "deep", "minimal"],
+          "default": "default",
+          "description": "Token budget for haive briefing. Use 'deep' for a more thorough briefing at the cost of more tokens."
         }
       }
     }

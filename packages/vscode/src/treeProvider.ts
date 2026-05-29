@@ -1,18 +1,3 @@
-/**
- * Tree view provider for the "hAIve Memories" sidebar panel.
- *
- * Tree structure:
- *   ⚠️ Action Required (N)          ← if any requires_human_approval
- *     └─ [memory item]
- *   📁 This File (N)                 ← memories anchored to the active file
- *     └─ [memory item]
- *   🏗 Architecture (N)
- *   📐 Convention (N)
- *   🎯 Decision (N)
- *   ⚠️ Gotcha (N)
- *   📖 Glossary (N)
- *   📝 Other (N)
- */
 import * as vscode from "vscode";
 import * as path from "path";
 import type { Memory, MemoryStore } from "./memoryReader.js";
@@ -20,6 +5,7 @@ import type { Memory, MemoryStore } from "./memoryReader.js";
 // ── Icons ────────────────────────────────────────────────────────────────────
 
 const TYPE_CODICON: Record<string, string> = {
+  skill: "symbol-event",
   architecture: "symbol-class",
   convention: "symbol-ruler",
   decision: "symbol-boolean",
@@ -40,6 +26,7 @@ const STATUS_BADGE: Record<string, string> = {
   draft: " [draft]",
   stale: " [stale]",
   proposed: " [proposed]",
+  deprecated: " [deprecated]",
 };
 
 // ── Tree items ────────────────────────────────────────────────────────────────
@@ -50,8 +37,14 @@ export class GroupItem extends vscode.TreeItem {
     public readonly memories: Memory[],
     public readonly groupKey: string,
     icon?: string,
+    collapsed?: boolean,
   ) {
-    super(label, vscode.TreeItemCollapsibleState.Expanded);
+    super(
+      label,
+      collapsed
+        ? vscode.TreeItemCollapsibleState.Collapsed
+        : vscode.TreeItemCollapsibleState.Expanded,
+    );
     this.contextValue = "group";
     if (icon) this.iconPath = new vscode.ThemeIcon(icon);
     this.description = `${memories.length}`;
@@ -63,15 +56,21 @@ export class MemoryItem extends vscode.TreeItem {
   constructor(public readonly memory: Memory) {
     super(memory.title, vscode.TreeItemCollapsibleState.None);
     this.contextValue = "memory";
-    this.tooltip = new vscode.MarkdownString(
-      `**${memory.type}** · ${memory.scope} · ${memory.status}\n\n` +
-      (memory.tags.length ? `Tags: \`${memory.tags.join("`, `")}\`\n\n` : "") +
-      memory.body.slice(0, 500).trim() +
-      (memory.body.length > 500 ? "\n\n…" : ""),
-    );
-    this.description = `${memory.scope}/${memory.type}${STATUS_BADGE[memory.status] ?? ""}`;
 
-    // Open the memory file on click
+    const statusBadge = STATUS_BADGE[memory.status] ?? ` [${memory.status}]`;
+    this.description = `${memory.scope}${statusBadge}`;
+
+    // Rich tooltip
+    const lines: string[] = [
+      `**${memory.type}** · ${memory.scope} · ${memory.status}`,
+      "",
+    ];
+    if (memory.tags.length) lines.push(`Tags: \`${memory.tags.join("`, `")}\``);
+    if (memory.module) lines.push(`Module: ${memory.module}`);
+    if (memory.readCount > 0) lines.push(`Read ${memory.readCount}×`);
+    lines.push("", memory.body.slice(0, 600).trim() + (memory.body.length > 600 ? "\n\n…" : ""));
+    this.tooltip = new vscode.MarkdownString(lines.join("\n"));
+
     this.command = {
       command: "haive.openMemory",
       title: "Open Memory",
@@ -80,7 +79,10 @@ export class MemoryItem extends vscode.TreeItem {
 
     const iconId = memory.requiresHumanApproval
       ? "warning"
+      : memory.status === "stale"
+      ? "warning"
       : (TYPE_CODICON[memory.type] ?? "note");
+
     this.iconPath = new vscode.ThemeIcon(
       iconId,
       memory.requiresHumanApproval
@@ -110,7 +112,6 @@ export class HaiveTreeProvider
     this._onDidChangeTreeData.fire();
   }
 
-  /** Filter tree to memories anchored to a specific file (relative path). */
   filterToFile(relPath: string | undefined): void {
     this.activeFileFilter = relPath;
     this.refresh();
@@ -132,25 +133,31 @@ export class HaiveTreeProvider
       return element.memories.map((m) => new MemoryItem(m));
     }
 
-    // Root level — build groups
     const all = this.store.getAll();
     if (all.length === 0) return [];
 
     const groups: GroupItem[] = [];
 
-    // ── Action Required (cross-cutting, shown first) ──────────────────────
+    // ── Action Required ────────────────────────────────────────────────────
     const actionRequired = all.filter(
       (m) => m.requiresHumanApproval && m.status !== "rejected",
     );
     if (actionRequired.length > 0) {
-      const g = new GroupItem(
-        "⚠️  Action Required",
-        actionRequired,
-        "action_required",
-        "warning",
-      );
-      g.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
-      groups.push(g);
+      groups.push(new GroupItem("⚠️  Action Required", actionRequired, "action_required", "warning"));
+    }
+
+    // ── Skills (feedforward harness guides — always first after alerts) ────
+    const skills = all.filter((m) => m.type === "skill");
+    if (skills.length > 0) {
+      groups.push(new GroupItem("⚡  Skills", skills, "skill", "symbol-event"));
+    }
+
+    // ── Pending Review (draft / proposed needing attention) ────────────────
+    const pending = all.filter(
+      (m) => (m.status === "draft" || m.status === "proposed") && !m.requiresHumanApproval,
+    );
+    if (pending.length > 0) {
+      groups.push(new GroupItem("🕐  Pending Review", pending, "pending", "circle-outline", true));
     }
 
     // ── This File ──────────────────────────────────────────────────────────
@@ -158,14 +165,14 @@ export class HaiveTreeProvider
     if (fileFilter) {
       const fileMemories = this.store.forFile(fileFilter);
       if (fileMemories.length > 0) {
-        const g = new GroupItem(
-          `📄 This File (${path.basename(fileFilter)})`,
-          fileMemories,
-          "file",
-          "file-code",
+        groups.push(
+          new GroupItem(
+            `📄 This File (${path.basename(fileFilter)})`,
+            fileMemories,
+            "file",
+            "file-code",
+          ),
         );
-        g.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
-        groups.push(g);
       }
     }
 
@@ -182,6 +189,7 @@ export class HaiveTreeProvider
 
     const byType = new Map<string, Memory[]>();
     for (const m of all) {
+      if (m.type === "skill") continue; // already shown above
       if (!byType.has(m.type)) byType.set(m.type, []);
       byType.get(m.type)!.push(m);
     }
@@ -191,20 +199,15 @@ export class HaiveTreeProvider
       if (!mems || mems.length === 0) continue;
       const label = typeLabels[type] ?? type;
       const icon = TYPE_CODICON[type] ?? "note";
-      const g = new GroupItem(label, mems, type, icon);
-      // Collapse by default unless it's a small group
-      g.collapsibleState =
-        mems.length <= 3
-          ? vscode.TreeItemCollapsibleState.Expanded
-          : vscode.TreeItemCollapsibleState.Collapsed;
-      groups.push(g);
+      groups.push(new GroupItem(label, mems, type, icon, mems.length > 5));
     }
 
     // Unknown types
-    const otherTypes = [...byType.keys()].filter((t) => !typeOrder.includes(t));
-    for (const type of otherTypes) {
-      const mems = byType.get(type)!;
-      groups.push(new GroupItem(`📝  ${type}`, mems, type, "note"));
+    const knownTypes = new Set([...typeOrder, "skill", "session_recap"]);
+    for (const [type, mems] of byType) {
+      if (!knownTypes.has(type)) {
+        groups.push(new GroupItem(`📝  ${type}`, mems, type, "note", true));
+      }
     }
 
     return groups;

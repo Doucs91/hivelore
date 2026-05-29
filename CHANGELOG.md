@@ -6,6 +6,30 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [vscode-0.5.0] — harness engineering extension redesign
+
+### Added
+- **Harness Health view** — second panel in the hAIve sidebar that runs `haive doctor --json` and displays protection, context quality, corpus quality, and harness coverage scores with color-coded pass/warn/error indicators. Findings grouped by section, expandable in the tree.
+- **`skill` memory type** — `⚡ Skills` group appears first (after action-required alerts) in the sidebar tree, before all other types. Skill memories always expanded. CodeLens summary shows skills first with `⚡` icon.
+- **Search memories command** (`Ctrl+Shift+H` / `Cmd+Shift+H`) — QuickPick fuzzy search across all memory titles, scopes, types, and tags. Opens the selected memory file beside the current editor.
+- **Briefing command** (`Ctrl+Shift+B` / `Cmd+Shift+B`) — runs `haive briefing` for the active file and displays results in an "hAIve Briefing" Output Channel with Markdown syntax highlighting.
+- **`haive.runDoctor` command** — runs a full health check from VS Code, populates the Harness Health view, and reveals it.
+- **`haive.syncMemories` command** — runs `haive sync`, reloads the tree, shows progress in status bar.
+- **`haive.memTried` command** — two-step input (what + why) that runs `haive memory tried` in a terminal. Available in the editor right-click menu.
+- **Approve / Reject memory commands** — context menu on tree memory items; also accessible by ID.
+- **Show All Memories command** — clears the file filter and shows the full tree.
+- **Pending Review group** — draft and proposed memories grouped under "🕐 Pending Review" (collapsed by default) so nothing gets lost in the queue.
+- **Briefing panel** available from editor title bar and editor right-click menu (`haive.runBriefing`).
+- **`haive.cliPath` setting** — absolute path to the haive binary for environments where haive is not on PATH.
+- **`haive.briefingBudget` setting** — `default | deep | minimal` controls the token budget passed to `haive briefing`.
+
+### Changed
+- Status bar now shows pending count alongside action-required count.
+- Memory tooltips now include read count, module, and domain fields.
+- CodeLens per-memory list sorted by type priority (skills first, gotchas second).
+- Stale memories shown with a dimmed icon in the tree.
+- Unknown memory types no longer pollute the main list — collected into an "Other" group.
+
 ## [0.9.20] — harness engineering positioning + skill type + harness coverage
 
 ### Added
