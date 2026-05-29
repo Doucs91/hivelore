@@ -105,7 +105,12 @@ registerMemoryConflictCandidates(memory);
 registerMemoryArchive(memory);
 registerMemoryLint(memory);
 
-const session = program.command("session").description("Manage session lifecycle");
+const session = program.command("session").description(
+  "Manage session lifecycle.\n\n" +
+  "  Session start is automatic — hAIve loads context via `get_briefing` at the start\n" +
+  "  of each agent session (Claude Code SessionStart hook or MCP first call).\n" +
+  "  Use `haive session end` to save a rich end-of-session recap for the next session.",
+);
 registerSessionEnd(session);
 
 registerSnapshot(program);
@@ -120,6 +125,7 @@ registerPrecommit(program);
 const CORE_ROOT_COMMANDS = new Set([
   "init",
   "doctor",
+  "tui",
   "agent",
   "enforce",
   "run",

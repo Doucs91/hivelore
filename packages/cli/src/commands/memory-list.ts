@@ -69,6 +69,8 @@ export function registerMemoryList(memory: Command): void {
         console.log(
           `${ui.bold(fm.id)} ${ui.dim(fm.scope)}/${ui.dim(fm.type)} ${statusBadge}${moduleStr}${tagStr}`,
         );
+        const title = mem.body.match(/^#\s+(.+)$/m)?.[1]?.trim();
+        if (title && title !== fm.id) console.log(`  ${title}`);
         console.log(`  ${ui.dim(path.relative(root, filePath))}`);
       }
       console.log(ui.dim(`\n${filtered.length} memor${filtered.length === 1 ? "y" : "ies"}`));

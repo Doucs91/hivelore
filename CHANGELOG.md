@@ -6,6 +6,23 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.21] — quality audit fixes
+
+### Fixed
+- `haive memory pending` now shows both `draft` and `proposed` memories (was silently ignoring drafts). Output is grouped and labeled: "Proposed — awaiting team validation" / "Draft — created but not yet activated".
+- `haive memory list` now displays the memory title (first `#` heading from body) between the ID and file path lines — consistent with `haive welcome`.
+- `haive memory tried` help text had a duplicate `(default: personal)` from Commander double-printing — fixed.
+- VS Code Harness Health view: `DoctorScores` interface field names now match the actual `haive doctor --json` output (`protection_score`, `context_quality_score`, `corpus_quality_score`). Previously all scores showed as `undefined`/NaN.
+- VS Code Harness Health view: `DoctorFinding.severity` now matches JSON (was incorrectly `level`), fixing finding icons.
+- Root `package.json` version bumped to `0.9.20` (was stale at `0.9.19`).
+- `.ai/project-context.md` version header updated to `v0.9.20`.
+
+### Added
+- `haive memory update` now accepts `--type <type>` to change a memory's type without losing its usage history (previously required `rm` + `add`).
+- `haive memory update` now accepts `--body-file <path>` to load body from a Markdown file — consistent with `haive memory add`.
+- `haive tui` is now visible in the default CLI help (was hidden behind `--advanced`). It is the primary interactive memory browser for humans.
+- `haive session` command description now explains that session start is automatic (via hooks/MCP), so users are not confused by the absence of `haive session start`.
+
 ## [vscode-0.5.0] — harness engineering extension redesign
 
 ### Added

@@ -2,15 +2,15 @@ import * as vscode from "vscode";
 import * as cp from "child_process";
 
 export interface DoctorScores {
-  protection: number;
-  context_quality: number;
-  corpus_quality: number;
+  protection_score: number;
+  context_quality_score: number;
+  corpus_quality_score: number;
   harness_coverage_score: number;
 }
 
 export interface DoctorFinding {
   section: string;
-  level: "error" | "warn" | "info" | "ok";
+  severity: "error" | "warn" | "info";
   code: string;
   message: string;
 }
@@ -49,9 +49,8 @@ class FindingItem extends vscode.TreeItem {
     this.contextValue = "finding";
     this.description = finding.code;
     const icon =
-      finding.level === "error" ? "error" :
-      finding.level === "warn" ? "warning" :
-      finding.level === "ok" ? "pass" : "info";
+      finding.severity === "error" ? "error" :
+      finding.severity === "warn" ? "warning" : "info";
     this.iconPath = new vscode.ThemeIcon(icon);
     this.tooltip = `[${finding.section}] ${finding.code}: ${finding.message}`;
   }
@@ -111,13 +110,13 @@ export class HarnessHealthProvider implements vscode.TreeDataProvider<HealthItem
         findings?: DoctorFinding[];
       };
       this.result = {
-        scores: json.scores ?? { protection: 0, context_quality: 0, corpus_quality: 0, harness_coverage_score: 0 },
+        scores: json.scores ?? { protection_score: 0, context_quality_score: 0, corpus_quality_score: 0, harness_coverage_score: 0 },
         findings: json.findings ?? [],
       };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       this.result = {
-        scores: { protection: 0, context_quality: 0, corpus_quality: 0, harness_coverage_score: 0 },
+        scores: { protection_score: 0, context_quality_score: 0, corpus_quality_score: 0, harness_coverage_score: 0 },
         findings: [],
         error: msg,
       };
@@ -159,9 +158,9 @@ export class HarnessHealthProvider implements vscode.TreeDataProvider<HealthItem
 
     const { scores, findings } = this.result;
     const items: HealthItem[] = [
-      new ScoreItem("Protection", scores.protection),
-      new ScoreItem("Context Quality", scores.context_quality),
-      new ScoreItem("Corpus Quality", scores.corpus_quality),
+      new ScoreItem("Protection", scores.protection_score),
+      new ScoreItem("Context Quality", scores.context_quality_score),
+      new ScoreItem("Corpus Quality", scores.corpus_quality_score),
       new ScoreItem("Harness Coverage", scores.harness_coverage_score),
     ];
 
@@ -174,8 +173,8 @@ export class HarnessHealthProvider implements vscode.TreeDataProvider<HealthItem
 
     if (sections.size > 0) {
       for (const [section, sectionFindings] of sections) {
-        const hasErrors = sectionFindings.some((f) => f.level === "error");
-        const hasWarns = sectionFindings.some((f) => f.level === "warn");
+        const hasErrors = sectionFindings.some((f) => f.severity === "error");
+        const hasWarns = sectionFindings.some((f) => f.severity === "warn");
         const icon = hasErrors ? "error" : hasWarns ? "warning" : "info";
         items.push(
           new SectionItem(

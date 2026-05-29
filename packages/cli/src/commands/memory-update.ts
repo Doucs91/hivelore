@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
@@ -6,13 +6,16 @@ import {
   findProjectRoot,
   resolveHaivePaths,
   serializeMemory,
+  type MemoryType,
 } from "@hiveai/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
 interface UpdateOptions {
+  type?: MemoryType;
   title?: string;
   body?: string;
+  bodyFile?: string;
   tags?: string;
   paths?: string;
   symbols?: string;
@@ -26,8 +29,10 @@ export function registerMemoryUpdate(memory: Command): void {
   memory
     .command("update <id>")
     .description("Update body, tags, or anchor of an existing memory (preserves id and usage history)")
+    .option("--type <type>", "change the memory type (convention | decision | gotcha | architecture | glossary | skill | attempt)")
     .option("--title <text>", "new title — replaces the first heading of the body")
     .option("--body <text>", "new Markdown body — replaces the existing body")
+    .option("--body-file <path>", "read new body from a Markdown file — for long content")
     .option("--tags <csv>", "new tags, comma-separated — fully replaces existing tags")
     .option("--paths <csv>", "new anchor paths, comma-separated")
     .option("--symbols <csv>", "new anchor symbols, comma-separated")
@@ -72,20 +77,37 @@ export function registerMemoryUpdate(memory: Command): void {
       const newFrontmatter = {
         ...frontmatter,
         anchor: newAnchor,
+        ...(opts.type !== undefined ? { type: opts.type } : {}),
         ...(opts.tags !== undefined ? { tags: parseCsv(opts.tags) } : {}),
         ...(opts.domain !== undefined ? { domain: opts.domain } : {}),
         ...(opts.author !== undefined ? { author: opts.author } : {}),
       };
+      if (opts.type !== undefined) updated.push("type");
       if (opts.tags !== undefined) updated.push("tags");
       if (opts.domain !== undefined) updated.push("domain");
       if (opts.author !== undefined) updated.push("author");
 
-      let newBody = opts.body !== undefined ? opts.body : body;
+      // Body resolution: --body-file > --body > existing body
+      let newBody: string;
+      if (opts.bodyFile !== undefined) {
+        if (!existsSync(opts.bodyFile)) {
+          ui.error(`--body-file not found: ${opts.bodyFile}`);
+          process.exitCode = 1;
+          return;
+        }
+        newBody = await readFile(opts.bodyFile, "utf8");
+        updated.push("body");
+      } else if (opts.body !== undefined) {
+        newBody = opts.body;
+        updated.push("body");
+      } else {
+        newBody = body;
+      }
+
       if (opts.title !== undefined) {
         newBody = replaceFirstHeading(newBody, opts.title);
         updated.push("title");
       }
-      if (opts.body !== undefined) updated.push("body");
 
       if (updated.length === 0) {
         ui.warn("Nothing to update — provide at least one option.");

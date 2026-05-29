@@ -42,7 +42,7 @@ export function registerMemoryTried(memory: Command): void {
     .requiredOption("--what <text>", "what approach was tried (short, descriptive title)")
     .requiredOption("--why-failed <text>", "why it failed or should NOT be used (include the exact error if possible)")
     .option("--instead <text>", "the correct approach to use instead")
-    .option("--scope <scope>", "personal | team | module (default: personal)", "personal")
+    .option("--scope <scope>", "personal | team | module", "personal")
     .option("--module <name>", "module name (required when scope=module)")
     .option("--tags <csv>", "comma-separated tags")
     .option("--paths <csv>", "anchor paths, comma-separated")
