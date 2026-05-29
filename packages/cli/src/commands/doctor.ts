@@ -50,6 +50,7 @@ interface Finding {
   message: string;
   fix?: string;
   section?: DoctorSection;
+  coverage_percent?: number;
 }
 
 interface DoctorScores {
@@ -68,7 +69,7 @@ export function registerDoctor(program: Command): void {
       "Analyze the local hAIve setup and emit actionable recommendations.\n\n" +
       "  Inspects: project-context status, memory health (stale/anchorless/decay/pending),\n" +
       "  code-map freshness, usage log signals (low-hit briefings, repeated empty searches).\n\n" +
-      "  Read-only by default. Pass --fix to suggest commands you can copy-paste.",
+      "  Read-only by default. Pass --fix to apply safe autopilot repairs.",
     )
     .option("--json", "emit JSON instead of human-readable output", false)
     .option("--fix", "include suggested fix commands in human output", false)
@@ -476,11 +477,8 @@ function computeDoctorScores(findings: Finding[]): DoctorScores {
     }, 0);
     return Math.max(0, 100 - penalty);
   };
-  // harness_coverage_score is injected by collectHarnessCoverageFindings via the finding payload
   const coverageFinding = findings.find((f) => f.code === "harness-coverage");
-  const harnessCoverageScore = coverageFinding
-    ? parseInt((coverageFinding.message.match(/\((\d+)%\)/) ?? [])[1] ?? "0", 10)
-    : 0;
+  const harnessCoverageScore = coverageFinding?.coverage_percent ?? 0;
   return {
     protection_score: scoreFor(["Protection", "Agent coverage"]),
     context_quality_score: scoreFor(["Context quality", "Index health"]),
@@ -544,16 +542,19 @@ async function collectHarnessCoverageFindings(
 
   const findings: Finding[] = [];
   findings.push({
-    severity: pct < 10 && total > 10 ? "info" : "info",
+    severity: "info",
     code: "harness-coverage",
+    coverage_percent: pct,
     message:
       `${covered}/${total} code-map files have validated memory anchors (${pct}%). ` +
       (pct < 10 && total > 10
         ? "Low coverage — add memory anchors on key modules to improve harness enforcement."
-        : pct < 30
-        ? "Partial coverage — consider anchoring critical modules and patterns."
+        : pct < 50
+        ? "Partial coverage — useful but not yet broad enough to call the harness mature."
+        : pct < 80
+        ? "Good coverage — critical modules are increasingly protected."
         : "Good harness coverage."),
-    fix: pct < 10 && total > 10
+    fix: pct < 50 && total > 10
       ? "haive memory add --type gotcha|convention|architecture --paths <key-file> --scope team"
       : undefined,
     section: "Harness coverage",
@@ -632,6 +633,8 @@ function isSearchTool(name: string): boolean {
 async function collectInstallFindings(root: string, expectedVersion: string): Promise<Finding[]> {
   const findings: Finding[] = [];
 
+  findings.push(...await collectWorkspaceVersionFindings(root, expectedVersion));
+
   const haiveBins = listHaiveBins();
   if (haiveBins.length === 0) {
     findings.push({
@@ -699,6 +702,107 @@ async function collectInstallFindings(root: string, expectedVersion: string): Pr
   }
 
   return findings;
+}
+
+async function collectWorkspaceVersionFindings(root: string, expectedVersion: string): Promise<Finding[]> {
+  const findings: Finding[] = [];
+  const rootPkg = await readJson<{ name?: string; version?: string }>(path.join(root, "package.json"));
+  const workspacePackages = [
+    "packages/core/package.json",
+    "packages/embeddings/package.json",
+    "packages/cli/package.json",
+    "packages/mcp/package.json",
+  ];
+  const existing = (await Promise.all(workspacePackages.map(async (rel) => ({
+    rel,
+    pkg: await readJson<{ name?: string; version?: string }>(path.join(root, rel)),
+  })))).filter((item) => item.pkg);
+
+  const isHaiveWorkspace = rootPkg?.name === "haive-monorepo" ||
+    existing.some((item) => item.pkg?.name?.startsWith("@hiveai/"));
+  if (!isHaiveWorkspace) return findings;
+
+  if (rootPkg?.version && rootPkg.version !== expectedVersion) {
+    findings.push({
+      severity: "warn",
+      code: "repo-root-version-mismatch",
+      message: `Root package.json is ${rootPkg.version}, but the active hAIve build is ${expectedVersion}.`,
+      fix: `Update root package.json to ${expectedVersion} before tagging/publishing.`,
+      section: "Agent coverage",
+    });
+  }
+
+  const skewed = existing.filter((item) => item.pkg?.version !== expectedVersion);
+  if (skewed.length > 0) {
+    findings.push({
+      severity: "warn",
+      code: "workspace-package-version-mismatch",
+      message:
+        `Workspace package version skew: ` +
+        skewed.map((item) => `${item.rel}=${item.pkg?.version ?? "missing"}`).join(", ") +
+        `; expected ${expectedVersion}.`,
+      fix: `Bump @hiveai/core, @hiveai/embeddings, @hiveai/cli and @hiveai/mcp to ${expectedVersion}.`,
+      section: "Agent coverage",
+    });
+  }
+
+  findings.push(...collectGlobalHivemoduleFindings(expectedVersion));
+  return findings;
+}
+
+function collectGlobalHivemoduleFindings(expectedVersion: string): Finding[] {
+  try {
+    const raw = execSync(
+      "npm list -g --depth=0 --json @hiveai/cli @hiveai/mcp @hiveai/core @hiveai/embeddings",
+      { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] },
+    );
+    const parsed = JSON.parse(raw) as { dependencies?: Record<string, { version?: string }> };
+    const deps = parsed.dependencies ?? {};
+    const important = ["@hiveai/cli", "@hiveai/mcp"];
+    const staleImportant = important
+      .map((name) => ({ name, version: deps[name]?.version }))
+      .filter((item) => item.version && item.version !== expectedVersion);
+    const staleTopLevel = ["@hiveai/core", "@hiveai/embeddings"]
+      .map((name) => ({ name, version: deps[name]?.version }))
+      .filter((item) => item.version && item.version !== expectedVersion);
+    const findings: Finding[] = [];
+    if (staleImportant.length > 0) {
+      findings.push({
+        severity: "warn",
+        code: "global-haive-version-mismatch",
+        message:
+          `Global hAIve CLI/MCP package skew: ` +
+          staleImportant.map((item) => `${item.name}@${item.version}`).join(", ") +
+          `; expected ${expectedVersion}.`,
+        fix: `npm install -g @hiveai/cli@${expectedVersion} @hiveai/mcp@${expectedVersion}`,
+        section: "Agent coverage",
+      });
+    }
+    if (staleTopLevel.length > 0) {
+      findings.push({
+        severity: "info",
+        code: "global-haive-top-level-stale",
+        message:
+          `Older top-level global packages are installed but may be unused: ` +
+          staleTopLevel.map((item) => `${item.name}@${item.version}`).join(", ") +
+          `. Active CLI/MCP dependencies should still be checked by haive --version and haive-mcp --version.`,
+        fix: "npm uninstall -g @hiveai/core @hiveai/embeddings",
+        section: "Agent coverage",
+      });
+    }
+    return findings;
+  } catch {
+    return [];
+  }
+}
+
+async function readJson<T>(file: string): Promise<T | null> {
+  if (!existsSync(file)) return null;
+  try {
+    return JSON.parse(await readFile(file, "utf8")) as T;
+  } catch {
+    return null;
+  }
 }
 
 function listHaiveBins(): string[] {

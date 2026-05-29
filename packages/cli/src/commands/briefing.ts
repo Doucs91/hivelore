@@ -38,6 +38,8 @@ interface BriefingOptions {
   budget?: string;
   /** full | actions — mimic get_briefing format for printed bodies */
   memoryFormat?: string;
+  /** Back-compat alias for users who know the MCP get_briefing format option. */
+  format?: string;
 }
 
 const RADAR_AUTO_THRESHOLD = 3;
@@ -132,6 +134,10 @@ export function registerBriefing(program: Command): void {
       "full",
     )
     .option(
+      "--format <mode>",
+      "alias for --memory-format; accepts full | actions | compact",
+    )
+    .option(
       "--scope <scope>",
       "personal | team | shared | all (default: all — includes team + shared cross-repo memories)",
       "all",
@@ -149,6 +155,8 @@ export function registerBriefing(program: Command): void {
     .action(async (opts: BriefingOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
+      const requestedFormat = (opts.format ?? opts.memoryFormat ?? "full").toLowerCase();
+      opts.memoryFormat = requestedFormat === "compact" ? "actions" : requestedFormat;
       const markerFiles = parseCsv(opts.files);
       if (existsSync(paths.haiveDir)) {
         await mkdir(paths.runtimeDir, { recursive: true });

@@ -20,7 +20,7 @@ import { ui } from "../utils/ui.js";
 
 interface AddOptions {
   type: MemoryType;
-  slug: string;
+  slug?: string;
   title?: string;
   scope?: MemoryScope;
   module?: string;
@@ -61,7 +61,7 @@ export function registerMemoryAdd(memory: Command): void {
       "      --scope team --body \"Never modify existing migrations. Create V{n+1}__desc.sql.\"\n",
     )
     .requiredOption("--type <type>", "skill | convention | decision | gotcha | architecture | glossary | attempt")
-    .requiredOption("--slug <slug>", "short kebab-case identifier used in the file name")
+    .option("--slug <slug>", "short kebab-case identifier used in the file name (auto-derived from --title/--body when omitted)")
     .option("--title <text>", "memory title — becomes the first heading of the body")
     .option("--scope <scope>", "personal | team | module (default: config default; team in autopilot)")
     .option("--module <name>", "module name (required when scope=module)")
@@ -105,7 +105,8 @@ export function registerMemoryAdd(memory: Command): void {
         }
       }
 
-      const title = opts.title ?? opts.slug;
+      const title = opts.title ?? titleFromText(opts.slug ?? opts.body ?? opts.topic ?? opts.type);
+      const slug = slugify(opts.slug ?? opts.title ?? opts.topic ?? opts.body ?? `${opts.type}-memory`);
       let body: string;
       if (opts.bodyFile !== undefined) {
         if (!existsSync(opts.bodyFile)) {
@@ -114,9 +115,9 @@ export function registerMemoryAdd(memory: Command): void {
           return;
         }
         const fileContent = await readFile(opts.bodyFile, "utf8");
-        body = opts.title ? `# ${opts.title}\n\n${fileContent.trim()}\n` : fileContent;
+        body = normalizeBody(fileContent, title, Boolean(opts.title));
       } else if (opts.body !== undefined) {
-        body = opts.title ? `# ${opts.title}\n\n${opts.body}` : opts.body;
+        body = normalizeBody(opts.body, title, Boolean(opts.title));
       } else {
         body = `# ${title}\n\nTODO — write the memory body.\n`;
       }
@@ -149,7 +150,7 @@ export function registerMemoryAdd(memory: Command): void {
         if (topicMatch) {
           const fm = topicMatch.memory.frontmatter;
           const revisionCount = (fm.revision_count ?? 0) + 1;
-          const newFrontmatter: MemoryFrontmatter = {
+        const newFrontmatter: MemoryFrontmatter = {
             ...fm,
             revision_count: revisionCount,
             tags: mergedTags.length ? mergedTags : fm.tags,
@@ -168,7 +169,7 @@ export function registerMemoryAdd(memory: Command): void {
 
       const frontmatter = buildFrontmatter({
         type: opts.type,
-        slug: opts.slug,
+        slug,
         scope,
         module: opts.module,
         tags: mergedTags,
@@ -193,7 +194,7 @@ export function registerMemoryAdd(memory: Command): void {
       // Dedup check: warn if a similar slug already exists
       if (existsSync(paths.memoriesDir)) {
         const existing = await loadMemoriesFromDir(paths.memoriesDir);
-        const slugTokens = opts.slug.toLowerCase().split(/[-_\s]+/).filter(Boolean);
+        const slugTokens = slug.toLowerCase().split(/[-_\s]+/).filter(Boolean);
         const similar = existing.filter(({ memory }) => {
           const id = memory.frontmatter.id.toLowerCase();
           return (
@@ -248,4 +249,45 @@ function parseCsv(value: string | undefined): string[] {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+function normalizeBody(rawBody: string, title: string, titleExplicit: boolean): string {
+  const trimmed = rawBody.trim();
+  if (/^#{1,3}\s+\S/m.test(trimmed)) return `${trimmed}\n`;
+  const heading = titleExplicit ? title : titleFromText(title);
+  return [
+    `# ${heading}`,
+    "",
+    "## Guidance",
+    trimmed,
+    "",
+    "## Why",
+    "Recorded in hAIve so future agents can apply this project rule consistently.",
+    "",
+  ].join("\n");
+}
+
+function titleFromText(value: string): string {
+  const cleaned = value
+    .replace(/[#*_`>()[\]{}]/g, " ")
+    .replace(/https?:\/\/\S+/g, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 8)
+    .join(" ");
+  const base = cleaned || "Memory";
+  return base
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function slugify(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
+  return slug || "memory";
 }

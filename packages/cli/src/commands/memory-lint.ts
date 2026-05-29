@@ -150,7 +150,11 @@ export async function lintMemoriesAsync(
     }
 
     const u = getUsage(usage, fm.id);
-    if (fm.status === "validated" && u.read_count === 0) {
+    const createdAt = Date.parse(fm.created_at);
+    const ageDays = Number.isFinite(createdAt)
+      ? (Date.now() - createdAt) / (24 * 60 * 60 * 1000)
+      : 0;
+    if (fm.status === "validated" && u.read_count === 0 && ageDays >= 7) {
       out.push({
         file: filePath,
         id: fm.id,

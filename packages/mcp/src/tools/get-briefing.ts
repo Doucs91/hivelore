@@ -1032,6 +1032,3 @@ async function loadModuleContexts(
   }
   return out;
 }
-
-// Re-export estimateTokens at the module level for tests.
-export { estimateTokens };

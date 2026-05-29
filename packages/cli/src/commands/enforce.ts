@@ -1,6 +1,6 @@
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import {
@@ -170,7 +170,6 @@ export function registerEnforce(program: Command): void {
       const paths = resolveHaivePaths(root);
       const targets = [
         path.join(paths.haiveDir, ".cache"),
-        path.join(paths.haiveDir, ".runtime"),
       ];
       for (const target of targets) {
         if (!existsSync(target)) continue;
@@ -179,6 +178,13 @@ export function registerEnforce(program: Command): void {
         else {
           await rm(target, { recursive: true, force: true });
           ui.success(`removed ${rel}`);
+        }
+      }
+      if (existsSync(paths.runtimeDir)) {
+        if (opts.dryRun) ui.info(`would clean ${path.relative(root, paths.runtimeDir)} (preserving briefing markers)`);
+        else {
+          const removed = await cleanupRuntimeDir(paths.runtimeDir);
+          ui.success(`cleaned ${path.relative(root, paths.runtimeDir)}${removed > 0 ? ` (${removed} item${removed === 1 ? "" : "s"} removed)` : ""}`);
         }
       }
     });
@@ -669,8 +675,7 @@ async function findGeneratedArtifacts(paths: ReturnType<typeof resolveHaivePaths
     .map((line) => line.trim())
     .filter(Boolean)
     .filter((line) =>
-      line.includes(".ai/.cache/") ||
-      line.includes(".ai/.runtime/") ||
+      isGeneratedArtifactStatusLine(line) ||
       line.includes("__pycache__/") ||
       line.endsWith(".pyc"),
     );
@@ -684,6 +689,49 @@ async function findGeneratedArtifacts(paths: ReturnType<typeof resolveHaivePaths
     fix: "Run `haive enforce cleanup`, update .gitignore, or remove test/runtime outputs before committing.",
     impact: 10,
   }];
+}
+
+function isGeneratedArtifactStatusLine(line: string): boolean {
+  const file = line.replace(/^[ MADRCU?!]{1,2}\s+/, "").trim();
+  if (file === ".ai/.cache/.gitignore") return false;
+  if (file === ".ai/.runtime/.gitignore" || file === ".ai/.runtime/README.md") return false;
+  if (file.startsWith(".ai/.runtime/enforcement/briefings/")) return false;
+  return file.startsWith(".ai/.cache/") || file.startsWith(".ai/.runtime/");
+}
+
+async function cleanupRuntimeDir(runtimeDir: string): Promise<number> {
+  let removed = 0;
+  await mkdir(runtimeDir, { recursive: true });
+  const entries = await readdir(runtimeDir, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries) {
+    if (entry.name === ".gitignore" || entry.name === "README.md") continue;
+    if (entry.name === "enforcement") {
+      removed += await cleanupEnforcementDir(path.join(runtimeDir, entry.name));
+      continue;
+    }
+    await rm(path.join(runtimeDir, entry.name), { recursive: true, force: true });
+    removed++;
+  }
+  await writeFile(path.join(runtimeDir, ".gitignore"), "*\n!.gitignore\n!README.md\n", "utf8");
+  if (!existsSync(path.join(runtimeDir, "README.md"))) {
+    await writeFile(
+      path.join(runtimeDir, "README.md"),
+      "# .ai/.runtime — disposable local layer\n\nRuntime data is local. hAIve cleanup preserves briefing markers so enforcement state remains valid.\n",
+      "utf8",
+    );
+  }
+  return removed;
+}
+
+async function cleanupEnforcementDir(enforcementDir: string): Promise<number> {
+  let removed = 0;
+  const entries = await readdir(enforcementDir, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries) {
+    if (entry.name === "briefings") continue;
+    await rm(path.join(enforcementDir, entry.name), { recursive: true, force: true });
+    removed++;
+  }
+  return removed;
 }
 
 async function inspectIntegrationVersions(

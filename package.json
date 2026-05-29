@@ -1,7 +1,7 @@
 {
   "name": "haive-monorepo",
   "private": true,
-  "version": "0.9.20",
+  "version": "0.9.22",
   "description": "hAIve — repo-native context enforcement for AI coding agents",
   "license": "Apache-2.0",
   "repository": {
@@ -28,10 +28,5 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@9.14.2",
-  "pnpm": {
-    "overrides": {
-      "protobufjs": "^7.5.5"
-    }
-  }
+  "packageManager": "pnpm@9.14.2"
 }

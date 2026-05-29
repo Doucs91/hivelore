@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -248,14 +248,22 @@ describe("hAIve CLI integration", () => {
   });
 
   it("memory lint --fix dry-run reports simple fixes and --apply writes headings", async () => {
-    await run(workDir, [
-      "memory", "add",
-      "--type", "decision",
-      "--slug", "lint heading fix",
-      "--scope", "team",
-      "--body", "Always keep API stable because clients depend on it.",
-      "--dir", workDir,
-    ]);
+    const malformed = path.join(workDir, ".ai/memories/team/2099-01-01-decision-lint-heading-fix.md");
+    await writeFile(malformed, [
+      "---",
+      "id: 2099-01-01-decision-lint-heading-fix",
+      "scope: team",
+      "type: decision",
+      "status: validated",
+      "created_at: 2099-01-01T00:00:00.000Z",
+      "anchor:",
+      "  paths: []",
+      "  symbols: []",
+      "tags: []",
+      "---",
+      "Always keep API stable because clients depend on it.",
+      "",
+    ].join("\n"), "utf8");
 
     const dry = await run(workDir, ["memory", "lint", "--fix", "--dry-run", "--json", "--dir", workDir]);
     const dryReport = JSON.parse(dry.stdout) as {

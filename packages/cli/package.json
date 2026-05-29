@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/cli",
-  "version": "0.9.21",
+  "version": "0.9.22",
   "description": "hAIve CLI — the memory and enforcement layer of your agent harness (briefings, Git hooks, CI policy, harness coverage)",
   "license": "Apache-2.0",
   "repository": {

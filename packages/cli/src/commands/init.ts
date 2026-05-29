@@ -13,6 +13,7 @@ import {
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 import { setupAgentMode } from "./agent.js";
+import { applyAutopilotRepairs } from "../utils/autopilot.js";
 import { generateBootstrapContext } from "./init-bootstrap.js";
 import {
   autoDetectStacks,
@@ -285,6 +286,7 @@ export function registerInit(program: Command): void {
       await mkdir(paths.moduleDir, { recursive: true });
       await mkdir(paths.modulesContextDir, { recursive: true });
       await ensureAiRuntimeLayout(paths.runtimeDir);
+      await ensureAiCacheLayout(path.join(paths.haiveDir, ".cache"));
 
       // ── project-context.md ───────────────────────────────────────────────
       if (!existsSync(paths.projectContext)) {
@@ -379,6 +381,16 @@ export function registerInit(program: Command): void {
         } catch {
           ui.warn("Code-map build failed — run `haive index code` manually");
         }
+
+        const repairs = await applyAutopilotRepairs(root, paths, {
+          applyContext: true,
+          applyCorpus: true,
+          applyCodeMap: false,
+          applyCodeSearch: true,
+        });
+        for (const repair of repairs) {
+          ui.info(repair.message);
+        }
       }
 
       // ── Auto-configure MCP in AI clients ────────────────────────────────
@@ -406,6 +418,14 @@ export function registerInit(program: Command): void {
         ]);
         ui.info(ui.dim("  → Restart your AI client for MCP changes to take effect."));
       }
+
+      await ensureGitignoreEntries(root, [
+        ".ai/.cache/*",
+        "!.ai/.cache/.gitignore",
+        ".ai/.runtime/*",
+        "!.ai/.runtime/.gitignore",
+        "!.ai/.runtime/README.md",
+      ]);
 
       ui.success(`hAIve initialized at ${root}${autopilot ? " (autopilot mode)" : ""}`);
       console.log();
@@ -527,6 +547,14 @@ async function ensureAiRuntimeLayout(runtimeDir: string): Promise<void> {
   const readme = path.join(runtimeDir, "README.md");
   if (!existsSync(readme)) {
     await writeFile(readme, RUNTIME_README_BODY, "utf8");
+  }
+}
+
+async function ensureAiCacheLayout(cacheDir: string): Promise<void> {
+  await mkdir(cacheDir, { recursive: true });
+  const gi = path.join(cacheDir, ".gitignore");
+  if (!existsSync(gi)) {
+    await writeFile(gi, "*\n!.gitignore\n", "utf8");
   }
 }
 

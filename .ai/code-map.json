@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-05-28T21:44:11.883Z",
+  "generated_at": "2026-05-29T03:04:42.724Z",
   "root": "/home/sd/Documents/Dev/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -110,10 +110,10 @@
         {
           "name": "registerDoctor",
           "kind": "function",
-          "line": 60
+          "line": 64
         }
       ],
-      "loc": 589
+      "loc": 741
     },
     "packages/cli/src/commands/embeddings.ts": {
       "exports": [
@@ -272,7 +272,7 @@
           "line": 39
         }
       ],
-      "loc": 249
+      "loc": 252
     },
     "packages/cli/src/commands/memory-approve.ts": {
       "exports": [
@@ -421,7 +421,7 @@
           "line": 18
         }
       ],
-      "loc": 109
+      "loc": 111
     },
     "packages/cli/src/commands/memory-pending.ts": {
       "exports": [
@@ -431,7 +431,7 @@
           "line": 18
         }
       ],
-      "loc": 66
+      "loc": 93
     },
     "packages/cli/src/commands/memory-promote.ts": {
       "exports": [
@@ -506,12 +506,17 @@
     "packages/cli/src/commands/memory-suggest.ts": {
       "exports": [
         {
+          "name": "isSyntheticSuggestionQuery",
+          "kind": "function",
+          "line": 38
+        },
+        {
           "name": "registerMemorySuggest",
           "kind": "function",
-          "line": 44
+          "line": 51
         }
       ],
-      "loc": 253
+      "loc": 272
     },
     "packages/cli/src/commands/memory-timeline.ts": {
       "exports": [
@@ -538,10 +543,10 @@
         {
           "name": "registerMemoryUpdate",
           "kind": "function",
-          "line": 25
+          "line": 28
         }
       ],
-      "loc": 118
+      "loc": 140
     },
     "packages/cli/src/commands/memory-verify.ts": {
       "exports": [
@@ -672,10 +677,10 @@
         {
           "name": "registerWelcome",
           "kind": "function",
-          "line": 27
+          "line": 28
         }
       ],
-      "loc": 90
+      "loc": 91
     },
     "packages/cli/src/tui/Dashboard.tsx": {
       "exports": [
@@ -686,6 +691,46 @@
         }
       ],
       "loc": 414
+    },
+    "packages/cli/src/utils/autopilot.ts": {
+      "exports": [
+        {
+          "name": "AutopilotRepair",
+          "kind": "interface",
+          "line": 16
+        },
+        {
+          "name": "AutopilotRepairOptions",
+          "kind": "interface",
+          "line": 21
+        },
+        {
+          "name": "ProjectContextVersionStatus",
+          "kind": "interface",
+          "line": 30
+        },
+        {
+          "name": "applyAutopilotRepairs",
+          "kind": "function",
+          "line": 37
+        },
+        {
+          "name": "ensureAutopilotConfig",
+          "kind": "function",
+          "line": 102
+        },
+        {
+          "name": "syncProjectContextVersion",
+          "kind": "function",
+          "line": 141
+        },
+        {
+          "name": "projectContextVersionStatus",
+          "kind": "function",
+          "line": 171
+        }
+      ],
+      "loc": 238
     },
     "packages/cli/src/utils/briefing-radar.ts": {
       "exports": [
@@ -1416,21 +1461,21 @@
         {
           "name": "AnchorSchema",
           "kind": "const",
-          "line": 24
+          "line": 25
         },
         {
           "name": "MemoryFrontmatterSchema",
           "kind": "const",
-          "line": 35
+          "line": 36
         },
         {
           "name": "CrossRepoProvenanceSchema",
           "kind": "const",
           "description": "Additional fields for cross-repo provenance (stored in frontmatter of imported memories)",
-          "line": 68
+          "line": 69
         }
       ],
-      "loc": 74
+      "loc": 75
     },
     "packages/core/src/search.ts": {
       "exports": [
@@ -1517,10 +1562,10 @@
           "name": "suggestTopicKey",
           "kind": "function",
           "description": "Suggest a stable `topic` frontmatter key (topic-upsert) from type + title.",
-          "line": 24
+          "line": 25
         }
       ],
-      "loc": 32
+      "loc": 33
     },
     "packages/core/src/types.ts": {
       "exports": [
@@ -2123,45 +2168,45 @@
         {
           "name": "MAINTENANCE_PROFILE_TOOLS",
           "kind": "const",
-          "line": 303
+          "line": 304
         },
         {
           "name": "EXPERIMENTAL_PROFILE_TOOLS",
           "kind": "const",
-          "line": 325
+          "line": 326
         },
         {
           "name": "TOOL_PROFILES",
           "kind": "const",
-          "line": 336
+          "line": 337
         },
         {
           "name": "getAllowedToolsForProfile",
           "kind": "function",
-          "line": 342
+          "line": 343
         },
         {
           "name": "createHaiveServer",
           "kind": "function",
-          "line": 363
+          "line": 364
         },
         {
           "name": "parseMcpCliArgs",
           "kind": "function",
           "description": "Parse argv for the standalone haive-mcp binary / CLI subprocess parity.",
-          "line": 1321
+          "line": 1322
         },
         {
           "name": "printHaiveMcpVersion",
           "kind": "function",
           "description": "Print MCP server version (same as haive CLI when bundled together).",
-          "line": 1344
+          "line": 1345
         },
         {
           "name": "runHaiveMcpStdio",
           "kind": "function",
           "description": "Run the MCP server over stdio.",
-          "line": 1352
+          "line": 1353
         },
         {
           "name": "getBriefing",
@@ -2254,7 +2299,7 @@
           "line": 268
         }
       ],
-      "loc": 1359
+      "loc": 1360
     },
     "packages/mcp/src/session-tracker.ts": {
       "summary": "Auto-session tracker for autopilot mode.",
@@ -2462,10 +2507,10 @@
         {
           "name": "estimateTokens",
           "kind": "const",
-          "line": 1034
+          "line": 1037
         }
       ],
-      "loc": 1035
+      "loc": 1038
     },
     "packages/mcp/src/tools/get-project-context.ts": {
       "exports": [
@@ -2898,20 +2943,20 @@
         {
           "name": "MemSaveInput",
           "kind": "type",
-          "line": 64
+          "line": 66
         },
         {
           "name": "MemSaveOutput",
           "kind": "interface",
-          "line": 68
+          "line": 70
         },
         {
           "name": "memSave",
           "kind": "function",
-          "line": 119
+          "line": 121
         }
       ],
-      "loc": 311
+      "loc": 313
     },
     "packages/mcp/src/tools/mem-search.ts": {
       "exports": [
@@ -3255,33 +3300,73 @@
       ],
       "loc": 185
     },
+    "packages/vscode/src/briefingPanel.ts": {
+      "exports": [
+        {
+          "name": "BriefingPanel",
+          "kind": "class",
+          "line": 4
+        }
+      ],
+      "loc": 40
+    },
     "packages/vscode/src/codeLensProvider.ts": {
-      "summary": "CodeLens provider — shows an inline \"🧠 N memories\" lens at the top of files that have anchored hAIve memories.",
       "exports": [
         {
           "name": "HaiveCodeLensProvider",
           "kind": "class",
-          "line": 20
+          "line": 18
         }
       ],
-      "loc": 88
+      "loc": 95
     },
     "packages/vscode/src/extension.ts": {
-      "summary": "hAIve VS Code Extension — entry point.",
       "exports": [
         {
           "name": "activate",
           "kind": "function",
           "description": "── Activation ────────────────────────────────────────────────────────────────",
-          "line": 69
+          "line": 57
         },
         {
           "name": "deactivate",
           "kind": "function",
-          "line": 294
+          "line": 441
         }
       ],
-      "loc": 295
+      "loc": 442
+    },
+    "packages/vscode/src/harnessHealth.ts": {
+      "exports": [
+        {
+          "name": "DoctorScores",
+          "kind": "interface",
+          "line": 4
+        },
+        {
+          "name": "DoctorFinding",
+          "kind": "interface",
+          "line": 11
+        },
+        {
+          "name": "DoctorResult",
+          "kind": "interface",
+          "line": 18
+        },
+        {
+          "name": "HarnessHealthProvider",
+          "kind": "class",
+          "description": "── Provider ─────────────────────────────────────────────────────────────────",
+          "line": 81
+        },
+        {
+          "name": "runHaive",
+          "kind": "function",
+          "description": "── CLI runner ────────────────────────────────────────────────────────────────",
+          "line": 199
+        }
+      ],
+      "loc": 213
     },
     "packages/vscode/src/memoryReader.ts": {
       "summary": "Memory reader — parses .ai/memories/**\\/*.md files directly without depending on @hiveai/core so the extension stays lightweight.",
@@ -3294,44 +3379,43 @@
         {
           "name": "MemoryScope",
           "kind": "type",
-          "line": 19
+          "line": 20
         },
         {
           "name": "Memory",
           "kind": "interface",
-          "line": 21
+          "line": 22
         },
         {
           "name": "MemoryStore",
           "kind": "class",
           "description": "── MemoryStore — cached reader ─────────────────────────────────────────────",
-          "line": 152
+          "line": 159
         }
       ],
-      "loc": 218
+      "loc": 232
     },
     "packages/vscode/src/treeProvider.ts": {
-      "summary": "Tree view provider for the \"hAIve Memories\" sidebar panel.",
       "exports": [
         {
           "name": "GroupItem",
           "kind": "class",
           "description": "── Tree items ────────────────────────────────────────────────────────────────",
-          "line": 47
+          "line": 34
         },
         {
           "name": "MemoryItem",
           "kind": "class",
-          "line": 62
+          "line": 55
         },
         {
           "name": "HaiveTreeProvider",
           "kind": "class",
           "description": "── Provider ─────────────────────────────────────────────────────────────────",
-          "line": 97
+          "line": 99
         }
       ],
-      "loc": 213
+      "loc": 216
     }
   }
 }

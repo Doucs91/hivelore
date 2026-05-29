@@ -6,6 +6,22 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.22] — autopilot convergence polish
+
+### Fixed
+- `haive doctor --fix` now refreshes memory embeddings as part of corpus repair, so semantic briefing diagnostics can converge without a separate manual `haive embeddings index`.
+- Project-context version repair now works for generic bootstrapped contexts, not only the hAIve repo's own `# Project context — hAIve (v...)` heading.
+- `haive init --bootstrap` writes current project version metadata and prepares `.ai/.cache` / `.ai/.runtime` ignore files from day zero.
+- `haive enforce cleanup` preserves briefing markers while removing disposable runtime/cache files, so cleanup no longer makes local enforcement fail immediately afterward.
+- `haive memory add` can derive a slug automatically and wraps plain bodies in a lint-friendly heading/guidance structure.
+- `haive memory lint` no longer flags brand-new validated memories as `NEVER_READ` before agents have had time to surface them.
+- `haive briefing --format compact` is accepted as a compatibility alias for users coming from the MCP `get_briefing` API.
+- Root/workspace version skew and stale global hAIve packages are now visible in `haive doctor` for the hAIve workspace.
+
+### Changed
+- Harness coverage wording is stricter: sub-50% coverage is now described as partial instead of "good".
+- pnpm overrides moved from the deprecated root `package.json` field into `pnpm-workspace.yaml`.
+
 ## [0.9.21] — quality audit fixes
 
 ### Fixed

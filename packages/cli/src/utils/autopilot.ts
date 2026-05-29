@@ -6,6 +6,7 @@ import {
   buildCodeMap,
   loadCodeMap,
   loadConfig,
+  loadMemoriesFromDir,
   saveCodeMap,
   saveConfig,
   type HaiveConfig,
@@ -72,6 +73,14 @@ export async function applyAutopilotRepairs(
       repairs.push({
         code: "memory-lint-fix",
         message: `Applied ${applied.length} safe memory lint fix${applied.length === 1 ? "" : "es"}.`,
+      });
+    }
+
+    const indexed = await refreshMemorySemanticIndex(paths);
+    if (indexed) {
+      repairs.push({
+        code: "memory-embeddings-index",
+        message: "Refreshed memory embeddings index.",
       });
     }
   }
@@ -163,6 +172,13 @@ export async function syncProjectContextVersion(
     );
   }
 
+  if (updated === original && !original.includes("Current version")) {
+    updated = original.replace(
+      /^(# Project context[^\n]*\n)/m,
+      `$1\n> **Current version**: ${status.expectedVersion}\n`,
+    );
+  }
+
   if (updated === original) return false;
   await writeFile(paths.projectContext, updated, "utf8");
   return true;
@@ -188,7 +204,7 @@ export async function projectContextVersionStatus(
 
   const content = await readFile(paths.projectContext, "utf8");
   const headingVersion = content.match(/^# Project context — hAIve \(v([^)]+)\)$/m)?.[1];
-  const currentLineVersion = content.match(/^> \*\*Current version\*\*: ([^—\n]+)—/m)?.[1]?.trim();
+  const currentLineVersion = content.match(/^> \*\*Current version\*\*: ([^—\n]+)/m)?.[1]?.trim();
   const currentVersion = currentLineVersion ?? headingVersion;
 
   return {
@@ -230,6 +246,20 @@ async function refreshCodeSearchIndex(paths: HaivePaths): Promise<boolean> {
     const mod = await import("@hiveai/embeddings");
     const embedder = await mod.Embedder.create();
     const { report } = await mod.rebuildCodeIndex(paths, embedder);
+    return report.added > 0 || report.updated > 0 || report.removed > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function refreshMemorySemanticIndex(paths: HaivePaths): Promise<boolean> {
+  try {
+    if (!existsSync(paths.memoriesDir)) return false;
+    const memories = await loadMemoriesFromDir(paths.memoriesDir);
+    if (memories.length === 0) return false;
+    const mod = await import("@hiveai/embeddings");
+    const embedder = await mod.Embedder.create();
+    const { report } = await mod.rebuildIndex(paths, embedder);
     return report.added > 0 || report.updated > 0 || report.removed > 0;
   } catch {
     return false;
