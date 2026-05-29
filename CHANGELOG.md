@@ -6,6 +6,8 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.24] — autopilot indexing polish
+
 ### Fixed
 - `haive index code` now includes untracked source files that are not ignored by git, so fresh or in-progress repos get useful code-map and code-search indexes before the first commit.
 - `haive precommit --json` now emits valid JSON even when no files are staged.
