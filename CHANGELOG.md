@@ -6,6 +6,14 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+### Added
+- Enforcement hooks now give file-specific must-read reminders during `pre-tool-use` when a write targets files covered by validated anchored policies that were not in the current briefing.
+
+### Changed
+- `haive briefing`, `haive enforce session-start`, and wrapped `haive run` sessions now attempt lightweight autopilot repairs before generating context, so stale/missing semantic indexes are fixed before agents need them.
+- `haive session end --auto` can synthesize a useful recap from the current git diff when no hook observation log is available.
+- Enforcement findings now carry clearer educational details (`why`, files, and memory IDs) for missing decision coverage.
+
 ## [0.9.24] — autopilot indexing polish
 
 ### Fixed

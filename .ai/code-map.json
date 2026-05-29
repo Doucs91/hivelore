@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-05-29T12:44:14.685Z",
+  "generated_at": "2026-05-29T19:32:51.742Z",
   "root": "/home/sd/Documents/Dev/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -100,10 +100,10 @@
         {
           "name": "registerBriefing",
           "kind": "function",
-          "line": 107
+          "line": 108
         }
       ],
-      "loc": 490
+      "loc": 500
     },
     "packages/cli/src/commands/doctor.ts": {
       "exports": [
@@ -130,15 +130,15 @@
         {
           "name": "registerEnforce",
           "kind": "function",
-          "line": 86
+          "line": 91
         },
         {
           "name": "runWithEnforcement",
           "kind": "function",
-          "line": 299
+          "line": 325
         }
       ],
-      "loc": 1052
+      "loc": 1156
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -625,10 +625,10 @@
         {
           "name": "registerSessionEnd",
           "kind": "function",
-          "line": 117
+          "line": 165
         }
       ],
-      "loc": 260
+      "loc": 309
     },
     "packages/cli/src/commands/snapshot.ts": {
       "summary": "haive snapshot — take or compare an API contract snapshot.",

@@ -334,6 +334,62 @@ describe("hAIve CLI integration", () => {
     expect(allowed.stderr).toBe("");
   });
 
+  it("enforce pre-tool-use blocks writes to files with unbriefed anchored policies", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-targeted-pretool-"));
+    try {
+      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src", "guarded.ts"), "export const guarded = true;\n", "utf8");
+      await run(repo, [
+        "memory", "add",
+        "--type", "decision",
+        "--slug", "guarded-edit-policy",
+        "--paths", "src/guarded.ts",
+        "--body", "Always load the guarded edit policy before changing this file.",
+        "--dir", repo,
+      ]);
+
+      const markerDir = path.join(repo, ".ai/.runtime/enforcement/briefings");
+      await mkdir(markerDir, { recursive: true });
+      await writeFile(path.join(markerDir, "targeted-session.json"), JSON.stringify({
+        session_id: "targeted-session",
+        task: "generic briefing",
+        source: "test",
+        created_at: new Date().toISOString(),
+        root: repo,
+        memory_ids: [],
+      }, null, 2), "utf8");
+
+      const payload = JSON.stringify({
+        cwd: repo,
+        session_id: "targeted-session",
+        tool_name: "Write",
+        tool_input: { file_path: "src/guarded.ts" },
+      });
+      const blocked = await runWithInput(repo, ["enforce", "pre-tool-use", "--dir", repo], payload);
+      expect(blocked.code).toBe(2);
+      expect(blocked.stderr).toContain("required hAIve context");
+      expect(blocked.stderr).toContain("guarded-edit-policy");
+
+      const teamFiles = await readdir(path.join(repo, ".ai/memories/team"));
+      const memoryId = teamFiles.find((file) => file.includes("guarded-edit-policy"))!.replace(/\.md$/, "");
+      await writeFile(path.join(markerDir, "targeted-session.json"), JSON.stringify({
+        session_id: "targeted-session",
+        task: "targeted briefing",
+        source: "test",
+        created_at: new Date().toISOString(),
+        root: repo,
+        memory_ids: [memoryId],
+      }, null, 2), "utf8");
+
+      const allowed = await runWithInput(repo, ["enforce", "pre-tool-use", "--dir", repo], payload);
+      expect(allowed.code).toBe(0);
+      expect(allowed.stderr).toBe("");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("briefing satisfies the agent-agnostic local enforcement gate", async () => {
     await run(workDir, ["briefing", "--task", "local enforcement smoke", "--budget", "quick", "--dir", workDir]);
     const { stdout } = await run(workDir, ["enforce", "check", "--stage", "local", "--json", "--dir", workDir]);
@@ -388,6 +444,28 @@ describe("hAIve CLI integration", () => {
       expect(report.summary.relevant_memories).toBe(0);
       expect(report.summary.stale_anchors).toBe(0);
       expect(report.notice).toContain("No staged changes");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("session end --auto falls back to a git diff recap when no observation log exists", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-auto-session-end-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src", "changed.ts"), "export const changed = true;\n", "utf8");
+
+      const { stdout } = await run(repo, ["session", "end", "--auto", "--dir", repo]);
+
+      expect(stdout).toContain("Session recap");
+      const personalDir = path.join(repo, ".ai/memories/personal");
+      const files = await readdir(personalDir);
+      const recapFile = files.find((file) => file.includes("session_recap"))!;
+      const content = await readFile(path.join(personalDir, recapFile), "utf8");
+      expect(content).toContain("Auto-captured session");
+      expect(content).toContain("src/changed.ts");
     } finally {
       await rm(repo, { recursive: true, force: true });
     }

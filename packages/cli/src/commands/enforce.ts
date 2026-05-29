@@ -17,11 +17,13 @@ import {
   SESSION_RECAP_TTL_MS,
   verifyAnchor,
   writeBriefingMarker,
+  type LoadedMemory,
   type HaiveConfig,
 } from "@hiveai/core";
 import { getBriefing, preCommitCheck } from "@hiveai/mcp";
 import { ui } from "../utils/ui.js";
 import { installClaudeHooksAtPath, defaultClaudeSettingsPath } from "../utils/claude-hooks.js";
+import { applyAutopilotRepairs } from "../utils/autopilot.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -56,6 +58,9 @@ interface EnforcementFinding {
   message: string;
   fix?: string;
   impact?: number;
+  reason?: string;
+  affected_files?: string[];
+  memory_ids?: string[];
 }
 
 interface EnforcementScore {
@@ -213,6 +218,7 @@ export function registerEnforce(program: Command): void {
       await mkdir(paths.runtimeDir, { recursive: true });
       const sessionId = opts.sessionId ?? payload.session_id;
       const task = opts.task ?? payload.prompt ?? "Start an AI coding session in this hAIve-initialized project.";
+      await applyLightweightRepairs(root, paths);
 
       const budget = resolveBriefingBudget("quick", {
         max_tokens: 2500,
@@ -276,7 +282,27 @@ export function registerEnforce(program: Command): void {
       if (!isWriteLikeTool(payload)) return;
 
       const ok = await hasRecentBriefingMarker(paths, payload.session_id);
-      if (ok) return;
+      if (ok) {
+        const targetFiles = extractToolPaths(payload, root);
+        if (targetFiles.length === 0) return;
+        const missing = await missingRequiredMemoriesForFiles(paths, targetFiles, payload.session_id);
+        if (missing.length === 0) return;
+        const ids = missing.slice(0, 6).map((memory) => memory.memory.frontmatter.id);
+        console.error(
+          [
+            "hAIve enforcement blocked this action.",
+            `Tool: ${payload.tool_name ?? "write tool"}`,
+            `Files: ${targetFiles.slice(0, 6).join(", ")}`,
+            "",
+            "These files have required hAIve context that was not in the current briefing:",
+            ...ids.map((id) => `  - ${id}`),
+            "",
+            "Load the targeted briefing before editing:",
+            `  ${briefingCommandForFiles(targetFiles)}`,
+          ].join("\n"),
+        );
+        process.exit(2);
+      }
 
       const tool = payload.tool_name ?? "write tool";
       console.error(
@@ -353,6 +379,7 @@ async function writeWrapperBriefing(
   sessionId: string,
   task: string,
 ): Promise<string> {
+  await applyLightweightRepairs(paths.root, paths);
   const budget = resolveBriefingBudget("quick", {
     max_tokens: 2500,
     max_memories: 5,
@@ -412,6 +439,7 @@ async function buildEnforcementReport(
   const paths = resolveHaivePaths(root);
   const initialized = existsSync(paths.haiveDir);
   const config = initialized ? await loadConfig(paths) : {};
+  if (initialized) await applyLightweightRepairs(root, paths);
   const mode = config.enforcement?.mode ?? "strict";
   const findings: EnforcementFinding[] = [];
 
@@ -631,6 +659,9 @@ async function verifyDecisionCoverage(
     code: "decision-coverage-missing",
     message: `${missing.length}/${relevant.length} relevant anchored decisions/policies were not present in the latest briefing: ${missing.slice(0, 6).map((m) => m.frontmatter.id).join(", ")}`,
     fix: `Run \`haive briefing --files "${changedFiles.slice(0, 10).join(",")}" --task "..."\` before committing.`,
+    reason: "Changed files overlap validated anchored policy memories that were not recorded in the latest briefing marker.",
+    affected_files: changedFiles.slice(0, 10),
+    memory_ids: missing.slice(0, 10).map((m) => m.frontmatter.id),
     impact: Math.min(35, 10 + missing.length * 5),
   }];
 }
@@ -979,7 +1010,23 @@ function printFinding(finding: EnforcementFinding, explain = false): void {
           ? ui.green("✓")
           : ui.dim("•");
     console.log(`${marker} ${finding.code}: ${finding.message}`);
+    if (explain && finding.reason) console.log(ui.dim(`  why: ${finding.reason}`));
+    if (explain && finding.affected_files?.length) console.log(ui.dim(`  files: ${finding.affected_files.join(", ")}`));
+    if (explain && finding.memory_ids?.length) console.log(ui.dim(`  memories: ${finding.memory_ids.join(", ")}`));
     if (finding.fix) console.log(ui.dim(`${explain ? "  repair: " : "  fix: "}${finding.fix}`));
+}
+
+async function applyLightweightRepairs(
+  root: string,
+  paths: ReturnType<typeof resolveHaivePaths>,
+): Promise<void> {
+  await applyAutopilotRepairs(root, paths, {
+    applyConfig: false,
+    applyContext: true,
+    applyCorpus: true,
+    applyCodeMap: false,
+    applyCodeSearch: true,
+  }).catch(() => { /* lightweight repair is best-effort */ });
 }
 
 async function readHookPayload(): Promise<HookPayload> {
@@ -1007,6 +1054,63 @@ function isWriteLikeTool(payload: HookPayload): boolean {
   const command = String(payload.tool_input?.["command"] ?? "");
   return /\b(rm|mv|cp|mkdir|touch|tee|sed|perl|python|node|npm|pnpm|yarn|git)\b/.test(command) ||
     />{1,2}/.test(command);
+}
+
+function extractToolPaths(payload: HookPayload, root: string): string[] {
+  const input = payload.tool_input ?? {};
+  const values: unknown[] = [
+    input["file_path"],
+    input["path"],
+    input["notebook_path"],
+  ];
+  if (Array.isArray(input["file_paths"])) values.push(...input["file_paths"]);
+  if (Array.isArray(input["files"])) values.push(...input["files"]);
+
+  if (payload.tool_name === "MultiEdit" && Array.isArray(input["edits"])) {
+    for (const edit of input["edits"]) {
+      if (edit && typeof edit === "object" && "file_path" in edit) {
+        values.push((edit as { file_path?: unknown }).file_path);
+      }
+    }
+  }
+
+  const out = new Set<string>();
+  for (const value of values) {
+    if (typeof value !== "string" || !value.trim()) continue;
+    out.add(normalizeToolPath(value, root));
+  }
+  return [...out].filter(Boolean).sort();
+}
+
+function normalizeToolPath(file: string, root: string): string {
+  const normalized = file.replace(/\\/g, "/");
+  if (!path.isAbsolute(normalized)) return normalized.replace(/^\.\//, "");
+  return path.relative(root, normalized).replace(/\\/g, "/");
+}
+
+async function missingRequiredMemoriesForFiles(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  files: string[],
+  sessionId?: string,
+): Promise<LoadedMemory[]> {
+  if (!existsSync(paths.memoriesDir)) return [];
+  const marker = await readRecentBriefingMarker(paths, sessionId);
+  const consulted = new Set(marker?.memory_ids ?? []);
+  const policyTypes = new Set(["decision", "gotcha", "architecture", "convention", "attempt"]);
+  const all = await loadMemoriesFromDir(paths.memoriesDir);
+  return all
+    .filter(({ memory }) => {
+      const fm = memory.frontmatter;
+      if (!policyTypes.has(fm.type)) return false;
+      if (fm.status !== "validated") return false;
+      if (consulted.has(fm.id)) return false;
+      return memoryMatchesAnchorPaths(memory, files);
+    })
+    .map(({ memory, filePath }) => ({ memory, filePath }));
+}
+
+function briefingCommandForFiles(files: string[]): string {
+  return `haive briefing --files "${files.slice(0, 10).join(",")}" --task "edit ${files.slice(0, 3).join(", ")}"`;
 }
 
 async function readStdin(maxBytes: number): Promise<string> {

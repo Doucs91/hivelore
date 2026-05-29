@@ -6,6 +6,7 @@
  */
 import { writeFile, mkdir, readFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { spawn } from "node:child_process";
 import path from "node:path";
 import { Command } from "commander";
 import {
@@ -44,17 +45,17 @@ interface Observation {
 
 async function buildAutoRecap(
   paths: ReturnType<typeof resolveHaivePaths>,
-): Promise<{ goal: string; accomplished: string; files: string[]; rawCount: number } | null> {
+): Promise<{ goal: string; accomplished: string; discoveries?: string; files: string[]; rawCount: number } | null> {
   const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
-  if (!existsSync(obsFile)) return null;
+  if (!existsSync(obsFile)) return await buildGitAutoRecap(paths);
   const raw = await readFile(obsFile, "utf8").catch(() => "");
-  if (!raw.trim()) return null;
+  if (!raw.trim()) return await buildGitAutoRecap(paths);
   const lines = raw.split("\n").filter(Boolean);
   const obs: Observation[] = [];
   for (const line of lines) {
     try { obs.push(JSON.parse(line) as Observation); } catch { /* skip */ }
   }
-  if (obs.length === 0) return null;
+  if (obs.length === 0) return await buildGitAutoRecap(paths);
 
   const toolCounts = new Map<string, number>();
   const fileCounts = new Map<string, number>();
@@ -87,6 +88,38 @@ async function buildAutoRecap(
   };
 }
 
+async function buildGitAutoRecap(
+  paths: ReturnType<typeof resolveHaivePaths>,
+): Promise<{ goal: string; accomplished: string; discoveries?: string; files: string[]; rawCount: number } | null> {
+  const changed = await runGit(paths.root, ["diff", "--name-only"]).catch(() => "");
+  const staged = await runGit(paths.root, ["diff", "--cached", "--name-only"]).catch(() => "");
+  const status = await runGit(paths.root, ["status", "--porcelain", "--untracked-files=all"]).catch(() => "");
+  const files = Array.from(new Set(
+    [
+      ...changed.split("\n"),
+      ...staged.split("\n"),
+      ...status.split("\n").map((line) => line.replace(/^[ MADRCU?!]{1,2}\s+/, "")),
+    ]
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .filter((file) => !file.startsWith(".ai/.runtime/") && !file.startsWith(".ai/.cache/")),
+  )).sort();
+  if (files.length === 0) return null;
+
+  const diffStat = await runGit(paths.root, ["diff", "--stat"]).catch(() => "");
+  return {
+    goal: `Auto-captured session — ${files.length} changed file${files.length === 1 ? "" : "s"}`,
+    accomplished: [
+      "Detected local changes:",
+      ...files.slice(0, 12).map((file) => `- ${file}`),
+      files.length > 12 ? `- ...and ${files.length - 12} more` : "",
+    ].filter(Boolean).join("\n"),
+    discoveries: diffStat.trim() ? `Git diff summary:\n${diffStat.trim()}` : undefined,
+    files,
+    rawCount: files.length,
+  };
+}
+
 function buildRecapBody(opts: {
   goal: string;
   accomplished: string;
@@ -108,6 +141,21 @@ function buildRecapBody(opts: {
     lines.push(`\n## Next steps\n${opts.next}`);
   }
   return lines.join("\n");
+}
+
+function runGit(cwd: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("git", args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
+    proc.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+    proc.on("error", reject);
+    proc.on("close", (code) => {
+      if (code === 0) resolve(stdout);
+      else reject(new Error(stderr || `git ${args.join(" ")} exited with code ${code}`));
+    });
+  });
 }
 
 function recapTopic(scope: string, module?: string): string {
@@ -161,6 +209,7 @@ export function registerSessionEnd(session: Command): void {
         if (!synth) return; // nothing observed — silently no-op
         goal = goal ?? synth.goal;
         accomplished = accomplished ?? synth.accomplished;
+        opts.discoveries = opts.discoveries ?? synth.discoveries;
         if (!resolvedFiles && synth.files.length) resolvedFiles = synth.files.join(",");
       }
 

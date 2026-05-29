@@ -46,3 +46,5 @@
 {"tool":"get_briefing","at":"2026-05-29T12:36:39.913Z","summary":"Auditer hAIve après installation de la dernière version globale, exécuter les tests/diagnostics, identifier ce qui n'est pas encore parfait dans les fonctionnalités existantes, puis implémenter les correctifs nécessaires."}
 {"tool":"mem_session_end","at":"2026-05-29T12:46:04.848Z","summary":"Tester hAIve 0.9.23 installé globalement, identifier les comportements encore im"}
 {"tool":"get_briefing","at":"2026-05-29T19:13:44.626Z","summary":"Créer les commits et le tag de release pour les correctifs d'autopilot/indexing/precommit déjà implémentés, puis bumper hAIve de 0.9.23 vers 0.9.24."}
+{"tool":"get_briefing","at":"2026-05-29T19:27:22.793Z","summary":"Implémenter les 6 améliorations pour rendre hAIve plus naturel: briefing automatique, rappels pre-tool-use ciblés, moins de bruit, auto-réparation légère, meilleure boucle session-end, et gates pédagogiques dans les commandes existantes."}
+{"tool":"mem_session_end","at":"2026-05-29T19:34:10.331Z","summary":"Implémenter les six améliorations qui rendent hAIve plus naturel pour les agents"}

@@ -20,6 +20,7 @@ import {
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 import { buildRadar, radarHasContent, type RadarReport } from "../utils/briefing-radar.js";
+import { applyAutopilotRepairs } from "../utils/autopilot.js";
 
 interface BriefingOptions {
   task?: string;
@@ -158,6 +159,15 @@ export function registerBriefing(program: Command): void {
       const requestedFormat = (opts.format ?? opts.memoryFormat ?? "full").toLowerCase();
       opts.memoryFormat = requestedFormat === "compact" ? "actions" : requestedFormat;
       const markerFiles = parseCsv(opts.files);
+      if (existsSync(paths.haiveDir)) {
+        await applyAutopilotRepairs(root, paths, {
+          applyConfig: false,
+          applyContext: true,
+          applyCorpus: true,
+          applyCodeMap: false,
+          applyCodeSearch: true,
+        }).catch(() => { /* briefing should still work if repair fails */ });
+      }
       if (existsSync(paths.haiveDir)) {
         await mkdir(paths.runtimeDir, { recursive: true });
         await writeBriefingMarker(paths, {
