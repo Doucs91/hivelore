@@ -41,6 +41,7 @@ interface SyncOptions {
   noCrossRepo?: boolean;
   noDeps?: boolean;
   noContracts?: boolean;
+  dryRun?: boolean;
 }
 
 export function registerSync(program: Command): void {
@@ -57,6 +58,7 @@ export function registerSync(program: Command): void {
       "  Install git hooks to run sync automatically: haive install-hooks\n\n" +
       "  Examples:\n" +
       "    haive sync\n" +
+      "    haive sync --dry-run      # preview what would change without writing\n" +
       "    haive sync --since main   # also report memories changed since main\n" +
       "    haive sync --embed        # also rebuild embeddings index\n",
     )
@@ -78,6 +80,7 @@ export function registerSync(program: Command): void {
     .option("--no-cross-repo", "skip cross-repo memory pull even if crossRepoSources is configured")
     .option("--no-deps", "skip dependency version tracking")
     .option("--no-contracts", "skip contract file diff checking")
+    .option("--dry-run", "report what would change without writing any files")
     .action(async (opts: SyncOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
@@ -96,6 +99,9 @@ export function registerSync(program: Command): void {
       const autoPromoteMinReads = config.autoPromoteMinReads ?? DEFAULT_AUTO_PROMOTE_RULE.minReads;
       const autoRepair = config.autoRepair ?? {};
 
+      const dryRun = opts.dryRun === true;
+      if (dryRun) log(ui.yellow("(dry run — no files will be written)"));
+
       let staleMarked = 0;
       let revalidated = 0;
       let promoted = 0;
@@ -108,19 +114,21 @@ export function registerSync(program: Command): void {
           // If one was incorrectly stale-marked by a prior sync, auto-revalidate it now.
           if (memory.frontmatter.type === "session_recap") {
             if (memory.frontmatter.status === "stale") {
-              await writeFile(
-                filePath,
-                serializeMemory({
-                  frontmatter: {
-                    ...memory.frontmatter,
-                    status: "validated",
-                    stale_reason: null,
-                    verified_at: new Date().toISOString(),
-                  },
-                  body: memory.body,
-                }),
-                "utf8",
-              );
+              if (!dryRun) {
+                await writeFile(
+                  filePath,
+                  serializeMemory({
+                    frontmatter: {
+                      ...memory.frontmatter,
+                      status: "validated",
+                      stale_reason: null,
+                      verified_at: new Date().toISOString(),
+                    },
+                    body: memory.body,
+                  }),
+                  "utf8",
+                );
+              }
               revalidated++;
             }
             continue;
@@ -135,35 +143,39 @@ export function registerSync(program: Command): void {
 
           if (result.stale) {
             if (memory.frontmatter.status !== "stale") {
+              if (!dryRun) {
+                await writeFile(
+                  filePath,
+                  serializeMemory({
+                    frontmatter: {
+                      ...memory.frontmatter,
+                      status: "stale",
+                      verified_at: verifiedAt,
+                      stale_reason: result.reason,
+                    },
+                    body: memory.body,
+                  }),
+                  "utf8",
+                );
+              }
+              staleMarked++;
+            }
+          } else if (memory.frontmatter.status === "stale") {
+            if (!dryRun) {
               await writeFile(
                 filePath,
                 serializeMemory({
                   frontmatter: {
                     ...memory.frontmatter,
-                    status: "stale",
+                    status: "validated",
                     verified_at: verifiedAt,
-                    stale_reason: result.reason,
+                    stale_reason: null,
                   },
                   body: memory.body,
                 }),
                 "utf8",
               );
-              staleMarked++;
             }
-          } else if (memory.frontmatter.status === "stale") {
-            await writeFile(
-              filePath,
-              serializeMemory({
-                frontmatter: {
-                  ...memory.frontmatter,
-                  status: "validated",
-                  verified_at: verifiedAt,
-                  stale_reason: null,
-                },
-                body: memory.body,
-              }),
-              "utf8",
-            );
             revalidated++;
           }
         }
@@ -184,11 +196,13 @@ export function registerSync(program: Command): void {
               maxRejections: DEFAULT_AUTO_PROMOTE_RULE.maxRejections,
             })
           ) {
-            await writeFile(
-              filePath,
-              serializeMemory({ frontmatter: { ...fm, status: "validated" }, body: memory.body }),
-              "utf8",
-            );
+            if (!dryRun) {
+              await writeFile(
+                filePath,
+                serializeMemory({ frontmatter: { ...fm, status: "validated" }, body: memory.body }),
+                "utf8",
+              );
+            }
             promoted++;
             continue;
           }
@@ -202,25 +216,27 @@ export function registerSync(program: Command): void {
             const ageHours =
               (nowMs - new Date(fm.created_at).getTime()) / (1000 * 60 * 60);
             if (ageHours >= autoApproveDelayHours) {
-              await writeFile(
-                filePath,
-                serializeMemory({
-                  frontmatter: {
-                    ...fm,
-                    status: "validated",
-                    verified_at: new Date().toISOString(),
-                  },
-                  body: memory.body,
-                }),
-                "utf8",
-              );
+              if (!dryRun) {
+                await writeFile(
+                  filePath,
+                  serializeMemory({
+                    frontmatter: {
+                      ...fm,
+                      status: "validated",
+                      verified_at: new Date().toISOString(),
+                    },
+                    body: memory.body,
+                  }),
+                  "utf8",
+                );
+              }
               autoApproved++;
             }
           }
         }
       }
 
-      if (config.autopilot || autoRepair.context || autoRepair.corpus) {
+      if (!dryRun && (config.autopilot || autoRepair.context || autoRepair.corpus)) {
         const repairs = await applyAutopilotRepairs(root, paths, {
           applyContext: autoRepair.context ?? config.autopilot,
           applyCorpus: autoRepair.corpus ?? config.autopilot,
@@ -364,14 +380,16 @@ export function registerSync(program: Command): void {
                     paths: [result.file],
                     topic: `dep-bump-${slugParts}`,
                   });
-                  const teamDir = path.join(paths.memoriesDir, "team");
-                  await mkdir(teamDir, { recursive: true });
-                  await writeFile(
-                    path.join(teamDir, `${fm.id}.md`),
-                    serializeMemory({ frontmatter: { ...fm, requires_human_approval: true }, body }),
-                    "utf8",
-                  );
-                  log(ui.yellow(`   → memory created: ${fm.id}`));
+                  if (!dryRun) {
+                    const teamDir = path.join(paths.memoriesDir, "team");
+                    await mkdir(teamDir, { recursive: true });
+                    await writeFile(
+                      path.join(teamDir, `${fm.id}.md`),
+                      serializeMemory({ frontmatter: { ...fm, requires_human_approval: true }, body }),
+                      "utf8",
+                    );
+                  }
+                  log(ui.yellow(`   → memory${dryRun ? " would be" : ""} created: ${fm.id}`));
                 }
               }
             }
@@ -430,14 +448,16 @@ export function registerSync(program: Command): void {
                 paths: [diff.file],
                 topic: `contract-breaking-${diff.contract}`,
               });
-              const teamDir = path.join(paths.memoriesDir, "team");
-              await mkdir(teamDir, { recursive: true });
-              await writeFile(
-                path.join(teamDir, `${fm.id}.md`),
-                serializeMemory({ frontmatter: { ...fm, requires_human_approval: true }, body }),
-                "utf8",
-              );
-              log(ui.yellow(`   → memory created: ${fm.id}`));
+              if (!dryRun) {
+                const teamDir = path.join(paths.memoriesDir, "team");
+                await mkdir(teamDir, { recursive: true });
+                await writeFile(
+                  path.join(teamDir, `${fm.id}.md`),
+                  serializeMemory({ frontmatter: { ...fm, requires_human_approval: true }, body }),
+                  "utf8",
+                );
+              }
+              log(ui.yellow(`   → memory${dryRun ? " would be" : ""} created: ${fm.id}`));
             }
           }
         } catch (err) {
@@ -447,7 +467,7 @@ export function registerSync(program: Command): void {
 
       // ── Auto-refresh code-map if source files changed since it was generated ──
       const existingMap = await loadCodeMap(paths);
-      if (!existingMap && (config.autopilot || autoRepair.codeMap)) {
+      if (!dryRun && !existingMap && (config.autopilot || autoRepair.codeMap)) {
         try {
           const { buildCodeMap, saveCodeMap } = await import("@hiveai/core");
           log(ui.dim("code-map: missing — building index…"));
@@ -480,21 +500,24 @@ export function registerSync(program: Command): void {
         );
         const changedSourceFiles = (gitResult.stdout ?? "").trim();
         if (changedSourceFiles.length > 0) {
-          // Lazily import the indexer to avoid circular deps
-          try {
-            const { buildCodeMap, saveCodeMap } = await import("@hiveai/core");
-            log(ui.dim("code-map: source files changed — refreshing index…"));
-            const newMap = await buildCodeMap(root);
-            await saveCodeMap(paths, newMap);
-            log(ui.dim(`code-map: refreshed (${Object.keys(newMap.files).length} files)`));
-          } catch {
-            // Non-fatal — code-map refresh is best-effort
+          if (!dryRun) {
+            try {
+              const { buildCodeMap, saveCodeMap } = await import("@hiveai/core");
+              log(ui.dim("code-map: source files changed — refreshing index…"));
+              const newMap = await buildCodeMap(root);
+              await saveCodeMap(paths, newMap);
+              log(ui.dim(`code-map: refreshed (${Object.keys(newMap.files).length} files)`));
+            } catch {
+              // Non-fatal — code-map refresh is best-effort
+            }
+          } else {
+            log(ui.dim("code-map: source files changed — would refresh index (skipped in dry-run)"));
           }
         }
       }
 
       // --embed or autopilot autoRepair.codeSearch: rebuild embeddings index after sync
-      if (opts.embed || autoRepair.codeSearch) {
+      if (!dryRun && (opts.embed || autoRepair.codeSearch)) {
         try {
           const { Embedder, rebuildCodeIndex, rebuildIndex } = await import("@hiveai/embeddings");
           log(ui.dim("embed: rebuilding index…"));

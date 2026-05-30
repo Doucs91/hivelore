@@ -19,8 +19,14 @@ interface HotOptions {
 export function registerMemoryHot(memory: Command): void {
   memory
     .command("hot")
-    .description("List memories actively used but not yet validated (good promotion candidates)")
-    .option("--threshold <n>", "minimum read_count to qualify", "3")
+    .description(
+      "List unvalidated memories with high read_count — proven-useful promotion candidates.\n\n" +
+      "  Unlike `haive memory pending` (which lists ALL draft/proposed by status),\n" +
+      "  `hot` filters by usage: only memories read ≥N times qualify.\n" +
+      "  Use it to quickly find memories that agents are already relying on\n" +
+      "  but that haven't been formally validated yet.",
+    )
+    .option("--threshold <n>", "minimum read_count to qualify (default: 3)", "3")
     .option("--status <status>", "limit to one status (default: draft + proposed)")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: HotOptions) => {
@@ -64,7 +70,8 @@ export function registerMemoryHot(memory: Command): void {
         console.log(`  ${ui.dim(path.relative(root, filePath))}`);
       }
       ui.info(
-        `${candidates.length} hot — promote drafts with \`haive memory promote <id>\`, then \`haive memory auto-promote --apply\`.`,
+        `${candidates.length} hot (read ≥${threshold}×) — agents rely on these; promote with \`haive memory promote <id>\`.\n` +
+        `  Tip: \`haive memory pending\` lists ALL unvalidated memories regardless of read count.`,
       );
     });
 }

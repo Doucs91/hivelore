@@ -144,10 +144,13 @@ export class SessionTracker {
 
       // ── 3. Write pending-distill.json so next get_briefing can prompt ─────
       // Skip if the agent already ran post_task this session (no shallow recap).
+      // Also skip trivial sessions (1-2 tool calls with no writes) — they don't
+      // contain distillation candidates and the action_required would just be noise.
       const ranPostTask = this.events.some((e) =>
         e.tool === "mem_session_end" && !e.summary?.startsWith("Auto-captured"),
       );
-      if (!ranPostTask && existsSync(this.ctx.paths.haiveDir)) {
+      const isSubstantialSession = totalCalls >= 3 || writingTools.length > 0;
+      if (!ranPostTask && isSubstantialSession && existsSync(this.ctx.paths.haiveDir)) {
         try {
           const memoriesSaved = writingTools
             .map((e) => e.summary ?? "")

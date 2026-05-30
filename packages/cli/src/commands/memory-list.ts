@@ -12,6 +12,7 @@ interface ListOptions {
   module?: string;
   status?: string;
   showRejected?: boolean;
+  limit?: string;
   dir?: string;
 }
 
@@ -25,6 +26,7 @@ export function registerMemoryList(memory: Command): void {
     .option("--module <name>", "filter by module name")
     .option("--status <csv>", "filter by status (draft,proposed,validated,stale,rejected,deprecated)")
     .option("--show-rejected", "include rejected memories (hidden by default)")
+    .option("--limit <n>", "max memories to display")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: ListOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -37,6 +39,7 @@ export function registerMemoryList(memory: Command): void {
 
       const all = await loadMemoriesFromDir(paths.memoriesDir);
       const statusFilter = opts.status ? opts.status.split(",").map((s) => s.trim()) : null;
+      const limit = opts.limit ? Math.max(1, parseInt(opts.limit, 10)) : undefined;
       const filtered = all.filter((m) => {
         if (!matchesFilters(m, opts)) return false;
         const status = m.memory.frontmatter.status;
@@ -61,7 +64,10 @@ export function registerMemoryList(memory: Command): void {
         return;
       }
 
-      for (const { memory: mem, filePath } of filtered) {
+      const displayed = limit !== undefined ? filtered.slice(0, limit) : filtered;
+      const clipped = filtered.length - displayed.length;
+
+      for (const { memory: mem, filePath } of displayed) {
         const fm = mem.frontmatter;
         const tagStr = fm.tags.length ? ui.dim(` [${fm.tags.join(", ")}]`) : "";
         const moduleStr = fm.module ? ui.dim(` (${fm.module})`) : "";
@@ -73,7 +79,10 @@ export function registerMemoryList(memory: Command): void {
         if (title && title !== fm.id) console.log(`  ${title}`);
         console.log(`  ${ui.dim(path.relative(root, filePath))}`);
       }
-      console.log(ui.dim(`\n${filtered.length} memor${filtered.length === 1 ? "y" : "ies"}`));
+      const totalLabel = clipped > 0
+        ? `\n${displayed.length} of ${filtered.length} memories shown (use --limit to adjust)`
+        : `\n${filtered.length} memor${filtered.length === 1 ? "y" : "ies"}`;
+      console.log(ui.dim(totalLabel));
 
       // Always show rejected hint when memories are hidden
       if (hiddenRejectedCount > 0) {
