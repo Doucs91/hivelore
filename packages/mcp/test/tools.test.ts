@@ -344,6 +344,86 @@ describe("hAIve MCP tools", () => {
       expect(briefing.briefing_quality.level).toBe("strong");
     });
 
+    it("caps unanchored stack-pack seeds at background even on a strong task match", async () => {
+      const seed = await memSave(
+        {
+          type: "gotcha",
+          slug: "express-async-error-propagation",
+          body: "# Express async errors\n\nAsync route handlers do not propagate errors to error middleware without explicit next(err).",
+          scope: "team",
+          tags: ["express", "error-handling", "stack-pack"],
+          paths: [],
+          symbols: [],
+        },
+        ctx,
+      );
+
+      const { loadMemoriesFromDir, serializeMemory } = await import("@hiveai/core");
+      for (const item of await loadMemoriesFromDir(ctx.paths.memoriesDir)) {
+        await writeFile(
+          item.filePath,
+          serializeMemory({ frontmatter: { ...item.memory.frontmatter, status: "validated" }, body: item.memory.body }),
+          "utf8",
+        );
+      }
+
+      const briefing = await getBriefing(
+        {
+          task: "express async route handler error propagation middleware",
+          files: ["src/routes.ts"],
+          max_tokens: 4000, max_memories: 8,
+          include_project_context: false, include_module_contexts: false,
+          semantic: false, include_stale: false, track: false, format: "full",
+          symbols: [], min_semantic_score: 0,
+        },
+        ctx,
+      );
+
+      const seedHit = briefing.memories.find((m) => m.id === seed.id);
+      expect(seedHit).toBeDefined();
+      expect(seedHit!.priority).toBe("background");
+    });
+
+    it("writes a briefing marker so MCP-native agents satisfy the enforcement gate", async () => {
+      const anchored = await memSave(
+        {
+          type: "decision",
+          slug: "routes-policy",
+          body: "# Routes policy\n\nAll routes go through the shared router because it centralises auth.",
+          scope: "team",
+          tags: [],
+          paths: ["src/routes.ts"],
+          symbols: [],
+        },
+        ctx,
+      );
+      const { loadMemoriesFromDir, serializeMemory, readRecentBriefingMarker } = await import("@hiveai/core");
+      for (const item of await loadMemoriesFromDir(ctx.paths.memoriesDir)) {
+        await writeFile(
+          item.filePath,
+          serializeMemory({ frontmatter: { ...item.memory.frontmatter, status: "validated" }, body: item.memory.body }),
+          "utf8",
+        );
+      }
+
+      await getBriefing(
+        {
+          task: "edit the router", files: ["src/routes.ts"],
+          max_tokens: 4000, max_memories: 8,
+          include_project_context: false, include_module_contexts: false,
+          semantic: false, include_stale: false, track: false, format: "full",
+          symbols: [], min_semantic_score: 0,
+        },
+        ctx,
+      );
+
+      const marker = await readRecentBriefingMarker(ctx.paths);
+      expect(marker).not.toBeNull();
+      expect(marker!.source).toBe("mcp-get-briefing");
+      expect(marker!.files).toContain("src/routes.ts");
+      expect(marker!.memory_ids).toContain(anchored.id);
+    });
+
     it("keeps directly relevant attempts as must_read", async () => {
       const attempt = await memSave(
         {

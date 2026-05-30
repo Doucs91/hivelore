@@ -12,6 +12,7 @@ import {
   isGlobPath,
   isAutoPromoteEligible,
   isDecaying,
+  isStackPackSeed,
   literalMatchesAllTokens,
   literalMatchesAnyToken,
   loadCodeMap,
@@ -26,6 +27,7 @@ import {
   tokenizeQuery,
   trackReads,
   truncateToTokens,
+  writeBriefingMarker,
   type ConfidenceLevel,
   type LoadedMemory,
   type UsageIndex,
@@ -805,6 +807,20 @@ export async function getBriefing(
     }
   }
 
+  // Record a briefing marker so an MCP-native agent that calls get_briefing before
+  // editing satisfies the enforcement gate — without having to shell out to the CLI
+  // `haive briefing`. memory_ids carry the surfaced anchored policies so the per-file
+  // decision-coverage check passes for the files this briefing actually covered.
+  if (existsSync(ctx.paths.haiveDir)) {
+    await writeBriefingMarker(ctx.paths, {
+      sessionId: process.env.HAIVE_SESSION_ID,
+      ...(input.task ? { task: input.task } : {}),
+      source: "mcp-get-briefing",
+      files: input.files,
+      memoryIds: outputMemories.map((m) => m.id),
+    }).catch(() => { /* marker is best-effort — never fail the briefing on it */ });
+  }
+
   return {
     ...(input.task ? { task: input.task } : {}),
     search_mode: searchMode,
@@ -876,6 +892,14 @@ function classifyMemoryPriority(
     (memory.type === "skill" && (memory.match_quality === "exact" || strongSemantic))
   ) {
     return "must_read";
+  }
+
+  // Generic stack-pack seeds never claim `useful` rank on a semantic/tag match alone —
+  // they would otherwise crowd out repo-specific memories. A direct anchor/symbol match
+  // (handled above) is the only way a seed earns a higher tier, which means it has been
+  // anchored to a real file the agent is editing.
+  if (isStackPackSeed(fm)) {
+    return "background";
   }
 
   if (

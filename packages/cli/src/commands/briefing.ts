@@ -5,6 +5,7 @@ import { Command } from "commander";
 import {
   extractActionsBriefBody,
   findProjectRoot,
+  isStackPackSeed,
   literalMatchesAllTokens,
   literalMatchesAnyToken,
   loadCodeMap,
@@ -477,6 +478,9 @@ function classifyCliPriority(
   const fm = item.memory.frontmatter;
   const anchored = filePaths.length > 0 && memoryMatchesAnchorPaths(item.memory, filePaths);
   if (anchored || (fm.type === "attempt" && exactTaskHit)) return "must_read";
+  // Generic stack-pack seeds stay at `background` unless anchored to an edited file —
+  // mirrors the MCP get_briefing ranking so the CLI and MCP agree on priority.
+  if (isStackPackSeed(fm)) return "background";
   if (exactTaskHit || partialTaskHit || item.score >= 4 || (tokens && fm.tags.some((tag) => tokens.includes(tag)))) {
     return "useful";
   }

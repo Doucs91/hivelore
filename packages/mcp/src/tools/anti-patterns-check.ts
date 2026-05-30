@@ -52,6 +52,10 @@ export interface AntiPatternsWarning {
   body_preview: string;
   reasons: Array<"anchor" | "literal" | "semantic">;
   semantic_score?: number;
+  /** Memory tags — used downstream (e.g. pre_commit_check) to weight a warning by topic. */
+  tags?: string[];
+  /** Anchor paths of the memory — lets the gate tell what kind of file this warning is about. */
+  anchor_paths?: string[];
 }
 
 export interface AntiPatternsCheckOutput {
@@ -101,7 +105,7 @@ export async function antiPatternsCheck(
   const seen = new Map<string, AntiPatternsWarning>();
 
   const upsert = (
-    fm: { id: string; type: string; scope: string },
+    fm: { id: string; type: string; scope: string; tags?: string[]; anchor?: { paths?: string[] } },
     body: string,
     reason: AntiPatternsWarning["reasons"][number],
     score?: number,
@@ -122,6 +126,8 @@ export async function antiPatternsCheck(
       confidence: deriveConfidence(fm as Parameters<typeof deriveConfidence>[0], u),
       body_preview: body.split("\n").slice(0, 5).join("\n").slice(0, 400),
       reasons: [reason],
+      tags: fm.tags ?? [],
+      anchor_paths: fm.anchor?.paths ?? [],
       ...(score !== undefined ? { semantic_score: score } : {}),
     });
   };

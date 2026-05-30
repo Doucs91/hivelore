@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-05-30T00:08:28.451Z",
+  "generated_at": "2026-05-30T01:22:10.935Z",
   "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -113,7 +113,7 @@
           "line": 65
         }
       ],
-      "loc": 893
+      "loc": 952
     },
     "packages/cli/src/commands/embeddings.ts": {
       "exports": [
@@ -138,7 +138,7 @@
           "line": 325
         }
       ],
-      "loc": 1156
+      "loc": 1165
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -353,7 +353,7 @@
           "line": 19
         }
       ],
-      "loc": 71
+      "loc": 78
     },
     "packages/cli/src/commands/memory-import-changelog.ts": {
       "summary": "haive memory import --from-changelog CHANGELOG.md [--package <name>] Parses a CHANGELOG.md file (Keep-a-Changelog format or common variants), extracts breaking changes and notable gotchas from recent versions, and saves them as hAIve memories.",
@@ -418,10 +418,10 @@
         {
           "name": "registerMemoryList",
           "kind": "function",
-          "line": 18
+          "line": 19
         }
       ],
-      "loc": 111
+      "loc": 120
     },
     "packages/cli/src/commands/memory-pending.ts": {
       "exports": [
@@ -662,10 +662,10 @@
         {
           "name": "registerSync",
           "kind": "function",
-          "line": 46
+          "line": 47
         }
       ],
-      "loc": 621
+      "loc": 644
     },
     "packages/cli/src/commands/tui.ts": {
       "exports": [
@@ -2336,10 +2336,10 @@
           "name": "clearPendingDistill",
           "kind": "function",
           "description": "Delete the pending distill marker if it exists.",
-          "line": 185
+          "line": 188
         }
       ],
-      "loc": 202
+      "loc": 205
     },
     "packages/mcp/src/tools/anti-patterns-check.ts": {
       "exports": [
@@ -3212,7 +3212,7 @@
           "line": 252
         }
       ],
-      "loc": 346
+      "loc": 363
     },
     "packages/mcp/src/tools/runtime-journal-append.ts": {
       "exports": [

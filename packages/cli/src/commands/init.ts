@@ -44,31 +44,29 @@ TODO — domain terms and what they mean here.
 TODO — known traps, surprising behavior, things newcomers stub their toes on.
 `;
 
+// Bridge files are a table of contents, not a manual: a short, stable entry
+// point that tells the agent where the real context lives. Kept deliberately
+// under ~30 lines so it never crowds out the task in the agent's context window.
 const BRIDGE_BODY = `<!-- hAIve bridge file — do not edit by hand. -->
-<!-- This file points your AI tool at the shared hAIve project context. -->
 
-See \`.ai/project-context.md\` for the full project context.
-Memories live under \`.ai/memories/\` (personal/team/module).
+This repo uses **hAIve** for shared context. The map:
 
-## hAIve — mandatory rules for AI agents
+- \`.ai/project-context.md\` — project overview, architecture, conventions.
+- \`.ai/memories/\` — decisions, gotchas, conventions, failed attempts (personal/team/module).
+- The breadcrumbs injected below (if any) are the top current memories.
 
-Installing or initializing hAIve in this repository means **the team expects AI agents to drive work through hAIve**, not bypass it.
+## Working through hAIve
 
-### MCP first (default — never optional unless the developer says so)
-The **haive** MCP server must be enabled in your client. Until it is unavailable (misconfiguration report to the developer), you **must** use it for substantive work:
+1. **Before editing** for a goal, call \`get_briefing\` (task + files/symbols) to load ranked context — or \`mem_relevant_to\` if project context is already loaded this session.
+2. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
 
-- **Before** you edit project source files, configs (\`package.json\`, tooling), or workflows for the current goal, invoke \`get_briefing\` with a short **task** string (and **files** / **symbols** when you know them). If project context was already refreshed in this session and you only need ranked memories, you may call \`mem_relevant_to\` instead—but **still** consult hAIve before trusting ungrounded guesses.
-- **Before** declaring a coding task finished, invoke the MCP prompt \`post_task\` when the session produced learnings or substantive changes worth capturing.
+If the haive MCP server is not available, tell the developer rather than silently skipping it.
 
-Do **not** treat these as nice-to-have: they are **default-required** for coding agents here.
+## Safety
 
-### Session rules
-- **Immediately** when an approach fails (wrong API, wrong pattern, wrong assumption), call \`mem_tried\` — do not wait until the end of the session.
-
-### Safety rules — NEVER violate these
-- If \`get_briefing\` returns an \`action_required\` list, **stop and show each item to the developer** before doing anything. Use the exact \`developer_message\` provided. Wait for explicit confirmation.
-- **Never modify code autonomously** because of a breaking change detected in another project (dependency version bump, API contract change, removed field). Always ask first.
-- When in doubt about a cross-repo change: ask, don't act.
+- If \`get_briefing\` returns \`action_required\`, surface each item to the developer (use its \`developer_message\`) and wait for confirmation before changing code.
+- Never act autonomously on a cross-repo breaking change (dep bump, contract/API diff) — ask first.
 `;
 
 /** Cursor \`.cursor/rules/*.mdc\` — alwaysApply so agents see it even if bridge files are thin. */
@@ -339,7 +337,10 @@ export function registerInit(program: Command): void {
         }
         if (totalSeeded > 0) {
           ui.success(
-            `${totalSeeded} validated team memories pre-seeded — haive is useful from J+0`,
+            `${totalSeeded} starter memories seeded (generic stack guidance, kept at background priority)`,
+          );
+          ui.info(
+            "Anchor them to real files or replace them with repo-specific notes to make them high-signal.",
           );
         }
       }

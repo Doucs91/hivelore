@@ -278,8 +278,34 @@ function fileTypeDowngradeReason(
     return "package/config-only change; warning has no anchor on these files and no strong semantic match — downgraded to info.";
   }
 
+  // Inverse case: a package/build/tooling gotcha firing on a change that touches NO
+  // package/build file. These match by shared tokens ("install", "package", "build")
+  // and are almost always false positives on pure source edits.
+  const touchesBuildFile = paths.some(isPackageOrConfigPath);
+  if (!touchesBuildFile && isBuildScopedWarning(warning) && !warning.reasons.includes("anchor") && !hasStrongSemantic(warning)) {
+    return "build/packaging gotcha, but no package/build file changed — downgraded to info.";
+  }
+
   return null;
 }
+
+/**
+ * True when a warning is about build/packaging/tooling concerns — by its tags, or
+ * because every path it is anchored to is itself a package/config file.
+ */
+function isBuildScopedWarning(warning: AntiPatternsWarning): boolean {
+  const tags = warning.tags ?? [];
+  if (tags.some((t) => BUILD_SCOPED_TAGS.has(t.toLowerCase()))) return true;
+  const anchors = warning.anchor_paths ?? [];
+  return anchors.length > 0 && anchors.every(isPackageOrConfigPath);
+}
+
+const BUILD_SCOPED_TAGS = new Set([
+  "npm", "pnpm", "yarn", "publish", "install", "packaging", "package",
+  "build", "tsup", "bundler", "monorepo", "workspace", "versioning", "version",
+  "dev-workflow", "hotswap", "ci", "workflow", "release", "changelog",
+  "dependencies", "deps", "dependency", "tooling", "config",
+]);
 
 function hasStrongSemantic(warning: AntiPatternsWarning): boolean {
   return warning.reasons.includes("semantic") && (warning.semantic_score ?? 0) >= 0.65;

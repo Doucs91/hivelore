@@ -12,6 +12,7 @@ import {
   buildFrontmatter,
   memoryFilePath,
   serializeMemory,
+  STACK_PACK_TAG,
   type HaivePaths,
 } from "@hiveai/core";
 
@@ -613,6 +614,15 @@ new ApolloServer({
 
 };
 
+/**
+ * Footer appended to every seeded pack memory. Keeps the corpus honest: this is
+ * generic framework guidance, not repo-specific knowledge. Anchoring it to a real
+ * file (or replacing it) is what turns it into high-signal context.
+ */
+const SEED_FOOTER = (stack: string): string =>
+  `> _Seeded by \`haive init\` from the **${stack}** stack pack — generic guidance, not repo-specific. ` +
+  `Anchor it to a real file or replace it with a repo-specific note to raise it above background priority._`;
+
 export const SUPPORTED_STACKS = Object.keys(PACKS) as StackName[];
 
 export function isValidStack(name: string): name is StackName {
@@ -665,11 +675,13 @@ export async function seedStackPack(
       slug: `${stack}-${mem.slug}`,
       scope: "team",
       status: "validated",
-      tags: mem.tags,
+      // STACK_PACK_TAG marks this as generic seed knowledge so briefing ranking
+      // keeps it at `background` priority until it earns a repo-specific anchor.
+      tags: [...mem.tags, STACK_PACK_TAG],
     });
     const filePath = memoryFilePath(haivePaths, "team", fm.id);
     if (existsSync(filePath)) continue; // never overwrite existing
-    const content = serializeMemory({ frontmatter: fm, body: mem.body });
+    const content = serializeMemory({ frontmatter: fm, body: `${mem.body}\n\n${SEED_FOOTER(stack)}` });
     await mkdir(path.dirname(filePath), { recursive: true });
     await writeFile(filePath, content, "utf8");
     count++;

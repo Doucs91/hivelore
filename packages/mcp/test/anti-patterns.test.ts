@@ -427,6 +427,37 @@ describe("preCommitCheck", () => {
     expect(warning.rationale).toContain("0.75");
   });
 
+  it("downgrades a build/packaging gotcha when no package/build file changed", () => {
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-attempt-npm-install-quirk",
+      type: "attempt",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "npm install of local packages fails; use pnpm workspace:* instead.",
+      reasons: ["literal"],
+      tags: ["npm", "install", "dev-workflow"],
+    }, ["src/payment.ts"]);
+
+    expect(warning.level).toBe("info");
+    expect(warning.rationale).toContain("no package/build file changed");
+  });
+
+  it("keeps a build/packaging gotcha actionable when a package file IS in the change", () => {
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-attempt-npm-install-quirk",
+      type: "attempt",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "npm install of local packages fails; use pnpm workspace:* instead.",
+      reasons: ["literal"],
+      tags: ["npm", "install", "dev-workflow"],
+    }, ["package.json"]);
+
+    // package.json is a config path → the existing config-only downgrade applies instead.
+    // The point: the build-scoped INVERSE rule must NOT be what fired here.
+    expect(warning.rationale).not.toContain("no package/build file changed");
+  });
+
   // ── Dotfile config-only downgrade (Fix 5 regression) ─────────────────────
 
   it("does not block on .editorconfig-only commit", async () => {

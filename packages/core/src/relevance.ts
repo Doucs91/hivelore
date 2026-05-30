@@ -1,6 +1,20 @@
 import path from "node:path";
 import type { LoadedMemory } from "./loader.js";
 
+/**
+ * Tag stamped on memories that were pre-seeded from a stack pack at `haive init`
+ * (generic framework knowledge the model already largely knows, not repo-specific
+ * institutional knowledge). Briefing ranking caps these at `background` priority so
+ * a generic seed never displaces a repo-specific memory — unless the seed has been
+ * anchored to a file the agent is actually editing.
+ */
+export const STACK_PACK_TAG = "stack-pack";
+
+/** True when a memory was pre-seeded from a stack pack (carries {@link STACK_PACK_TAG}). */
+export function isStackPackSeed(fm: { tags?: string[] } | null | undefined): boolean {
+  return Boolean(fm?.tags?.includes(STACK_PACK_TAG));
+}
+
 const MODULE_PATTERNS = [
   /^packages\/([^/]+)\//,
   /^apps\/([^/]+)\//,
