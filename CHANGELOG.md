@@ -6,13 +6,25 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.29] — developer curation
+
 ### Added
+- **`haive memory seed [stack]`** — seed a stack pack of starter memories on demand (after `haive init`). Auto-detects stacks from `package.json` when no argument is given, supports `--list` / `--list --json` for discovery, and refreshes the embeddings index in autopilot. Seeded memories carry the `stack-pack` tag and stay at background priority until anchored.
 - Enforcement hooks now give file-specific must-read reminders during `pre-tool-use` when a write targets files covered by validated anchored policies that were not in the current briefing.
 
 ### Changed
 - `haive briefing`, `haive enforce session-start`, and wrapped `haive run` sessions now attempt lightweight autopilot repairs before generating context, so stale/missing semantic indexes are fixed before agents need them.
 - `haive session end --auto` can synthesize a useful recap from the current git diff when no hook observation log is available.
 - Enforcement findings now carry clearer educational details (`why`, files, and memory IDs) for missing decision coverage.
+
+## [vscode-0.6.0] — developer curation actions
+
+### Added
+- **Seed starter memories from the editor** — `hAIve: Add Starter Memories (Stack Pack)…` (sidebar title + command palette) lists supported stacks (auto-detected ones first) and seeds the chosen pack via `haive memory seed`.
+- **Anchor a memory/seed to a file** — `hAIve: Anchor Memory to File…` (context menu on any memory; inline action on seeds) anchors the record to the active file or one you pick, turning a generic background seed into high-signal, repo-specific context.
+- **Promote a memory to the team** — `hAIve: Promote Memory to Team` runs `haive memory promote` from the tree.
+- **"🌱 Seeds — needs curation" group** — unanchored `stack-pack` seeds are surfaced as a dedicated curation queue with a 🌱 badge and a tooltip explaining how to raise them above background priority. Seed items expose an inline anchor action.
+- Mutating curation actions run via the configured `haive.cliPath`, stream output to the hAIve channel, and auto-refresh the tree/status bar.
 
 ## [0.9.28] — signal & coordination polish
 
