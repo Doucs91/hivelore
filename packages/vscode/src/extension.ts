@@ -383,6 +383,145 @@ export function activate(ctx: vscode.ExtensionContext): void {
     }),
   );
 
+  // ── Shared action runner (execFile + refresh) ──────────────────────────
+  async function runHaiveAction(args: string[], successMsg: string): Promise<boolean> {
+    try {
+      const out = await runHaive(workspaceRoot, args);
+      outputChannel.appendLine(`\n[haive ${args.join(" ")}] ${new Date().toLocaleTimeString()}`);
+      outputChannel.appendLine(out);
+      store.load();
+      treeProvider.refresh();
+      codeLensProvider.refresh();
+      updateStatusBar(statusBarItem, store);
+      vscode.window.setStatusBarMessage(`$(check) ${successMsg}`, 3000);
+      return true;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      outputChannel.appendLine(`[haive error] ${msg}`);
+      outputChannel.show(true);
+      vscode.window.showErrorMessage(`hAIve: ${msg}`);
+      return false;
+    }
+  }
+
+  /** Resolve a memory id from a tree item, or let the user pick one. */
+  async function resolveMemoryId(
+    item: { memory?: { id: string } } | undefined,
+    placeHolder: string,
+    filter?: (m: ReturnType<MemoryStore["getAll"]>[number]) => boolean,
+  ): Promise<string | undefined> {
+    if (item?.memory?.id) return item.memory.id;
+    const all = store.getAll().filter((m) => (filter ? filter(m) : true));
+    if (all.length === 0) {
+      vscode.window.showInformationMessage("hAIve: no matching memories.");
+      return undefined;
+    }
+    const picked = await vscode.window.showQuickPick(
+      all.map((m) => ({
+        label: m.title,
+        description: `${m.scope}/${m.type}${m.status !== "validated" ? ` [${m.status}]` : ""}`,
+        id: m.id,
+      })),
+      { placeHolder, matchOnDescription: true, title: "hAIve" },
+    );
+    return picked?.id;
+  }
+
+  // ── Seed a stack pack ──────────────────────────────────────────────────
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.seedStackPack", async () => {
+      let supported: string[] = [];
+      let detected: string[] = [];
+      try {
+        const raw = await runHaive(workspaceRoot, ["memory", "seed", "--list", "--json"]);
+        const parsed = JSON.parse(raw) as { supported?: string[]; detected?: string[] };
+        supported = parsed.supported ?? [];
+        detected = parsed.detected ?? [];
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        vscode.window.showErrorMessage(`hAIve: could not list stacks (${msg}). Is hAIve initialized?`);
+        return;
+      }
+      if (supported.length === 0) {
+        vscode.window.showInformationMessage("hAIve: no stack packs available.");
+        return;
+      }
+
+      const detectedSet = new Set(detected);
+      const picks = [...supported]
+        .sort((a, b) => Number(detectedSet.has(b)) - Number(detectedSet.has(a)) || a.localeCompare(b))
+        .map((s) => ({
+          label: detectedSet.has(s) ? `$(check) ${s}` : s,
+          description: detectedSet.has(s) ? "detected in package.json" : "",
+          value: s,
+        }));
+
+      const chosen = await vscode.window.showQuickPick(picks, {
+        placeHolder: "Pick a stack to seed starter memories (kept at background priority until anchored)",
+        title: "hAIve: Add Starter Memories",
+        canPickMany: false,
+      });
+      if (!chosen) return;
+
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Window, title: `hAIve: seeding ${chosen.value}…` },
+        () => runHaiveAction(["memory", "seed", chosen.value], `seeded ${chosen.value} starter memories`),
+      );
+    }),
+  );
+
+  // ── Anchor a memory (or seed) to a file ────────────────────────────────
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.anchorMemory", async (item?: { memory?: { id: string } }) => {
+      const id = await resolveMemoryId(item, "Pick a memory to anchor to a file");
+      if (!id) return;
+
+      const choices: { label: string; value: string }[] = [];
+      const activeUri = vscode.window.activeTextEditor?.document.uri;
+      if (activeUri?.scheme === "file" && activeUri.fsPath.startsWith(workspaceRoot)) {
+        const rel = relativeToWorkspace(activeUri, workspaceRoot);
+        choices.push({ label: `$(file-code) Anchor to ${rel}`, value: rel });
+      }
+      choices.push({ label: "$(folder-opened) Choose a file…", value: "__pick__" });
+
+      const pick = await vscode.window.showQuickPick(choices, {
+        placeHolder: "Which file should this memory be anchored to?",
+        title: "hAIve: Anchor Memory",
+      });
+      if (!pick) return;
+
+      let rel = pick.value;
+      if (rel === "__pick__") {
+        const uris = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          openLabel: "Anchor here",
+          defaultUri: vscode.Uri.file(workspaceRoot),
+        });
+        const picked = uris?.[0];
+        if (!picked || !picked.fsPath.startsWith(workspaceRoot)) {
+          if (picked) vscode.window.showWarningMessage("hAIve: pick a file inside this workspace.");
+          return;
+        }
+        rel = relativeToWorkspace(picked, workspaceRoot);
+      }
+
+      await runHaiveAction(["memory", "update", id, "--paths", rel], `anchored ${id} to ${rel}`);
+    }),
+  );
+
+  // ── Promote a memory (personal → team) ─────────────────────────────────
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.promoteMemory", async (item?: { memory?: { id: string } }) => {
+      const id = await resolveMemoryId(
+        item,
+        "Pick a personal memory to promote to the team",
+        (m) => m.scope === "personal",
+      );
+      if (!id) return;
+      await runHaiveAction(["memory", "promote", id], `promoted ${id} to team`);
+    }),
+  );
+
   // ── Init ───────────────────────────────────────────────────────────────
   ctx.subscriptions.push(
     vscode.commands.registerCommand("haive.init", () => {

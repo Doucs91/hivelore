@@ -55,17 +55,28 @@ export class GroupItem extends vscode.TreeItem {
 export class MemoryItem extends vscode.TreeItem {
   constructor(public readonly memory: Memory) {
     super(memory.title, vscode.TreeItemCollapsibleState.None);
-    this.contextValue = "memory";
+
+    const needsCuration = memory.isSeed && !memory.anchored;
+    // `seedMemory` unlocks the "Anchor to file…" curation action in the context menu.
+    this.contextValue = needsCuration ? "seedMemory" : "memory";
 
     const statusBadge = STATUS_BADGE[memory.status] ?? ` [${memory.status}]`;
-    this.description = `${memory.scope}${statusBadge}`;
+    const seedBadge = needsCuration ? " 🌱 seed" : "";
+    this.description = `${memory.scope}${statusBadge}${seedBadge}`;
 
     // Rich tooltip
     const lines: string[] = [
       `**${memory.type}** · ${memory.scope} · ${memory.status}`,
       "",
     ];
+    if (needsCuration) {
+      lines.push(
+        "🌱 _Generic stack-pack seed, not yet anchored._ Anchor it to a real file or replace it with a repo-specific note to raise it above background priority.",
+        "",
+      );
+    }
     if (memory.tags.length) lines.push(`Tags: \`${memory.tags.join("`, `")}\``);
+    if (memory.anchorPaths.length) lines.push(`Anchored: ${memory.anchorPaths.join(", ")}`);
     if (memory.module) lines.push(`Module: ${memory.module}`);
     if (memory.readCount > 0) lines.push(`Read ${memory.readCount}×`);
     lines.push("", memory.body.slice(0, 600).trim() + (memory.body.length > 600 ? "\n\n…" : ""));
@@ -158,6 +169,14 @@ export class HaiveTreeProvider
     );
     if (pending.length > 0) {
       groups.push(new GroupItem("🕐  Pending Review", pending, "pending", "circle-outline", true));
+    }
+
+    // ── Seeds needing curation (unanchored stack-pack seeds) ───────────────
+    const seeds = this.store.seedsNeedingCuration();
+    if (seeds.length > 0) {
+      groups.push(
+        new GroupItem("🌱  Seeds — needs curation", seeds, "seeds", "sparkle", true),
+      );
     }
 
     // ── This File ──────────────────────────────────────────────────────────

@@ -81,4 +81,9 @@ code --install-extension haive-vscode-*.vsix
 | `hAIve: Refresh Memories` | Reload memories from disk |
 | `hAIve: Show Memories for This File` | Filter sidebar to current file |
 | `hAIve: Add Memory…` | Quick-add a memory via guided input |
+| `hAIve: Add Starter Memories (Stack Pack)…` | Seed a stack pack of starter memories (auto-detected stacks first) |
+| `hAIve: Anchor Memory to File…` | Anchor a memory/seed to the active or a chosen file — turns a background seed into high-signal context |
+| `hAIve: Promote Memory to Team` | Promote a personal memory to the shared team scope |
 | `hAIve: Initialize in This Workspace` | Run `haive init` in terminal |
+
+> 🌱 **Curating seeds:** stack-pack seeds are generic starter knowledge kept at *background* priority. The sidebar groups unanchored seeds under **Seeds — needs curation**; anchor one to a real file (or replace it with a repo-specific note) to make it high-signal for agents.

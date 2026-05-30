@@ -2,7 +2,7 @@
   "name": "haive-vscode",
   "displayName": "hAIve — Agent Harness & Context Enforcement",
   "description": "Harness engineering for AI coding agents: surface skills, decisions, gotchas, and harness health inline so agents work with the knowledge your team has validated.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "publisher": "hiveai",
   "icon": "media/icon.png",
   "license": "Apache-2.0",
@@ -121,6 +121,21 @@
         "icon": "$(trash)"
       },
       {
+        "command": "haive.seedStackPack",
+        "title": "hAIve: Add Starter Memories (Stack Pack)…",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "haive.anchorMemory",
+        "title": "hAIve: Anchor Memory to File…",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "haive.promoteMemory",
+        "title": "hAIve: Promote Memory to Team",
+        "icon": "$(arrow-up)"
+      },
+      {
         "command": "haive.init",
         "title": "hAIve: Initialize in This Workspace"
       },
@@ -137,14 +152,19 @@
           "group": "navigation@1"
         },
         {
-          "command": "haive.searchMemories",
+          "command": "haive.seedStackPack",
           "when": "view == haive.memoriesView",
           "group": "navigation@2"
         },
         {
-          "command": "haive.refreshMemories",
+          "command": "haive.searchMemories",
           "when": "view == haive.memoriesView",
           "group": "navigation@3"
+        },
+        {
+          "command": "haive.refreshMemories",
+          "when": "view == haive.memoriesView",
+          "group": "navigation@4"
         },
         {
           "command": "haive.runDoctor",
@@ -159,24 +179,39 @@
       ],
       "view/item/context": [
         {
+          "command": "haive.anchorMemory",
+          "when": "view == haive.memoriesView && viewItem == seedMemory",
+          "group": "inline@0"
+        },
+        {
           "command": "haive.openMemory",
-          "when": "view == haive.memoriesView && viewItem == memory",
+          "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
           "group": "inline@1"
         },
         {
           "command": "haive.copyMemoryBody",
-          "when": "view == haive.memoriesView && viewItem == memory",
+          "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
           "group": "inline@2"
         },
         {
-          "command": "haive.approveMemory",
-          "when": "view == haive.memoriesView && viewItem == memory",
+          "command": "haive.anchorMemory",
+          "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
           "group": "haive@1"
         },
         {
-          "command": "haive.rejectMemory",
-          "when": "view == haive.memoriesView && viewItem == memory",
+          "command": "haive.promoteMemory",
+          "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
           "group": "haive@2"
+        },
+        {
+          "command": "haive.approveMemory",
+          "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
+          "group": "haive@3"
+        },
+        {
+          "command": "haive.rejectMemory",
+          "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
+          "group": "haive@4"
         }
       ],
       "editor/title": [

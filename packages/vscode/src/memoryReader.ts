@@ -27,6 +27,10 @@ export interface Memory {
   status: string;
   tags: string[];
   anchorPaths: string[];
+  /** True when anchored to at least one file path (anchors drive staleness + high-signal ranking). */
+  anchored: boolean;
+  /** True when this is a generic stack-pack seed (tag `stack-pack`) — background until curated. */
+  isSeed: boolean;
   requiresHumanApproval: boolean;
   body: string;
   filePath: string;
@@ -132,6 +136,8 @@ function parseMemoryFile(filePath: string): Memory | null {
     status: String(fm["status"] ?? "draft"),
     tags,
     anchorPaths,
+    anchored: anchorPaths.length > 0,
+    isSeed: tags.includes("stack-pack"),
     requiresHumanApproval: fm["requires_human_approval"] === true,
     body,
     filePath,
@@ -204,6 +210,17 @@ export class MemoryStore {
   /** Count of action_required memories. */
   actionRequiredCount(): number {
     return this.memories.filter((m) => m.requiresHumanApproval && m.status !== "rejected").length;
+  }
+
+  /**
+   * Stack-pack seeds that are not yet anchored to a file. These are the generic
+   * starter memories a developer should curate — anchor to a real file or replace
+   * with a repo-specific note — to raise them above background priority.
+   */
+  seedsNeedingCuration(): Memory[] {
+    return this.memories.filter(
+      (m) => m.isSeed && !m.anchored && m.status !== "rejected" && m.status !== "deprecated",
+    );
   }
 
   /** Count of draft/proposed memories awaiting review. */
