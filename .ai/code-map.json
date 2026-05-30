@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-05-29T19:50:54.951Z",
+  "generated_at": "2026-05-30T00:08:28.451Z",
   "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -113,7 +113,7 @@
           "line": 65
         }
       ],
-      "loc": 846
+      "loc": 893
     },
     "packages/cli/src/commands/embeddings.ts": {
       "exports": [
@@ -625,10 +625,16 @@
         {
           "name": "registerSessionEnd",
           "kind": "function",
-          "line": 177
+          "line": 246
+        },
+        {
+          "name": "normalizeAnchorPath",
+          "kind": "function",
+          "description": "Convert an absolute or home-relative path to a project-relative path.",
+          "line": 397
         }
       ],
-      "loc": 321
+      "loc": 406
     },
     "packages/cli/src/commands/snapshot.ts": {
       "summary": "haive snapshot — take or compare an API contract snapshot.",
@@ -3007,7 +3013,7 @@
           "line": 93
         }
       ],
-      "loc": 187
+      "loc": 194
     },
     "packages/mcp/src/tools/mem-suggest-topic.ts": {
       "exports": [
@@ -3206,7 +3212,7 @@
           "line": 252
         }
       ],
-      "loc": 322
+      "loc": 346
     },
     "packages/mcp/src/tools/runtime-journal-append.ts": {
       "exports": [

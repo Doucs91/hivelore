@@ -101,8 +101,15 @@ export async function memSessionEnd(
   const body = buildBody(input);
   const topic = recapTopic(input.scope, input.module);
 
+  // Normalize to project-relative paths (guards against absolute paths from agents)
+  const normalizedFiles = input.files_touched.map((p) => {
+    if (!p || !path.isAbsolute(p)) return p;
+    const rel = path.relative(ctx.paths.root, p);
+    return rel.startsWith("..") ? p : rel;
+  });
+
   // Validate anchor paths exist before saving
-  const invalidPaths = input.files_touched.filter(
+  const invalidPaths = normalizedFiles.filter(
     (p) => !existsSync(path.resolve(ctx.paths.root, p)),
   );
   if (invalidPaths.length > 0) {
@@ -130,7 +137,7 @@ export async function memSessionEnd(
       revision_count: revisionCount,
       anchor: {
         ...fm.anchor,
-        paths: input.files_touched.length ? input.files_touched : fm.anchor.paths,
+        paths: normalizedFiles.length ? normalizedFiles : fm.anchor.paths,
       },
     };
     await writeFile(
@@ -156,7 +163,7 @@ export async function memSessionEnd(
     scope: input.scope,
     module: input.module,
     tags: ["session", "recap"],
-    paths: input.files_touched,
+    paths: normalizedFiles,
     topic,
     status: "validated",
   });

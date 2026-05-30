@@ -464,8 +464,10 @@ describe("hAIve CLI integration", () => {
       const files = await readdir(personalDir);
       const recapFile = files.find((file) => file.includes("session_recap"))!;
       const content = await readFile(path.join(personalDir, recapFile), "utf8");
-      expect(content).toContain("Auto-captured session");
-      expect(content).toContain("src/changed.ts");
+      // New format: meaningful goal derived from file count or recent commits, not raw bash commands
+      expect(content).toMatch(/Session with \d+ changed file|Session with recent commits/);
+      // git porcelain groups untracked files by parent dir, so src/ may appear instead of src/changed.ts
+      expect(content).toMatch(/src\/changed\.ts|src\//)
     } finally {
       await rm(repo, { recursive: true, force: true });
     }
@@ -521,5 +523,42 @@ describe("hAIve CLI integration", () => {
     expect(stdout).toContain("hAIve Agent Benchmark Report");
     expect(stdout).toContain("sample-haive");
     expect(stdout).toContain("hAIve impact");
+  });
+
+  it("doctor --json reports stale-draft-memories when a draft is older than 30 days", async () => {
+    const draftDir = await mkdtemp(path.join(tmpdir(), "haive-doctor-draft-test-"));
+    try {
+      await run(draftDir, ["init", "--dir", draftDir, "--no-mcp-setup"]);
+      // Write a memory with draft status and a created_at > 30 days ago
+      const oldDate = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString();
+      const memId = "2020-01-01-decision-old-draft";
+      await writeFile(
+        path.join(draftDir, ".ai/memories/team", `${memId}.md`),
+        [
+          "---",
+          `id: ${memId}`,
+          "scope: team",
+          "type: decision",
+          "status: draft",
+          `created_at: '${oldDate}'`,
+          "anchor:",
+          "  paths: []",
+          "  symbols: []",
+          "tags: []",
+          "---",
+          "# Old draft decision",
+          "",
+          "This has been sitting in draft for a long time.",
+        ].join("\n"),
+        "utf8",
+      );
+      const { stdout } = await run(draftDir, ["doctor", "--json", "--dir", draftDir]);
+      const report = JSON.parse(stdout) as { findings: Array<{ code: string; message: string }> };
+      const finding = report.findings.find((f) => f.code === "stale-draft-memories");
+      expect(finding).toBeDefined();
+      expect(finding?.message).toContain(memId);
+    } finally {
+      await rm(draftDir, { recursive: true, force: true });
+    }
   });
 });

@@ -426,4 +426,56 @@ describe("preCommitCheck", () => {
     expect(warning.level).toBe("blocking");
     expect(warning.rationale).toContain("0.75");
   });
+
+  // ── Dotfile config-only downgrade (Fix 5 regression) ─────────────────────
+
+  it("does not block on .editorconfig-only commit", async () => {
+    await writeMemory(ctx.paths.teamDir!, "2024-01-01-gotcha-indentation", "gotcha",
+      "# Tab vs spaces\n\nAlways use spaces — tabs break the parser.");
+    const result = await preCommitCheck({
+      diff: "+indent_style = space",
+      paths: [".editorconfig"],
+      block_on: "high-confidence",
+      semantic: false,
+    }, ctx);
+    expect(result.should_block).toBe(false);
+    const blocking = result.warnings.filter((w) => w.level === "blocking" || w.level === "review");
+    expect(blocking).toHaveLength(0);
+  });
+
+  it("does not block on .nvmrc-only commit", async () => {
+    await writeMemory(ctx.paths.teamDir!, "2024-01-01-gotcha-node-version", "gotcha",
+      "# Node version\n\nDo not use node 20 — use node 22.");
+    const result = await preCommitCheck({
+      diff: "-20\n+22",
+      paths: [".nvmrc"],
+      block_on: "high-confidence",
+      semantic: false,
+    }, ctx);
+    expect(result.should_block).toBe(false);
+  });
+
+  it("does not block on Dockerfile-only commit", async () => {
+    await writeMemory(ctx.paths.teamDir!, "2024-01-01-gotcha-docker-user", "gotcha",
+      "# Docker user\n\nAlways set a non-root user in Dockerfile.");
+    const result = await preCommitCheck({
+      diff: "+USER node",
+      paths: ["Dockerfile"],
+      block_on: "high-confidence",
+      semantic: false,
+    }, ctx);
+    expect(result.should_block).toBe(false);
+  });
+
+  it("does not block on .npmrc-only commit", async () => {
+    await writeMemory(ctx.paths.teamDir!, "2024-01-01-gotcha-npm-registry", "gotcha",
+      "# npm registry\n\nDo not use private registry unless authenticated.");
+    const result = await preCommitCheck({
+      diff: "+registry=https://registry.npmjs.org",
+      paths: [".npmrc"],
+      block_on: "high-confidence",
+      semantic: false,
+    }, ctx);
+    expect(result.should_block).toBe(false);
+  });
 });

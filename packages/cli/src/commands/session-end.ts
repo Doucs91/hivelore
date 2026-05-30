@@ -58,30 +58,53 @@ async function buildAutoRecap(
   }
   if (obs.length === 0) return await buildGitAutoRecap(paths);
 
+  // ── Aggregate tool usage ────────────────────────────────────────────────
   const toolCounts = new Map<string, number>();
-  const fileCounts = new Map<string, number>();
-  const summaries: string[] = [];
+  const writeFiles = new Set<string>(); // files that were written/edited
+  const readFiles = new Set<string>();  // files that were only read
   for (const o of obs) {
     toolCounts.set(o.tool, (toolCounts.get(o.tool) ?? 0) + 1);
-    for (const f of o.files ?? []) fileCounts.set(f, (fileCounts.get(f) ?? 0) + 1);
-    if (summaries.length < 10) summaries.push(`- ${o.summary}`);
+    const isWrite = ["Edit", "Write", "NotebookEdit"].includes(o.tool);
+    for (const f of o.files ?? []) {
+      const rel = normalizeAnchorPath(paths.root, f);
+      if (isWrite) writeFiles.add(rel);
+      else readFiles.add(rel);
+    }
   }
+  // Files in both sets — the write set is authoritative
+  for (const f of writeFiles) readFiles.delete(f);
 
   const topTools = [...toolCounts.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([t, c]) => `${t} ×${c}`)
     .join(", ");
-  const topFiles = [...fileCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
 
-  const goal = `Auto-captured session — ${obs.length} tool calls (${topTools})`;
-  const accomplished = summaries.length
-    ? `Recent activity:\n${summaries.join("\n")}`
-    : `Activity captured but no parseable summaries.`;
+  // ── Build accomplished section ─────────────────────────────────────────
+  // Prefer git log context (richer than raw tool call list)
+  const recentCommits = await runGit(paths.root, ["log", "--oneline", "-5"]).catch(() => "");
+  const accomplishedParts: string[] = [];
 
-  // Surface failed observations as mem_tried candidates so the agent doesn't miss them
+  if (writeFiles.size > 0) {
+    accomplishedParts.push(
+      `**Files modified (${writeFiles.size}):**`,
+      ...[...writeFiles].slice(0, 10).map((f) => `- \`${f}\``),
+      ...(writeFiles.size > 10 ? [`- ...and ${writeFiles.size - 10} more`] : []),
+    );
+  }
+
+  if (recentCommits.trim()) {
+    accomplishedParts.push("", "**Recent commits:**");
+    for (const line of recentCommits.trim().split("\n").slice(0, 5)) {
+      accomplishedParts.push(`- ${line}`);
+    }
+  }
+
+  if (accomplishedParts.length === 0) {
+    accomplishedParts.push(`${obs.length} tool calls (${topTools}) — no file writes detected.`);
+  }
+
+  // ── Discoveries: failures + notable observations ───────────────────────
   const failures = obs.filter((o) => o.failure_hint);
   const discoveriesParts: string[] = [];
   if (failures.length > 0) {
@@ -91,11 +114,15 @@ async function buildAutoRecap(
     );
   }
 
+  const goal = writeFiles.size > 0
+    ? `Edited ${writeFiles.size} file${writeFiles.size === 1 ? "" : "s"} across ${obs.length} tool calls`
+    : `Session with ${obs.length} tool calls (${topTools}) — read-only or no writes captured`;
+
   return {
     goal,
-    accomplished,
+    accomplished: accomplishedParts.join("\n"),
     ...(discoveriesParts.length > 0 ? { discoveries: discoveriesParts.join("\n") } : {}),
-    files: topFiles.map(([f]) => f),
+    files: [...writeFiles].slice(0, 12),
     rawCount: obs.length,
   };
 }
@@ -105,29 +132,71 @@ async function buildGitAutoRecap(
 ): Promise<{ goal: string; accomplished: string; discoveries?: string; files: string[]; rawCount: number } | null> {
   const changed = await runGit(paths.root, ["diff", "--name-only"]).catch(() => "");
   const staged = await runGit(paths.root, ["diff", "--cached", "--name-only"]).catch(() => "");
-  const status = await runGit(paths.root, ["status", "--porcelain", "--untracked-files=all"]).catch(() => "");
+  const statusRaw = await runGit(paths.root, ["status", "--porcelain"]).catch(() => "");
+  const recentLog = await runGit(paths.root, ["log", "--oneline", "-5"]).catch(() => "");
+  const diffStat = await runGit(paths.root, ["diff", "--stat", "HEAD"]).catch(() => "");
+
   const files = Array.from(new Set(
     [
       ...changed.split("\n"),
       ...staged.split("\n"),
-      ...status.split("\n").map((line) => line.replace(/^[ MADRCU?!]{1,2}\s+/, "")),
+      ...statusRaw.split("\n").map((line) => line.replace(/^[ MADRCU?!]{1,2}\s+/, "")),
     ]
       .map((s) => s.trim())
       .filter(Boolean)
       .filter((file) => !file.startsWith(".ai/.runtime/") && !file.startsWith(".ai/.cache/")),
   )).sort();
-  if (files.length === 0) return null;
 
-  const diffStat = await runGit(paths.root, ["diff", "--stat"]).catch(() => "");
+  // Parse porcelain status to get modified/added/deleted categories
+  const modified: string[] = [];
+  const added: string[] = [];
+  const deleted: string[] = [];
+  for (const line of statusRaw.split("\n")) {
+    const code = line.substring(0, 2).trim();
+    const file = line.substring(3).trim().replace(/".+"/g, (m) => m.slice(1, -1));
+    if (!file || file.startsWith(".ai/.runtime/") || file.startsWith(".ai/.cache/")) continue;
+    if (code === "D" || code === "DD") deleted.push(file);
+    else if (code === "A" || code === "??") added.push(file);
+    else if (file) modified.push(file);
+  }
+
+  const accomplishedParts: string[] = [];
+  if (modified.length > 0) {
+    accomplishedParts.push(`**Modified (${modified.length}):**`);
+    for (const f of modified.slice(0, 8)) accomplishedParts.push(`- \`${f}\``);
+    if (modified.length > 8) accomplishedParts.push(`- ...and ${modified.length - 8} more`);
+  }
+  if (added.length > 0) {
+    accomplishedParts.push(`\n**Added (${added.length}):**`);
+    for (const f of added.slice(0, 5)) accomplishedParts.push(`- \`${f}\``);
+    if (added.length > 5) accomplishedParts.push(`- ...and ${added.length - 5} more`);
+  }
+  if (deleted.length > 0) {
+    accomplishedParts.push(`\n**Deleted (${deleted.length}):**`);
+    for (const f of deleted.slice(0, 5)) accomplishedParts.push(`- \`${f}\``);
+  }
+
+  if (recentLog.trim()) {
+    accomplishedParts.push("\n**Recent commits:**");
+    for (const line of recentLog.trim().split("\n").slice(0, 5)) {
+      accomplishedParts.push(`- ${line}`);
+    }
+  }
+
+  if (accomplishedParts.length === 0 && files.length === 0) return null;
+
+  if (accomplishedParts.length === 0) {
+    accomplishedParts.push(...files.slice(0, 12).map((f) => `- \`${f}\``));
+    if (files.length > 12) accomplishedParts.push(`- ...and ${files.length - 12} more`);
+  }
+
   return {
-    goal: `Auto-captured session — ${files.length} changed file${files.length === 1 ? "" : "s"}`,
-    accomplished: [
-      "Detected local changes:",
-      ...files.slice(0, 12).map((file) => `- ${file}`),
-      files.length > 12 ? `- ...and ${files.length - 12} more` : "",
-    ].filter(Boolean).join("\n"),
-    discoveries: diffStat.trim() ? `Git diff summary:\n${diffStat.trim()}` : undefined,
-    files,
+    goal: files.length > 0
+      ? `Session with ${files.length} changed file${files.length === 1 ? "" : "s"}`
+      : `Session with recent commits (no uncommitted changes)`,
+    accomplished: accomplishedParts.join("\n"),
+    discoveries: diffStat.trim() ? `Git diff stat:\n\`\`\`\n${diffStat.trim()}\n\`\`\`` : undefined,
+    files: files.slice(0, 12),
     rawCount: files.length,
   };
 }
@@ -241,7 +310,8 @@ export function registerSessionEnd(session: Command): void {
         next: opts.next,
       });
       const topic = recapTopic(scope, opts.module);
-      const filesTouched = parseCsv(resolvedFiles);
+      // Normalize to project-relative paths before storing as anchors
+      const filesTouched = parseCsv(resolvedFiles).map((p) => normalizeAnchorPath(root, p));
 
       // Warn about paths that don't exist in project
       const missingPaths = filesTouched.filter((p) => !existsSync(path.resolve(root, p)));
@@ -317,4 +387,19 @@ export function registerSessionEnd(session: Command): void {
 function parseCsv(value: string | undefined): string[] {
   if (!value) return [];
   return value.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * Convert an absolute or home-relative path to a project-relative path.
+ * If the path is already relative, it is returned as-is.
+ * Absolute paths outside the project root are kept as-is (external resources).
+ */
+export function normalizeAnchorPath(root: string, filePath: string): string {
+  if (!filePath) return filePath;
+  // Already relative
+  if (!path.isAbsolute(filePath)) return filePath;
+  const rel = path.relative(root, filePath);
+  // If the relative path goes outside the root (../../..), keep as-is
+  if (rel.startsWith("..")) return filePath;
+  return rel;
 }

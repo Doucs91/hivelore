@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { execFileSync, execSync } from "node:child_process";
@@ -172,6 +172,25 @@ export function registerDoctor(program: Command): void {
             code: "pending-review",
             message: `${proposed.length} memor${proposed.length === 1 ? "y is" : "ies are"} proposed and awaiting validation.`,
             fix: "haive memory pending      # list them\nhaive memory auto-promote   # promote those with high read_count",
+          });
+        }
+
+        // Drafts older than 30 days — likely forgotten, never activated
+        const OLD_DRAFT_DAYS = 30;
+        const oldDrafts = memories.filter((m) => {
+          if (m.memory.frontmatter.status !== "draft") return false;
+          const age = (now - Date.parse(m.memory.frontmatter.created_at)) / MS_PER_DAY;
+          return age > OLD_DRAFT_DAYS;
+        });
+        if (oldDrafts.length > 0) {
+          const ids = oldDrafts.slice(0, 4).map((m) => m.memory.frontmatter.id).join(", ");
+          const more = oldDrafts.length > 4 ? ` (+${oldDrafts.length - 4} more)` : "";
+          findings.push({
+            severity: "warn",
+            code: "stale-draft-memories",
+            message:
+              `${oldDrafts.length} draft memor${oldDrafts.length === 1 ? "y has" : "ies have"} been in draft status for 30+ days: ${ids}${more}`,
+            fix: "haive memory approve <id>   # activate\nhaive memory rm <id>         # or delete if obsolete",
           });
         }
 
@@ -541,6 +560,31 @@ async function collectHarnessCoverageFindings(
   const covered = coveredFiles.size;
   const pct = Math.round((covered / total) * 100);
 
+  // Top uncovered files — prefer root-level and common source directories
+  const uncovered = codeFiles
+    .filter((f) => !coveredFiles.has(f))
+    .sort((a, b) => {
+      // Prefer shorter paths (key modules tend to be near the root)
+      const depthA = a.split("/").length;
+      const depthB = b.split("/").length;
+      if (depthA !== depthB) return depthA - depthB;
+      return a.localeCompare(b);
+    })
+    .slice(0, 5);
+
+  const coverageDesc =
+    pct < 10 && total > 10
+      ? "Low coverage — add memory anchors on key modules to improve harness enforcement."
+      : pct < 50
+      ? "Partial coverage — useful but not yet broad enough to call the harness mature."
+      : pct < 80
+      ? "Good coverage — critical modules are increasingly protected."
+      : "Good harness coverage.";
+
+  const uncoveredHint = uncovered.length > 0
+    ? `\n  Top uncovered: ${uncovered.map((f) => `\`${f}\``).join(", ")}`
+    : "";
+
   const findings: Finding[] = [];
   findings.push({
     severity: "info",
@@ -548,15 +592,9 @@ async function collectHarnessCoverageFindings(
     coverage_percent: pct,
     message:
       `${covered}/${total} code-map files have validated memory anchors (${pct}%). ` +
-      (pct < 10 && total > 10
-        ? "Low coverage — add memory anchors on key modules to improve harness enforcement."
-        : pct < 50
-        ? "Partial coverage — useful but not yet broad enough to call the harness mature."
-        : pct < 80
-        ? "Good coverage — critical modules are increasingly protected."
-        : "Good harness coverage."),
+      coverageDesc + uncoveredHint,
     fix: pct < 50 && total > 10
-      ? "haive memory add --type gotcha|convention|architecture --paths <key-file> --scope team"
+      ? `haive memory add --type gotcha|convention|architecture --paths <key-file> --scope team`
       : undefined,
     section: "Harness coverage",
   });
@@ -839,7 +877,16 @@ function extractAbsoluteHaiveBins(text: string): string[] {
   const re = /(["'\s])((?:\/[^"'\s]+)*\/haive)\b/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text))) {
-    if (match[2]) out.add(match[2]);
+    const p = match[2];
+    if (!p) continue;
+    // Skip paths that are directories — a haive binary is a file, not a folder.
+    // This prevents env-var values like HAIVE_PROJECT_ROOT being mistaken for binaries.
+    try {
+      if (statSync(p).isDirectory()) continue;
+    } catch {
+      // Path does not exist — still add so we can report it as missing
+    }
+    out.add(p);
   }
   return [...out].sort();
 }

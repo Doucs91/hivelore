@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
@@ -827,7 +827,16 @@ function extractAbsoluteHaiveBins(text: string): string[] {
   const re = /(["'\s])((?:\/[^"'\s]+)*\/haive)\b/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text))) {
-    if (match[2]) out.add(match[2]);
+    const p = match[2];
+    if (!p) continue;
+    // Skip directories — a haive binary is a file, not a folder.
+    // Prevents HAIVE_PROJECT_ROOT env values from being mistaken for binaries.
+    try {
+      if (statSync(p).isDirectory()) continue;
+    } catch {
+      // Path does not exist — still report as missing binary
+    }
+    out.add(p);
   }
   return [...out].sort();
 }

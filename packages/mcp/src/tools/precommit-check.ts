@@ -295,6 +295,7 @@ function isDocLikePath(file: string): boolean {
 
 function isPackageOrConfigPath(file: string): boolean {
   const lower = file.toLowerCase();
+  const base = lower.split("/").pop() ?? lower;
   return lower.endsWith("package.json") ||
     lower.endsWith("package-lock.json") ||
     lower.endsWith("pnpm-lock.yaml") ||
@@ -305,7 +306,30 @@ function isPackageOrConfigPath(file: string): boolean {
     lower.endsWith(".json") ||
     lower.endsWith(".yml") ||
     lower.endsWith(".yaml") ||
-    lower.startsWith(".github/workflows/");
+    lower.endsWith(".toml") ||
+    lower.startsWith(".github/workflows/") ||
+    lower.startsWith(".github/") && lower.endsWith(".yml") ||
+    // Dotfiles that are pure configuration/tooling — never trigger runtime gotchas
+    base === ".gitignore" ||
+    base === ".gitattributes" ||
+    base === ".gitmodules" ||
+    base === ".editorconfig" ||
+    base === ".nvmrc" ||
+    base === ".node-version" ||
+    base === ".npmrc" ||
+    base === ".yarnrc" ||
+    base === ".yarnrc.yml" ||
+    base === ".dockerignore" ||
+    base === "dockerfile" ||
+    base.startsWith("dockerfile.") ||
+    base === ".env.example" ||
+    base === ".env.template" ||
+    lower.endsWith(".prettierrc") ||
+    lower.endsWith(".eslintrc") ||
+    lower.endsWith(".eslintignore") ||
+    lower.endsWith(".prettierignore") ||
+    lower.endsWith(".stylelintrc") ||
+    lower.endsWith(".browserslistrc");
 }
 
 function looksRuntimeSpecific(warning: AntiPatternsWarning): boolean {
