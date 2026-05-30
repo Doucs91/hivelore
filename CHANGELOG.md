@@ -14,6 +14,20 @@ project follows semantic versioning once it ships its first stable release.
 - `haive session end --auto` can synthesize a useful recap from the current git diff when no hook observation log is available.
 - Enforcement findings now carry clearer educational details (`why`, files, and memory IDs) for missing decision coverage.
 
+## [0.9.28] — signal & coordination polish
+
+### Changed
+- **Stack-pack seeds no longer crowd out repo knowledge.** Memories pre-seeded at `haive init` are tagged `stack-pack` and capped at `background` priority in both the MCP `get_briefing` and the CLI `haive briefing` rankings, so a generic framework note never outranks a repo-specific memory unless it has been anchored to a file you are actually editing. Each seed now carries an honest footer, and the init message no longer calls them "validated team memories useful from J+0".
+- **Bridge files are now a table of contents, not a manual.** `CLAUDE.md` / `.cursorrules` / `copilot-instructions.md` use a shorter, less imperative template (~25 lines), and `haive sync --inject-bridge` injects one summary line per memory (not full bodies) and skips `stack-pack` seeds — keeping the always-loaded bridge compact.
+- **`pre_commit_check` weights warnings by file type.** A package/build/tooling gotcha (by tag or anchor) is downgraded to `info` when the change touches no package/build file, mirroring the existing config/docs-only downgrade. Cuts false positives on pure source edits.
+
+### Added
+- **MCP `get_briefing` (and `mem_relevant_to`) now write the enforcement briefing marker.** An MCP-native agent that calls `get_briefing` before editing satisfies the pre-tool-use / pre-commit gate directly, without shelling out to the CLI `haive briefing`. The marker records the surfaced anchored policy IDs so the per-file decision-coverage check passes for the files the briefing covered.
+
+### Fixed
+- Root `package.json` and `.ai/project-context.md` version aligned with the package builds (was `0.9.26` vs `0.9.27`), clearing the `repo-root-version-mismatch` doctor finding.
+- Removed the obsolete `2026-04-28-decision-v028-features-overview` draft memory (shipped long ago, fully covered by this changelog) that had been flagged as a 30+ day stale draft and was polluting briefings for core files.
+
 ## [0.9.24] — autopilot indexing polish
 
 ### Fixed
