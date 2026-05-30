@@ -303,7 +303,7 @@ function isPackageOrConfigPath(file: string): boolean {
     lower.endsWith("bun.lockb") ||
     lower.endsWith(".config.ts") ||
     lower.endsWith(".config.js") ||
-    lower.endsWith(".json") ||
+    isJsonConfigFile(base) ||
     lower.endsWith(".yml") ||
     lower.endsWith(".yaml") ||
     lower.endsWith(".toml") ||
@@ -332,9 +332,26 @@ function isPackageOrConfigPath(file: string): boolean {
     lower.endsWith(".browserslistrc");
 }
 
-function looksRuntimeSpecific(warning: AntiPatternsWarning): boolean {
-  const text = `${warning.body_preview} ${warning.id}`.toLowerCase();
-  return /\b(runtime|controller|request|response|database|transaction|auth|cache|production|service|api|endpoint)\b/.test(text);
+/**
+ * Returns true only for JSON files that are known build/tool configs.
+ * Avoids treating application data files (fixtures, translations, schemas) as config.
+ */
+function isJsonConfigFile(base: string): boolean {
+  const knownConfigs = new Set([
+    "tsconfig.json", "jsconfig.json",
+    "deno.json", "deno.jsonc",
+    "nx.json", "turbo.json", "lerna.json", "rush.json",
+    "jest.config.json", "vitest.config.json", "babel.config.json",
+    ".babelrc.json", ".swcrc", ".mocharc.json",
+    "renovate.json", "dependabot.json",
+    ".prettierrc.json", ".eslintrc.json", ".stylelintrc.json",
+  ]);
+  if (knownConfigs.has(base)) return true;
+  // tsconfig.*.json (e.g. tsconfig.build.json, tsconfig.test.json)
+  if (/^tsconfig\..+\.json$/.test(base)) return true;
+  // .*rc.json (e.g. .eslintrc.json already covered, but be safe)
+  if (/^\.[a-z]+rc\.json$/.test(base)) return true;
+  return false;
 }
 
 function repairCommandForWarning(warning: AntiPatternsWarning, paths: string[]): string {

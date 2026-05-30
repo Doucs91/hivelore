@@ -1,5 +1,5 @@
 import { existsSync, statSync } from "node:fs";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { execFileSync, execSync } from "node:child_process";
 import { Command } from "commander";
@@ -363,16 +363,55 @@ export function registerDoctor(program: Command): void {
             code: "legacy-haive-mcp-stale",
             message:
               `Standalone haive-mcp on PATH is v${legacyRaw} but haive CLI is v${cliVersion}. ` +
-              `Prefer MCP client config with command \"haive\" and args [\"mcp\", \"--stdio\"] — ` +
-              `then removing @hiveai/mcp avoids version skew.`,
+              `MCP is now bundled in haive itself — switch your client configs to ` +
+              `command "haive" + args ["mcp", "--stdio"], then uninstall @hiveai/mcp.`,
             fix:
-              `npm install -g @hiveai/cli@${cliVersion}\n` +
-              `# optionally uninstall duplicate:\n` +
+              `# 1. Run haive init to regenerate MCP configs pointing to bundled server:\n` +
+              `haive init\n` +
+              `# 2. Optionally remove the now-redundant standalone package:\n` +
               `npm uninstall -g @hiveai/mcp`,
           });
         }
       } catch {
         // haive-mcp not on PATH — expected when using bundled MCP via haive only
+      }
+
+      // ── 9. Legacy haive-mcp references in project MCP config files ──────────
+      // Scan .mcp.json / .cursor/mcp.json / .vscode/mcp.json for old command references.
+      {
+        const configPaths = [
+          path.join(root, ".mcp.json"),
+          path.join(root, ".cursor", "mcp.json"),
+          path.join(root, ".vscode", "mcp.json"),
+        ];
+        const staleConfigs: string[] = [];
+        for (const cfgPath of configPaths) {
+          if (!existsSync(cfgPath)) continue;
+          try {
+            const raw = await readFile(cfgPath, "utf8");
+            if (raw.includes('"haive-mcp"') || raw.includes("'haive-mcp'")) {
+              staleConfigs.push(path.relative(root, cfgPath));
+              if (opts.fix && !opts.dryRun) {
+                const updated = raw
+                  .replace(/"command"\s*:\s*"haive-mcp"/g, '"command": "haive"')
+                  .replace(/"args"\s*:\s*\[\]/g, '"args": ["mcp", "--stdio"]');
+                await writeFile(cfgPath, updated, "utf8");
+              }
+            }
+          } catch { /* ignore unreadable config */ }
+        }
+        if (staleConfigs.length > 0) {
+          findings.push({
+            severity: "warn",
+            code: "legacy-mcp-config",
+            message:
+              `${staleConfigs.length} MCP config file${staleConfigs.length === 1 ? "" : "s"} still reference the old "haive-mcp" command: ` +
+              staleConfigs.join(", ") +
+              `. Run \`haive doctor --fix\` to auto-migrate to the bundled server.`,
+            fix: "haive doctor --fix",
+            section: "Protection" as DoctorSection,
+          });
+        }
       }
 
       if (repairs.length > 0) {
@@ -526,12 +565,32 @@ function nextActions(findings: Finding[]): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Files that are low-value anchoring targets: test files, build configs, and type
+ * declaration files don't represent production logic worth protecting with memories.
+ * Excluding them from the denominator makes the coverage percentage meaningful.
+ */
+function isLowValueCoverageFile(file: string): boolean {
+  const lower = file.toLowerCase();
+  const base = lower.split("/").pop() ?? lower;
+  if (lower.includes(".test.") || lower.includes(".spec.")) return true;
+  if (lower.includes("/__tests__/") || lower.includes("/test/") || lower.includes("/tests/")) return true;
+  if (lower.endsWith(".d.ts")) return true;
+  if (base === "tsup.config.ts" || base === "vitest.config.ts" || base === "jest.config.ts") return true;
+  if (base.endsWith(".config.ts") || base.endsWith(".config.js")) return true;
+  if (base === "vite.config.ts" || base === "vite.config.js") return true;
+  return false;
+}
+
 async function collectHarnessCoverageFindings(
   codeMap: Awaited<ReturnType<typeof loadCodeMap>>,
   memories: LoadedMemory[],
 ): Promise<Finding[]> {
   if (!codeMap) return [];
-  const codeFiles = Object.keys(codeMap.files);
+  const allFiles = Object.keys(codeMap.files);
+  // Exclude test files and build configs from the denominator — only production
+  // source files are meaningful anchor targets for harness coverage.
+  const codeFiles = allFiles.filter((f) => !isLowValueCoverageFile(f));
   const total = codeFiles.length;
   if (total === 0) return [];
 
