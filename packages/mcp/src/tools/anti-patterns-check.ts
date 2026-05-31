@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import {
   deriveConfidence,
   getUsage,
+  isRetiredMemory,
   loadMemoriesFromDir,
   loadUsageIndex,
   literalMatchesAnyToken,
@@ -38,11 +39,24 @@ export const AntiPatternsCheckInputSchema = {
     .describe(
       "When true, also use semantic search (requires @hiveai/embeddings + memory index) to find related anti-patterns.",
     ),
+  min_semantic_score: z
+    .number()
+    .min(0)
+    .max(1)
+    .default(0.45)
+    .describe(
+      "Minimum cosine score for semantic-only anti-pattern hits. Anchor/literal matches still surface. " +
+      "Default 0.45 keeps broad, weakly-related memories out of review noise.",
+    ),
 };
 
-export type AntiPatternsCheckInput = {
-  [K in keyof typeof AntiPatternsCheckInputSchema]: z.infer<(typeof AntiPatternsCheckInputSchema)[K]>;
-};
+export interface AntiPatternsCheckInput {
+  diff?: string;
+  paths: string[];
+  limit: number;
+  semantic: boolean;
+  min_semantic_score?: number;
+}
 
 export interface AntiPatternsWarning {
   id: string;
@@ -131,11 +145,13 @@ export async function antiPatternsCheck(
   }
 
   const all = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+  const minSemanticScore = input.min_semantic_score ?? 0.45;
   const negative = all.filter(({ memory }) => {
     const t = memory.frontmatter.type;
     if (t !== "attempt" && t !== "gotcha") return false;
     const s = memory.frontmatter.status;
-    return s !== "rejected" && s !== "deprecated" && s !== "stale";
+    return s !== "rejected" && s !== "deprecated" && s !== "stale" &&
+      !isRetiredMemory(memory.frontmatter, memory.body);
   });
 
   if (negative.length === 0) {
@@ -203,6 +219,7 @@ export async function antiPatternsCheck(
         const negativeIds = new Set(negative.map(({ memory }) => memory.frontmatter.id));
         for (const hit of result.hits) {
           if (!negativeIds.has(hit.id)) continue;
+          if (hit.score < minSemanticScore && !seen.has(hit.id)) continue;
           const found = negative.find(({ memory }) => memory.frontmatter.id === hit.id);
           if (found) upsert(found.memory.frontmatter, found.memory.body, "semantic", hit.score);
         }

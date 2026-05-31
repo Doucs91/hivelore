@@ -461,6 +461,41 @@ describe("hAIve MCP tools", () => {
       expect(briefing.memories[0]?.why?.join(" ")).toContain("Failed-approach");
     });
 
+    it("does not surface retired attempts unless stale memories are explicitly included", async () => {
+      const attempt = await memSave(
+        {
+          type: "attempt",
+          slug: "old-cli-flag",
+          body: "# Old CLI flag\n\nFixed in 0.10.0; this attempt is kept only for audit history.",
+          scope: "team",
+          tags: [],
+          paths: ["packages/cli/src/commands/init.ts"],
+          symbols: [],
+        },
+        ctx,
+      );
+
+      const briefing = await getBriefing(
+        {
+          task: "edit init command",
+          files: ["packages/cli/src/commands/init.ts"],
+          max_tokens: 4000,
+          max_memories: 8,
+          include_project_context: false,
+          include_module_contexts: false,
+          semantic: false,
+          include_stale: false,
+          track: false,
+          format: "full",
+          symbols: [],
+          min_semantic_score: 0,
+        },
+        ctx,
+      );
+
+      expect(briefing.memories.some((m) => m.id === attempt.id)).toBe(false);
+    });
+
     it("classifies weak literal-only results as thin/background", async () => {
       await memSave(
         {

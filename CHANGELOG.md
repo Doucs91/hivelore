@@ -6,6 +6,21 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.10.1] — corpus lifecycle and release guardrails
+
+### Added
+- **Build artifact verification** — new `pnpm check:artifacts` guard verifies the lockstep package versions and the
+  built CLI/MCP versions after `pnpm -r build`; CI now runs it before typecheck/tests so stale dist/version skew is caught
+  explicitly.
+- **Memory lifecycle retirement** — `expires_when`, `obsolete`/`superseded`/`archived` tags, and explicit audit/history-only
+  fixed notes now remove records from active briefings and anti-pattern scans by default. `memory lint` flags active records
+  whose lifecycle metadata says they should be retired.
+
+### Changed
+- **Anti-pattern semantic noise** — semantic-only anti-pattern hits now require a default score of `0.45`; anchor/literal
+  matches still surface, but weak broad semantic matches no longer pollute review output.
+- Removed the duplicate `code_search` registration from the maintenance MCP profile.
+
 ## [0.10.0] — positioned for the unguessable
 
 A benchmark (10 cold agents, 5 projects, hidden-policy rubric) showed hAIve's real value: **correctness

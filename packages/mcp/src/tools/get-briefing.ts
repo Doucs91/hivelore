@@ -10,6 +10,7 @@ import {
   getUsage,
   inferModulesFromPaths,
   isGlobPath,
+  isRetiredMemory,
   isAutoPromoteEligible,
   isDecaying,
   isStackPackSeed,
@@ -266,6 +267,7 @@ export async function getBriefing(
       const s = memory.frontmatter.status;
       if (s === "rejected" || s === "deprecated") return false;
       if (!input.include_stale && s === "stale") return false;
+      if (!input.include_stale && isRetiredMemory(memory.frontmatter, memory.body)) return false;
       // session_recap surfaces separately in last_session, not in the ranked memories list
       if (memory.frontmatter.type === "session_recap") return false;
       return true;

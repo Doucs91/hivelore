@@ -1,7 +1,7 @@
 {
   "name": "haive-monorepo",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "hAIve — repo-native context enforcement for AI coding agents",
   "license": "Apache-2.0",
   "repository": {
@@ -15,6 +15,7 @@
     "test": "pnpm -r test",
     "test:watch": "pnpm -r test:watch",
     "typecheck": "pnpm -r typecheck",
+    "check:artifacts": "node scripts/verify-build-artifacts.mjs",
     "clean": "pnpm -r clean",
     "publish:all": "pnpm -r build && pnpm -r test && pnpm --filter @hiveai/core publish --access public --no-git-checks && pnpm --filter @hiveai/embeddings publish --access public --no-git-checks && pnpm --filter @hiveai/mcp publish --access public --no-git-checks && pnpm --filter @hiveai/cli publish --access public --no-git-checks",
     "benchmark:roi": "node scripts/agent-roi-benchmark.mjs"

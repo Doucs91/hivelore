@@ -5,6 +5,7 @@ import { Command } from "commander";
 import {
   findProjectRoot,
   getUsage,
+  retirementSignal,
   loadConfig,
   loadMemoriesFromDir,
   loadUsageIndex,
@@ -82,6 +83,7 @@ export function registerMemoryArchive(memory: Command): void {
         if (fm.type === "session_recap" || fm.requires_human_approval) continue;
         // Skip already-archived states.
         if (fm.status === "deprecated" || fm.status === "rejected") continue;
+        const retired = retirementSignal(fm, mem.body);
         // Anchorless OR all anchored paths gone OR all anchored symbols missing
         const hasAnyAnchor = fm.anchor.paths.length + fm.anchor.symbols.length > 0;
         const allPathsGone = fm.anchor.paths.length > 0
@@ -89,13 +91,15 @@ export function registerMemoryArchive(memory: Command): void {
         const isAnchorless = !hasAnyAnchor;
         // Default mode requires the knowledge to be unanchored or its code to have vanished.
         // --unread is the aggressive path: decay on unread-age alone, regardless of anchor state.
-        if (!opts.unread && !isAnchorless && !allPathsGone) continue;
+        if (!retired.retired && !opts.unread && !isAnchorless && !allPathsGone) continue;
         // Age check
         const u = getUsage(usage, fm.id);
         const lastSeen = u.last_read_at ?? fm.created_at;
-        if (Date.parse(lastSeen) >= cutoff) continue;
+        if (!retired.retired && Date.parse(lastSeen) >= cutoff) continue;
 
-        const reason = isAnchorless
+        const reason = retired.retired
+          ? `retired lifecycle signal: ${retired.reason ?? "unknown"}`
+          : isAnchorless
           ? `anchorless and not read since ${lastSeen.slice(0, 10)}`
           : allPathsGone
             ? `all ${fm.anchor.paths.length} anchored path(s) missing and not read since ${lastSeen.slice(0, 10)}`

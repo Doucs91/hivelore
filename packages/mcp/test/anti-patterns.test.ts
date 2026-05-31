@@ -193,6 +193,25 @@ describe("antiPatternsCheck", () => {
 
     expect(result.warnings).toHaveLength(0);
   });
+
+  it("skips memories retired by lifecycle metadata", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!,
+      "2024-01-01-attempt-fixed-flag",
+      "attempt",
+      "# Fixed flag\n\nFixed in 0.10.0; kept only for audit history, not active agent warnings.",
+    );
+
+    const result = await antiPatternsCheck({
+      diff: "+ fixed flag usage",
+      paths: [],
+      limit: 8,
+      semantic: false,
+    }, ctx);
+
+    expect(result.scanned).toBe(0);
+    expect(result.warnings).toHaveLength(0);
+  });
 });
 
 // ─── preCommitCheck ─────────────────────────────────────────────────────────

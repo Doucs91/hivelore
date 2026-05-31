@@ -316,7 +316,6 @@ export const MAINTENANCE_PROFILE_TOOLS = [
   "mem_delete",
   "mem_diff",
   "get_recap",
-  "code_search",
   "anti_patterns_check",
   "mem_distill",
   "mem_timeline",

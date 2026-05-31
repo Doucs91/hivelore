@@ -9,6 +9,7 @@ import { Command } from "commander";
 import {
   findProjectRoot,
   getUsage,
+  retirementSignal,
   loadCodeMap,
   loadMemoriesFromDir,
   loadUsageIndex,
@@ -77,6 +78,19 @@ export async function lintMemoriesAsync(
 
     const body = memory.body.trim();
     const naked = body.replace(/^#.*$/gm, "").replace(/```[\s\S]*?```/g, "").trim();
+    const retired = retirementSignal(fm, memory.body);
+
+    if (retired.retired && fm.status !== "deprecated" && fm.status !== "rejected" && fm.status !== "stale") {
+      out.push({
+        file: filePath,
+        id: fm.id,
+        severity: "warn",
+        code: "RETIRED_ACTIVE_MEMORY",
+        message:
+          `Record is still active but lifecycle metadata says it should be retired (${retired.reason}). ` +
+          "Mark it deprecated or remove the fixed/superseded marker if it still applies.",
+      });
+    }
 
     if (naked.length < 40 && fm.status !== "rejected") {
       out.push({
