@@ -5,6 +5,9 @@ type: session_recap
 status: validated
 anchor:
   paths:
+    - config.ts
+    - anti-patterns.test.ts
+    - init.ts
     - src/repo.js
   symbols: []
 tags:
@@ -12,26 +15,25 @@ tags:
   - recap
 created_at: '2026-04-30T00:02:07.282Z'
 expires_when: null
-verified_at: '2026-05-31T15:58:15.595Z'
+verified_at: '2026-05-31T20:26:28.251Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 topic: session-recap-team
-revision_count: 11
+revision_count: 13
 requires_human_approval: false
 ---
 ## Goal
-Implement findByRole(ctx, role) in src/repo.js for the multitenant bench repo.
+Auto-captured session (25 tool calls)
 
 ## Accomplished
-- Implemented findByRole filtering USERS by ctx.tenantId, role, and deletedAt === null per the team tenant-isolation security gotcha.
-- npm test passes (smoke test green).
+get_briefing ×17, mem_session_end ×4, mem_save ×1, mem_relevant_to ×1, pre_commit_check ×1, mem_search ×1
 
 ## Discoveries & surprises
-The team gotcha 2026-05-31-gotcha-tenant-isolation mandates every finder in src/repo.js filter by ctx.tenantId AND exclude soft-deleted rows (deletedAt !== null). The smoke test only checks tenant+role, not soft-delete exclusion, so the policy (not the test) is the source of truth for excluding soft-deleted Adam.
+1 memory saved during this session.
 
 ## Files touched
+- `config.ts`
+- `anti-patterns.test.ts`
+- `init.ts`
 - `src/repo.js`
-
-## Next steps
-Apply the same tenant-isolation + soft-delete filter to any future finders added to src/repo.js.

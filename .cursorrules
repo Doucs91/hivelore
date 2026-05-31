@@ -19,6 +19,15 @@ Do **not** treat these as nice-to-have: they are **default-required** for coding
 ### Session rules
 - **Immediately** when an approach fails (wrong API, wrong pattern, wrong assumption), call `mem_tried` — do not wait until the end of the session.
 
+### Git sync protocol — multi-agent coordination (MANDATORY)
+Several agents **and** the human (Sady) work on this repo in parallel with manual pull/push. See decision `2026-05-31-decision-git-sync-protocol-multi-agent`.
+
+**BEFORE a task:** `git pull`; resolve any conflicts before touching code; verify no conflict markers remain (`<<<<<<<`, `=======`, `>>>>>>>`), especially under `.ai/`.
+
+**AFTER changing code:** `git commit`; bump the version **only if shippable package code changed** (`@hiveai/core`, `cli`, `mcp`, `embeddings`), **patch by default**, lockstep across the 4 packages; create the tag `vX.Y.Z`; then `git push && git push --tags`. Docs-only / `.ai/`-only / config / CI commits → commit + push **without** bump or tag.
+
+**BOUNDARY: agents NEVER run `npm publish` — the human (Sady) handles npm publication.**
+
 ### Safety rules — NEVER violate these
 - If `get_briefing` returns an `action_required` list, **stop and show each item to the developer** before doing anything. Use the exact `developer_message` provided. Wait for explicit confirmation.
 - **Never modify code autonomously** because of a breaking change detected in another project (dependency version bump, API contract change, removed field). Always ask first.

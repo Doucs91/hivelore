@@ -35,6 +35,23 @@ These are non-negotiable. Each row is a **concrete situation** mapped to a **spe
 
 **The `discoveries` field in `mem_session_end` is mandatory** — leave it empty only when nothing was surprising. If you cannot think of anything to put there, re-read the session mentally: every `mem_tried` call this session is a discovery candidate.
 
+### Git sync protocol — multi-agent coordination (MANDATORY)
+Several agents **and** the human (Sady) work on this repo in parallel with manual pull/push. Without a shared protocol you get merge conflicts (e.g. conflict markers left in `.ai/`) and desynced versions. See decision `2026-05-31-decision-git-sync-protocol-multi-agent`.
+
+**BEFORE starting a task (entry):**
+1. `git pull` — get the latest version from GitHub.
+2. Resolve any conflicts **before** touching code.
+3. Verify no conflict markers remain (`<<<<<<<`, `=======`, `>>>>>>>`), especially under `.ai/`.
+
+**AFTER changing code (exit):**
+1. `git commit` your changes.
+2. **Bump the version ONLY if shippable code changed** (publishable packages: `@hiveai/core`, `cli`, `mcp`, `embeddings`). Docs-only / `.ai/`-only / config / CI commits → commit + push **without** bump or tag.
+3. If bumping: **patch by default** (`0.10.1 → 0.10.2`); minor/major only if justified (feature / breaking). Keep all 4 publishable packages in lockstep.
+4. If bumping: create the matching git tag `vX.Y.Z`.
+5. `git push` **code and tags** (`git push && git push --tags`).
+
+**BOUNDARY: agents NEVER run `npm publish`. npm publication is done by the human (Sady).**
+
 ### Safety rules — NEVER violate these
 - If `get_briefing` returns an `action_required` list, **stop and show each item to the developer** before doing anything. Use the exact `developer_message` provided. Wait for explicit confirmation.
 - **Never modify code autonomously** because of a breaking change detected in another project (dependency version bump, API contract change, removed field). Always ask first.
