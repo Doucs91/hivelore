@@ -87,3 +87,15 @@
 {"tool":"get_briefing","at":"2026-05-31T20:36:34.315Z","summary":"Audit hAIve: assess product quality, command surface, enforcement gate behavior"}
 {"tool":"mem_relevant_to","at":"2026-05-31T20:36:34.680Z","summary":"enforcement gate anti-pattern false positives and briefing token cost"}
 {"tool":"pre_commit_check","at":"2026-05-31T20:36:34.717Z","summary":"0p"}
+{"tool":"get_briefing","at":"2026-05-31T20:35:44.123Z","summary":"Auditer l'outil hAive en profondeur, tester ses plans/commandes principales, évaluer les défauts actuels et le positionnement produit face au post OpenAI Harness Engineering."}
+{"tool":"mem_session_end","at":"2026-05-31T20:39:45.291Z","summary":"Auditer hAIve en profondeur, tester ses surfaces principales et comparer son pos"}
+{"tool":"get_briefing","at":"2026-05-31T21:06:06.498Z","summary":"Implémenter les correctifs prioritaires pour rendre hAIve plus excellent avant nouvelles fonctionnalités: cohérence build/version/dist, cycle de vie du corpus, réduction du bruit et tests associés."}
+{"tool":"mem_session_end","at":"2026-05-31T21:12:53.939Z","summary":"Implémenter les correctifs prioritaires pour rendre hAIve plus excellent avant d"}
+{"tool":"get_briefing","at":"2026-05-31T21:24:01.194Z","summary":"Préparer une release npm de hAIve: bump version patch, mettre à jour le changelog, valider build/typecheck/tests/artifacts, créer les commits et pousser sur le remote."}
+{"tool":"get_briefing","at":"2026-05-31T21:57:35.531Z","summary":"Améliorer le positionnement produit de hAIve autour du harness engineering: clarifier que hAIve est la couche repo-native de mémoire, contexte et policy/enforcement pour coding-agent harnesses, sans prétendre remplacer tests/linters/observability."}
+{"tool":"mem_session_end","at":"2026-05-31T21:59:19.566Z","summary":"Distiller la session précédente signalée par hAIve avant d'améliorer le position"}
+{"tool":"mem_session_end","at":"2026-05-31T22:03:32.525Z","summary":"Améliorer le positionnement produit de hAIve autour du harness engineering et de"}
+{"tool":"get_briefing","at":"2026-05-31T22:06:07.841Z","summary":"Préparer la release de positionnement hAIve 0.10.2: bump versions, finaliser changelog, committer et tagger sans inclure les fichiers .ai générés non pertinents."}
+{"tool":"get_briefing","at":"2026-05-31T22:08:14.208Z","summary":"Préparer et committer la release hAIve 0.10.2 de positionnement harness: versions npm alignées, changelog de release, docs/README/CLI help/package metadata mis à jour."}
+{"tool":"mem_session_end","at":"2026-05-31T22:09:18.823Z","summary":"Créer la release hAIve 0.10.2 après l'amélioration du positionnement produit."}
+{"tool":"get_briefing","at":"2026-05-31T22:44:22.862Z","summary":"Synchroniser le repo après changements d'un autre agent, puis enregistrer la convention de workflow: pull avant chaque nouvelle tâche et commit après la tâche."}
