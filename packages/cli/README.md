@@ -1,10 +1,10 @@
 # @hiveai/cli
 
-> **hAIve** — policy enforcement for AI coding agents.
+> **hAIve** - repo-native memory and context policy for coding-agent harnesses.
 
-hAIve makes your team knowledge enforceable. It gives agents a required briefing before work starts, stores decisions/gotchas/failed attempts as version-controlled Markdown, and adds MCP, Git, CI, and wrapper gates so AI-generated changes cannot quietly bypass project policy.
+hAIve makes your team knowledge enforceable inside the harness around AI coding agents. It gives agents a required briefing before work starts, stores decisions/gotchas/failed attempts as version-controlled Markdown, and adds MCP, Git, CI, and wrapper gates so AI-generated changes cannot quietly bypass project policy.
 
-The memory system is the mechanism. The CLI is the control plane: initialize policy, run agents inside hAIve, check the repo, and block unsafe workflow states.
+The memory system is the mechanism. The CLI is the control plane: initialize context policy, run agents inside hAIve, check the repo, and block unsafe workflow states. hAIve complements tests, linters, evals, and observability by carrying the repo-specific knowledge they cannot infer.
 
 ---
 
@@ -72,7 +72,7 @@ haive --advanced --help
 haive --advanced memory --help
 ```
 
-This keeps hAIve from feeling like a grab bag: day-to-day users see context loading, enforcement, diagnostics, sync, recaps, and the high-signal memory operations first.
+This keeps hAIve from feeling like a grab bag: day-to-day users see the core harness loop first - context loading, enforcement, diagnostics, sync, recaps, and the high-signal memory operations.
 
 ### `haive init`
 

@@ -1,10 +1,10 @@
 # @hiveai/mcp
 
-> **hAIve MCP server** — policy-aware briefing and memory tools for MCP-compatible AI coding agents.
+> **hAIve MCP server** - policy-aware briefing and memory tools for MCP-compatible coding-agent harnesses.
 
-The MCP server is how agents load team policy before changing code. By default it exposes a small enforcement-oriented tool surface: briefing, relevant memories, failed-attempt capture, anchor verification, code-map lookup, and pre-commit checks. Larger maintenance and experimental surfaces are opt-in via `HAIVE_TOOL_PROFILE`.
+The MCP server is how agents load team policy before changing code. By default it exposes a small harness-oriented tool surface: briefing, relevant memories, failed-attempt capture, anchor verification, code-map lookup, and pre-commit checks. Larger maintenance and experimental surfaces are opt-in via `HAIVE_TOOL_PROFILE`.
 
-hAIve is not just a memory database. The MCP layer participates in enforcement: state-changing hAIve tools require `get_briefing` or `mem_relevant_to` first, so agents cannot silently skip team context while using hAIve.
+hAIve is not just a memory database. The MCP layer participates in context policy: state-changing hAIve tools require `get_briefing` or `mem_relevant_to` first, so agents cannot silently skip team context while using hAIve.
 
 ---
 

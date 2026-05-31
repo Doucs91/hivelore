@@ -57,7 +57,7 @@ declare const __HAIVE_VERSION__: string;
 
 program
   .name("haive")
-  .description("hAIve — the memory and enforcement layer of your agent harness")
+  .description("hAIve - repo-native memory and context policy for coding-agent harnesses")
   .version(__HAIVE_VERSION__)
   .option("--advanced", "show maintenance and experimental commands in help");
 
@@ -127,7 +127,7 @@ registerPrecommit(program);
 // The core harness loop only — what a developer actually types day to day. Everything else
 // (tui dashboard, welcome onboarding, the manual `precommit` variant of `enforce check`, plus the
 // maintenance/experimental families) stays one `--advanced` away. A focused surface is part of the
-// positioning: hAIve is the anti-convention-hallucination layer, not a 54-command Swiss army knife.
+// positioning: hAIve is repo context policy for coding-agent harnesses, not a 54-command Swiss army knife.
 const CORE_ROOT_COMMANDS = new Set([
   "init",
   "doctor",

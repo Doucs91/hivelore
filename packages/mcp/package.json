@@ -1,7 +1,7 @@
 {
   "name": "@hiveai/mcp",
-  "version": "0.10.1",
-  "description": "hAIve MCP server — harness engineering tools for AI coding agents (briefing, enforcement, skills, memory lifecycle)",
+  "version": "0.10.2",
+  "description": "hAIve MCP server - policy-aware briefing and memory tools for coding-agent harnesses",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

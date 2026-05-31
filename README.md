@@ -1,10 +1,12 @@
 # hAIve
 
-**Stop AI agents from reinventing — wrongly — your team's non-obvious decisions.**
+**Repo-native memory and context policy for coding-agent harnesses.**
 
-A capable model already knows generic best practice. What it *cannot* guess is your team's arbitrary, repo-specific knowledge: that public ids are `id + 100000` prefixed `AC-`, that the status field must be `"OK"`/`"KO"`, that you never edit an applied migration. Left to itself, a confident agent invents a plausible answer — clean, tested, green, and **wrong by policy**. hAIve carries that unguessable knowledge into the task and blocks the change that's about to violate it.
+hAIve is the team-knowledge layer inside an AI coding-agent harness. It gives agents a feedforward briefing before work starts, then adds feedback gates in MCP, Git hooks, CI, and wrappers so changes cannot quietly bypass repo policy.
 
-> hAIve's job is not to make agents faster. It's to keep them from confidently reinventing what your team already decided.
+A capable model already knows generic best practice. What it *cannot* guess is your team's arbitrary, repo-specific knowledge: that public ids are `id + 100000` prefixed `AC-`, that the status field must be `"OK"`/`"KO"`, that you never edit an applied migration. Left to itself, a confident agent invents a plausible answer - clean, tested, green, and **wrong by policy**. hAIve carries that unguessable knowledge into the task and blocks the change that's about to violate it.
+
+> hAIve's job is not to replace tests, linters, or observability. It makes the repo-specific knowledge those tools cannot infer available, auditable, and enforceable.
 
 [![npm](https://img.shields.io/npm/v/@hiveai/cli?color=blue)](https://www.npmjs.com/package/@hiveai/cli)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
@@ -43,6 +45,19 @@ AI agent ──▶ hAIve briefing ──▶ code change ──▶ hAIve policy g
 
 > **Memory is the substrate. Context enforcement is the product promise.**
 > AI changes should not enter the codebase without consulting the team's current knowledge.
+
+## Where hAIve fits in the harness
+
+Harness engineering is about the environment around the model: feedforward guidance before it acts, feedback sensors after it acts, and workflow gates that keep bad states from landing. hAIve owns the **repo-specific context policy** part of that harness.
+
+| Harness concern | hAIve role |
+|---|---|
+| **Feedforward guidance** | `get_briefing`, module context, skills, decisions, gotchas, failed attempts |
+| **Feedback and gates** | MCP ordering policy, `pre_commit_check`, Git hooks, CI enforcement, stale-anchor detection |
+| **Knowledge lifecycle** | Git-native Markdown records, path/symbol anchors, confidence, retirement, linting |
+| **Boundaries** | hAIve complements unit/e2e tests, type checks, runtime traces, security scanners, and LLM evals; it does not try to replace them |
+
+The narrow positioning is intentional: hAIve is not a general memory database or an agent dashboard. It is the control layer that helps coding agents act with the validated, non-obvious knowledge of the team.
 
 ---
 

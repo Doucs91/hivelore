@@ -1,7 +1,7 @@
 {
   "name": "haive-vscode",
   "displayName": "hAIve — Agent Harness & Context Enforcement",
-  "description": "Harness engineering for AI coding agents: surface skills, decisions, gotchas, and harness health inline so agents work with the knowledge your team has validated.",
+  "description": "Repo-native context policy for coding-agent harnesses: surface decisions, gotchas, skills, and harness health inline.",
   "version": "0.6.1",
   "publisher": "hiveai",
   "icon": "media/icon.png",

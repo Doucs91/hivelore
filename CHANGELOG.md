@@ -6,6 +6,13 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.10.2] — harness positioning
+
+### Changed
+- **Product positioning clarified** — public docs, npm metadata, and CLI help now describe hAIve as
+  "repo-native memory and context policy for coding-agent harnesses", with explicit boundaries around
+  tests, linters, evals, observability, and security tooling.
+
 ## [0.10.1] — corpus lifecycle and release guardrails
 
 ### Added

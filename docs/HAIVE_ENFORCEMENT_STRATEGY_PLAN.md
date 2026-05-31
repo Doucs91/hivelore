@@ -1,8 +1,10 @@
-# hAIve Enforcement Strategy Plan
+# hAIve Positioning and Enforcement Strategy Plan
 
 ## Goal
 
-Reposition hAIve from a general-purpose AI memory server into a repo-native context enforcement layer for AI coding agents.
+Position hAIve as repo-native memory and context policy for coding-agent harnesses.
+
+hAIve should be framed as one layer of harness engineering: the team-specific feedforward guidance and feedback gates around AI coding agents. It complements tests, linters, evals, runtime observability, and security scanners; it does not replace them.
 
 ## Implementation Status
 
@@ -30,11 +32,11 @@ Important product principle:
 > gates: MCP, Git hooks, CI required checks, and a `haive run` wrapper. Client hooks
 > such as Claude Code are accelerators, not the foundation.
 
-The product promise should become:
+The product promise is:
 
-> AI agents cannot safely change a repo until they have loaded the team's relevant context breadcrumbs: decisions, gotchas, failed attempts, and stale-anchor warnings.
+> AI agents cannot safely change a repo until they have loaded the team's relevant context policy: decisions, gotchas, failed attempts, and stale-anchor warnings.
 
-This is stronger than "persistent memory". It makes hAIve infrastructure: a briefing gate, PR guardrail, and auditable repo-context policy system.
+This is stronger than "persistent memory". It makes hAIve infrastructure: a briefing gate, PR guardrail, and auditable repo-context policy system inside the broader harness.
 
 ## Product Positioning
 
@@ -340,4 +342,4 @@ hAIve is in the right direction when users describe it like this:
 - "It prevented the same failed approach from happening again."
 - "It made our AI usage auditable without adding a heavy platform."
 
-If users only describe it as "a memory database", the positioning is still too broad. The intended phrase is: repo-native context enforcement.
+If users only describe it as "a memory database", the positioning is still too broad. The intended phrase is: repo-native memory and context policy for coding-agent harnesses.
