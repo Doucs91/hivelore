@@ -6,6 +6,11 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.9.31] — gate consistency
+
+### Fixed
+- **`haive precommit` now honors `enforcement.antiPatternGate`.** Previously the standalone command always used its own `--anchored-blocks` default and ignored project config, so a team that softened the gate to `review` (or `off`) in `.ai/haive.config.json` still got hard blocks when running `haive precommit` by hand — diverging from the installed git hook. The gate→params mapping is now centralized in `@hiveai/core` (`antiPatternGateParams`) and consumed by both `haive enforce check` (the hook) and `haive precommit`, so the two surfaces can no longer drift. Explicit flags still override: `--block-on <mode>` and `--no-anchored-blocks`.
+
 ## [0.9.30] — enforcement honesty & quality pass
 
 ### Added

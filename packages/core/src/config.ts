@@ -236,6 +236,31 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
   },
 };
 
+/** The pre-commit anti-pattern gate hardness levels. */
+export type AntiPatternGate = "off" | "review" | "anchored" | "strict";
+
+/**
+ * Single source of truth mapping a configured `antiPatternGate` to the
+ * `pre_commit_check` parameters that implement it. Both the git-hook path
+ * (`haive enforce check`) and the standalone `haive precommit` command derive
+ * their behavior from this so the two surfaces can never drift apart.
+ */
+export function antiPatternGateParams(
+  gate: AntiPatternGate,
+): { block_on: "any" | "high-confidence" | "never"; anchored_blocks: boolean } {
+  switch (gate) {
+    case "off":
+      return { block_on: "never", anchored_blocks: false };
+    case "review":
+      return { block_on: "high-confidence", anchored_blocks: false };
+    case "strict":
+      return { block_on: "any", anchored_blocks: true };
+    case "anchored":
+    default:
+      return { block_on: "high-confidence", anchored_blocks: true };
+  }
+}
+
 export function configPath(paths: HaivePaths): string {
   return path.join(paths.haiveDir, CONFIG_FILE);
 }

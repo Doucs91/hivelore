@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 import { Command } from "commander";
 import {
+  antiPatternGateParams,
   findProjectRoot,
+  loadConfig,
   resolveHaivePaths,
 } from "@hiveai/core";
 import { preCommitCheck } from "@hiveai/mcp";
@@ -30,8 +32,7 @@ export function registerPrecommit(program: Command): void {
     )
     .option(
       "--block-on <mode>",
-      "'any' | 'high-confidence' (default) | 'never' (report only)",
-      "high-confidence",
+      "'any' | 'high-confidence' | 'never' (report only). Default: derived from enforcement.antiPatternGate.",
     )
     .option("--no-semantic", "disable semantic search in anti-patterns matching")
     .option(
@@ -45,6 +46,16 @@ export function registerPrecommit(program: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       const ctx = { paths };
+
+      // Derive the gate behavior from project config so this command matches the
+      // installed git hook (`haive enforce check`). Explicit flags still override:
+      //   --block-on <mode>     overrides the gate's block_on
+      //   --no-anchored-blocks  forces anchored_blocks off (the only explicit opt-out)
+      const config = await loadConfig(paths);
+      const gate = config.enforcement?.antiPatternGate ?? "anchored";
+      const gateParams = antiPatternGateParams(gate);
+      const blockOn = opts.blockOn ?? gateParams.block_on;
+      const anchoredBlocks = opts.anchoredBlocks === false ? false : gateParams.anchored_blocks;
 
       let diff = "";
       let touchedPaths: string[] = opts.paths ?? [];
@@ -86,8 +97,8 @@ export function registerPrecommit(program: Command): void {
       const result = await preCommitCheck({
         diff: diff || undefined,
         paths: touchedPaths,
-        block_on: opts.blockOn ?? "high-confidence",
-        anchored_blocks: opts.anchoredBlocks !== false,
+        block_on: blockOn,
+        anchored_blocks: anchoredBlocks,
         semantic: opts.noSemantic ? false : true,
       }, ctx);
 
@@ -143,7 +154,7 @@ export function registerPrecommit(program: Command): void {
       }
 
       if (result.should_block) {
-        ui.error(`Blocking commit (block_on=${opts.blockOn ?? "high-confidence"}). Address the warnings above or pass --block-on never to bypass.`);
+        ui.error(`Blocking commit (gate=${gate}, block_on=${blockOn}). Address the warnings above or pass --block-on never to bypass.`);
         process.exit(1);
       }
 

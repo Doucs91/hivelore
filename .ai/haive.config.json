@@ -19,6 +19,7 @@
     "requireMemoryVerify": true,
     "blockStaleDecisionChanges": true,
     "requireDecisionCoverage": true,
+    "antiPatternGate": "anchored",
     "scoreThreshold": 85,
     "cleanupGeneratedArtifacts": true,
     "toolProfile": "enforcement",

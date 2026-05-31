@@ -4,6 +4,7 @@ import { chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises
 import path from "node:path";
 import { Command } from "commander";
 import {
+  antiPatternGateParams,
   findProjectRoot,
   hasRecentBriefingMarker,
   isFreshIsoDate,
@@ -17,6 +18,7 @@ import {
   SESSION_RECAP_TTL_MS,
   verifyAnchor,
   writeBriefingMarker,
+  type AntiPatternGate,
   type LoadedMemory,
   type HaiveConfig,
 } from "@hiveai/core";
@@ -668,7 +670,7 @@ async function verifyDecisionCoverage(
 
 async function runPrecommitPolicy(
   paths: ReturnType<typeof resolveHaivePaths>,
-  gate: "off" | "review" | "anchored" | "strict",
+  gate: AntiPatternGate,
 ): Promise<EnforcementFinding[]> {
   if (gate === "off") {
     return [{ severity: "info", code: "precommit-policy-off", message: "Anti-pattern gate is disabled (enforcement.antiPatternGate=off)." }];
@@ -679,15 +681,14 @@ async function runPrecommitPolicy(
     return [{ severity: "info", code: "no-staged-changes", message: "No staged changes found for pre-commit policy." }];
   }
   const diff = await runCommand("git", ["diff", "--cached"], paths.root).catch(() => "");
-  // Map the configured gate to preCommitCheck semantics:
-  //   review   → soft: block only on a very strong semantic match (legacy behavior)
-  //   anchored → also block anchored, diff-corroborated, high-confidence anti-patterns
-  //   strict   → block on any high-confidence match
+  // The gate→params mapping lives in @hiveai/core so the git-hook path and the
+  // standalone `haive precommit` command can never drift apart.
+  const { block_on, anchored_blocks } = antiPatternGateParams(gate);
   const result = await preCommitCheck({
     diff,
     paths: touchedPaths,
-    block_on: gate === "strict" ? "any" : "high-confidence",
-    anchored_blocks: gate === "anchored",
+    block_on,
+    anchored_blocks,
     semantic: true,
   }, { paths });
   if (!result.should_block) {

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-05-31T04:37:26.071Z",
+  "generated_at": "2026-05-31T15:20:10.669Z",
   "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -138,7 +138,7 @@
           "line": 325
         }
       ],
-      "loc": 1165
+      "loc": 1176
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -156,10 +156,10 @@
         {
           "name": "registerIndexCode",
           "kind": "function",
-          "line": 17
+          "line": 21
         }
       ],
-      "loc": 118
+      "loc": 184
     },
     "packages/cli/src/commands/init-bootstrap.ts": {
       "summary": "Bootstrap: auto-generate .ai/project-context.md from local filesystem signals.",
@@ -167,10 +167,10 @@
         {
           "name": "generateBootstrapContext",
           "kind": "function",
-          "line": 254
+          "line": 288
         }
       ],
-      "loc": 356
+      "loc": 390
     },
     "packages/cli/src/commands/init-mcp-setup.ts": {
       "summary": "Auto-configure haive-mcp in supported AI clients.",
@@ -269,10 +269,10 @@
         {
           "name": "registerMemoryAdd",
           "kind": "function",
-          "line": 40
+          "line": 41
         }
       ],
-      "loc": 315
+      "loc": 317
     },
     "packages/cli/src/commands/memory-approve.ts": {
       "exports": [
@@ -543,30 +543,30 @@
         {
           "name": "registerMemoryTried",
           "kind": "function",
-          "line": 27
+          "line": 28
         }
       ],
-      "loc": 106
+      "loc": 108
     },
     "packages/cli/src/commands/memory-update.ts": {
       "exports": [
         {
           "name": "registerMemoryUpdate",
           "kind": "function",
-          "line": 28
+          "line": 29
         }
       ],
-      "loc": 140
+      "loc": 143
     },
     "packages/cli/src/commands/memory-verify.ts": {
       "exports": [
         {
           "name": "registerMemoryVerify",
           "kind": "function",
-          "line": 21
+          "line": 30
         }
       ],
-      "loc": 148
+      "loc": 193
     },
     "packages/cli/src/commands/observe.ts": {
       "summary": "`haive observe` — passive-capture endpoint for Claude Code's PostToolUse hook.",
@@ -594,10 +594,10 @@
         {
           "name": "registerPrecommit",
           "kind": "function",
-          "line": 18
+          "line": 19
         }
       ],
-      "loc": 198
+      "loc": 204
     },
     "packages/cli/src/commands/resolve-project.ts": {
       "exports": [
@@ -1018,35 +1018,35 @@
         {
           "name": "DEFAULT_CONFIG",
           "kind": "const",
-          "line": 170
+          "line": 181
         },
         {
           "name": "AUTOPILOT_DEFAULTS",
           "kind": "const",
-          "line": 198
+          "line": 210
         },
         {
           "name": "configPath",
           "kind": "function",
-          "line": 226
+          "line": 239
         },
         {
           "name": "loadConfig",
           "kind": "function",
-          "line": 230
+          "line": 243
         },
         {
           "name": "loadConfigSync",
           "kind": "function",
-          "line": 247
+          "line": 260
         },
         {
           "name": "saveConfig",
           "kind": "function",
-          "line": 261
+          "line": 274
         }
       ],
-      "loc": 279
+      "loc": 292
     },
     "packages/core/src/conflict-candidates.ts": {
       "exports": [
@@ -2389,10 +2389,10 @@
           "name": "antiPatternsCheck",
           "kind": "function",
           "description": "Scan a diff (or set of paths) against documented attempt/gotcha memories.",
-          "line": 77
+          "line": 108
         }
       ],
-      "loc": 197
+      "loc": 228
     },
     "packages/mcp/src/tools/bootstrap-project-save.ts": {
       "exports": [
@@ -3205,36 +3205,36 @@
         {
           "name": "PreCommitCheckInput",
           "kind": "type",
-          "line": 34
+          "line": 43
         },
         {
           "name": "PreCommitCheckOutput",
           "kind": "interface",
-          "line": 38
+          "line": 47
         },
         {
           "name": "AntiPatternLevel",
           "kind": "type",
-          "line": 67
+          "line": 76
         },
         {
           "name": "ClassifiedAntiPatternsWarning",
           "kind": "interface",
-          "line": 69
+          "line": 78
         },
         {
           "name": "preCommitCheck",
           "kind": "function",
           "description": "One-shot \"should I block this commit?\" check.",
-          "line": 92
+          "line": 101
         },
         {
           "name": "classifyAntiPatternWarningForTest",
           "kind": "function",
-          "line": 252
+          "line": 287
         }
       ],
-      "loc": 389
+      "loc": 425
     },
     "packages/mcp/src/tools/runtime-journal-append.ts": {
       "exports": [

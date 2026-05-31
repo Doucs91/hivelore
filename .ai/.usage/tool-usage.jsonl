@@ -69,3 +69,4 @@
 {"tool":"get_briefing","at":"2026-05-31T14:35:13.162Z","summary":"Add code-aware diff tokenizer for literal anti-pattern matching"}
 {"tool":"get_briefing","at":"2026-05-31T14:36:05.140Z","summary":"Add regression test for code-aware literal tokenizer blocking"}
 {"tool":"mem_session_end","at":"2026-05-31T14:39:40.306Z","summary":"Audit hAIve end-to-end, reconcile a second agent's audit, then fix all identifie"}
+{"tool":"get_briefing","at":"2026-05-31T15:35:32.202Z","summary":"Centralize antiPatternGate→params mapping; make haive precommit read the config gate so it matches the git hook"}
