@@ -1,6 +1,13 @@
-# hAIve — VS Code Extension
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/icon-128.png" width="96" height="96" alt="hAIve logo" />
+</p>
 
-Surface team memories, gotchas, and architectural decisions **inline while you code**. Never let your AI agent forget what your team knows.
+<h1 align="center">hAIve — VS Code Extension</h1>
+
+<p align="center">
+  Surface team memories, gotchas, and architectural decisions <strong>inline while you code</strong>.<br/>
+  Never let your AI agent forget what your team knows.
+</p>
 
 ## Features
 

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 372 110" width="372" height="110" role="img" aria-label="hAIve">
+  <defs>
+    
+    <filter id="wmGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="0" stdDeviation="3.4" flood-color="#F5A623" flood-opacity="0.5"></feDropShadow>
+    </filter>
+  </defs>
+  <g transform="translate(6 11) scale(0.88)">
+    <path d="M84 50 L67 20.56 L33 20.56 L16 50 L33 79.44 L67 79.44 Z" fill="none" stroke="#1A1A1A" stroke-width="5.4" stroke-linejoin="round" stroke-linecap="round"></path>
+    <path d="M67 50 L58.5 35.28 L41.5 35.28 L33 50 L41.5 64.72 L58.5 64.72 Z" fill="#F5A623" filter="url(#wmGlow)"></path>
+  </g>
+  <text x="116" y="74" font-family="&#39;Space Grotesk&#39;, system-ui, sans-serif" font-size="64" font-weight="600" letter-spacing="-1">
+    <tspan fill="#1A1A1A">h</tspan><tspan fill="#F5A623">AI</tspan><tspan fill="#1A1A1A">ve</tspan>
+  </text>
+</svg>

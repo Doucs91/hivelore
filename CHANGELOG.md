@@ -17,6 +17,11 @@ project follows semantic versioning once it ships its first stable release.
 - `haive session end --auto` can synthesize a useful recap from the current git diff when no hook observation log is available.
 - Enforcement findings now carry clearer educational details (`why`, files, and memory IDs) for missing decision coverage.
 
+## [vscode-0.6.1] — brand icon
+
+### Added
+- **Brand icon & glyph** — honeycomb cluster with a single glowing amber cell (the "surfaced memory" signature). `media/icon.png` (256×256) is the Marketplace icon; the activity-bar container now uses the monochrome `media/logo-mono.svg` glyph (themable via `currentColor`) instead of the `$(book)` codicon. Adds `favicon.*`, `logo.svg`, `wordmark.svg`, and a README header logo. The preview page `media/index.html` is excluded from the packaged `.vsix`.
+
 ## [vscode-0.6.0] — developer curation actions
 
 ### Added

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hAIve — Brand Mark</title>
+<link rel="icon" href="assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --amber:#F5A623;
+    --charcoal:#1A1A1A;
+    --cream:#F5F5F0;
+    --paper:#FAFAF7;
+    --line:#E4E3DA;
+    --muted:#7A786E;
+    --sans:'Space Grotesk',system-ui,sans-serif;
+    --mono:'Space Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:var(--sans);
+    background:var(--paper);
+    color:var(--charcoal);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding:0 40px;}
+
+  /* ---- top bar ---- */
+  header.top{
+    border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:rgba(250,250,247,.86);
+    backdrop-filter:blur(8px);z-index:10;
+  }
+  .top-inner{display:flex;align-items:center;justify-content:space-between;height:72px;}
+  .brand{display:flex;align-items:center;gap:13px;}
+  .brand .g{width:34px;height:34px;display:block;}
+  .brand .wm{font-size:24px;font-weight:600;letter-spacing:-.5px;}
+  .brand .wm .ai{color:var(--amber);}
+  .top nav{display:flex;gap:30px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;}
+  .top nav a{color:var(--muted);text-decoration:none;transition:color .15s;}
+  .top nav a:hover{color:var(--charcoal);}
+
+  /* ---- hero ---- */
+  .hero{padding:96px 0 72px;display:grid;grid-template-columns:1.15fr .85fr;gap:48px;align-items:center;}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);margin-bottom:22px;}
+  .hero h1{font-size:62px;line-height:1.02;font-weight:700;letter-spacing:-2px;margin-bottom:24px;}
+  .hero h1 .ai{color:var(--amber);}
+  .hero p{font-size:18px;color:var(--muted);max-width:46ch;}
+  .hero .lede b{color:var(--charcoal);font-weight:600;}
+  .hero-mark{
+    aspect-ratio:1;background:var(--cream);border:1px solid var(--line);border-radius:28px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .hero-mark svg{width:58%;height:58%;}
+
+  /* ---- section scaffold ---- */
+  section.block{padding:64px 0;border-top:1px solid var(--line);}
+  .sec-head{display:flex;align-items:baseline;gap:18px;margin-bottom:42px;}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--amber);}
+  .sec-head h2{font-size:30px;font-weight:600;letter-spacing:-.8px;}
+  .sec-head p{font-size:15px;color:var(--muted);margin-left:auto;max-width:40ch;text-align:right;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+
+  .card{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#fff;}
+  .card .stage{display:flex;align-items:center;justify-content:center;min-height:280px;padding:40px;}
+  .card .stage.dark{background:var(--charcoal);}
+  .card .stage.cream{background:var(--cream);}
+  .card .meta{border-top:1px solid var(--line);padding:14px 18px;display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:var(--muted);}
+  .card .meta .tag{color:var(--charcoal);text-transform:uppercase;}
+  .card .stage.dark + .meta{}
+  .glyph-lg{width:190px;height:190px;}
+
+  /* honeycomb tile */
+  .tile-row{display:flex;align-items:flex-end;gap:40px;justify-content:center;flex-wrap:wrap;}
+  .tile{border-radius:22%;box-shadow:0 20px 50px -22px rgba(0,0,0,.5);display:block;}
+  .tile.s256{width:200px;height:200px;}
+  .tile.s128{width:118px;height:118px;}
+  .tile-cap{text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:14px;text-transform:uppercase;letter-spacing:.06em;}
+
+  /* mono recolor demo */
+  .mono-row{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;}
+  .swatch-mono{aspect-ratio:1;border-radius:16px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;}
+  .swatch-mono svg{width:54%;height:54%;}
+  .sm1{background:#1A1A1A;color:#F5F5F0;}
+  .sm2{background:#252526;color:#cccccc;}      /* vscode dark */
+  .sm3{background:#F3F3F3;color:#424242;border-color:var(--line);} /* vscode light */
+  .sm4{background:#0d1117;color:#F5A623;}        /* active/amber tint */
+  .sm5{background:#1f2430;color:#7aa2f7;}
+  .mono-note{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;margin-top:12px;letter-spacing:.04em;}
+
+  /* favicon scale */
+  .fav-row{display:flex;align-items:flex-end;gap:42px;justify-content:center;flex-wrap:wrap;padding:14px 0;}
+  .fav-cell{text-align:center;}
+  .fav-cell img{display:block;image-rendering:auto;margin:0 auto;}
+  .fav-cell .px{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:14px;}
+  .fav-browser{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px 12px 7px 9px;box-shadow:0 6px 18px -12px rgba(0,0,0,.4);}
+  .fav-browser img{width:16px;height:16px;}
+  .fav-browser span{font-size:12.5px;color:var(--muted);}
+
+  /* palette */
+  .pal{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+  .chip{border:1px solid var(--line);border-radius:16px;overflow:hidden;}
+  .chip .fill{height:140px;}
+  .chip .info{padding:16px 18px;}
+  .chip .nm{font-weight:600;font-size:15px;margin-bottom:3px;}
+  .chip .hx{font-family:var(--mono);font-size:13px;color:var(--muted);}
+  .chip .use{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px;text-transform:uppercase;letter-spacing:.05em;}
+
+  /* construction */
+  .build-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:stretch;}
+  .build-card{border:1px solid var(--line);border-radius:18px;background:#fff;padding:34px;}
+  .build-card h3{font-size:16px;margin-bottom:8px;}
+  .build-card .sub{font-size:13.5px;color:var(--muted);margin-bottom:24px;}
+  ul.specs{list-style:none;font-family:var(--mono);font-size:12.5px;}
+  ul.specs li{display:flex;justify-content:space-between;padding:11px 0;border-top:1px dashed var(--line);}
+  ul.specs li span:first-child{color:var(--muted);}
+  ul.specs li:first-child{border-top:none;}
+
+  /* downloads */
+  .dl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+  .dl{display:flex;align-items:center;gap:14px;border:1px solid var(--line);border-radius:14px;padding:14px 18px;background:#fff;text-decoration:none;color:var(--charcoal);transition:border-color .15s,transform .15s;}
+  .dl:hover{border-color:var(--amber);transform:translateY(-1px);}
+  .dl .ic{width:30px;height:30px;flex:none;}
+  .dl .fn{font-family:var(--mono);font-size:13px;font-weight:700;}
+  .dl .ds{font-size:12px;color:var(--muted);}
+  .dl .ext{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 7px;text-transform:uppercase;}
+
+  footer{border-top:1px solid var(--line);padding:40px 0;font-family:var(--mono);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+
+  @media(max-width:880px){
+    .hero{grid-template-columns:1fr;}.grid2,.grid3,.build-grid,.dl-grid{grid-template-columns:1fr;}
+    .mono-row{grid-template-columns:repeat(3,1fr);}.pal{grid-template-columns:1fr;}
+    .top nav{display:none;}.hero h1{font-size:46px;}.wrap{padding:0 24px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <div class="brand">
+      <img class="g" src="assets/logo.svg" alt="">
+      <span class="wm">h<span class="ai">AI</span>ve</span>
+    </div>
+    <nav>
+      <a href="#mark">Mark</a>
+      <a href="#icon">Icon</a>
+      <a href="#mono">Mono</a>
+      <a href="#palette">Palette</a>
+      <a href="#files">Files</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Brand Mark · v1</div>
+      <h1>h<span class="ai">AI</span>ve</h1>
+      <p class="lede">A memory &amp; enforcement layer for AI coding agents. The mark is a single honeycomb cell — <b>the charcoal alvéole</b> holding one <b>lit amber memory</b>. The hive is the team's shared, living knowledge.</p>
+    </div>
+    <div class="hero-mark">
+      <img src="assets/logo.svg" alt="hAIve glyph">
+    </div>
+  </section>
+
+  <!-- MASTER GLYPH -->
+  <section class="block" id="mark">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>The glyph</h2>
+      <p>Flat-top hexagon, charcoal stroke at ~8% width, one solid amber cell at half scale. Two shapes, nothing else.</p>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="stage cream"><img class="glyph-lg" src="assets/logo.svg" alt=""></div>
+        <div class="meta"><span class="tag">Primary · color</span><span>logo.svg · transparent</span></div>
+      </div>
+      <div class="card">
+        <div class="stage dark"><img class="glyph-lg" src="assets/logo.svg" alt=""></div>
+        <div class="meta"><span class="tag">On charcoal</span><span>amber cell carries the mark</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARKETPLACE ICON -->
+  <section class="block" id="icon">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>Marketplace icon</h2>
+      <p>The rich form: a 7-cell cluster. Six outlined cells, one lit amber center — the relevant memory surfaced.</p>
+    </div>
+    <div class="card">
+      <div class="stage cream">
+        <div class="tile-row">
+          <div>
+            <img class="tile s256" src="assets/icon.png" alt="hAIve marketplace icon 256px">
+            <div class="tile-cap">256 × 256</div>
+          </div>
+          <div>
+            <img class="tile s128" src="assets/icon-128.png" alt="hAIve marketplace icon 128px">
+            <div class="tile-cap">128 × 128</div>
+          </div>
+        </div>
+      </div>
+      <div class="meta"><span class="tag">icon.png · charcoal tile</span><span>radius 22% · VS Code / app</span></div>
+    </div>
+  </section>
+
+  <!-- MONO -->
+  <section class="block" id="mono">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>Monochrome · currentColor</h2>
+      <p>One tone, 24×24, fill via currentColor so the VS Code activity bar recolors it per theme.</p>
+    </div>
+    <div class="card">
+      <div class="stage cream" style="display:block;">
+        <div class="mono-row">
+          <div class="swatch-mono sm1" id="m1"></div>
+          <div class="swatch-mono sm2" id="m2"></div>
+          <div class="swatch-mono sm3" id="m3"></div>
+          <div class="swatch-mono sm4" id="m4"></div>
+          <div class="swatch-mono sm5" id="m5"></div>
+        </div>
+        <div class="mono-note">Same logo-mono.svg — the host theme sets the color.</div>
+      </div>
+      <div class="meta"><span class="tag">logo-mono.svg</span><span>24×24 · stroke + solid cell, single tone</span></div>
+    </div>
+  </section>
+
+  <!-- FAVICON -->
+  <section class="block" id="favicon">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>Favicon</h2>
+      <p>Simplified glyph — chunkier stroke, larger cell — built to survive 16px.</p>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="stage cream">
+          <div class="fav-row">
+            <div class="fav-cell"><img src="assets/favicon-16.png" width="16" height="16" alt=""><div class="px">16</div></div>
+            <div class="fav-cell"><img src="assets/favicon-32.png" width="32" height="32" alt=""><div class="px">32</div></div>
+            <div class="fav-cell"><img src="assets/favicon.svg" width="64" height="64" alt=""><div class="px">64</div></div>
+          </div>
+        </div>
+        <div class="meta"><span class="tag">favicon.svg / .png</span><span>16 · 32 · vector</span></div>
+      </div>
+      <div class="card">
+        <div class="stage cream">
+          <div class="fav-browser">
+            <img src="assets/favicon-16.png" alt="">
+            <span>haive.dev — Memory for AI agents</span>
+          </div>
+        </div>
+        <div class="meta"><span class="tag">In context</span><span>browser tab</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PALETTE -->
+  <section class="block" id="palette">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2>Palette</h2>
+      <p>One accent only. No blue, no violet — deliberately apart from the usual dev-tooling look.</p>
+    </div>
+    <div class="pal">
+      <div class="chip">
+        <div class="fill" style="background:#F5A623;"></div>
+        <div class="info"><div class="nm">Amber / Honey</div><div class="hx">#F5A623</div><div class="use">Accent · the lit cell</div></div>
+      </div>
+      <div class="chip">
+        <div class="fill" style="background:#1A1A1A;"></div>
+        <div class="info"><div class="nm">Charcoal</div><div class="hx">#1A1A1A</div><div class="use">Stroke · dark ground</div></div>
+      </div>
+      <div class="chip">
+        <div class="fill" style="background:#F5F5F0;border-bottom:1px solid var(--line);"></div>
+        <div class="info"><div class="nm">Off-white</div><div class="hx">#F5F5F0</div><div class="use">Line on dark ground</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONSTRUCTION -->
+  <section class="block">
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2>Construction &amp; wordmark</h2>
+      <p>Geometric, vector-pure. Constant stroke, rounded joints, 12% clear space.</p>
+    </div>
+    <div class="build-grid">
+      <div class="build-card">
+        <h3>Specs</h3>
+        <div class="sub">Master glyph proportions.</div>
+        <ul class="specs">
+          <li><span>Hexagon</span><span>flat-top</span></li>
+          <li><span>Stroke width</span><span>≈ 8% of glyph</span></li>
+          <li><span>Joints</span><span>round</span></li>
+          <li><span>Inner cell</span><span>50% scale, solid</span></li>
+          <li><span>Clear space</span><span>≈ 12%</span></li>
+          <li><span>Glow</span><span>color version only</span></li>
+        </ul>
+      </div>
+      <div class="build-card" style="display:flex;flex-direction:column;">
+        <h3>Wordmark</h3>
+        <div class="sub">“AI” lifted into amber inside the lowercase name.</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--cream);border-radius:12px;margin-top:4px;padding:24px;">
+          <img src="assets/wordmark.svg" alt="hAIve" style="width:100%;max-width:300px;">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FILES -->
+  <section class="block" id="files">
+    <div class="sec-head">
+      <span class="sec-num">07</span>
+      <h2>Deliverables</h2>
+      <p>Vector sources plus the requested PNG exports. Click to open.</p>
+    </div>
+    <div class="dl-grid">
+      <a class="dl" href="assets/logo.svg" target="_blank"><img class="ic" src="assets/logo.svg" alt=""><span><span class="fn">logo.svg</span><br><span class="ds">Master glyph · color · transparent</span></span><span class="ext">svg</span></a>
+      <a class="dl" href="assets/icon.png" target="_blank"><img class="ic" src="assets/icon.png" alt=""><span><span class="fn">icon.png</span><br><span class="ds">256×256 honeycomb · charcoal tile</span></span><span class="ext">png</span></a>
+      <a class="dl" href="assets/icon-128.png" target="_blank"><img class="ic" src="assets/icon-128.png" alt=""><span><span class="fn">icon-128.png</span><br><span class="ds">128×128 export</span></span><span class="ext">png</span></a>
+      <a class="dl" href="assets/logo-mono.svg" target="_blank"><img class="ic" src="assets/logo-mono.svg" alt="" style="filter:none;"><span><span class="fn">logo-mono.svg</span><br><span class="ds">24×24 · currentColor</span></span><span class="ext">svg</span></a>
+      <a class="dl" href="assets/favicon.svg" target="_blank"><img class="ic" src="assets/favicon.svg" alt=""><span><span class="fn">favicon.svg</span><br><span class="ds">Simplified glyph</span></span><span class="ext">svg</span></a>
+      <a class="dl" href="assets/favicon-32.png" target="_blank"><img class="ic" src="assets/favicon-32.png" alt=""><span><span class="fn">favicon-32 · 16.png</span><br><span class="ds">Fallback favicons</span></span><span class="ext">png</span></a>
+      <a class="dl" href="assets/wordmark.svg" target="_blank"><img class="ic" src="assets/logo.svg" alt=""><span><span class="fn">wordmark.svg</span><br><span class="ds">hAIve lockup</span></span><span class="ext">svg</span></a>
+      <a class="dl" href="assets/icon.svg" target="_blank"><img class="ic" src="assets/icon.svg" alt=""><span><span class="fn">icon.svg</span><br><span class="ds">Honeycomb tile source</span></span><span class="ext">svg</span></a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <span>hAIve · brand mark</span>
+  <span>#F5A623 · #1A1A1A · #F5F5F0</span>
+</footer>
+
+<script>
+// inject mono glyph (currentColor) into the recolor swatches
+fetch('assets/logo-mono.svg').then(r=>r.text()).then(svg=>{
+  ['m1','m2','m3','m4','m5'].forEach(id=>{
+    document.getElementById(id).innerHTML = svg;
+  });
+});
+</script>
+</body>
+</html>

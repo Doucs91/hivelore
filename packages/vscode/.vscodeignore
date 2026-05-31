@@ -3,3 +3,4 @@ node_modules/
 tsconfig.json
 .eslintrc*
 **/*.map
+media/index.html
