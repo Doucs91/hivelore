@@ -1,8 +1,10 @@
 # hAIve
 
-**Repo-native context enforcement for AI coding agents.**
+**Stop AI agents from reinventing — wrongly — your team's non-obvious decisions.**
 
-hAIve turns repo knowledge into enforceable breadcrumbs for agents: load the right context before edits, carry architectural decisions and gotchas into the task, record what was learned, and pass Git/CI policy gates before changes enter the codebase.
+A capable model already knows generic best practice. What it *cannot* guess is your team's arbitrary, repo-specific knowledge: that public ids are `id + 100000` prefixed `AC-`, that the status field must be `"OK"`/`"KO"`, that you never edit an applied migration. Left to itself, a confident agent invents a plausible answer — clean, tested, green, and **wrong by policy**. hAIve carries that unguessable knowledge into the task and blocks the change that's about to violate it.
+
+> hAIve's job is not to make agents faster. It's to keep them from confidently reinventing what your team already decided.
 
 [![npm](https://img.shields.io/npm/v/@hiveai/cli?color=blue)](https://www.npmjs.com/package/@hiveai/cli)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
@@ -239,25 +241,42 @@ MCP profiles keep the product focused:
 
 ## Benchmark results
 
-> **Honest framing.** This is a **pilot**, not a statistically significant study: `n=3` paired tasks
-> per group, same model family, run in parallel. Exact token/wall-clock counts are not exposed by the
-> agent runtime, so token figures are a proxy (files/lines read + briefing tokens). Full method and
-> raw numbers: [`benchmarks/agent-benchmark/RESULTS.md`](./benchmarks/agent-benchmark/RESULTS.md).
+**10 cold sub-agents, 5 projects, the same task with and without hAIve.** Each fixture hides a
+policy that is *not* visible in the code; correctness is graded by a hidden rubric the agents never
+see. Real token/tool counts from the agent runtime (not a proxy). `n=1` per cell — a characterization,
+not a significance test.
 
-Six paired AI-agent tasks across three fixtures (TS/Zod schema, Node CLI parsing, Python pricing).
-hAIve agents could call `haive briefing` and read `.ai`; plain agents could not.
+**Correctness (did the agent satisfy the hidden policy?)**
 
-| Dimension | Plain | With hAIve | Notes |
-|---|---|---|---|
-| Tasks completed | 6/6 | 6/6 | both groups passed all tests |
-| Decision-quality rubric | 13/14 | **14/14** | hAIve surfaced a policy (trim SKU before non-empty check) the plain agent missed |
-| Project files read (order task) | 6 | **4 + briefing** | less rediscovery when memory is task-relevant |
-| Raw speed | — | — | **no clear advantage on these small fixtures** |
+| Project | Policy type | Without hAIve | With hAIve |
+|---|---|:---:|:---:|
+| multitenant (TS) | inferable | ✅ | ✅ |
+| money / Decimal (Py) | inferable | ✅ | ✅ |
+| migrations (SQL) | inferable | ✅ | ✅ |
+| public-id `AC-100007` (TS) | **arbitrary** | ❌ invented `rec_7` | ✅ |
+| status `OK`/`KO` (Py) | **arbitrary** | ❌ returned `ok`/`error` | ✅ |
+| **Total** | | **3 / 5** | **5 / 5** |
 
-> The measurable advantage here is **policy adherence and reduced rediscovery**, not raw speed —
-> hAIve nudges the agent toward a better decision when a relevant memory exists. On tiny fixtures
-> where the answer is visible in the unit tests, that edge is small; it should widen on larger,
-> multi-file tasks where hidden project policy matters more than what the tests encode.
+**Cost, split by policy type (real tokens):**
+
+| | Tokens without | Tokens with | Outcome |
+|---|---:|---:|---|
+| Inferable policies | 31,725 | 63,252 | same answer — hAIve is overhead here |
+| Arbitrary policies | 31,325 | 23,143 | hAIve **2/2 vs 0/2**, and **−26% tokens** |
+
+> **Read this honestly.** hAIve does **not** make agents faster or cheaper on tasks a capable model
+> can already infer — there it is pure briefing overhead, which is exactly why [adaptive briefing](#adaptive-briefing)
+> trims itself to near-zero when nothing team-specific matches. Its value is **correctness on the
+> unguessable**: the two failures without hAIve were confident, well-tested, *wrong-by-policy* code.
+> On the arbitrary cases hAIve is even cheaper, because the plain agent burns tokens inventing a
+> convention (and still gets it wrong).
+
+### Adaptive briefing
+
+Because a briefing only earns its tokens when it carries unguessable knowledge, `get_briefing`
+returns `briefing_value: "high" | "low"`. When nothing team-specific matches the files/task, the
+auto-generated project context is trimmed to a one-line note (config: `adaptiveBriefing`, default on).
+hAIve charges tokens only when it actually knows something the model doesn't.
 
 ---
 

@@ -14,6 +14,7 @@ import {
   loadUsageIndex,
   resolveHaivePaths,
   serializeMemory,
+  specificityScore,
   type LoadedMemory,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
@@ -99,6 +100,27 @@ export async function lintMemoriesAsync(
         code: "LOW_ACTIONABILITY",
         message:
           "Record does not contain obvious action/rationale words. Add the concrete rule, why it exists, and what to do instead.",
+      });
+    }
+
+    // Low-value / likely-guessable: hAIve earns its keep on UNGUESSABLE team knowledge. A memory
+    // that reads like generic best practice (no concrete literals/identifiers/values) is something
+    // a capable model already does by default — surfacing it is mostly token overhead.
+    if (
+      ["decision", "gotcha", "convention", "architecture"].includes(fm.type) &&
+      fm.status !== "rejected" &&
+      naked.length >= 40 &&
+      specificityScore(naked) < 0.2
+    ) {
+      out.push({
+        file: filePath,
+        id: fm.id,
+        severity: "info",
+        code: "LOW_VALUE_GUESSABLE",
+        message:
+          "Reads like generic best practice a capable model already follows. hAIve's value is " +
+          "UNGUESSABLE team knowledge — add the concrete, arbitrary specifics (exact names, values, " +
+          "formats, magic numbers) or consider removing it to keep briefings high-signal.",
       });
     }
 

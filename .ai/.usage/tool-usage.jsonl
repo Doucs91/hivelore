@@ -70,3 +70,16 @@
 {"tool":"get_briefing","at":"2026-05-31T14:36:05.140Z","summary":"Add regression test for code-aware literal tokenizer blocking"}
 {"tool":"mem_session_end","at":"2026-05-31T14:39:40.306Z","summary":"Audit hAIve end-to-end, reconcile a second agent's audit, then fix all identifie"}
 {"tool":"get_briefing","at":"2026-05-31T15:35:32.202Z","summary":"Centralize antiPatternGate→params mapping; make haive precommit read the config gate so it matches the git hook"}
+{"tool":"mem_session_end","at":"2026-05-31T15:43:55.423Z","summary":"Fix the precommit-standalone vs git-hook gate inconsistency found in the 0.9.30 "}
+{"tool":"get_briefing","at":"2026-05-31T15:57:31.242Z","summary":"implement findByRole in src/repo.js"}
+{"tool":"pre_commit_check","at":"2026-05-31T15:58:12.000Z","summary":"1p"}
+{"tool":"mem_session_end","at":"2026-05-31T15:58:15.582Z","summary":"Implement findByRole(ctx, role) in src/repo.js for the multitenant bench repo."}
+{"tool":"mem_search","at":"2026-05-31T16:04:10.503Z","summary":"API status field success failure string response"}
+{"tool":"get_briefing","at":"2026-05-31T18:25:04.262Z","summary":"Add adaptive briefing: trim auto-generated context and add briefing_value when nothing team-specific matches"}
+{"tool":"get_briefing","at":"2026-05-31T18:26:58.034Z","summary":"Add adaptiveBriefing top-level config field, default true"}
+{"tool":"get_briefing","at":"2026-05-31T18:30:22.417Z","summary":"Make tokenizeDiffForLiteral consider only added diff lines"}
+{"tool":"get_briefing","at":"2026-05-31T19:51:53.106Z","summary":"Add decayAfterDays to enforcement config"}
+{"tool":"get_briefing","at":"2026-05-31T19:52:42.381Z","summary":"Add specificity capture filter to mem_observe"}
+{"tool":"get_briefing","at":"2026-05-31T19:55:34.230Z","summary":"Tighten CORE_ROOT_COMMANDS surface in CLI index"}
+{"tool":"get_briefing","at":"2026-05-31T19:59:56.466Z","summary":"Broaden adaptive trim to unfilled init-bootstrap context (bootstrap marker + TODO sections)"}
+{"tool":"get_briefing","at":"2026-05-31T20:01:38.350Z","summary":"Extend CLI briefing renderer to skip bootstrap-unfilled context"}

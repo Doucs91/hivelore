@@ -53,6 +53,14 @@ export interface HaiveConfig {
   /** Autopilot mode: maximum autonomy, minimum human intervention. Default: false. */
   autopilot?: boolean;
 
+  /**
+   * Adaptive briefing: when get_briefing finds no team-specific (unguessable) memory for the
+   * task/files, trim the auto-generated project context so the call stays near-zero-cost.
+   * A capable model needs nothing extra in that case. Curated context is never trimmed.
+   * Default: true.
+   */
+  adaptiveBriefing?: boolean;
+
   /** Default scope for new memories. Default: "personal". Autopilot sets "team". */
   defaultScope?: "personal" | "team";
 
@@ -161,6 +169,12 @@ export interface HaiveConfig {
      * Default: "anchored" — makes "known bad approaches are blocked" true for the precise case.
      */
     antiPatternGate?: "off" | "review" | "anchored" | "strict";
+    /**
+     * Default unread-age window (in days) for `haive memory archive` corpus decay.
+     * A noisy or stale corpus is actively harmful — it makes the agent follow outdated policy.
+     * Default: 180.
+     */
+    decayAfterDays?: number;
     /** Minimum score required for strict enforcement gates. */
     scoreThreshold?: number;
     /** Remove generated hAIve runtime/cache files during cleanup gates. */

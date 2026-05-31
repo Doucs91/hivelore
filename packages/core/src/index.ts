@@ -8,6 +8,7 @@ export * from "./verifier.js";
 export * from "./usage.js";
 export * from "./confidence.js";
 export * from "./relevance.js";
+export * from "./specificity.js";
 export * from "./token-budget.js";
 export * from "./code-map.js";
 export * from "./config.js";

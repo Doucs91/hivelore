@@ -5,6 +5,7 @@ import { Command } from "commander";
 import {
   findProjectRoot,
   getUsage,
+  loadConfig,
   loadMemoriesFromDir,
   loadUsageIndex,
   resolveHaivePaths,
@@ -15,6 +16,7 @@ import { ui } from "../utils/ui.js";
 interface ArchiveOptions {
   since?: string;
   type?: string;
+  unread?: boolean;
   apply?: boolean;
   json?: boolean;
   dir?: string;
@@ -41,8 +43,9 @@ export function registerMemoryArchive(memory: Command): void {
       "  Targets `attempt` memories by default since they age the fastest.\n\n" +
       "  Recover later with `haive memory edit <id>` to set status back to validated.",
     )
-    .option("--since <window>", "minimum age since last read (e.g. '180d', '6m')", "180d")
+    .option("--since <window>", "minimum age since last read (e.g. '180d', '6m'). Default: enforcement.decayAfterDays or 180d")
     .option("--type <type>", "limit to a memory type (default 'attempt'). Pass 'all' to scan all types.", "attempt")
+    .option("--unread", "decay by unread-age ALONE (ignore anchor status) — more aggressive corpus hygiene", false)
     .option("--apply", "actually rewrite files (default: dry run)", false)
     .option("--json", "emit JSON instead of human-readable output", false)
     .option("-d, --dir <dir>", "project root")
@@ -55,7 +58,11 @@ export function registerMemoryArchive(memory: Command): void {
         return;
       }
 
-      const minDays = parseDays(opts.since ?? "180d");
+      const config = await loadConfig(paths);
+      const defaultWindow = config.enforcement?.decayAfterDays
+        ? `${config.enforcement.decayAfterDays}d`
+        : "180d";
+      const minDays = parseDays(opts.since ?? defaultWindow);
       if (minDays === null) {
         ui.error(`Invalid --since value: ${opts.since}. Use formats like '180d', '6m', '1y'.`);
         process.exitCode = 1;
@@ -71,6 +78,8 @@ export function registerMemoryArchive(memory: Command): void {
       for (const { memory: mem, filePath } of all) {
         const fm = mem.frontmatter;
         if (typeFilter && fm.type !== typeFilter) continue;
+        // Never auto-decay session recaps or memories pinned for human review.
+        if (fm.type === "session_recap" || fm.requires_human_approval) continue;
         // Skip already-archived states.
         if (fm.status === "deprecated" || fm.status === "rejected") continue;
         // Anchorless OR all anchored paths gone OR all anchored symbols missing
@@ -78,20 +87,25 @@ export function registerMemoryArchive(memory: Command): void {
         const allPathsGone = fm.anchor.paths.length > 0
           && fm.anchor.paths.every((p) => !existsSync(path.join(paths.root, p)));
         const isAnchorless = !hasAnyAnchor;
-        if (!isAnchorless && !allPathsGone) continue;
+        // Default mode requires the knowledge to be unanchored or its code to have vanished.
+        // --unread is the aggressive path: decay on unread-age alone, regardless of anchor state.
+        if (!opts.unread && !isAnchorless && !allPathsGone) continue;
         // Age check
         const u = getUsage(usage, fm.id);
         const lastSeen = u.last_read_at ?? fm.created_at;
         if (Date.parse(lastSeen) >= cutoff) continue;
 
+        const reason = isAnchorless
+          ? `anchorless and not read since ${lastSeen.slice(0, 10)}`
+          : allPathsGone
+            ? `all ${fm.anchor.paths.length} anchored path(s) missing and not read since ${lastSeen.slice(0, 10)}`
+            : `not read since ${lastSeen.slice(0, 10)} (unread decay)`;
         candidates.push({
           id: fm.id,
           type: fm.type,
           status: fm.status,
           last_seen: lastSeen,
-          reason: isAnchorless
-            ? `anchorless and not read since ${lastSeen.slice(0, 10)}`
-            : `all ${fm.anchor.paths.length} anchored path(s) missing and not read since ${lastSeen.slice(0, 10)}`,
+          reason,
           filePath,
         });
       }

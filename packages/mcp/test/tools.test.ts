@@ -849,7 +849,10 @@ describe("hAIve MCP tools", () => {
       expect(result.warnings.length).toBeGreaterThan(0);
       expect(result.summary.blocking_warnings).toBe(0);
       expect(result.should_block).toBe(false);
-      expect(result.warnings[0]?.reasons).toEqual(["anchor", "literal"]);
+      // Diff-aware literal matching only looks at ADDED lines, so the change to "description"
+      // (which the memory body does not mention) is a pure anchor match — no literal noise from
+      // the "package.json" diff header. Anchor-only still never blocks in high-confidence mode.
+      expect(result.warnings[0]?.reasons).toEqual(["anchor"]);
     });
 
     it("downgrades docs-only anti-pattern matches to info", async () => {

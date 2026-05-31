@@ -6,6 +6,37 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.10.0] — positioned for the unguessable
+
+A benchmark (10 cold agents, 5 projects, hidden-policy rubric) showed hAIve's real value: **correctness
+on arbitrary, team-specific knowledge a model cannot infer (5/5 vs 3/5)** — not speed or token savings
+(on inferable tasks it was pure overhead). This release re-shapes the product around that truth.
+
+### Added
+- **Specificity ("surprise") scoring** (`specificityScore`, `isLikelyGuessable` in `@hiveai/core`) — a
+  cheap heuristic estimating how *unguessable* a memory is (concrete literals/identifiers/values vs generic prose).
+- **Adaptive briefing.** `get_briefing` now returns `briefing_value: "high" | "low"`. When nothing
+  team-specific matches the files/task, the auto-generated/unfilled project context is trimmed to a
+  one-line note so the call stays near-zero-cost (config: `adaptiveBriefing`, default on). A capable
+  model needs nothing extra there. Curated context is never trimmed. The `haive briefing` CLI mirrors this.
+- **`memory lint` LOW_VALUE_GUESSABLE** — flags memories that read like generic best practice the model
+  already follows, nudging curation toward unguessable team knowledge.
+- **Aggressive corpus decay**: `haive memory archive --unread` deprecates memories by unread-age alone
+  (ignoring anchor state); window defaults to `enforcement.decayAfterDays` (180). A stale corpus is
+  actively harmful — it makes agents follow outdated policy.
+- **Capture filter**: `mem_observe` now SKIPS low-specificity (guessable) observations by default to keep
+  the corpus high-signal; pass `force: true` to override.
+
+### Changed
+- **Diff-aware gate.** Anti-pattern literal matching now considers only ADDED diff lines, so the gate
+  fires on "you introduced the bad pattern", not "you touched/removed a file that mentions it" — fewer
+  false positives on refactors.
+- **Tighter CLI surface.** Default `haive --help` shows the 10-command core harness loop; `tui`,
+  `welcome`, and the manual `precommit` variant move behind `--advanced` (everything still works).
+- **Repositioned.** README/tagline now lead with the proven value — *stop agents from reinventing,
+  wrongly, your team's non-obvious decisions* — and the benchmark section reports the honest 5/5-vs-3/5
+  results with the real per-policy-type token costs. All speed/token-savings claims removed.
+
 ## [0.9.31] — gate consistency
 
 ### Fixed

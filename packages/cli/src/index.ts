@@ -124,20 +124,21 @@ registerDoctor(program);
 registerPlayback(program);
 registerPrecommit(program);
 
+// The core harness loop only — what a developer actually types day to day. Everything else
+// (tui dashboard, welcome onboarding, the manual `precommit` variant of `enforce check`, plus the
+// maintenance/experimental families) stays one `--advanced` away. A focused surface is part of the
+// positioning: hAIve is the anti-convention-hallucination layer, not a 54-command Swiss army knife.
 const CORE_ROOT_COMMANDS = new Set([
   "init",
   "doctor",
-  "tui",
   "agent",
+  "briefing",
   "enforce",
   "run",
-  "briefing",
   "sync",
   "mcp",
   "memory",
   "session",
-  "precommit",
-  "welcome",
 ]);
 
 const CORE_MEMORY_COMMANDS = new Set([

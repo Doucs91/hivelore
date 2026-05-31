@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   buildFrontmatter,
+  isLikelyGuessable,
   memoryFilePath,
   serializeMemory,
 } from "@hiveai/core";
@@ -40,6 +41,14 @@ export const MemObserveInputSchema = {
   module: z.string().optional().describe("Module name (required when scope=module)"),
   tags: z.array(z.string()).default([]).describe("Tags for filtering"),
   author: z.string().optional().describe("Author handle or email"),
+  force: z
+    .boolean()
+    .default(false)
+    .describe(
+      "Save even if the observation looks like generic, guessable knowledge. By default, " +
+      "low-specificity observations (things a capable model already knows) are SKIPPED to keep " +
+      "the corpus high-signal — only unguessable, team-specific discoveries are worth storing.",
+    ),
 };
 
 export type MemObserveInput = {
@@ -50,6 +59,9 @@ export interface MemObserveOutput {
   id: string;
   scope: string;
   file_path: string;
+  /** True when the observation was NOT saved because it looked generic/guessable. */
+  skipped?: boolean;
+  reason?: string;
 }
 
 export async function memObserve(
@@ -58,6 +70,22 @@ export async function memObserve(
 ): Promise<MemObserveOutput> {
   if (!existsSync(ctx.paths.haiveDir)) {
     throw new Error(`No .ai/ directory at ${ctx.paths.root}. Run 'haive init' first.`);
+  }
+
+  // Capture filter: hAIve only earns its keep on UNGUESSABLE, team-specific knowledge.
+  // Skip generic observations a capable model already makes by default — they only add noise
+  // and token cost to future briefings. The caller can override with force=true.
+  const signalText = [input.what, input.impact, input.fix ?? ""].join(" ");
+  if (!input.force && isLikelyGuessable(signalText)) {
+    return {
+      id: "",
+      scope: input.scope,
+      file_path: "",
+      skipped: true,
+      reason:
+        "Observation looks like generic, guessable knowledge (low specificity) — not saved. " +
+        "Capture only arbitrary, team-specific facts (exact names, values, formats). Pass force=true to override.",
+    };
   }
 
   const slug = input.what

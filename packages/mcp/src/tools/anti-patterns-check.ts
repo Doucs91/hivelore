@@ -88,8 +88,18 @@ const CODE_STOPWORDS = new Set([
  * matched reliably. The set is unioned with the whitespace tokens to preserve existing behavior.
  */
 function tokenizeDiffForLiteral(diff: string): string[] {
-  const wsTokens = tokenizeQuery(diff);
-  const wordTokens = diff
+  // If this is a unified diff, only consider ADDED lines. The gate should fire on
+  // "you introduced the bad pattern", not "you touched a file that merely mentions it"
+  // (or "you REMOVED it"). This cuts false positives on refactors that edit anchored files.
+  const lines = diff.split("\n");
+  const looksLikeDiff = lines.some((l) => /^[+-]/.test(l));
+  const addedOnly = looksLikeDiff
+    ? lines.filter((l) => l.startsWith("+") && !l.startsWith("+++")).join("\n")
+    : diff;
+  const source = addedOnly.trim().length > 0 ? addedOnly : diff;
+
+  const wsTokens = tokenizeQuery(source);
+  const wordTokens = source
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length >= 4 && !CODE_STOPWORDS.has(t));
