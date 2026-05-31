@@ -66,6 +66,37 @@ export interface AntiPatternsCheckOutput {
 }
 
 /**
+ * Common code tokens that would match almost any memory body and create literal noise.
+ * Excluded from diff literal-matching so the "literal" reason stays a meaningful signal.
+ */
+const CODE_STOPWORDS = new Set([
+  "import", "export", "function", "return", "const", "let", "var", "class", "public",
+  "private", "protected", "static", "this", "true", "false", "null", "undefined", "void",
+  "async", "await", "from", "type", "interface", "extends", "implements", "number", "string",
+  "boolean", "value", "default", "case", "break", "continue", "throw", "catch", "finally",
+  "else", "while", "for", "new", "super", "yield", "module", "require", "console",
+]);
+
+/**
+ * Tokenize a diff for LITERAL anti-pattern matching.
+ *
+ * `tokenizeQuery` splits on whitespace only, so code without spaces around an identifier
+ * (e.g. `Number(BigInt(a))`) collapses into one un-matchable blob and the "literal" signal
+ * silently disappears — leaving the gate to lean on the (non-deterministic, warmup-sensitive)
+ * semantic score. We additionally split on non-word boundaries and keep identifier-length
+ * tokens (>= 4 chars, not a ubiquitous keyword) so `BigInt`, `lodash`, `openInView`, etc. are
+ * matched reliably. The set is unioned with the whitespace tokens to preserve existing behavior.
+ */
+function tokenizeDiffForLiteral(diff: string): string[] {
+  const wsTokens = tokenizeQuery(diff);
+  const wordTokens = diff
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 4 && !CODE_STOPWORDS.has(t));
+  return [...new Set([...wsTokens, ...wordTokens])];
+}
+
+/**
  * Scan a diff (or set of paths) against documented attempt/gotcha memories.
  * Surfaces "you are about to repeat a known mistake" warnings BEFORE you commit.
  *
@@ -143,7 +174,7 @@ export async function antiPatternsCheck(
 
   // 2. Literal token overlap from diff
   if (input.diff) {
-    const tokens = tokenizeQuery(input.diff);
+    const tokens = tokenizeDiffForLiteral(input.diff);
     if (tokens.length > 0) {
       for (const { memory } of negative) {
         if (literalMatchesAnyToken(memory, tokens)) {

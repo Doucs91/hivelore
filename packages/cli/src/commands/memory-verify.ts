@@ -15,7 +15,16 @@ interface VerifyOptions {
   id?: string;
   all?: boolean;
   update?: boolean;
+  json?: boolean;
   dir?: string;
+}
+
+interface VerifyResultEntry {
+  id: string;
+  status: "fresh" | "stale" | "anchorless";
+  path: string;
+  reason?: string;
+  possible_renames?: string[];
 }
 
 export function registerMemoryVerify(memory: Command): void {
@@ -36,12 +45,17 @@ export function registerMemoryVerify(memory: Command): void {
     .option("--id <id>", "verify a single memory by id")
     .option("--all", "verify every memory (default if --id is omitted)")
     .option("--update", "write status=stale or status=validated back to disk")
+    .option("--json", "emit machine-readable JSON (for CI / agents)")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: VerifyOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
-        ui.error(`No .ai/memories at ${root}. Run \`haive init\` first.`);
+        if (opts.json) {
+          console.log(JSON.stringify({ error: "not-initialized", root }, null, 2));
+        } else {
+          ui.error(`No .ai/memories at ${root}. Run \`haive init\` first.`);
+        }
         process.exitCode = 1;
         return;
       }
@@ -52,7 +66,11 @@ export function registerMemoryVerify(memory: Command): void {
         : all;
 
       if (opts.id && targets.length === 0) {
-        ui.error(`No memory with id "${opts.id}".`);
+        if (opts.json) {
+          console.log(JSON.stringify({ error: "not-found", id: opts.id }, null, 2));
+        } else {
+          ui.error(`No memory with id "${opts.id}".`);
+        }
         process.exitCode = 1;
         return;
       }
@@ -60,6 +78,7 @@ export function registerMemoryVerify(memory: Command): void {
       let staleCount = 0;
       let freshCount = 0;
       const anchorlessIds: string[] = [];
+      const entries: VerifyResultEntry[] = [];
       let updated = 0;
 
       for (const { memory: mem, filePath } of targets) {
@@ -67,24 +86,35 @@ export function registerMemoryVerify(memory: Command): void {
         const isAnchored =
           mem.frontmatter.anchor.paths.length > 0 ||
           mem.frontmatter.anchor.symbols.length > 0;
+        const rel = path.relative(root, filePath);
 
         if (!isAnchored) {
           anchorlessIds.push(mem.frontmatter.id);
+          entries.push({ id: mem.frontmatter.id, status: "anchorless", path: rel });
           continue;
         }
 
-        const rel = path.relative(root, filePath);
         if (result.stale) {
           staleCount++;
-          console.log(`${ui.bold("STALE")}  ${mem.frontmatter.id}`);
-          console.log(`       ${ui.dim(rel)}`);
-          console.log(`       ${result.reason}`);
-          if (result.possibleRenames.length > 0) {
-            console.log(`       ${ui.yellow("Possible renames:")} ${result.possibleRenames.join(", ")}`);
+          entries.push({
+            id: mem.frontmatter.id,
+            status: "stale",
+            path: rel,
+            reason: result.reason ?? undefined,
+            possible_renames: result.possibleRenames,
+          });
+          if (!opts.json) {
+            console.log(`${ui.bold("STALE")}  ${mem.frontmatter.id}`);
+            console.log(`       ${ui.dim(rel)}`);
+            console.log(`       ${result.reason}`);
+            if (result.possibleRenames.length > 0) {
+              console.log(`       ${ui.yellow("Possible renames:")} ${result.possibleRenames.join(", ")}`);
+            }
           }
         } else {
           freshCount++;
-          console.log(`${ui.dim("fresh")}  ${mem.frontmatter.id}`);
+          entries.push({ id: mem.frontmatter.id, status: "fresh", path: rel });
+          if (!opts.json) console.log(`${ui.dim("fresh")}  ${mem.frontmatter.id}`);
         }
 
         if (opts.update) {
@@ -92,6 +122,21 @@ export function registerMemoryVerify(memory: Command): void {
           await writeFile(filePath, serializeMemory(next), "utf8");
           updated++;
         }
+      }
+
+      if (opts.json) {
+        console.log(JSON.stringify({
+          summary: {
+            checked: freshCount + staleCount,
+            fresh: freshCount,
+            stale: staleCount,
+            anchorless: anchorlessIds.length,
+            updated,
+          },
+          results: entries,
+        }, null, 2));
+        if (staleCount > 0) process.exitCode = 1;
+        return;
       }
 
       const summary = [

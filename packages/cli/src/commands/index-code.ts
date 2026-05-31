@@ -1,9 +1,11 @@
+import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import {
   buildCodeMap,
   codeMapPath,
   findProjectRoot,
+  loadCodeMap,
   resolveHaivePaths,
   saveCodeMap,
 } from "@hiveai/core";
@@ -12,6 +14,8 @@ import { ui } from "../utils/ui.js";
 interface IndexCodeOptions {
   dir?: string;
   exclude?: string;
+  status?: boolean;
+  json?: boolean;
 }
 
 export function registerIndexCode(program: Command): void {
@@ -34,6 +38,7 @@ export function registerIndexCode(program: Command): void {
       "  Run automatically by haive init (autopilot mode) and haive sync (if source changed).\n\n" +
       "  Example:\n" +
       "    haive index code\n" +
+      "    haive index code --status        # report freshness without rebuilding\n" +
       "    haive index code --exclude generated,proto\n",
     )
     .option("-d, --dir <dir>", "project root")
@@ -42,9 +47,17 @@ export function registerIndexCode(program: Command): void {
       "extra directory names to skip (comma-separated)",
       "",
     )
+    .option("--status", "report code-map / code-search index freshness without rebuilding")
+    .option("--json", "with --status, emit machine-readable JSON (for CI / agents)")
     .action(async (opts: IndexCodeOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
+
+      if (opts.status) {
+        await reportIndexStatus(root, paths, opts.json === true);
+        return;
+      }
+
       const extraExcludes = (opts.exclude ?? "")
         .split(",")
         .map((s) => s.trim())
@@ -114,4 +127,57 @@ export function registerIndexCode(program: Command): void {
         process.exit(1);
       }
     });
+}
+
+async function reportIndexStatus(
+  root: string,
+  paths: ReturnType<typeof resolveHaivePaths>,
+  asJson: boolean,
+): Promise<void> {
+  const mapFile = codeMapPath(paths);
+  const map = existsSync(mapFile) ? await loadCodeMap(paths) : null;
+  const fileCount = map ? Object.keys(map.files).length : 0;
+  const exportCount = map
+    ? Object.values(map.files).reduce((s, f) => s + f.exports.length, 0)
+    : 0;
+  const mapMtime = existsSync(mapFile) ? statSync(mapFile).mtime.toISOString() : null;
+
+  // Code-search embeddings index lives under .ai/.cache/embeddings/ (built by `index code-search`).
+  const searchIndexFile = path.join(paths.haiveDir, ".cache", "embeddings", "code-embeddings-index.json");
+  const searchIndexPresent = existsSync(searchIndexFile);
+
+  const status = {
+    code_map: {
+      present: map !== null,
+      path: path.relative(root, mapFile),
+      files: fileCount,
+      exports: exportCount,
+      generated_at: map?.generated_at ?? null,
+      file_mtime: mapMtime,
+    },
+    code_search_index: {
+      present: searchIndexPresent,
+      path: path.relative(root, searchIndexFile),
+    },
+  };
+
+  if (asJson) {
+    console.log(JSON.stringify(status, null, 2));
+    if (!status.code_map.present) process.exitCode = 1;
+    return;
+  }
+
+  if (!status.code_map.present) {
+    ui.warn(`No code-map at ${status.code_map.path}. Run \`haive index code\`.`);
+    process.exitCode = 1;
+    return;
+  }
+  ui.info(
+    `code-map: ${fileCount} file(s), ${exportCount} export(s) · generated ${status.code_map.generated_at ?? "?"}`,
+  );
+  ui.info(
+    status.code_search_index.present
+      ? `code-search index: present (${status.code_search_index.path})`
+      : `code-search index: missing — run \`haive index code-search\` for semantic code lookup.`,
+  );
 }

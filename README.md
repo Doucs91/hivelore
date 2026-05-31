@@ -37,7 +37,7 @@ AI agent ──▶ hAIve briefing ──▶ code change ──▶ hAIve policy g
 1. `haive init` creates a `.ai/` context policy layer in your repo.
 2. Agents start every session with `get_briefing` — one MCP call that returns small default context plus deeper breadcrumbs ranked by task relevance.
 3. Decisions, gotchas, failed attempts, and session recaps live as Markdown files anchored to the code paths they describe. When code moves, hAIve detects stale anchors.
-4. `haive enforce check` and CI enforcement block unsafe states: missing briefing, stale critical decisions, known anti-patterns, or uncaptured session knowledge.
+4. `haive enforce check` and CI enforcement block unsafe states: missing briefing, stale critical decisions, an anchored anti-pattern your diff is about to repeat, or uncaptured session knowledge.
 
 > **Memory is the substrate. Context enforcement is the product promise.**
 > AI changes should not enter the codebase without consulting the team's current knowledge.
@@ -141,10 +141,17 @@ haive enforce ci            # CI entrypoint (exits 1 on violations)
 |---|---|
 | **Briefing loaded** | Agent loaded fresh context breadcrumbs before editing |
 | **Decision coverage** | Changed files are covered by relevant anchored decisions in the last briefing |
-| **Anti-pattern matching** | Known bad approaches blocked before commit |
+| **Anti-pattern matching** | Anti-patterns relevant to the diff are surfaced; an anchored, diff-corroborated, high-confidence match **blocks** the commit. Hardness is tunable via `enforcement.antiPatternGate` (`off` · `review` · `anchored` (default) · `strict`) |
 | **Stale anchors** | Memories anchored to deleted/moved paths are flagged |
 | **Session recap** | Agent captured what changed and what remains before closing |
 | **CI enforcement** | Required check blocks merge on any gate failure |
+
+> **What "block" means here.** hAIve's gate is high-precision by design: it hard-blocks the case
+> that is almost always a real mistake — an `attempt`/`gotcha` anchored to the exact file you are
+> editing, whose warning the diff corroborates. Looser, token-only matches are **surfaced for review**
+> rather than blocked, so config/doc commits don't trip on incidental keyword overlap. Tighten or
+> loosen this with `enforcement.antiPatternGate`; everything else is enforced as *process* (was the
+> context loaded, were decisions surfaced, is the recap present).
 
 ---
 
@@ -232,17 +239,25 @@ MCP profiles keep the product focused:
 
 ## Benchmark results
 
-Measured on a large Next.js + NestJS monorepo (692 Java + 1 411 TS files), 4 parallel agents, same tasks with and without hAIve:
+> **Honest framing.** This is a **pilot**, not a statistically significant study: `n=3` paired tasks
+> per group, same model family, run in parallel. Exact token/wall-clock counts are not exposed by the
+> agent runtime, so token figures are a proxy (files/lines read + briefing tokens). Full method and
+> raw numbers: [`benchmarks/agent-benchmark/RESULTS.md`](./benchmarks/agent-benchmark/RESULTS.md).
 
-| Metric | Without hAIve | With hAIve | Delta |
+Six paired AI-agent tasks across three fixtures (TS/Zod schema, Node CLI parsing, Python pricing).
+hAIve agents could call `haive briefing` and read `.ai`; plain agents could not.
+
+| Dimension | Plain | With hAIve | Notes |
 |---|---|---|---|
-| Tokens consumed | 94 559 | 81 146 | **−14%** |
-| Tool calls | 57 | 17 | **−70%** |
-| Total duration | 2 min 45 s | 1 min 44 s | **−36%** |
-| Files read | 23 | 6 | **−74%** |
-| First-pass correctness | ✓ | ✓ | — |
+| Tasks completed | 6/6 | 6/6 | both groups passed all tests |
+| Decision-quality rubric | 13/14 | **14/14** | hAIve surfaced a policy (trim SKU before non-empty check) the plain agent missed |
+| Project files read (order task) | 6 | **4 + briefing** | less rediscovery when memory is task-relevant |
+| Raw speed | — | — | **no clear advantage on these small fixtures** |
 
-> The main gain isn't token savings — it's eliminating the **exploration overhead**. Agents with hAIve arrive at the right file, with the right pattern, on the first attempt.
+> The measurable advantage here is **policy adherence and reduced rediscovery**, not raw speed —
+> hAIve nudges the agent toward a better decision when a relevant memory exists. On tiny fixtures
+> where the answer is visible in the unit tests, that edge is small; it should widen on larger,
+> multi-file tasks where hidden project policy matters more than what the tests encode.
 
 ---
 
@@ -254,6 +269,7 @@ haive init [--with-ci] [--no-bridges]        # Initialize .ai/ + bridge files
 haive enforce install                         # Install Git hooks + CI enforcement
 haive enforce status                          # Enforcement posture report
 haive index code                              # Build .ai/code-map.json
+haive index code --status [--json]            # Report code-map / code-search index freshness
 
 # Daily use
 haive briefing [--task <text>] [--files]     # Print context + relevant memories
@@ -263,13 +279,13 @@ haive enforce ci                              # CI entrypoint
 haive sync [--since <ref>] [--embed]          # Verify anchors + auto-promote
 
 # Memory
-haive memory add --type <type>                # Add a memory
+haive memory add --type <type> [--paths|--files <csv>]  # Add a memory (anchor to files)
 haive memory list [--scope] [--status]        # List memories
 haive memory query <text>                     # Full-text search
 haive memory approve [<id>|--all]             # Mark as validated
 haive memory promote <id>                     # personal → team
 haive memory tried                            # Record a failed approach
-haive memory verify [--update]                # Check anchor freshness
+haive memory verify [--update] [--json]       # Check anchor freshness
 haive memory import --from <file>             # Import docs as memories
 
 # Semantic search

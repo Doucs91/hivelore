@@ -29,6 +29,7 @@ interface AddOptions {
   domain?: string;
   author?: string;
   paths?: string;
+  files?: string;
   symbols?: string;
   commit?: string;
   body?: string;
@@ -70,6 +71,7 @@ export function registerMemoryAdd(memory: Command): void {
     .option("--domain <domain>", "domain (e.g. transactions)")
     .option("--author <author>", "author email or handle")
     .option("--paths <csv>", "anchor to source files — used for staleness detection by haive sync")
+    .option("--files <csv>", "alias for --paths (matches the MCP `files` parameter)")
     .option("--symbols <csv>", "anchor to specific symbols (class/function names)")
     .option("--commit <sha>", "anchor to a specific commit SHA")
     .option("--body <text>", "memory body content (Markdown) — overrides --title default body")
@@ -88,7 +90,7 @@ export function registerMemoryAdd(memory: Command): void {
       const config = await loadConfig(paths);
 
       const userTags = parseCsv(opts.tags);
-      const anchorPaths = parseCsv(opts.paths);
+      const anchorPaths = parseCsv(opts.paths ?? opts.files);
       const autoTagsEnabled = opts.autoTag !== false;
       const inferredTags = autoTagsEnabled ? inferModulesFromPaths(anchorPaths) : [];
       const mergedTags = Array.from(new Set([...userTags, ...inferredTags]));

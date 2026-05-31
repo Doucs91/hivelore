@@ -18,6 +18,7 @@ interface UpdateOptions {
   bodyFile?: string;
   tags?: string;
   paths?: string;
+  files?: string;
   symbols?: string;
   commit?: string;
   domain?: string;
@@ -35,6 +36,7 @@ export function registerMemoryUpdate(memory: Command): void {
     .option("--body-file <path>", "read new body from a Markdown file — for long content")
     .option("--tags <csv>", "new tags, comma-separated — fully replaces existing tags")
     .option("--paths <csv>", "new anchor paths, comma-separated")
+    .option("--files <csv>", "alias for --paths (matches the MCP `files` parameter)")
     .option("--symbols <csv>", "new anchor symbols, comma-separated")
     .option("--commit <sha>", "new anchor commit SHA")
     .option("--domain <domain>", "new domain label")
@@ -61,8 +63,9 @@ export function registerMemoryUpdate(memory: Command): void {
       const { frontmatter, body } = loaded.memory;
 
       const newAnchor = { ...frontmatter.anchor };
-      if (opts.paths !== undefined) {
-        newAnchor.paths = parseCsv(opts.paths);
+      const pathsOpt = opts.paths ?? opts.files;
+      if (pathsOpt !== undefined) {
+        newAnchor.paths = parseCsv(pathsOpt);
         updated.push("anchor.paths");
       }
       if (opts.symbols !== undefined) {

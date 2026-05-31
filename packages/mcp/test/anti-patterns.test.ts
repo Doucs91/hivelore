@@ -427,6 +427,102 @@ describe("preCommitCheck", () => {
     expect(warning.rationale).toContain("0.75");
   });
 
+  // ── anchored gate (honest blocking) ─────────────────────────────────────
+
+  it("anchored gate blocks an anchored + literal high-confidence anti-pattern", () => {
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-attempt-no-bigint",
+      type: "attempt",
+      scope: "team",
+      confidence: "trusted",
+      body_preview: "BigInt broke serialization in math — do not use BigInt.",
+      reasons: ["anchor", "literal"],
+      anchor_paths: ["src/math.ts"],
+    }, ["src/math.ts"], true);
+
+    expect(warning.level).toBe("blocking");
+    expect(warning.rationale).toContain("anchored gate");
+  });
+
+  it("anchored gate leaves the same warning in review when not opted in", () => {
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-attempt-no-bigint",
+      type: "attempt",
+      scope: "team",
+      confidence: "trusted",
+      body_preview: "BigInt broke serialization in math — do not use BigInt.",
+      reasons: ["anchor", "literal"],
+      anchor_paths: ["src/math.ts"],
+    }, ["src/math.ts"], false);
+
+    expect(warning.level).toBe("review");
+  });
+
+  it("anchored gate still does NOT block a non-anchored config-token match (false-positive guard)", () => {
+    // The documented false-positive class: a NON-anchored gotcha matching a config file only via
+    // broad tokens (npm/install/package.json). The anchored gate requires an anchor reason, and
+    // fileTypeDowngradeReason downgrades non-anchored config matches to info — so this never blocks.
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-attempt-npm-install-quirk",
+      type: "attempt",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "npm install of local packages fails; use pnpm workspace:* instead.",
+      reasons: ["literal"],
+      tags: ["npm", "install"],
+    }, [".ai/haive.config.json"], true);
+
+    expect(warning.level).toBe("info");
+  });
+
+  it("anchored gate blocks via end-to-end preCommitCheck when anchored_blocks is set", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!,
+      "2024-01-01-attempt-no-lodash-service",
+      "attempt",
+      "# Never import lodash in service files\n\nAlways use native array methods instead of lodash.",
+      { paths: ["src/service.ts"] },
+    );
+
+    const result = await preCommitCheck({
+      diff: "import lodash from lodash",
+      paths: ["src/service.ts"],
+      block_on: "high-confidence",
+      anchored_blocks: true,
+      semantic: false,
+    }, ctx);
+
+    const warning = result.warnings.find((w) => w.id === "2024-01-01-attempt-no-lodash-service");
+    expect(warning?.level).toBe("blocking");
+    expect(result.should_block).toBe(true);
+  });
+
+  it("literal-matches an identifier embedded in punctuation (no spaces) and blocks deterministically", async () => {
+    // Regression: a code diff like `Number(BigInt(a)+BigInt(b))` has no spaces around BigInt,
+    // so whitespace-only tokenization never produced a "literal" reason and blocking depended on
+    // the warmup-sensitive semantic score. The code-aware tokenizer fixes this — note semantic:false.
+    await writeMemory(
+      ctx.paths.teamDir!,
+      "2024-01-01-attempt-no-bigint-math",
+      "attempt",
+      "# No BigInt in math\n\nBigInt broke serialization — never use BigInt in math.ts.",
+      { paths: ["src/math.ts"] },
+    );
+
+    const result = await preCommitCheck({
+      diff: "+export function add(a:number,b:number){return Number(BigInt(a)+BigInt(b))}",
+      paths: ["src/math.ts"],
+      block_on: "high-confidence",
+      anchored_blocks: true,
+      semantic: false,
+    }, ctx);
+
+    const warning = result.warnings.find((w) => w.id === "2024-01-01-attempt-no-bigint-math");
+    expect(warning?.reasons).toContain("literal");
+    expect(warning?.level).toBe("blocking");
+    expect(result.should_block).toBe(true);
+  });
+
   it("downgrades a build/packaging gotcha when no package/build file changed", () => {
     const warning = classifyAntiPatternWarningForTest({
       id: "2024-01-01-attempt-npm-install-quirk",

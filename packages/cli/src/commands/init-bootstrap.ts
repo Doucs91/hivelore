@@ -6,7 +6,7 @@
  */
 import { readdir, readFile } from "node:fs/promises";
 import type { Dirent } from "node:fs";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const IGNORE_DIRS = new Set([
@@ -80,8 +80,42 @@ function detectLanguage(root: string): string {
   if (existsSync(path.join(root, "go.mod"))) return "Go";
   if (existsSync(path.join(root, "pom.xml")) || existsSync(path.join(root, "build.gradle"))) return "Java/Kotlin";
   if (existsSync(path.join(root, "Cargo.toml"))) return "Rust";
-  if (existsSync(path.join(root, "package.json"))) return "JavaScript";
+  if (existsSync(path.join(root, "package.json"))) {
+    // A Node project without a root tsconfig.json can still be TypeScript (tsconfig in a
+    // sub-package, or a loose .ts project). Distinguish TS from JS by scanning source files
+    // rather than assuming JavaScript whenever tsconfig.json is absent.
+    return hasSourceWithExt(root, [".ts", ".tsx", ".mts", ".cts"]) ? "TypeScript" : "JavaScript";
+  }
   return "Unknown";
+}
+
+/**
+ * Bounded, synchronous scan for source files with any of the given extensions.
+ * Looks at the project root and the immediate children of common source dirs
+ * (top 2 levels), skipping IGNORE_DIRS and declaration files (`.d.ts`).
+ */
+function hasSourceWithExt(root: string, exts: string[]): boolean {
+  const matches = (name: string): boolean =>
+    !name.endsWith(".d.ts") && exts.some((ext) => name.endsWith(ext));
+  const scanDir = (dir: string, depth: number): boolean => {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+    for (const entry of entries) {
+      if (entry.isFile() && matches(entry.name)) return true;
+    }
+    if (depth <= 0) return false;
+    for (const entry of entries) {
+      if (entry.isDirectory() && !IGNORE_DIRS.has(entry.name) && !entry.name.startsWith(".")) {
+        if (scanDir(path.join(dir, entry.name), depth - 1)) return true;
+      }
+    }
+    return false;
+  };
+  return scanDir(root, 2);
 }
 
 function detectProjectType(frameworks: string[], scripts: Record<string, string>, isMonorepo: boolean): string {

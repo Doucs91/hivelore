@@ -150,6 +150,17 @@ export interface HaiveConfig {
     blockStaleDecisionChanges?: boolean;
     /** Require changed files to be covered by relevant surfaced decisions/policies. */
     requireDecisionCoverage?: boolean;
+    /**
+     * How hard the pre-commit anti-pattern gate blocks a matching attempt/gotcha:
+     *   - off:      never block on anti-patterns (report only)
+     *   - review:   block only on a very strong semantic match (score ≥ 0.75) — soft, legacy default
+     *   - anchored: ALSO block when a high-confidence anti-pattern is anchored to a touched file
+     *               and corroborated by the diff (literal token or semantic ≥ 0.45). High precision.
+     *   - strict:   block on any high-confidence anti-pattern match (anchor, literal, or semantic)
+     * Config/docs-only commits are always downgraded regardless of this setting.
+     * Default: "anchored" — makes "known bad approaches are blocked" true for the precise case.
+     */
+    antiPatternGate?: "off" | "review" | "anchored" | "strict";
     /** Minimum score required for strict enforcement gates. */
     scoreThreshold?: number;
     /** Remove generated hAIve runtime/cache files during cleanup gates. */
@@ -188,6 +199,7 @@ export const DEFAULT_CONFIG: HaiveConfig = {
     requireMemoryVerify: true,
     blockStaleDecisionChanges: true,
     requireDecisionCoverage: true,
+    antiPatternGate: "anchored",
     scoreThreshold: 80,
     cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",
@@ -216,6 +228,7 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
     requireMemoryVerify: true,
     blockStaleDecisionChanges: true,
     requireDecisionCoverage: true,
+    antiPatternGate: "anchored",
     scoreThreshold: 85,
     cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",

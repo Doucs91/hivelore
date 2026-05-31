@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-05-30T01:22:10.935Z",
+  "generated_at": "2026-05-31T04:37:26.071Z",
   "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -100,10 +100,10 @@
         {
           "name": "registerBriefing",
           "kind": "function",
-          "line": 108
+          "line": 109
         }
       ],
-      "loc": 500
+      "loc": 504
     },
     "packages/cli/src/commands/doctor.ts": {
       "exports": [
@@ -202,47 +202,47 @@
           "name": "createContext",
           "kind": "function",
           "description": "createContext(): resolve session once, share across all procedures",
-          "line": 479
+          "line": 480
         },
         {
           "name": "dbConnect",
           "kind": "function",
-          "line": 505
+          "line": 506
         },
         {
           "name": "SUPPORTED_STACKS",
           "kind": "const",
-          "line": 616
+          "line": 626
         },
         {
           "name": "isValidStack",
           "kind": "function",
-          "line": 618
+          "line": 628
         },
         {
           "name": "autoDetectStacks",
           "kind": "function",
           "description": "Auto-detect which stacks are present from a package.json dep map.",
-          "line": 623
+          "line": 633
         },
         {
           "name": "seedStackPack",
           "kind": "function",
           "description": "Seed memory pack files on disk.",
-          "line": 652
+          "line": 662
         }
       ],
-      "loc": 679
+      "loc": 691
     },
     "packages/cli/src/commands/init.ts": {
       "exports": [
         {
           "name": "registerInit",
           "kind": "function",
-          "line": 217
+          "line": 215
         }
       ],
-      "loc": 584
+      "loc": 585
     },
     "packages/cli/src/commands/install-hooks.ts": {
       "exports": [
@@ -473,6 +473,16 @@
       ],
       "loc": 69
     },
+    "packages/cli/src/commands/memory-seed.ts": {
+      "exports": [
+        {
+          "name": "registerMemorySeed",
+          "kind": "function",
+          "line": 39
+        }
+      ],
+      "loc": 142
+    },
     "packages/cli/src/commands/memory-show.ts": {
       "exports": [
         {
@@ -662,10 +672,10 @@
         {
           "name": "registerSync",
           "kind": "function",
-          "line": 47
+          "line": 48
         }
       ],
-      "loc": 644
+      "loc": 661
     },
     "packages/cli/src/commands/tui.ts": {
       "exports": [
@@ -1365,39 +1375,51 @@
     "packages/core/src/relevance.ts": {
       "exports": [
         {
+          "name": "STACK_PACK_TAG",
+          "kind": "const",
+          "description": "Tag stamped on memories that were pre-seeded from a stack pack at `haive init` (generic framework knowledge the model already largely knows, not repo-specific institutional knowledge).",
+          "line": 11
+        },
+        {
+          "name": "isStackPackSeed",
+          "kind": "function",
+          "description": "True when a memory was pre-seeded from a stack pack (carries {@link STACK_PACK_TAG}).",
+          "line": 14
+        },
+        {
           "name": "inferModulesFromPaths",
           "kind": "function",
           "description": "Best-effort inference: given a list of file paths, infer module names from conventional layouts (packages/X/, apps/X/, modules/X/, src/X/).",
-          "line": 20
+          "line": 34
         },
         {
           "name": "pathsOverlap",
           "kind": "function",
           "description": "Path overlap: returns true if `a` and `b` refer to the same path or one is a parent of the other.",
-          "line": 36
+          "line": 50
         },
         {
           "name": "memoryMatchesAnchorPaths",
           "kind": "function",
-          "line": 45
+          "line": 59
         },
         {
           "name": "isGlobPath",
           "kind": "function",
-          "line": 64
+          "line": 78
         },
         {
           "name": "globToRegExp",
           "kind": "function",
-          "line": 68
+          "line": 82
         },
         {
           "name": "relPathFrom",
           "kind": "function",
-          "line": 111
+          "line": 125
         }
       ],
-      "loc": 114
+      "loc": 128
     },
     "packages/core/src/resolve-project.ts": {
       "exports": [
@@ -2361,16 +2383,16 @@
         {
           "name": "AntiPatternsCheckOutput",
           "kind": "interface",
-          "line": 57
+          "line": 61
         },
         {
           "name": "antiPatternsCheck",
           "kind": "function",
           "description": "Scan a diff (or set of paths) against documented attempt/gotcha memories.",
-          "line": 73
+          "line": 77
         }
       ],
-      "loc": 191
+      "loc": 197
     },
     "packages/mcp/src/tools/bootstrap-project-save.ts": {
       "exports": [
@@ -2462,56 +2484,56 @@
         {
           "name": "GetBriefingInputSchema",
           "kind": "const",
-          "line": 37
+          "line": 39
         },
         {
           "name": "GetBriefingZod",
           "kind": "const",
           "description": "Single inferred type — optional keys are optional (not `| undefined` required everywhere).",
-          "line": 112
+          "line": 114
         },
         {
           "name": "GetBriefingInput",
           "kind": "type",
-          "line": 114
+          "line": 116
         },
         {
           "name": "BriefingMemoryPriority",
           "kind": "type",
-          "line": 116
+          "line": 118
         },
         {
           "name": "BriefingQuality",
           "kind": "interface",
-          "line": 118
+          "line": 120
         },
         {
           "name": "BriefingMemory",
           "kind": "interface",
-          "line": 123
+          "line": 125
         },
         {
           "name": "CodeMapSymbolHit",
           "kind": "interface",
-          "line": 145
+          "line": 147
         },
         {
           "name": "ActionRequiredItem",
           "kind": "interface",
-          "line": 156
+          "line": 158
         },
         {
           "name": "BriefingOutput",
           "kind": "interface",
-          "line": 168
+          "line": 170
         },
         {
           "name": "getBriefing",
           "kind": "function",
-          "line": 210
+          "line": 212
         }
       ],
-      "loc": 1035
+      "loc": 1059
     },
     "packages/mcp/src/tools/get-project-context.ts": {
       "exports": [
@@ -3212,7 +3234,7 @@
           "line": 252
         }
       ],
-      "loc": 363
+      "loc": 389
     },
     "packages/mcp/src/tools/runtime-journal-append.ts": {
       "exports": [
@@ -3337,10 +3359,10 @@
         {
           "name": "deactivate",
           "kind": "function",
-          "line": 441
+          "line": 580
         }
       ],
-      "loc": 442
+      "loc": 581
     },
     "packages/vscode/src/harnessHealth.ts": {
       "exports": [
@@ -3396,10 +3418,10 @@
           "name": "MemoryStore",
           "kind": "class",
           "description": "── MemoryStore — cached reader ─────────────────────────────────────────────",
-          "line": 159
+          "line": 165
         }
       ],
-      "loc": 232
+      "loc": 249
     },
     "packages/vscode/src/treeProvider.ts": {
       "exports": [
@@ -3418,10 +3440,10 @@
           "name": "HaiveTreeProvider",
           "kind": "class",
           "description": "── Provider ─────────────────────────────────────────────────────────────────",
-          "line": 99
+          "line": 110
         }
       ],
-      "loc": 216
+      "loc": 235
     }
   }
 }

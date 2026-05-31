@@ -59,3 +59,13 @@
 {"tool":"mem_session_end","at":"2026-05-30T02:29:43.963Z","summary":"Quality pass on hAIve: fix the 5 identified imperfections (A/D/E/G/C) before add"}
 {"tool":"get_briefing","at":"2026-05-30T05:29:18.947Z","summary":"Improve the VS Code extension so developers can perform key hAIve actions from the editor: add memories, anchor/replace stack-pack seeds, and other curation actions that currently require the CLI"}
 {"tool":"get_briefing","at":"2026-05-31T03:01:37.071Z","summary":"Wire the new icon/logo asset files into the VS Code extension (icon.png, activity-bar mono svg, favicon, wordmark)"}
+{"tool":"get_briefing","at":"2026-05-31T04:45:05.767Z","summary":"Audit hAIve enforcement gate blocking thresholds and improve precommit accuracy"}
+{"tool":"mem_save","at":"2026-05-31T04:47:33.221Z","summary":"enforcement-is-process-not-violation"}
+{"tool":"get_briefing","at":"2026-05-31T14:22:45.192Z","summary":"Add antiPatternGate config option to enforcement settings in config.ts"}
+{"tool":"get_briefing","at":"2026-05-31T14:23:31.882Z","summary":"Add anchored_blocks param and blocking tier to precommit-check classifyWarning"}
+{"tool":"get_briefing","at":"2026-05-31T14:25:17.659Z","summary":"Add tests for anchored gate blocking levels in anti-patterns.test.ts"}
+{"tool":"get_briefing","at":"2026-05-31T14:27:31.002Z","summary":"Clarify user-level vs project-level MCP config message in init.ts"}
+{"tool":"mem_relevant_to","at":"2026-05-31T14:35:05.890Z","summary":"Add code-aware diff tokenizer for literal anti-pattern matching"}
+{"tool":"get_briefing","at":"2026-05-31T14:35:13.162Z","summary":"Add code-aware diff tokenizer for literal anti-pattern matching"}
+{"tool":"get_briefing","at":"2026-05-31T14:36:05.140Z","summary":"Add regression test for code-aware literal tokenizer blocking"}
+{"tool":"mem_session_end","at":"2026-05-31T14:39:40.306Z","summary":"Audit hAIve end-to-end, reconcile a second agent's audit, then fix all identifie"}

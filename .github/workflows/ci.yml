@@ -27,11 +27,13 @@ jobs:
       - name: Build all packages
         run: pnpm -r build
 
+      # Type-check BEFORE tests: tests import built dist, so a clean typecheck on a
+      # fresh build catches the source/dist desync that otherwise only shows up as
+      # confusing test failures. Blocking (no continue-on-error) so regressions fail CI.
+      - name: Type-check
+        run: pnpm -r typecheck
+
       - name: Run tests
         run: pnpm -r test
         env:
           NODE_OPTIONS: --max-old-space-size=8192
-
-      - name: Type-check
-        run: pnpm -r typecheck
-        continue-on-error: true

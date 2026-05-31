@@ -516,7 +516,7 @@ async function buildEnforcementReport(
   }
 
   if (stage === "pre-commit" || stage === "ci") {
-    findings.push(...await runPrecommitPolicy(paths));
+    findings.push(...await runPrecommitPolicy(paths, config.enforcement?.antiPatternGate ?? "anchored"));
   }
 
   if (config.enforcement?.cleanupGeneratedArtifacts !== false) {
@@ -666,17 +666,28 @@ async function verifyDecisionCoverage(
   }];
 }
 
-async function runPrecommitPolicy(paths: ReturnType<typeof resolveHaivePaths>): Promise<EnforcementFinding[]> {
+async function runPrecommitPolicy(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  gate: "off" | "review" | "anchored" | "strict",
+): Promise<EnforcementFinding[]> {
+  if (gate === "off") {
+    return [{ severity: "info", code: "precommit-policy-off", message: "Anti-pattern gate is disabled (enforcement.antiPatternGate=off)." }];
+  }
   const staged = await runCommand("git", ["diff", "--cached", "--name-only"], paths.root).catch(() => "");
   const touchedPaths = staged.split("\n").map((s) => s.trim()).filter(Boolean);
   if (touchedPaths.length === 0) {
     return [{ severity: "info", code: "no-staged-changes", message: "No staged changes found for pre-commit policy." }];
   }
   const diff = await runCommand("git", ["diff", "--cached"], paths.root).catch(() => "");
+  // Map the configured gate to preCommitCheck semantics:
+  //   review   → soft: block only on a very strong semantic match (legacy behavior)
+  //   anchored → also block anchored, diff-corroborated, high-confidence anti-patterns
+  //   strict   → block on any high-confidence match
   const result = await preCommitCheck({
     diff,
     paths: touchedPaths,
-    block_on: "high-confidence",
+    block_on: gate === "strict" ? "any" : "high-confidence",
+    anchored_blocks: gate === "anchored",
     semantic: true,
   }, { paths });
   if (!result.should_block) {

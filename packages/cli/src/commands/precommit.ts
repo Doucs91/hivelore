@@ -10,6 +10,7 @@ import { ui } from "../utils/ui.js";
 interface PrecommitOptions {
   blockOn?: "any" | "high-confidence" | "never";
   noSemantic?: boolean;
+  anchoredBlocks?: boolean;
   json?: boolean;
   dir?: string;
   paths?: string[];
@@ -33,6 +34,10 @@ export function registerPrecommit(program: Command): void {
       "high-confidence",
     )
     .option("--no-semantic", "disable semantic search in anti-patterns matching")
+    .option(
+      "--no-anchored-blocks",
+      "do not block on anchored, diff-corroborated anti-patterns (only block on very strong semantic matches)",
+    )
     .option("--json", "emit JSON instead of human-readable output", false)
     .option("--paths <paths...>", "explicit paths to check (skips git diff)")
     .option("-d, --dir <dir>", "project root")
@@ -82,6 +87,7 @@ export function registerPrecommit(program: Command): void {
         diff: diff || undefined,
         paths: touchedPaths,
         block_on: opts.blockOn ?? "high-confidence",
+        anchored_blocks: opts.anchoredBlocks !== false,
         semantic: opts.noSemantic ? false : true,
       }, ctx);
 

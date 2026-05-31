@@ -29,6 +29,15 @@ export const PreCommitCheckInputSchema = {
     .boolean()
     .default(true)
     .describe("Enable semantic search in anti_patterns_check (requires embeddings index)."),
+  anchored_blocks: z
+    .boolean()
+    .default(false)
+    .describe(
+      "When true, ALSO block a high-confidence anti-pattern (attempt/gotcha) that is anchored to a " +
+      "touched file AND corroborated by the diff (literal token overlap, or semantic >= 0.45) — not just " +
+      "very strong semantic matches. Powers the 'anchored' enforcement gate. Config/docs-only commits are " +
+      "still downgraded. Default false preserves the soft, semantic-only blocking behavior.",
+    ),
 };
 
 export type PreCommitCheckInput = {
@@ -131,7 +140,7 @@ export async function preCommitCheck(
 
   // Determine should_block
   const blockOn = input.block_on;
-  const classifiedWarnings = apResult.warnings.map((warning) => classifyWarning(warning, input.paths));
+  const classifiedWarnings = apResult.warnings.map((warning) => classifyWarning(warning, input.paths, input.anchored_blocks));
   const blockingWarnings = classifiedWarnings.filter((w) => w.level === "blocking");
   const reviewWarnings = classifiedWarnings.filter((w) => w.level === "review");
   const infoWarnings = classifiedWarnings.filter((w) => w.level === "info");
@@ -179,7 +188,11 @@ export async function preCommitCheck(
   };
 }
 
-function classifyWarning(warning: AntiPatternsWarning, paths: string[]): ClassifiedAntiPatternsWarning {
+function classifyWarning(
+  warning: AntiPatternsWarning,
+  paths: string[],
+  anchoredBlocks = false,
+): ClassifiedAntiPatternsWarning {
   const affectedFiles = paths.filter((p) => !p.startsWith(".ai/.usage/"));
   const repairCommand = repairCommandForWarning(warning, affectedFiles);
   const fileDowngrade = fileTypeDowngradeReason(warning, affectedFiles);
@@ -209,6 +222,28 @@ function classifyWarning(warning: AntiPatternsWarning, paths: string[]): Classif
   const semanticScore = warning.semantic_score ?? 0;
   const highConfidence =
     warning.confidence === "authoritative" || warning.confidence === "trusted";
+
+  // Anchored gate: when the caller opts in, a high-confidence anti-pattern that is anchored to a
+  // touched file AND corroborated by the diff (literal token overlap, or a moderate semantic match)
+  // is precise enough to block. This is what makes "known bad approaches are blocked before commit"
+  // true for the case it matters most — you are editing the exact file a documented attempt/gotcha
+  // warns about, and the diff contains the same idea. Config/docs-only commits already returned
+  // above via fileTypeDowngradeReason, so this cannot re-introduce that false-positive class.
+  if (
+    anchoredBlocks &&
+    highConfidence &&
+    warning.reasons.includes("anchor") &&
+    (warning.reasons.includes("literal") || (hasSemantic && semanticScore >= 0.45))
+  ) {
+    return {
+      ...warning,
+      level: "blocking",
+      rationale:
+        "high-confidence anti-pattern anchored to a touched file and corroborated by the diff (anchored gate)",
+      affected_files: affectedFiles,
+      repair_command: repairCommand,
+    };
+  }
 
   if (
     (hasSemantic && semanticScore >= 0.45) ||
@@ -252,8 +287,9 @@ function isBlockingWarning(warning: AntiPatternsWarning): boolean {
 export function classifyAntiPatternWarningForTest(
   warning: AntiPatternsWarning,
   paths: string[],
+  anchoredBlocks = false,
 ): ClassifiedAntiPatternsWarning {
-  return classifyWarning(warning, paths);
+  return classifyWarning(warning, paths, anchoredBlocks);
 }
 
 function fileTypeDowngradeReason(

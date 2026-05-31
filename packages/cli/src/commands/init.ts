@@ -406,8 +406,8 @@ export function registerInit(program: Command): void {
           else if (r.status === "error") ui.warn(`${r.client}: ${r.error}`);
         }
         for (const r of agentSetup.global_results) {
-          if (r.status === "configured") ui.success(`haive MCP configured in ${r.client}${r.path ? ` (${r.path})` : ""}`);
-          else if (r.status === "already_configured") ui.info(`haive MCP already configured in ${r.client} — skipped`);
+          if (r.status === "configured") ui.success(`haive MCP configured in ${r.client} user-level config${r.path ? ` (${r.path})` : ""}`);
+          else if (r.status === "already_configured") ui.info(`haive MCP already present in ${r.client} user-level config — left unchanged (this project's config was written above)`);
         }
         if (agentSetup.global_skipped_reason) ui.warn(agentSetup.global_skipped_reason);
         ui.info(`Recommended agent mode: ${agentSetup.detection.recommended_mode}`);

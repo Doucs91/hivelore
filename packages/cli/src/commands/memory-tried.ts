@@ -20,6 +20,7 @@ interface TriedOptions {
   module?: string;
   tags?: string;
   paths?: string;
+  files?: string;
   author?: string;
   dir?: string;
 }
@@ -46,6 +47,7 @@ export function registerMemoryTried(memory: Command): void {
     .option("--module <name>", "module name (required when scope=module)")
     .option("--tags <csv>", "comma-separated tags")
     .option("--paths <csv>", "anchor paths, comma-separated")
+    .option("--files <csv>", "alias for --paths (matches the MCP `files` parameter)")
     .option("--author <author>", "author email or handle")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: TriedOptions) => {
@@ -71,7 +73,7 @@ export function registerMemoryTried(memory: Command): void {
         scope: opts.scope,
         module: opts.module,
         tags: parseCsv(opts.tags),
-        paths: parseCsv(opts.paths),
+        paths: parseCsv(opts.paths ?? opts.files),
         author: opts.author,
       });
       // attempt memories are immediately validated — no review cycle needed
