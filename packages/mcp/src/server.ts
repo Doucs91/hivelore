@@ -29,6 +29,11 @@ import {
   type MemRejectInput,
 } from "./tools/mem-reject.js";
 import {
+  MemFeedbackInputSchema,
+  memFeedback,
+  type MemFeedbackInput,
+} from "./tools/mem-feedback.js";
+import {
   MemForFilesInputSchema,
   memForFiles,
   type MemForFilesInput,
@@ -320,6 +325,7 @@ export const MAINTENANCE_PROFILE_TOOLS = [
   "mem_distill",
   "mem_timeline",
   "mem_conflict_candidates",
+  "mem_feedback",
 ] as const;
 
 export const EXPERIMENTAL_PROFILE_TOOLS = [
@@ -356,6 +362,7 @@ const MUTATING_TOOLS = new Set([
   "mem_approve",
   "mem_reject",
   "mem_delete",
+  "mem_feedback",
   "runtime_journal_append",
   "pattern_detect",
 ]);
@@ -909,6 +916,29 @@ export function createHaiveServer(
     ].join("\n"),
     MemRejectInputSchema,
     async (input: MemRejectInput) => jsonResult(await memReject(input, context)),
+  );
+
+  registerTool(
+    "mem_feedback",
+    [
+      "Record whether a memory actually HELPED — the closed-loop utility signal.",
+      "",
+      "USE right after a memory changed (or failed to change) what you did:",
+      "  - outcome='applied'  → the memory steered your work (strong positive signal)",
+      "  - outcome='rejected' → it was wrong/outdated/unhelpful (negative signal)",
+      "",
+      "A read only means a memory was surfaced; 'applied' means it demonstrably helped.",
+      "This powers `haive memory impact` (impact tiers + prune candidates) and future ranking.",
+      "",
+      "PARAMETERS:",
+      "  id      — full memory id the feedback is about",
+      "  outcome — 'applied' | 'rejected'",
+      "  reason  — why it was rejected (optional, stored on the usage record)",
+      "",
+      "RETURNS: { ok, id, outcome, usage:{read_count,applied_count,rejected_count}, impact:{score,tier,signals} }",
+    ].join("\n"),
+    MemFeedbackInputSchema,
+    async (input: MemFeedbackInput) => jsonResult(await memFeedback(input, context)),
   );
 
   registerTool(

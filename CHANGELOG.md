@@ -6,6 +6,24 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.10.10] — closed-loop memory impact
+
+### Added
+- **Memory impact scoring** — new pure `computeImpact` (in `@hiveai/core`) combines the utility
+  signals hAIve already recorded but never correlated: reads + applied outcomes + a sensor that
+  actually fired (positive) versus rejections, stale status, and dormancy (negative) into a single
+  0–1 score, a tier (`high|medium|low|dormant`), and a prune-candidate flag.
+- **`mem_feedback` MCP tool** — agents record whether a surfaced memory was `applied` (it steered
+  the work) or `rejected` (wrong/unhelpful). This closes the loop: a read only means a memory was
+  shown; `applied` means it demonstrably helped. Backed by a new `applied_count` usage signal.
+- **`haive memory impact` CLI** — ranks memories by demonstrated utility and surfaces prune
+  candidates (`--prune`), with `--tier`, `--id`, and `--json` filters.
+
+### Notes
+- Surfacing impact as a ranking weight inside `get_briefing` is intentionally deferred to a later
+  increment to avoid destabilizing the briefing pipeline. Legacy `usage.json` records are
+  normalized for the new fields, so the change is backward compatible.
+
 ## [0.10.9] — finish gate and release discipline
 
 ### Added

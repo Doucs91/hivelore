@@ -9,6 +9,15 @@ export interface MemoryUsage {
   rejected_count: number;
   last_rejected_at: string | null;
   rejection_reason: string | null;
+  /**
+   * Number of times the memory was explicitly confirmed *useful* — i.e. an agent
+   * or human recorded that it changed what they did (the closed-loop "applied"
+   * outcome, recorded via `mem_feedback`). A far stronger utility signal than a
+   * read: a memory can be surfaced many times and ignored, but `applied` means it
+   * demonstrably steered work. Drives impact scoring in {@link ./impact.js}.
+   */
+  applied_count: number;
+  last_applied_at: string | null;
 }
 
 export interface UsageIndex {
@@ -26,7 +35,17 @@ export function emptyUsage(): MemoryUsage {
     rejected_count: 0,
     last_rejected_at: null,
     rejection_reason: null,
+    applied_count: 0,
+    last_applied_at: null,
   };
+}
+
+/**
+ * Normalize a possibly-partial stored usage record (older `usage.json` files
+ * predate the `applied_*` fields). Always returns a full {@link MemoryUsage}.
+ */
+function normalizeUsage(stored: Partial<MemoryUsage> | undefined): MemoryUsage {
+  return { ...emptyUsage(), ...(stored ?? {}) };
 }
 
 export function emptyUsageIndex(): UsageIndex {
@@ -62,14 +81,14 @@ export async function saveUsageIndex(paths: HaivePaths, index: UsageIndex): Prom
 }
 
 export function getUsage(index: UsageIndex, id: string): MemoryUsage {
-  return index.by_id[id] ?? emptyUsage();
+  return normalizeUsage(index.by_id[id]);
 }
 
 export function bumpRead(index: UsageIndex, ids: string[]): UsageIndex {
   if (ids.length === 0) return index;
   const now = new Date().toISOString();
   for (const id of ids) {
-    const current = index.by_id[id] ?? emptyUsage();
+    const current = normalizeUsage(index.by_id[id]);
     index.by_id[id] = {
       ...current,
       read_count: current.read_count + 1,
@@ -84,13 +103,29 @@ export function recordRejection(
   id: string,
   reason: string | null,
 ): UsageIndex {
-  const current = index.by_id[id] ?? emptyUsage();
+  const current = normalizeUsage(index.by_id[id]);
   const now = new Date().toISOString();
   index.by_id[id] = {
     ...current,
     rejected_count: current.rejected_count + 1,
     last_rejected_at: now,
     rejection_reason: reason,
+  };
+  return index;
+}
+
+/**
+ * Record that a memory was *applied* — explicitly confirmed to have changed what
+ * the agent/human did. This is the closed-loop utility signal that distinguishes
+ * a memory that merely got surfaced from one that demonstrably steered work.
+ */
+export function recordApplied(index: UsageIndex, id: string): UsageIndex {
+  const current = normalizeUsage(index.by_id[id]);
+  const now = new Date().toISOString();
+  index.by_id[id] = {
+    ...current,
+    applied_count: current.applied_count + 1,
+    last_applied_at: now,
   };
   return index;
 }
