@@ -6,6 +6,17 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.10.9] — finish gate and release discipline
+
+### Added
+- **Final agent-exit gate** — `haive enforce finish` verifies that completed work is committed, pushed, versioned in lockstep, tagged, and that release tags exist on the remote.
+- **Release-protocol prompt wiring** — bridge templates, post-task guidance, and project docs now instruct agents to run the finish gate before final responses.
+
+### Fixed
+- CI enforcement now inspects the committed base/head diff instead of only staged files.
+- Shippable package typechecks no longer depend on stale workspace `dist/` artifacts.
+- Autopilot repairs, stack-pack diagnostics, and assignment-style memory sensors now handle the audited edge cases more precisely.
+
 ## [0.10.5] — sensor promotion and sharper patterns
 
 ### Added

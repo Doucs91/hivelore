@@ -54,6 +54,12 @@ interface EnforceOptions {
   explain?: boolean;
 }
 
+interface FinishOptions {
+  dir?: string;
+  json?: boolean;
+  explain?: boolean;
+}
+
 interface EnforcementFinding {
   severity: "ok" | "info" | "warn" | "error";
   code: string;
@@ -205,6 +211,21 @@ export function registerEnforce(program: Command): void {
     });
 
   enforce
+    .command("finish")
+    .alias("completion")
+    .description(
+      "Final agent-exit gate: verify the git sync/release protocol before reporting a task done.",
+    )
+    .option("-d, --dir <dir>", "project root")
+    .option("--explain", "group findings by blocking/review/info and show repair commands", false)
+    .option("--json", "emit JSON", false)
+    .action(async (opts: FinishOptions) => {
+      const report = await buildFinishReport(opts.dir);
+      printReport(report, Boolean(opts.json), Boolean(opts.explain));
+      if (report.should_block) process.exit(2);
+    });
+
+  enforce
     .command("session-start")
     .description("Claude Code SessionStart hook: inject briefing and write a local briefing marker.")
     .option("-d, --dir <dir>", "project root")
@@ -322,6 +343,231 @@ export function registerEnforce(program: Command): void {
       );
       process.exit(2);
     });
+}
+
+async function buildFinishReport(dir: string | undefined): Promise<EnforcementReport> {
+  const root = findProjectRoot(dir);
+  const paths = resolveHaivePaths(root);
+  const initialized = existsSync(paths.haiveDir);
+  const config = initialized ? await loadConfig(paths) : {};
+  const mode = config.enforcement?.mode ?? "strict";
+  const findings: EnforcementFinding[] = [];
+
+  if (!initialized) {
+    return withCategories({
+      root,
+      initialized,
+      mode,
+      score: buildScore([], config.enforcement?.scoreThreshold),
+      should_block: true,
+      findings: [{
+        severity: "error",
+        code: "not-initialized",
+        message: "This repository is not initialized with hAIve.",
+        fix: "Run `haive init` or `haive enforce install`.",
+        impact: 100,
+      }],
+    });
+  }
+
+  const status = await getGitSyncStatus(root);
+  if (!status.available) {
+    findings.push({
+      severity: "error",
+      code: "git-unavailable",
+      message: "Git status could not be inspected, so hAIve cannot verify the exit protocol.",
+      fix: "Run `git status` manually, then commit/push according to the hAIve git-sync protocol.",
+      impact: 100,
+    });
+    return finishReport(root, initialized, mode, findings, config);
+  }
+
+  const shippableDirty = status.dirtyFiles.filter(isShippablePath);
+  if (status.dirtyFiles.length > 0) {
+    findings.push({
+      severity: "error",
+      code: shippableDirty.length > 0 ? "git-sync-uncommitted-shippable" : "git-sync-uncommitted-changes",
+      message: shippableDirty.length > 0
+        ? `${shippableDirty.length} shippable file(s) are modified but not committed.`
+        : `${status.dirtyFiles.length} file(s) are modified but not committed.`,
+      fix: shippableDirty.length > 0
+        ? "Bump the lockstep package version if needed, then `git add`, `git commit`, `git tag vX.Y.Z`, `git push && git push --tags`."
+        : "Commit and push these changes before reporting the task done.",
+      reason: "The multi-agent git-sync decision requires agents to leave completed work committed and pushed, not as a local diff.",
+      affected_files: status.dirtyFiles.slice(0, 12),
+      impact: 100,
+    });
+    return finishReport(root, initialized, mode, findings, config);
+  }
+
+  findings.push({
+    severity: "ok",
+    code: "git-worktree-clean",
+    message: "No uncommitted worktree changes remain.",
+  });
+
+  if (!status.upstream) {
+    findings.push({
+      severity: "warn",
+      code: "git-sync-no-upstream",
+      message: "This branch has no upstream, so hAIve cannot verify that commits/tags were pushed.",
+      fix: "Set an upstream with `git push -u origin <branch>`.",
+      impact: 15,
+    });
+    return finishReport(root, initialized, mode, findings, config);
+  }
+
+  if (status.behind > 0) {
+    findings.push({
+      severity: "error",
+      code: "git-sync-behind-upstream",
+      message: `This branch is ${status.behind} commit(s) behind ${status.upstream}.`,
+      fix: "Run `git pull --ff-only` and resolve any conflicts before finishing.",
+      impact: 40,
+    });
+  }
+
+  if (status.ahead > 0) {
+    findings.push({
+      severity: "error",
+      code: "git-sync-unpushed-commits",
+      message: `This branch is ${status.ahead} commit(s) ahead of ${status.upstream}.`,
+      fix: "Run `git push` before reporting the task done.",
+      reason: "The multi-agent git-sync decision requires agents to push completed commits.",
+      impact: 60,
+    });
+  } else {
+    findings.push({
+      severity: "ok",
+      code: "git-sync-pushed",
+      message: `Branch is not ahead of ${status.upstream}.`,
+    });
+  }
+
+  const releaseChangedFiles = status.releaseChangedFiles ?? status.changedSinceUpstream;
+  const releaseBaseRef = status.releaseBaseRef ?? status.upstream;
+  const shippableChanged = releaseChangedFiles.filter(isShippablePath);
+  if (shippableChanged.length === 0) {
+    findings.push({
+      severity: "ok",
+      code: "release-version-not-required",
+      message: "No shippable package code changed since upstream; no version/tag required.",
+    });
+    return finishReport(root, initialized, mode, findings, config);
+  }
+
+  findings.push({
+    severity: "info",
+    code: "release-shippable-changes",
+    message: `${shippableChanged.length} shippable file(s) changed since ${releaseBaseRef}.`,
+    affected_files: shippableChanged.slice(0, 12),
+  });
+
+  const versionState = await inspectReleaseVersionState(root, releaseBaseRef);
+  if (!versionState.lockstep) {
+    findings.push({
+      severity: "error",
+      code: "release-version-not-lockstep",
+      message: `Publishable package versions are not in lockstep: ${versionState.localVersionsLabel}.`,
+      fix: "Set root, core, cli, mcp, and embeddings package.json versions to the same X.Y.Z.",
+      impact: 60,
+    });
+    return finishReport(root, initialized, mode, findings, config);
+  }
+
+  const version = versionState.version;
+  if (!version) {
+    findings.push({
+      severity: "error",
+      code: "release-version-unreadable",
+      message: "Could not read the lockstep package version.",
+      fix: "Verify package.json files are valid JSON.",
+      impact: 60,
+    });
+    return finishReport(root, initialized, mode, findings, config);
+  }
+
+  if (versionState.baseVersion && compareSemver(version, versionState.baseVersion) <= 0) {
+    findings.push({
+      severity: "error",
+      code: "release-version-missing",
+      message: `Shippable code changed, but version stayed at ${version} (base: ${versionState.baseVersion}).`,
+      fix: "Bump the lockstep package version (patch by default), commit the bump, tag it, then push code and tags.",
+      impact: 70,
+    });
+  } else {
+    findings.push({
+      severity: "ok",
+      code: "release-version-bumped",
+      message: versionState.baseVersion
+        ? `Lockstep version bumped from ${versionState.baseVersion} to ${version}.`
+        : `Lockstep version is ${version}.`,
+    });
+  }
+
+  const tag = `v${version}`;
+  const localTagAtHead = await tagPointsAtHead(root, tag);
+  if (!localTagAtHead) {
+    findings.push({
+      severity: "error",
+      code: "release-tag-missing",
+      message: `Expected git tag ${tag} to point at HEAD.`,
+      fix: `Run \`git tag ${tag}\` after committing the version bump.`,
+      impact: 50,
+    });
+  } else {
+    findings.push({
+      severity: "ok",
+      code: "release-tag-present",
+      message: `Tag ${tag} points at HEAD.`,
+    });
+  }
+
+  const remoteTag = await remoteTagExists(root, tag);
+  if (remoteTag === false) {
+    findings.push({
+      severity: "error",
+      code: "release-tag-unpushed",
+      message: `Tag ${tag} is not present on the remote.`,
+      fix: "Run `git push --tags`.",
+      impact: 50,
+    });
+  } else if (remoteTag === true) {
+    findings.push({
+      severity: "ok",
+      code: "release-tag-pushed",
+      message: `Tag ${tag} exists on the remote.`,
+    });
+  } else {
+    findings.push({
+      severity: "warn",
+      code: "release-tag-remote-unverified",
+      message: `Could not verify whether tag ${tag} exists on the remote.`,
+      fix: "Run `git push --tags` if you have not already.",
+      impact: 10,
+    });
+  }
+
+  return finishReport(root, initialized, mode, findings, config);
+}
+
+function finishReport(
+  root: string,
+  initialized: boolean,
+  mode: EnforcementReport["mode"],
+  findings: EnforcementFinding[],
+  config: HaiveConfig,
+): EnforcementReport {
+  const score = buildScore(findings, config.enforcement?.scoreThreshold);
+  const hasErrors = findings.some((f) => f.severity === "error");
+  return withCategories({
+    root,
+    initialized,
+    mode,
+    score,
+    should_block: mode === "strict" && hasErrors,
+    findings,
+  });
 }
 
 export async function runWithEnforcement(
@@ -518,7 +764,7 @@ async function buildEnforcementReport(
   }
 
   if (stage === "pre-commit" || stage === "ci") {
-    findings.push(...await runPrecommitPolicy(paths, config.enforcement?.antiPatternGate ?? "anchored"));
+    findings.push(...await runPrecommitPolicy(paths, config.enforcement?.antiPatternGate ?? "anchored", stage));
   }
 
   if (config.enforcement?.cleanupGeneratedArtifacts !== false) {
@@ -671,21 +917,25 @@ async function verifyDecisionCoverage(
 async function runPrecommitPolicy(
   paths: ReturnType<typeof resolveHaivePaths>,
   gate: AntiPatternGate,
+  stage: "pre-commit" | "ci",
 ): Promise<EnforcementFinding[]> {
   if (gate === "off") {
     return [{ severity: "info", code: "precommit-policy-off", message: "Anti-pattern gate is disabled (enforcement.antiPatternGate=off)." }];
   }
-  const staged = await runCommand("git", ["diff", "--cached", "--name-only"], paths.root).catch(() => "");
-  const touchedPaths = staged.split("\n").map((s) => s.trim()).filter(Boolean);
+  const snapshot = await getPolicyDiffSnapshot(paths.root, stage);
+  const touchedPaths = snapshot.paths;
   if (touchedPaths.length === 0) {
-    return [{ severity: "info", code: "no-staged-changes", message: "No staged changes found for pre-commit policy." }];
+    const code = stage === "ci" ? "no-ci-diff-changes" : "no-staged-changes";
+    const message = stage === "ci"
+      ? "No changed files found for CI policy diff."
+      : "No staged changes found for pre-commit policy.";
+    return [{ severity: "info", code, message }];
   }
-  const diff = await runCommand("git", ["diff", "--cached"], paths.root).catch(() => "");
   // The gate→params mapping lives in @hiveai/core so the git-hook path and the
   // standalone `haive precommit` command can never drift apart.
   const { block_on, anchored_blocks } = antiPatternGateParams(gate);
   const result = await preCommitCheck({
-    diff,
+    diff: snapshot.diff,
     paths: touchedPaths,
     block_on,
     anchored_blocks,
@@ -695,7 +945,7 @@ async function runPrecommitPolicy(
     return [{
       severity: "ok",
       code: "precommit-policy-pass",
-      message: `Pre-commit policy passed for ${touchedPaths.length} staged file(s).`,
+      message: `${stage === "ci" ? "CI" : "Pre-commit"} policy passed for ${touchedPaths.length} changed file(s).`,
     }];
   }
   return [{
@@ -870,27 +1120,293 @@ async function getChangedFiles(
   root: string,
   stage: "local" | "pre-commit" | "pre-push" | "ci",
 ): Promise<string[]> {
-  const commands =
-    stage === "pre-commit"
-      ? [["diff", "--cached", "--name-only"]]
-      : [
-          ["diff", "--cached", "--name-only"],
-          ["diff", "--name-only"],
-        ];
+  if (stage === "ci") {
+    return (await getPolicyDiffSnapshot(root, "ci")).paths;
+  }
+  if (stage === "pre-commit") {
+    return normalizeChangedFileList(
+      await runCommand("git", ["diff", "--cached", "--name-only"], root).catch(() => ""),
+    );
+  }
   const files = new Set<string>();
-  for (const args of commands) {
-    const out = await runCommand("git", args, root).catch(() => "");
-    for (const line of out.split("\n")) {
-      const file = line.trim();
-      if (file) files.add(file);
+  for (const args of [["diff", "--cached", "--name-only"], ["diff", "--name-only"]]) {
+    for (const file of normalizeChangedFileList(await runCommand("git", args, root).catch(() => ""))) {
+      files.add(file);
     }
   }
-  return [...files].filter((file) =>
-    !file.startsWith(".ai/.runtime/") &&
-    !file.startsWith(".ai/.cache/") &&
-    !file.startsWith(".ai/.usage/") &&
-    file !== ".ai/.usage/tool-usage.jsonl"
-  );
+  return [...files];
+}
+
+interface PolicyDiffSnapshot {
+  diff: string;
+  paths: string[];
+  source: string;
+}
+
+async function getPolicyDiffSnapshot(
+  root: string,
+  stage: "pre-commit" | "ci",
+): Promise<PolicyDiffSnapshot> {
+  if (stage === "pre-commit") {
+    const diff = await runCommand("git", ["diff", "--cached"], root).catch(() => "");
+    const names = await runCommand("git", ["diff", "--cached", "--name-only"], root).catch(() => "");
+    return { diff, paths: normalizeChangedFileList(names), source: "staged" };
+  }
+
+  const range = await resolveCiDiffRange(root);
+  if (range) {
+    const diff = await runCommand("git", ["diff", range], root).catch(() => "");
+    const names = await runCommand("git", ["diff", "--name-only", range], root).catch(() => "");
+    return { diff, paths: normalizeChangedFileList(names), source: range };
+  }
+
+  return { diff: "", paths: [], source: "none" };
+}
+
+async function resolveCiDiffRange(root: string): Promise<string | null> {
+  const explicitBase = cleanGitSha(process.env.HAIVE_BASE_SHA ?? process.env.HAIVE_BASE_REF);
+  const explicitHead = cleanGitSha(process.env.HAIVE_HEAD_SHA ?? process.env.GITHUB_SHA) ?? "HEAD";
+  if (explicitBase && await gitCommitExists(root, explicitBase)) {
+    return `${explicitBase}...${explicitHead}`;
+  }
+
+  const eventRange = await resolveGithubEventRange(root);
+  if (eventRange) return eventRange;
+
+  const baseRef = process.env.GITHUB_BASE_REF?.trim();
+  if (baseRef) {
+    const remoteRef = `origin/${baseRef}`;
+    if (await gitCommitExists(root, remoteRef)) return `${remoteRef}...${explicitHead}`;
+  }
+
+  if (await gitCommitExists(root, "origin/main")) return `origin/main...${explicitHead}`;
+  if (await gitCommitExists(root, "origin/master")) return `origin/master...${explicitHead}`;
+  if (await gitCommitExists(root, "HEAD^")) return `HEAD^..${explicitHead}`;
+  return null;
+}
+
+async function resolveGithubEventRange(root: string): Promise<string | null> {
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  if (!eventPath || !existsSync(eventPath)) return null;
+  try {
+    const event = JSON.parse(await readFile(eventPath, "utf8")) as {
+      before?: string;
+      after?: string;
+      pull_request?: {
+        base?: { sha?: string };
+        head?: { sha?: string };
+      };
+    };
+    const prBase = cleanGitSha(event.pull_request?.base?.sha);
+    const prHead = cleanGitSha(event.pull_request?.head?.sha ?? event.after ?? process.env.GITHUB_SHA) ?? "HEAD";
+    if (prBase && await gitCommitExists(root, prBase)) return `${prBase}...${prHead}`;
+
+    const pushBase = cleanGitSha(event.before);
+    const pushHead = cleanGitSha(event.after ?? process.env.GITHUB_SHA) ?? "HEAD";
+    if (pushBase && await gitCommitExists(root, pushBase)) return `${pushBase}..${pushHead}`;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function cleanGitSha(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed || /^0+$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+async function gitCommitExists(root: string, ref: string): Promise<boolean> {
+  try {
+    await runCommand("git", ["rev-parse", "--verify", `${ref}^{commit}`], root);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function normalizeChangedFileList(raw: string): string[] {
+  return raw.split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((file) =>
+      !file.startsWith(".ai/.runtime/") &&
+      !file.startsWith(".ai/.cache/") &&
+      !file.startsWith(".ai/.usage/") &&
+      file !== ".ai/.usage/tool-usage.jsonl"
+    );
+}
+
+interface GitSyncStatus {
+  available: boolean;
+  branch?: string;
+  upstream?: string;
+  ahead: number;
+  behind: number;
+  dirtyFiles: string[];
+  changedSinceUpstream: string[];
+  releaseBaseRef?: string;
+  releaseChangedFiles?: string[];
+}
+
+async function getGitSyncStatus(root: string): Promise<GitSyncStatus> {
+  const dirty = (await runCommand("git", ["status", "--short", "--untracked-files=all"], root).catch(() => ""))
+    .split("\n")
+    .map((line) => statusLineToPath(line.trim()))
+    .filter(Boolean)
+    .filter((file) => normalizeChangedFileList(file).length > 0);
+  const branch = (await runCommand("git", ["branch", "--show-current"], root).catch(() => "")).trim() || undefined;
+  const upstream = (await runCommand("git", ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], root).catch(() => "")).trim() || undefined;
+  if (!branch && !upstream) {
+    const inside = (await runCommand("git", ["rev-parse", "--is-inside-work-tree"], root).catch(() => "")).trim();
+    if (inside !== "true") return { available: false, ahead: 0, behind: 0, dirtyFiles: [], changedSinceUpstream: [] };
+  }
+
+  let ahead = 0;
+  let behind = 0;
+  let changedSinceUpstream: string[] = [];
+  let releaseBaseRef: string | undefined;
+  let releaseChangedFiles: string[] | undefined;
+  if (upstream) {
+    const counts = (await runCommand("git", ["rev-list", "--left-right", "--count", `${upstream}...HEAD`], root).catch(() => "")).trim();
+    const [behindRaw, aheadRaw] = counts.split(/\s+/);
+    behind = Number.parseInt(behindRaw ?? "0", 10) || 0;
+    ahead = Number.parseInt(aheadRaw ?? "0", 10) || 0;
+    changedSinceUpstream = normalizeChangedFileList(
+      await runCommand("git", ["diff", "--name-only", `${upstream}...HEAD`], root).catch(() => ""),
+    );
+    if (changedSinceUpstream.length > 0) {
+      releaseBaseRef = upstream;
+      releaseChangedFiles = changedSinceUpstream;
+    }
+  }
+
+  if (!releaseChangedFiles || releaseChangedFiles.length === 0) {
+    const hasParent = (await runCommand("git", ["rev-parse", "--verify", "--quiet", "HEAD^"], root).catch(() => "")).trim().length > 0;
+    if (hasParent) {
+      const changedSinceParent = normalizeChangedFileList(
+        await runCommand("git", ["diff", "--name-only", "HEAD^..HEAD"], root).catch(() => ""),
+      );
+      if (changedSinceParent.length > 0) {
+        releaseBaseRef = "HEAD^";
+        releaseChangedFiles = changedSinceParent;
+      }
+    }
+  }
+
+  return {
+    available: true,
+    branch,
+    upstream,
+    ahead,
+    behind,
+    dirtyFiles: dirty,
+    changedSinceUpstream,
+    ...(releaseBaseRef ? { releaseBaseRef } : {}),
+    ...(releaseChangedFiles ? { releaseChangedFiles } : {}),
+  };
+}
+
+function statusLineToPath(line: string): string {
+  const body = line.replace(/^[ MADRCU?!]{1,2}\s+/, "").trim();
+  const renamed = body.match(/.+ -> (.+)$/);
+  return renamed?.[1]?.trim() ?? body;
+}
+
+const VERSION_FILES = [
+  "package.json",
+  "packages/core/package.json",
+  "packages/cli/package.json",
+  "packages/mcp/package.json",
+  "packages/embeddings/package.json",
+] as const;
+
+const SHIPPABLE_PATH_PREFIXES = [
+  "packages/core/src/",
+  "packages/cli/src/",
+  "packages/mcp/src/",
+  "packages/embeddings/src/",
+];
+
+function isShippablePath(file: string): boolean {
+  return SHIPPABLE_PATH_PREFIXES.some((prefix) => file.startsWith(prefix)) ||
+    VERSION_FILES.includes(file as (typeof VERSION_FILES)[number]);
+}
+
+interface ReleaseVersionState {
+  lockstep: boolean;
+  version?: string;
+  baseVersion?: string;
+  localVersionsLabel: string;
+}
+
+async function inspectReleaseVersionState(root: string, upstream: string): Promise<ReleaseVersionState> {
+  const localEntries = await Promise.all(VERSION_FILES.map(async (file) => [file, await readPackageVersion(root, file)] as const));
+  const localVersions = new Map(localEntries);
+  const unique = new Set([...localVersions.values()].filter(Boolean));
+  const version = unique.size === 1 ? [...unique][0] : undefined;
+  const localVersionsLabel = VERSION_FILES
+    .map((file) => `${file}=${localVersions.get(file) ?? "unreadable"}`)
+    .join(", ");
+
+  const baseVersion = await readPackageVersionAtRef(root, upstream, "package.json");
+  return {
+    lockstep: unique.size === 1 && localVersions.size === VERSION_FILES.length,
+    ...(version ? { version } : {}),
+    ...(baseVersion ? { baseVersion } : {}),
+    localVersionsLabel,
+  };
+}
+
+async function readPackageVersion(root: string, relPath: string): Promise<string | undefined> {
+  try {
+    const data = JSON.parse(await readFile(path.join(root, relPath), "utf8")) as { version?: unknown };
+    return typeof data.version === "string" ? data.version : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function readPackageVersionAtRef(root: string, ref: string, relPath: string): Promise<string | undefined> {
+  try {
+    const raw = await runCommand("git", ["show", `${ref}:${relPath}`], root);
+    const data = JSON.parse(raw) as { version?: unknown };
+    return typeof data.version === "string" ? data.version : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function compareSemver(a: string, b: string): number {
+  const pa = a.split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+  const pb = b.split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+  const len = Math.max(pa.length, pb.length, 3);
+  for (let i = 0; i < len; i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+async function tagPointsAtHead(root: string, tag: string): Promise<boolean> {
+  const tags = await runCommand("git", ["tag", "--points-at", "HEAD"], root).catch(() => "");
+  return tags.split("\n").map((line) => line.trim()).includes(tag);
+}
+
+async function remoteTagExists(root: string, tag: string): Promise<boolean | null> {
+  const branch = (await runCommand("git", ["branch", "--show-current"], root).catch(() => "")).trim();
+  const branchRemote = branch
+    ? (await runCommand("git", ["config", "--get", `branch.${branch}.remote`], root).catch(() => "")).trim()
+    : "";
+  const hasOrigin = (await runCommand("git", ["config", "--get", "remote.origin.url"], root).catch(() => "")).trim().length > 0;
+  const remote = branchRemote || (hasOrigin ? "origin" : "");
+  if (!remote) return null;
+  try {
+    const out = await runCommand("git", ["ls-remote", "--tags", remote, `refs/tags/${tag}`], root);
+    return out.trim().length > 0;
+  } catch {
+    return null;
+  }
 }
 
 function buildScore(findings: EnforcementFinding[], threshold = 80): EnforcementScore {
@@ -981,6 +1497,9 @@ jobs:
       - name: Install hAIve
         run: npm install -g @hiveai/cli
       - name: Enforce hAIve policy
+        env:
+          HAIVE_BASE_SHA: \${{ github.event.pull_request.base.sha || github.event.before }}
+          HAIVE_HEAD_SHA: \${{ github.event.pull_request.head.sha || github.sha }}
         run: haive enforce ci
 `, "utf8");
   ui.success(`Created ${path.relative(root, workflowPath)}`);

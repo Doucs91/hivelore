@@ -52,6 +52,8 @@ Several agents **and** the human (Sady) work on this repo in parallel with manua
 
 **BOUNDARY: agents NEVER run `npm publish`. npm publication is done by the human (Sady).**
 
+**Before final response:** run `haive enforce finish`. If it blocks, fix the reported commit/version/tag/push issue before saying the task is done.
+
 ### Safety rules — NEVER violate these
 - If `get_briefing` returns an `action_required` list, **stop and show each item to the developer** before doing anything. Use the exact `developer_message` provided. Wait for explicit confirmation.
 - **Never modify code autonomously** because of a breaking change detected in another project (dependency version bump, API contract change, removed field). Always ask first.

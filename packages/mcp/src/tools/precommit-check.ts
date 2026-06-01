@@ -193,7 +193,11 @@ function classifyWarning(
   paths: string[],
   anchoredBlocks = false,
 ): ClassifiedAntiPatternsWarning {
-  const affectedFiles = paths.filter((p) => !p.startsWith(".ai/.usage/"));
+  const affectedFiles = paths.filter((p) =>
+    !p.startsWith(".ai/.usage/") &&
+    !p.startsWith(".ai/.cache/") &&
+    !p.startsWith(".ai/.runtime/")
+  );
   const repairCommand = repairCommandForWarning(warning, affectedFiles);
   const fileDowngrade = fileTypeDowngradeReason(warning, affectedFiles);
 
@@ -227,6 +231,16 @@ function classifyWarning(
   }
 
   if (isBlockingWarning(warning)) {
+    if (warning.scope === "personal") {
+      return {
+        ...warning,
+        level: "review",
+        rationale:
+          "personal anti-pattern memories are review guidance unless a deterministic block-severity sensor fires",
+        affected_files: affectedFiles,
+        repair_command: repairCommand,
+      };
+    }
     // Sensor veto applies here too: even a very strong semantic match should not
     // hard-block when the memory's authoritative sensor did not fire. The sensor
     // encodes the exact bad pattern; a non-firing sensor means the diff doesn't
@@ -265,6 +279,7 @@ function classifyWarning(
   if (
     anchoredBlocks &&
     highConfidence &&
+    warning.scope !== "personal" &&
     warning.reasons.includes("anchor") &&
     (warning.reasons.includes("literal") || (hasSemantic && semanticScore >= 0.45))
   ) {
@@ -465,8 +480,23 @@ function isJsonConfigFile(base: string): boolean {
 }
 
 function repairCommandForWarning(warning: AntiPatternsWarning, paths: string[]): string {
-  const firstPath = paths[0];
-  return firstPath
-    ? `haive briefing --files "${firstPath}" --task "review ${warning.id}"`
+  const targetPath = repairTargetPathForWarning(warning, paths);
+  return targetPath
+    ? `haive briefing --files "${targetPath}" --task "review ${warning.id}"`
     : `haive memory show ${warning.id}`;
+}
+
+function repairTargetPathForWarning(warning: AntiPatternsWarning, paths: string[]): string | undefined {
+  const usablePaths = paths.filter((p) =>
+    !p.startsWith(".ai/.usage/") &&
+    !p.startsWith(".ai/.cache/") &&
+    !p.startsWith(".ai/.runtime/")
+  );
+  const anchors = warning.anchor_paths ?? [];
+  for (const file of usablePaths) {
+    if (anchors.some((anchor) => anchor === file || file.startsWith(`${anchor}/`) || anchor.startsWith(`${file}/`))) {
+      return file;
+    }
+  }
+  return usablePaths[0];
 }

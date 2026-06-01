@@ -33,18 +33,34 @@ export function suggestSensorFromMemory(
 
   const negativeText = body.split(/\*\*Instead,\s*use:\*\*|^##\s+Instead\b/im)[0] ?? body;
   const assignment = pickAssignmentPattern(negativeText);
-  const token = assignment?.label ?? pickDistinctiveToken(negativeText);
+  const lowercaseValue = assignment ? null : pickLowercaseValuePattern(negativeText);
+  const token = assignment?.label ?? lowercaseValue?.label ?? pickDistinctiveToken(negativeText);
   if (!token) return null;
 
   return {
     kind: "regex",
-    pattern: assignment?.pattern ?? escapeRegExp(token),
+    pattern: assignment?.pattern ?? lowercaseValue?.pattern ?? escapeRegExp(token),
     paths,
     message: sensorMessageFromBody(body, token),
     severity: "warn",
     autogen: true,
     last_fired: null,
   };
+}
+
+function pickLowercaseValuePattern(text: string): { label: string; pattern: string; score: number } | null {
+  const candidates: Array<{ label: string; pattern: string; score: number }> = [];
+  for (const match of text.matchAll(/\blowercase\s+([A-Za-z][A-Za-z0-9_.:-]{2,79})\s+([a-z][a-z0-9_.:-]{1,40})\b/g)) {
+    const key = match[1] ?? "";
+    const value = match[2] ?? "";
+    if (!isDistinctiveToken(key, true) || isBoringValue(value)) continue;
+    candidates.push({
+      label: `${key}=${value}`,
+      pattern: `${escapeRegExp(key)}\\s*[:=]\\s*["']?${escapeRegExp(value)}["']?`,
+      score: key.length + value.length + 35,
+    });
+  }
+  return candidates.sort((a, b) => b.score - a.score)[0] ?? null;
 }
 
 function pickAssignmentPattern(text: string): { label: string; pattern: string; score: number } | null {

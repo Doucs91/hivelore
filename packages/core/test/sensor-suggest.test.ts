@@ -47,4 +47,13 @@ describe("suggestSensorFromMemory", () => {
 
     expect(sensor?.pattern).toBe("status\\s*=\\s*[\"']?KO[\"']?");
   });
+
+  it("turns lowercase field/value phrasing into a scoped assignment sensor", () => {
+    const sensor = suggestSensorFromMemory(
+      "# using lowercase status ok\n\n**Why it failed / do NOT use:** Downstream integrations compare exact uppercase OK/KO values; using lowercase status ok failed.",
+      ["src/status.ts"],
+    );
+
+    expect(sensor?.pattern).toBe("status\\s*[:=]\\s*[\"']?ok[\"']?");
+  });
 });

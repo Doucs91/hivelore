@@ -16,6 +16,7 @@ import {
   codeMapPath,
   findProjectRoot,
   getUsage,
+  isStackPackSeed,
   loadCodeMap,
   loadConfig,
   loadMemoriesFromDir,
@@ -196,19 +197,28 @@ export function registerDoctor(program: Command): void {
 
         // Anchorless = no paths AND no symbols → cannot detect drift automatically
         // (skill, glossary, session_recap are procedure/reference types that don't need code anchors)
-        const anchorless = memories.filter((m) =>
+        const policyMemories = memories.filter((m) => !isStackPackSeed(m.memory.frontmatter));
+        const anchorless = policyMemories.filter((m) =>
           m.memory.frontmatter.anchor.paths.length === 0 &&
           m.memory.frontmatter.anchor.symbols.length === 0 &&
           m.memory.frontmatter.type !== "session_recap" &&
           m.memory.frontmatter.type !== "glossary" &&
           m.memory.frontmatter.type !== "skill"
         );
-        if (anchorless.length / Math.max(memories.length, 1) > 0.3) {
+        const stackSeeds = memories.filter((m) => isStackPackSeed(m.memory.frontmatter));
+        if (anchorless.length / Math.max(policyMemories.length, 1) > 0.3) {
           findings.push({
             severity: "warn",
             code: "anchorless-majority",
-            message: `${anchorless.length}/${memories.length} memories have no anchor path/symbol — staleness undetectable.`,
+            message: `${anchorless.length}/${policyMemories.length} repo-specific memories have no anchor path/symbol — staleness undetectable.`,
             fix: "Add `paths:` + `symbols:` to mem_save calls to enable haive memory verify.",
+          });
+        } else if (stackSeeds.length > 0 && policyMemories.length === 0) {
+          findings.push({
+            severity: "info",
+            code: "stack-pack-seeds",
+            message: `${stackSeeds.length} starter stack memor${stackSeeds.length === 1 ? "y is" : "ies are"} present as generic background guidance.`,
+            fix: "Replace or anchor stack-pack seeds when they become repo-specific policy.",
           });
         }
 

@@ -31,6 +31,42 @@ async function runWithInput(
   });
 }
 
+async function runAllowFailure(
+  cwd: string,
+  args: string[],
+  env: NodeJS.ProcessEnv = {},
+): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  return await new Promise((resolve) => {
+    const child = spawn("node", [CLI, ...args], {
+      cwd,
+      env: { ...process.env, ...env },
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d: Buffer) => { stdout += d.toString("utf8"); });
+    child.stderr.on("data", (d: Buffer) => { stderr += d.toString("utf8"); });
+    child.on("close", (code) => resolve({ stdout, stderr, code }));
+  });
+}
+
+async function writeLockstepPackageJsons(root: string, version: string): Promise<void> {
+  const packageFiles = [
+    "package.json",
+    "packages/core/package.json",
+    "packages/cli/package.json",
+    "packages/mcp/package.json",
+    "packages/embeddings/package.json",
+  ];
+  for (const rel of packageFiles) {
+    await mkdir(path.dirname(path.join(root, rel)), { recursive: true });
+    await writeFile(
+      path.join(root, rel),
+      JSON.stringify({ name: rel === "package.json" ? "test-root" : rel, version, type: "module" }, null, 2) + "\n",
+      "utf8",
+    );
+  }
+}
+
 describe("hAIve CLI integration", () => {
   let workDir: string;
 
@@ -65,6 +101,12 @@ describe("hAIve CLI integration", () => {
     expect(hooks).toContain("haive enforce session-start");
     expect(hooks).toContain("haive enforce pre-tool-use");
     expect(existsSync(path.join(workDir, ".github/workflows/haive-enforcement.yml"))).toBe(true);
+    const syncWorkflow = await readFile(path.join(workDir, ".github/workflows/haive-sync.yml"), "utf8");
+    expect(syncWorkflow).toContain("Doucs91/hAIve/packages/github-action@v");
+    expect(syncWorkflow).not.toContain("Doucs91/hAIve/packages/github-action@main");
+    const enforcementWorkflow = await readFile(path.join(workDir, ".github/workflows/haive-enforcement.yml"), "utf8");
+    expect(enforcementWorkflow).toContain("HAIVE_BASE_SHA");
+    expect(enforcementWorkflow).toContain("HAIVE_HEAD_SHA");
     const config = JSON.parse(await readFile(path.join(workDir, ".ai/haive.config.json"), "utf8")) as {
       autopilot?: boolean;
       defaultScope?: string;
@@ -139,6 +181,25 @@ describe("hAIve CLI integration", () => {
     expect(report.scores.corpus_quality_score).toEqual(expect.any(Number));
     expect(report.sections["Agent coverage"]).toBeDefined();
     expect(report.findings.every((finding) => typeof finding.section === "string")).toBe(true);
+  });
+
+  it("doctor treats stack-pack seeds as generic guidance, not anchorless repo policy", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-stack-doctor-"));
+    try {
+      await writeFile(
+        path.join(repo, "package.json"),
+        JSON.stringify({ dependencies: { next: "latest", react: "latest" } }, null, 2),
+        "utf8",
+      );
+      await run(repo, ["init", "--no-mcp-setup", "--dir", repo]);
+      const { stdout } = await run(repo, ["doctor", "--json", "--dir", repo]);
+      const report = JSON.parse(stdout) as { findings: Array<{ code: string; severity: string }> };
+
+      expect(report.findings.some((finding) => finding.code === "stack-pack-seeds")).toBe(true);
+      expect(report.findings.some((finding) => finding.code === "anchorless-majority")).toBe(false);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
   });
 
   it("default help only shows the core harness surface", async () => {
@@ -520,6 +581,160 @@ describe("hAIve CLI integration", () => {
     const recap = report.findings.find((f) => f.code === "session-recap-missing");
     expect(report.should_block).toBe(false);
     expect(recap?.severity).toBe("warn");
+  });
+
+  it("CI enforcement scans the committed base/head diff, not only staged changes", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-ci-diff-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/status.ts"), "export const status = \"OK\";\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+      await writeFile(
+        path.join(repo, ".ai/memories/team/2026-01-01-attempt-lowercase-status.md"),
+        [
+          "---",
+          "id: 2026-01-01-attempt-lowercase-status",
+          "scope: team",
+          "type: attempt",
+          "status: validated",
+          "created_at: '2026-01-01T00:00:00.000Z'",
+          "anchor:",
+          "  paths: [src/status.ts]",
+          "  symbols: []",
+          "tags: []",
+          "---",
+          "# lowercase status",
+          "",
+          "Using lowercase status ok failed. Return uppercase OK or KO.",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+      await writeFile(path.join(repo, "src/status.ts"), "export const status = \"ok\";\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "--no-verify", "-m", "introduce lowercase status"], { cwd: repo });
+
+      const result = await runAllowFailure(repo, ["enforce", "ci", "--json", "--dir", repo]);
+      const report = JSON.parse(result.stdout) as {
+        should_block: boolean;
+        findings: Array<{ code: string; severity: string }>;
+      };
+
+      expect(result.code).toBe(2);
+      expect(report.should_block).toBe(true);
+      expect(report.findings.some((f) => f.code === "precommit-policy-block")).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("finish gate blocks shippable work left as an uncommitted local diff", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-finish-dirty-"));
+    try {
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await writeLockstepPackageJsons(repo, "0.1.0");
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+
+      await mkdir(path.join(repo, "packages/cli/src"), { recursive: true });
+      await writeFile(path.join(repo, "packages/cli/src/index.ts"), "export const changed = true;\n", "utf8");
+
+      const result = await runAllowFailure(repo, ["enforce", "finish", "--json", "--dir", repo]);
+      const report = JSON.parse(result.stdout) as {
+        should_block: boolean;
+        findings: Array<{ code: string; severity: string }>;
+      };
+
+      expect(result.code).toBe(2);
+      expect(report.should_block).toBe(true);
+      expect(report.findings.some((f) => f.code === "git-sync-uncommitted-shippable")).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("finish gate blocks committed shippable changes without a lockstep version bump", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-finish-version-"));
+    const remote = await mkdtemp(path.join(tmpdir(), "haive-finish-remote-"));
+    try {
+      await exec("git", ["init", "--bare"], { cwd: remote });
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await writeLockstepPackageJsons(repo, "0.1.0");
+      await mkdir(path.join(repo, "packages/cli/src"), { recursive: true });
+      await writeFile(path.join(repo, "packages/cli/src/index.ts"), "export const initial = true;\n", "utf8");
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await exec("git", ["remote", "add", "origin", remote], { cwd: repo });
+      await exec("git", ["push", "-u", "origin", "main"], { cwd: repo });
+
+      await writeFile(path.join(repo, "packages/cli/src/index.ts"), "export const initial = true;\nexport const changed = true;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "change shippable code without bump"], { cwd: repo });
+
+      const result = await runAllowFailure(repo, ["enforce", "finish", "--json", "--dir", repo]);
+      const report = JSON.parse(result.stdout) as {
+        should_block: boolean;
+        findings: Array<{ code: string; severity: string }>;
+      };
+
+      expect(result.code).toBe(2);
+      expect(report.should_block).toBe(true);
+      expect(report.findings.some((f) => f.code === "release-version-missing")).toBe(true);
+      expect(report.findings.some((f) => f.code === "git-sync-unpushed-commits")).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+      await rm(remote, { recursive: true, force: true });
+    }
+  });
+
+  it("finish gate blocks already-pushed shippable HEAD changes without a lockstep version bump", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-finish-pushed-version-"));
+    const remote = await mkdtemp(path.join(tmpdir(), "haive-finish-pushed-remote-"));
+    try {
+      await exec("git", ["init", "--bare"], { cwd: remote });
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await writeLockstepPackageJsons(repo, "0.1.0");
+      await mkdir(path.join(repo, "packages/cli/src"), { recursive: true });
+      await writeFile(path.join(repo, "packages/cli/src/index.ts"), "export const initial = true;\n", "utf8");
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await exec("git", ["remote", "add", "origin", remote], { cwd: repo });
+      await exec("git", ["push", "-u", "origin", "main"], { cwd: repo });
+
+      await writeFile(path.join(repo, "packages/cli/src/index.ts"), "export const initial = true;\nexport const pushed = true;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "push shippable code without bump"], { cwd: repo });
+      await exec("git", ["push"], { cwd: repo });
+
+      const result = await runAllowFailure(repo, ["enforce", "finish", "--json", "--dir", repo]);
+      const report = JSON.parse(result.stdout) as {
+        should_block: boolean;
+        findings: Array<{ code: string; severity: string }>;
+      };
+
+      expect(result.code).toBe(2);
+      expect(report.should_block).toBe(true);
+      expect(report.findings.some((f) => f.code === "release-version-missing")).toBe(true);
+      expect(report.findings.some((f) => f.code === "git-sync-unpushed-commits")).toBe(false);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+      await rm(remote, { recursive: true, force: true });
+    }
   });
 
   it("run wraps arbitrary agent commands with a hAIve session marker", async () => {

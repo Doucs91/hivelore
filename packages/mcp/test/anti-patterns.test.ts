@@ -569,6 +569,21 @@ describe("preCommitCheck", () => {
     expect(warning.rationale).toContain("anchored gate");
   });
 
+  it("anchored gate keeps personal anti-pattern memories as review guidance", () => {
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-attempt-personal-no-bigint",
+      type: "attempt",
+      scope: "personal",
+      confidence: "authoritative",
+      body_preview: "BigInt broke my local experiment.",
+      reasons: ["anchor", "literal"],
+      anchor_paths: ["src/math.ts"],
+    }, ["src/math.ts"], true);
+
+    expect(warning.level).toBe("review");
+    expect(warning.rationale).not.toContain("anchored gate");
+  });
+
   it("anchored gate leaves the same warning in review when not opted in", () => {
     const warning = classifyAntiPatternWarningForTest({
       id: "2024-01-01-attempt-no-bigint",
@@ -620,6 +635,37 @@ describe("preCommitCheck", () => {
     const warning = result.warnings.find((w) => w.id === "2024-01-01-attempt-no-lodash-service");
     expect(warning?.level).toBe("blocking");
     expect(result.should_block).toBe(true);
+  });
+
+  it("uses the anchored source file, not .ai artifacts, in repair commands", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!,
+      "2024-01-01-attempt-no-lowercase-status",
+      "attempt",
+      "# Status literals\n\nUsing lowercase status ok failed; return uppercase OK or KO.",
+      { paths: ["src/status.ts"] },
+    );
+
+    const result = await preCommitCheck({
+      diff: [
+        "diff --git a/src/status.ts b/src/status.ts",
+        "--- a/src/status.ts",
+        "+++ b/src/status.ts",
+        "+export const status = \"ok\";",
+      ].join("\n"),
+      paths: [
+        ".ai/.cache/.gitignore",
+        ".ai/.runtime/README.md",
+        "src/status.ts",
+      ],
+      block_on: "high-confidence",
+      anchored_blocks: true,
+      semantic: false,
+    }, ctx);
+
+    const warning = result.warnings.find((w) => w.id === "2024-01-01-attempt-no-lowercase-status");
+    expect(warning?.repair_command).toContain('--files "src/status.ts"');
+    expect(warning?.repair_command).not.toContain(".ai/.cache");
   });
 
   it("blocks a deterministic block-severity sensor hit even without semantic search", async () => {
@@ -801,6 +847,21 @@ describe("preCommitCheck", () => {
     expect(warning.level).toBe("review");
     expect(warning.rationale).toContain("sensor");
     expect(warning.rationale).toContain("did not fire");
+  });
+
+  it("keeps personal very-strong semantic anti-pattern memories as review guidance", () => {
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-attempt-personal-semantic",
+      type: "attempt",
+      scope: "personal",
+      confidence: "authoritative",
+      body_preview: "This local experiment failed in one developer environment.",
+      reasons: ["semantic"],
+      semantic_score: 0.9,
+    }, ["src/service.ts"], false);
+
+    expect(warning.level).toBe("review");
+    expect(warning.rationale).toContain("personal");
   });
 
   it("sensor-veto: still blocks when the sensor DID fire (sensor reason present)", () => {

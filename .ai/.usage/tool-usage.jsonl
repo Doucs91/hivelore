@@ -115,3 +115,5 @@
 {"tool":"get_briefing","at":"2026-06-01T20:13:20.795Z","summary":"Push v0.10.8 et sync fichiers .ai/"}
 {"tool":"get_briefing","at":"2026-06-01T20:53:32.286Z","summary":"Committer les fichiers .ai/ de sync (code-map, tool-usage, session recap, project-context) laissés non commités par l'agent précédent"}
 {"tool":"mem_session_end","at":"2026-06-01T20:54:49.600Z","summary":"Analyser le code source de hAIve pour donner un avis objectif sur la qualité du "}
+{"tool":"get_briefing","at":"2026-06-01T22:32:24.007Z","summary":"Implémenter une solution exécutable pour empêcher les agents de finir une tâche avec des changements shippables sans bump version, commit, tag et push selon la décision git-sync multi-agent."}
+{"tool":"mem_session_end","at":"2026-06-01T22:41:24.792Z","summary":"Corriger les causes de non-respect de la décision git-sync multi-agent et livrer"}

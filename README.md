@@ -324,6 +324,7 @@ haive briefing [--task <text>] [--files]     # Print context + relevant memories
 haive run -- <agent command>                  # Wrap any CLI agent in hAIve session
 haive enforce check [--stage pre-commit]      # Policy gate
 haive enforce ci                              # CI entrypoint
+haive enforce finish                          # Final agent-exit gate: commit/push + version/tag protocol
 haive sync [--since <ref>] [--embed]          # Verify anchors + auto-promote
 haive sensors list/check/export               # Operate executable memory sensors
 

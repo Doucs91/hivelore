@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/embeddings",
-  "version": "0.10.8",
+  "version": "0.10.9",
   "description": "hAIve embeddings - local semantic ranking for agent briefings and code search",
   "license": "Apache-2.0",
   "repository": {
@@ -38,7 +38,7 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node ../../scripts/ensure-workspace-dists.mjs @hiveai/core && tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "dependencies": {

@@ -155,6 +155,7 @@ haive enforce status                  # show whether the repo is protected
 haive enforce check --stage local     # local policy gate
 haive enforce check --stage pre-push  # used by Git hooks
 haive enforce ci                      # used by required CI checks
+haive enforce finish                  # final agent-exit gate: commit/push + version/tag protocol
 haive enforce cleanup                 # remove generated .ai runtime/cache artifacts
 ```
 
@@ -166,6 +167,7 @@ Strict mode checks for:
 - decision coverage: changed files must have their relevant anchored policies surfaced in the latest briefing
 - known anti-patterns from validated gotchas/decisions
 - visible generated artifacts such as `.ai/.runtime`, `.ai/.cache`, or Python bytecode
+- completed work is committed/pushed; shippable package changes have lockstep version bump + git tag
 
 `haive enforce check` prints an enforcement score and fails strict gates when the score drops below the configured threshold.
 
