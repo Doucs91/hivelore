@@ -117,3 +117,5 @@
 {"tool":"mem_session_end","at":"2026-06-01T20:54:49.600Z","summary":"Analyser le code source de hAIve pour donner un avis objectif sur la qualité du "}
 {"tool":"get_briefing","at":"2026-06-01T22:32:24.007Z","summary":"Implémenter une solution exécutable pour empêcher les agents de finir une tâche avec des changements shippables sans bump version, commit, tag et push selon la décision git-sync multi-agent."}
 {"tool":"mem_session_end","at":"2026-06-01T22:41:24.792Z","summary":"Corriger les causes de non-respect de la décision git-sync multi-agent et livrer"}
+{"tool":"get_briefing","at":"2026-06-01T23:10:19.784Z","summary":"Capture 8 strategic roadmap ideas (memory-utility telemetry, JIT context assembly, sensor→memory auto-capture, hooks-native enforcement, eval harness, memory evaluator/contradiction detection, skills/progressive disclosure, cross-repo federation) as decision records, then implement them batch by batch across the cli/mcp/core packages."}
+{"tool":"mem_save","at":"2026-06-01T23:18:50.256Z","summary":"harness-engineering-positioning-reconciliation"}
