@@ -18,6 +18,17 @@ related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+sensor:
+  kind: regex
+  pattern: "\"@hiveai\\/[^\"]+\"\\s*:\\s*\"\\^[0-9]+\\.[0-9]+\\.[0-9]+\""
+  message: "Use `workspace:*` for cross-package @hiveai deps, not `^X.Y.Z` ranges. pnpm resolved semver ranges to the npm store instead of the local workspace, causing TS build failures."
+  severity: warn
+  autogen: false
+  last_fired: null
+  paths:
+    - packages/embeddings/package.json
+    - packages/mcp/package.json
+    - packages/cli/package.json
 ---
 # Cross-package deps with `^X.Y.Z` ranges relying on pnpm to auto-link the workspace version
 
