@@ -21,6 +21,16 @@ related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+sensor:
+  kind: regex
+  pattern: "minReads\\s*:\\s*DEFAULT_AUTO_PROMOTE_RULE\\.minReads"
+  message: "Do not assign `minReads: DEFAULT_AUTO_PROMOTE_RULE.minReads` directly — always load config first: `cfg.autoPromoteMinReads ?? DEFAULT_AUTO_PROMOTE_RULE.minReads`. The hardcoded default ignores the user's `autoPromoteMinReads` config."
+  severity: warn
+  autogen: false
+  last_fired: null
+  paths:
+    - packages/mcp/src/tools/get-briefing.ts
+    - packages/core/src/config.ts
 ---
 # Auto-promote inline ignore `autoPromoteMinReads` du config — utilise le default 5 en dur
 

@@ -20,6 +20,16 @@ related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+sensor:
+  kind: regex
+  pattern: "antiPatternGate\\s*[=:]\\s*['\"]off['\"]"
+  message: "Setting antiPatternGate to 'off' disables anchored blocking entirely — the gate only checks process (briefing-loaded, decision-coverage) and cannot catch known bad patterns before commit. Use 'anchored' (default) or 'review' instead."
+  severity: warn
+  autogen: false
+  last_fired: null
+  paths:
+    - packages/mcp/src/tools/precommit-check.ts
+    - packages/cli/src/commands/enforce.ts
 ---
 ## Enforcement gate: anchored anti-patterns now hard-block (FIXED 2026-05-31)
 

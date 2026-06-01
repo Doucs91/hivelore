@@ -227,6 +227,20 @@ function classifyWarning(
   }
 
   if (isBlockingWarning(warning)) {
+    // Sensor veto applies here too: even a very strong semantic match should not
+    // hard-block when the memory's authoritative sensor did not fire. The sensor
+    // encodes the exact bad pattern; a non-firing sensor means the diff doesn't
+    // contain it, so downgrade to review regardless of the semantic score.
+    if (warning.has_sensor && !warning.reasons.includes("sensor")) {
+      return {
+        ...warning,
+        level: "review",
+        rationale:
+          "memory has a sensor that did not fire — sensor is the authoritative check; strong semantic match alone is insufficient to block",
+        affected_files: affectedFiles,
+        repair_command: repairCommand,
+      };
+    }
     return {
       ...warning,
       level: "blocking",

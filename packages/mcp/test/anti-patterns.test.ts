@@ -784,6 +784,25 @@ describe("preCommitCheck", () => {
     expect(warning.rationale).toContain("did not fire");
   });
 
+  it("sensor-veto: also downgrades very strong semantic matches (score >= 0.75) when sensor didn't fire", () => {
+    // The isBlockingWarning path fires on semantic >= 0.75 regardless of anchored mode.
+    // The sensor-veto must apply there too — a non-firing sensor overrides even a 0.9 score.
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-exports-missing",
+      type: "gotcha",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "require.resolve fails when ./package.json is missing from exports",
+      reasons: ["literal", "semantic"],
+      semantic_score: 0.82, // above the 0.75 blocking threshold
+      has_sensor: true,     // memory has a sensor, but it did NOT fire
+    }, ["packages/mcp/package.json"], false); // anchoredBlocks = false
+
+    expect(warning.level).toBe("review");
+    expect(warning.rationale).toContain("sensor");
+    expect(warning.rationale).toContain("did not fire");
+  });
+
   it("sensor-veto: still blocks when the sensor DID fire (sensor reason present)", () => {
     // If the sensor itself fires, it takes precedence — this is a true positive
     const warning = classifyAntiPatternWarningForTest({

@@ -21,6 +21,16 @@ related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+sensor:
+  kind: regex
+  pattern: "require\\.resolve\\(.*@hiveai\\/mcp\\/package\\.json"
+  message: "require.resolve('@hiveai/mcp/package.json') throws unless `\"./package.json\": \"./package.json\"` is in the exports field of packages/mcp/package.json."
+  severity: warn
+  autogen: false
+  last_fired: null
+  paths:
+    - packages/mcp/package.json
+    - packages/cli/src/commands/mcp.ts
 ---
 # Gotcha Mcp Exports Package Json
 

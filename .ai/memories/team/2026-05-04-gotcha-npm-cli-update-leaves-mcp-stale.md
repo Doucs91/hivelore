@@ -21,6 +21,16 @@ related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+sensor:
+  kind: regex
+  pattern: "npm\\s+(install|i)\\s+-g\\s+@hiveai\\/cli"
+  message: "Always install @hiveai/cli AND @hiveai/mcp together: `npm i -g @hiveai/cli@latest @hiveai/mcp@latest`. Installing only the CLI leaves the global MCP binary stale."
+  severity: warn
+  autogen: false
+  last_fired: null
+  paths:
+    - packages/cli/package.json
+    - packages/mcp/package.json
 ---
 # `npm install -g @hiveai/cli@latest` ne met PAS à jour `@hiveai/mcp` global
 

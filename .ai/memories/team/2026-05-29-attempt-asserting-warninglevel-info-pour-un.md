@@ -17,6 +17,15 @@ related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+sensor:
+  kind: regex
+  pattern: "\\.level\\)\\.toBe\\(['\"]info['\"]\\)"
+  message: "Asserting warning.level === 'info' on an anchor-only match is wrong when the diff contains tokens matching the anchor path segments — that produces 'review', not 'info'. Use `[\"info\",\"review\",\"blocking\"].includes(level)` or craft a diff with no lexical overlap with the anchor path."
+  severity: warn
+  autogen: false
+  last_fired: null
+  paths:
+    - packages/mcp/test/anti-patterns.test.ts
 ---
 # asserting `warning.level === "info"` pour un anchor-only match sans diff littéral
 

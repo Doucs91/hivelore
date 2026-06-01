@@ -17,6 +17,15 @@ related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+sensor:
+  kind: regex
+  pattern: "byId\\.get\\(hit\\.id\\)"
+  message: "Verify that `byId` is populated with `new Map(allMemories.map(...))` BEFORE the `for (const hit of semanticHits)` loop — if byId is still an empty Map here, all semantic hits are silently dropped and search_mode reports 'semantic' incorrectly."
+  severity: warn
+  autogen: false
+  last_fired: null
+  paths:
+    - packages/mcp/src/tools/get-briefing.ts
 ---
 # get_briefing semantic hits silently dropped — byId populated AFTER the loop that uses it
 
