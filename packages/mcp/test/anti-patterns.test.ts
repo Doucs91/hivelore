@@ -18,7 +18,10 @@ async function writeMemory(
 ): Promise<void> {
   const anchorPaths = (extra.paths as string[] | undefined) ?? [];
   const anchorSymbols = (extra.symbols as string[] | undefined) ?? [];
-  const frontmatter = [
+  const sensor = extra.sensor as
+    | { pattern: string; message: string; severity?: string; paths?: string[] }
+    | undefined;
+  const lines = [
     "---",
     `id: ${id}`,
     "scope: team",
@@ -29,8 +32,19 @@ async function writeMemory(
     `  paths: [${anchorPaths.map((p) => `"${p}"`).join(", ")}]`,
     `  symbols: [${anchorSymbols.map((s) => `"${s}"`).join(", ")}]`,
     "tags: []",
-    "---",
-  ].join("\n");
+  ];
+  if (sensor) {
+    lines.push(
+      "sensor:",
+      "  kind: regex",
+      `  pattern: ${JSON.stringify(sensor.pattern)}`,
+      `  message: ${JSON.stringify(sensor.message)}`,
+      `  severity: ${sensor.severity ?? "warn"}`,
+      `  paths: [${(sensor.paths ?? []).map((p) => `"${p}"`).join(", ")}]`,
+    );
+  }
+  lines.push("---");
+  const frontmatter = lines.join("\n");
   await writeFile(path.join(dir, `${id}.md`), `${frontmatter}\n${body}\n`, "utf8");
 }
 
@@ -76,6 +90,63 @@ describe("antiPatternsCheck", () => {
     const result = await antiPatternsCheck({ diff: undefined, paths: [], limit: 8, semantic: false }, ctx);
     expect(result.scanned).toBe(0);
     expect(result.notice).toMatch(/Nothing to check/);
+  });
+
+  it("fires a regex sensor deterministically on an added diff line (no semantics)", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!,
+      "2024-01-01-gotcha-open-in-view",
+      "gotcha",
+      "# open-in-view\n\nspring.jpa.open-in-view is intentionally false.",
+      {
+        paths: ["src/app.properties"],
+        sensor: {
+          pattern: "open-in-view\\s*=\\s*true",
+          message: "open-in-view was disabled on purpose — do not set it true.",
+          severity: "warn",
+        },
+      },
+    );
+
+    const result = await antiPatternsCheck({
+      diff: "+spring.jpa.open-in-view=true",
+      paths: ["src/app.properties"],
+      limit: 8,
+      semantic: false, // prove the hit is deterministic, not semantic
+    }, ctx);
+
+    const warning = result.warnings.find((w) => w.id === "2024-01-01-gotcha-open-in-view");
+    expect(warning).toBeDefined();
+    expect(warning!.reasons).toContain("sensor");
+    expect(warning!.sensor_message).toContain("do not set it true");
+    expect(warning!.sensor_severity).toBe("warn");
+  });
+
+  it("does NOT fire the sensor when the bad pattern is only on a removed line", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!,
+      "2024-01-01-gotcha-open-in-view2",
+      "gotcha",
+      "# open-in-view\n\nDo not enable open-in-view.",
+      {
+        paths: ["src/app.properties"],
+        sensor: {
+          pattern: "open-in-view\\s*=\\s*true",
+          message: "do not enable open-in-view",
+        },
+      },
+    );
+
+    const result = await antiPatternsCheck({
+      diff: "-spring.jpa.open-in-view=true\n+spring.jpa.open-in-view=false",
+      paths: ["src/app.properties"],
+      limit: 8,
+      semantic: false,
+    }, ctx);
+
+    const warning = result.warnings.find((w) => w.id === "2024-01-01-gotcha-open-in-view2");
+    // The removed line should not trip the sensor; if surfaced at all it must not be via "sensor".
+    expect(warning?.reasons ?? []).not.toContain("sensor");
   });
 
   it("matches attempt memory via literal token overlap in diff", async () => {

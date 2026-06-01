@@ -6,6 +6,21 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.10.3] — memory sensors (feedback computational layer)
+
+### Added
+- **Executable sensors** — a memory (`gotcha`/`attempt`) can now carry an optional `sensor` block in
+  its frontmatter (`packages/core/src/schema.ts` → `SensorSchema`). Phase 1 supports `kind: "regex"`:
+  a deterministic check that fires on the **added** lines of a diff, turning a documented lesson into a
+  permanent guardrail. This is the harness "feedback computational" layer — same result every run, no
+  embedding warmup. `shell`/`test` kinds are reserved for a later phase.
+- **`@hiveai/core` sensor engine** — new `packages/core/src/sensors.ts`: `runSensors`, `runRegexSensor`,
+  `compileRegexSensor`, `sensorAppliesToPath`, `addedLinesFromDiff` (pure, no I/O).
+- **`anti_patterns_check` sensor reason** — sensors are evaluated alongside anchor/literal/semantic
+  matches and surface as a new `"sensor"` reason, carrying `sensor_message` and `sensor_severity`.
+  Sensor hits rank above all other reasons (deterministic, highest signal). Retired memories
+  (`isRetiredMemory`) are excluded as before.
+
 ## [0.10.2] — harness positioning
 
 ### Changed

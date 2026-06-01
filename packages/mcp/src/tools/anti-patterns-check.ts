@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import {
+  addedLinesFromDiff,
   deriveConfidence,
   getUsage,
   isRetiredMemory,
@@ -7,6 +8,8 @@ import {
   loadUsageIndex,
   literalMatchesAnyToken,
   memoryMatchesAnchorPaths,
+  runRegexSensor,
+  sensorAppliesToPath,
   tokenizeQuery,
 } from "@hiveai/core";
 import { z } from "zod";
@@ -64,8 +67,11 @@ export interface AntiPatternsWarning {
   scope: string;
   confidence: string;
   body_preview: string;
-  reasons: Array<"anchor" | "literal" | "semantic">;
+  reasons: Array<"anchor" | "literal" | "semantic" | "sensor">;
   semantic_score?: number;
+  /** When a regex sensor fired: its self-correction message and severity. */
+  sensor_message?: string;
+  sensor_severity?: "warn" | "block";
   /** Memory tags — used downstream (e.g. pre_commit_check) to weight a warning by topic. */
   tags?: string[];
   /** Anchor paths of the memory — lets the gate tell what kind of file this warning is about. */
@@ -210,6 +216,36 @@ export async function antiPatternsCheck(
     }
   }
 
+  // 2b. Sensor matches — deterministic regex checks derived from memories.
+  // A sensor fires on the ADDED lines of the diff ("you introduced the bad pattern").
+  // This is the feedback *computational* signal: same result every time, no warmup.
+  if (input.diff) {
+    const added = addedLinesFromDiff(input.diff);
+    const scanText = added.trim().length > 0 ? added : input.diff;
+    for (const { memory } of negative) {
+      const sensor = memory.frontmatter.sensor;
+      if (!sensor || sensor.kind !== "regex") continue;
+      const anchorPaths = memory.frontmatter.anchor.paths;
+      // When paths are provided, respect the sensor's path scope; otherwise scan globally.
+      const inScope =
+        input.paths.length === 0 ||
+        input.paths.some((p) => sensorAppliesToPath(sensor, anchorPaths, p));
+      if (!inScope) continue;
+      const hit = runRegexSensor(memory.frontmatter.id, sensor, {
+        path: input.paths[0] ?? "",
+        content: scanText,
+      });
+      if (hit) {
+        upsert(memory.frontmatter, memory.body, "sensor");
+        const w = seen.get(memory.frontmatter.id);
+        if (w) {
+          w.sensor_message = hit.message;
+          w.sensor_severity = hit.severity;
+        }
+      }
+    }
+  }
+
   // 3. Semantic search
   if (input.semantic && input.diff) {
     try {
@@ -234,6 +270,7 @@ export async function antiPatternsCheck(
     .sort((a, b) => {
       const score = (w: AntiPatternsWarning): number => {
         const reasonW =
+          (w.reasons.includes("sensor") ? 8 : 0) +
           (w.reasons.includes("anchor") ? 4 : 0) +
           (w.reasons.includes("literal") ? 2 : 0) +
           (w.reasons.includes("semantic") ? 1 : 0);

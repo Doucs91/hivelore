@@ -28,6 +28,37 @@ export const AnchorSchema = z.object({
   symbols: z.array(z.string()).default([]),
 });
 
+/**
+ * An executable check derived from a memory — the "feedback computational" layer.
+ *
+ * A `gotcha`/`attempt` is normally feedforward (text the agent reads). A sensor turns
+ * that lesson into a deterministic check: when a touched file matches `pattern`, the
+ * memory's warning fires regardless of semantic ranking. This closes the harness loop —
+ * a documented mistake becomes a permanent guardrail.
+ *
+ * Phase 1 implements `kind: "regex"` only. `shell`/`test` are reserved for a later phase
+ * (they require I/O and must run from the CLI, not core).
+ */
+export const SensorSchema = z.object({
+  kind: z.enum(["regex", "shell", "test"]).default("regex"),
+  /** Regex source (for kind=regex), matched against added diff lines / file content. */
+  pattern: z.string().optional(),
+  /** Regex flags (e.g. "i", "m"). Ignored for non-regex kinds. */
+  flags: z.string().optional(),
+  /** Shell/test command to run (for kind=shell|test). Executed by the CLI, never by core. */
+  command: z.string().optional(),
+  /** Glob-ish path prefixes the sensor applies to. Falls back to the memory's anchor paths when empty. */
+  paths: z.array(z.string()).default([]),
+  /** LLM-facing self-correction message: what was done wrong and what to do instead. */
+  message: z.string().min(1),
+  /** `warn` surfaces in review; `block` can hard-block the commit (only when the gate opts in). */
+  severity: z.enum(["warn", "block"]).default("warn"),
+  /** True when hAIve generated this sensor automatically (vs. hand-authored). */
+  autogen: z.boolean().default(false),
+  /** ISO timestamp of the last time this sensor matched a diff. */
+  last_fired: z.string().nullable().default(null),
+});
+
 const IsoDateString = z
   .union([z.string(), z.date()])
   .transform((v) => (v instanceof Date ? v.toISOString() : v))
@@ -41,6 +72,8 @@ export const MemoryFrontmatterSchema = z
     type: MemoryTypeSchema,
     status: MemoryStatusSchema.default("draft"),
     anchor: AnchorSchema.default({ paths: [], symbols: [] }),
+    /** Optional executable check derived from this memory (feedback computational layer). */
+    sensor: SensorSchema.optional(),
     tags: z.array(z.string()).default([]),
     domain: z.string().optional(),
     author: z.string().optional(),
