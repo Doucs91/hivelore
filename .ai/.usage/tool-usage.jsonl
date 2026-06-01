@@ -119,3 +119,4 @@
 {"tool":"mem_session_end","at":"2026-06-01T22:41:24.792Z","summary":"Corriger les causes de non-respect de la décision git-sync multi-agent et livrer"}
 {"tool":"get_briefing","at":"2026-06-01T23:10:19.784Z","summary":"Capture 8 strategic roadmap ideas (memory-utility telemetry, JIT context assembly, sensor→memory auto-capture, hooks-native enforcement, eval harness, memory evaluator/contradiction detection, skills/progressive disclosure, cross-repo federation) as decision records, then implement them batch by batch across the cli/mcp/core packages."}
 {"tool":"mem_save","at":"2026-06-01T23:18:50.256Z","summary":"harness-engineering-positioning-reconciliation"}
+{"tool":"mem_session_end","at":"2026-06-01T23:36:13.014Z","summary":"Research harness engineering, reconcile 8 candidate ideas against hAIve's actual"}
