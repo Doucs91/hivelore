@@ -12,6 +12,7 @@ import {
   memoryFilePath,
   resolveHaivePaths,
   serializeMemory,
+  suggestSensorFromMemory,
   type MemoryFrontmatter,
   type MemoryScope,
   type MemoryType,
@@ -153,7 +154,7 @@ export function registerMemoryAdd(memory: Command): void {
         if (topicMatch) {
           const fm = topicMatch.memory.frontmatter;
           const revisionCount = (fm.revision_count ?? 0) + 1;
-        const newFrontmatter: MemoryFrontmatter = {
+          const newFrontmatter: MemoryFrontmatter = {
             ...fm,
             revision_count: revisionCount,
             tags: mergedTags.length ? mergedTags : fm.tags,
@@ -163,9 +164,14 @@ export function registerMemoryAdd(memory: Command): void {
               symbols: parseCsv(opts.symbols).length ? parseCsv(opts.symbols) : fm.anchor.symbols,
             },
           };
+          const suggestedSensor = !newFrontmatter.sensor
+            ? suggestSensorForCliMemory(opts.type, body, newFrontmatter.anchor.paths)
+            : null;
+          if (suggestedSensor) newFrontmatter.sensor = suggestedSensor;
           await writeFile(topicMatch.filePath, serializeMemory({ frontmatter: newFrontmatter, body }), "utf8");
           ui.success(`Updated (topic upsert) ${path.relative(root, topicMatch.filePath)}`);
           ui.info(`id=${fm.id}  revision=${revisionCount}`);
+          if (suggestedSensor) ui.info(`sensor=regex warn autogen pattern=${JSON.stringify(suggestedSensor.pattern)}`);
           await runPostMemoryAutopilot(root, paths, config);
           return;
         }
@@ -184,6 +190,7 @@ export function registerMemoryAdd(memory: Command): void {
         commit: opts.commit,
         topic: opts.topic,
         status: config.defaultStatus === "validated" ? "validated" : undefined,
+        sensor: suggestSensorForCliMemory(opts.type, body, anchorPaths) ?? undefined,
       });
 
       const file = memoryFilePath(paths, frontmatter.scope, frontmatter.id, frontmatter.module);
@@ -215,6 +222,9 @@ export function registerMemoryAdd(memory: Command): void {
       await writeFile(file, serializeMemory({ frontmatter, body }), "utf8");
       ui.success(`Created ${path.relative(root, file)}`);
       ui.info(`id=${frontmatter.id}  scope=${frontmatter.scope}  status=${frontmatter.status}`);
+      if (frontmatter.sensor?.autogen) {
+        ui.info(`sensor=regex warn autogen pattern=${JSON.stringify(frontmatter.sensor.pattern)}`);
+      }
       await runPostMemoryAutopilot(root, paths, config);
       if (inferredTags.length > 0) {
         ui.info(`auto-tagged: ${inferredTags.join(", ")}  (use --no-auto-tag to disable)`);
@@ -272,6 +282,15 @@ function parseCsv(value: string | undefined): string[] {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+function suggestSensorForCliMemory(
+  type: MemoryType,
+  body: string,
+  anchorPaths: string[],
+) {
+  if (type !== "gotcha" && type !== "attempt") return null;
+  return suggestSensorFromMemory(body, anchorPaths);
 }
 
 function normalizeBody(rawBody: string, title: string, titleExplicit: boolean): string {

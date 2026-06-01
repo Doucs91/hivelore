@@ -24,7 +24,22 @@ Already implemented and green (264 tests):
   (ranked highest: deterministic = strongest signal), carrying `sensor_message` + `sensor_severity`.
   Retired memories (`isRetiredMemory`) excluded. Integration-tested in `packages/mcp/test/anti-patterns.test.ts`.
 
-## What Phase 2 is
+## Phase 2 status
+
+**Phase 2 (DONE in working tree after v0.10.3):** sensors are now file-accurate, can be suggested
+from anchored gotcha/attempt memories, can be operated from the CLI, and `block` severity maps to a
+pre-commit blocking warning.
+
+Delivered:
+- Diff parsing now produces per-file sensor targets, so a backend-scoped sensor cannot fire on a
+  frontend line in the same diff.
+- Sensor path matching is strict: exact path or directory-prefix match only.
+- `mem_tried`, MCP `mem_save`, and CLI `memory add` suggest conservative `autogen: true`,
+  `severity: warn` regex sensors for anchored gotcha/attempt records.
+- New `haive sensors list`, `haive sensors check`, and `haive sensors export --format grep|eslint`.
+- `sensor.severity: block` becomes a deterministic blocking warning in `pre_commit_check`.
+
+## Original Phase 2 plan
 
 Phase 2 = **"A complete"** from the agreed plan: make sensors *easy to create and operate*, still
 within the existing architecture (pure core, pure MCP handlers `(input, ctx)`, thin `server.ts`,

@@ -5,6 +5,7 @@ import {
   buildFrontmatter,
   memoryFilePath,
   serializeMemory,
+  suggestSensorFromMemory,
 } from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
@@ -76,6 +77,10 @@ export async function memTried(
     lines.push("", `**Instead, use:** ${input.instead}`);
   }
   const body = lines.join("\n") + "\n";
+  const sensor = suggestSensorFromMemory(body, input.paths);
+  if (sensor) {
+    frontmatter.sensor = sensor;
+  }
 
   const file = memoryFilePath(ctx.paths, frontmatter.scope, frontmatter.id, frontmatter.module);
   await mkdir(path.dirname(file), { recursive: true });

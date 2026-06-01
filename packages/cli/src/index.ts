@@ -50,6 +50,7 @@ import { registerMemoryConflictCandidates } from "./commands/memory-conflict-can
 import { registerEnforce } from "./commands/enforce.js";
 import { registerRun } from "./commands/run.js";
 import { registerAgent } from "./commands/agent.js";
+import { registerSensors } from "./commands/sensors.js";
 
 const program = new Command();
 
@@ -68,6 +69,7 @@ registerRuntime(program);
 registerEnforce(program);
 registerRun(program);
 registerAgent(program);
+registerSensors(program);
 
 registerMcp(program);
 registerBriefing(program);
@@ -135,6 +137,7 @@ const CORE_ROOT_COMMANDS = new Set([
   "briefing",
   "enforce",
   "run",
+  "sensors",
   "sync",
   "mcp",
   "memory",

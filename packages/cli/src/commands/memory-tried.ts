@@ -8,6 +8,7 @@ import {
   memoryFilePath,
   resolveHaivePaths,
   serializeMemory,
+  suggestSensorFromMemory,
   type MemoryScope,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
@@ -85,6 +86,10 @@ export function registerMemoryTried(memory: Command): void {
         lines.push("", `**Instead, use:** ${opts.instead}`);
       }
       const body = lines.join("\n") + "\n";
+      const sensor = suggestSensorFromMemory(body, frontmatter.anchor.paths);
+      if (sensor) {
+        frontmatter.sensor = sensor;
+      }
 
       const file = memoryFilePath(paths, frontmatter.scope, frontmatter.id, frontmatter.module);
       await mkdir(path.dirname(file), { recursive: true });
@@ -98,6 +103,7 @@ export function registerMemoryTried(memory: Command): void {
       await writeFile(file, serializeMemory({ frontmatter, body }), "utf8");
       ui.success(`Recorded: ${path.relative(root, file)}`);
       ui.info(`id=${frontmatter.id}  type=attempt  status=validated (auto-approved)`);
+      if (sensor) ui.info(`sensor=regex warn autogen pattern=${JSON.stringify(sensor.pattern)}`);
     });
 }
 

@@ -8,6 +8,7 @@ import {
   loadMemoriesFromDir,
   memoryFilePath,
   serializeMemory,
+  suggestSensorFromMemory,
 } from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
@@ -78,6 +79,7 @@ export interface MemSaveOutput {
   /** High textual overlap with existing memory (same scope+type); consider merging instead. */
   body_similar?: { id: string; score: number };
   invalid_paths?: string[];
+  suggested_sensor?: boolean;
 }
 
 function bodyHash(body: string): string {
@@ -197,6 +199,10 @@ export async function memSave(
           symbols: input.symbols.length ? input.symbols : fm.anchor.symbols,
         },
       };
+      const suggestedSensor = !newFrontmatter.sensor
+        ? suggestSensorForSavedMemory(input.type, input.body, newFrontmatter.anchor.paths)
+        : null;
+      if (suggestedSensor) newFrontmatter.sensor = suggestedSensor;
       await writeFile(
         topicMatch.filePath,
         serializeMemory({ frontmatter: newFrontmatter, body: input.body }),
@@ -221,6 +227,7 @@ export async function memSave(
         ...(mergedTw ? { warning: mergedTw } : {}),
         ...(bs ? { body_similar: bs } : {}),
         ...(invalidPaths.length > 0 ? { invalid_paths: invalidPaths } : {}),
+        ...(suggestedSensor ? { suggested_sensor: true } : {}),
       };
     }
   }
@@ -241,6 +248,7 @@ export async function memSave(
     commit: input.commit,
     topic: input.topic,
     status: haiveConfig.defaultStatus === "validated" ? "validated" : undefined,
+    sensor: suggestSensorForSavedMemory(input.type, input.body, input.paths) ?? undefined,
   });
 
   const file = memoryFilePath(
@@ -296,7 +304,17 @@ export async function memSave(
     ...(similar_found ? { similar_found } : {}),
     ...(bsNew ? { body_similar: bsNew } : {}),
     ...(invalidPaths.length > 0 ? { invalid_paths: invalidPaths } : {}),
+    ...(frontmatter.sensor?.autogen ? { suggested_sensor: true } : {}),
   };
+}
+
+function suggestSensorForSavedMemory(
+  type: string,
+  body: string,
+  paths: string[],
+) {
+  if (type !== "gotcha" && type !== "attempt") return null;
+  return suggestSensorFromMemory(body, paths);
 }
 
 function criticalAnchorWarning(

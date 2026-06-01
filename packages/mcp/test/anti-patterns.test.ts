@@ -149,6 +149,41 @@ describe("antiPatternsCheck", () => {
     expect(warning?.reasons ?? []).not.toContain("sensor");
   });
 
+  it("does not let a sensor scoped to one file fire on another file in the same diff", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!,
+      "2024-01-01-gotcha-backend-open-in-view",
+      "gotcha",
+      "# open-in-view\n\nDo not enable open-in-view in backend config.",
+      {
+        paths: ["src/backend/application.properties"],
+        sensor: {
+          pattern: "open-in-view\\s*=\\s*true",
+          message: "do not enable backend open-in-view",
+        },
+      },
+    );
+
+    const result = await antiPatternsCheck({
+      diff: [
+        "diff --git a/src/backend/application.properties b/src/backend/application.properties",
+        "--- a/src/backend/application.properties",
+        "+++ b/src/backend/application.properties",
+        "+spring.jpa.show-sql=true",
+        "diff --git a/src/frontend/App.tsx b/src/frontend/App.tsx",
+        "--- a/src/frontend/App.tsx",
+        "+++ b/src/frontend/App.tsx",
+        "+const value = 'open-in-view=true';",
+      ].join("\n"),
+      paths: ["src/backend/application.properties", "src/frontend/App.tsx"],
+      limit: 8,
+      semantic: false,
+    }, ctx);
+
+    const warning = result.warnings.find((w) => w.id === "2024-01-01-gotcha-backend-open-in-view");
+    expect(warning?.reasons ?? []).not.toContain("sensor");
+  });
+
   it("matches attempt memory via literal token overlap in diff", async () => {
     await writeMemory(
       ctx.paths.teamDir!,
@@ -583,6 +618,36 @@ describe("preCommitCheck", () => {
     }, ctx);
 
     const warning = result.warnings.find((w) => w.id === "2024-01-01-attempt-no-lodash-service");
+    expect(warning?.level).toBe("blocking");
+    expect(result.should_block).toBe(true);
+  });
+
+  it("blocks a deterministic block-severity sensor hit even without semantic search", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!,
+      "2024-01-01-gotcha-no-open-in-view",
+      "gotcha",
+      "# open-in-view\n\nDo not enable open-in-view.",
+      {
+        paths: ["src/app.properties"],
+        sensor: {
+          pattern: "open-in-view\\s*=\\s*true",
+          message: "open-in-view must stay disabled",
+          severity: "block",
+        },
+      },
+    );
+
+    const result = await preCommitCheck({
+      diff: "+spring.jpa.open-in-view=true",
+      paths: ["src/app.properties"],
+      block_on: "high-confidence",
+      anchored_blocks: false,
+      semantic: false,
+    }, ctx);
+
+    const warning = result.warnings.find((w) => w.id === "2024-01-01-gotcha-no-open-in-view");
+    expect(warning?.reasons).toContain("sensor");
     expect(warning?.level).toBe("blocking");
     expect(result.should_block).toBe(true);
   });

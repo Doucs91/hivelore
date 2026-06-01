@@ -36,10 +36,19 @@ export interface SensorTarget {
   content: string;
 }
 
+function normalizeProjectPath(value: string): string {
+  return value
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "")
+    .replace(/^[ab]\//, "")
+    .replace(/\/+$/g, "");
+}
+
 /**
  * Does this sensor apply to `path`? A sensor with no explicit `paths` (and whose
- * memory has no anchor paths) applies everywhere. Otherwise it applies when the path
- * starts with, or contains, any configured prefix.
+ * memory has no anchor paths) applies everywhere. Otherwise it applies only to the
+ * exact file or directory prefix. Use an explicit directory path (`src/foo/`) when a
+ * sensor should cover a whole subtree.
  */
 export function sensorAppliesToPath(
   sensor: Sensor,
@@ -48,7 +57,12 @@ export function sensorAppliesToPath(
 ): boolean {
   const scopes = sensor.paths.length > 0 ? sensor.paths : anchorPaths;
   if (scopes.length === 0) return true;
-  return scopes.some((p) => path === p || path.startsWith(p) || path.includes(p));
+  const target = normalizeProjectPath(path);
+  return scopes.some((rawScope) => {
+    const scope = normalizeProjectPath(rawScope);
+    if (!scope) return false;
+    return target === scope || target.startsWith(`${scope}/`);
+  });
 }
 
 /**
@@ -118,12 +132,49 @@ export function runSensors(
   return hits;
 }
 
+/** Split a unified diff into per-file targets containing only added lines. */
+export function sensorTargetsFromDiff(diff: string): SensorTarget[] {
+  const targets: SensorTarget[] = [];
+  let currentPath: string | null = null;
+  let added: string[] = [];
+
+  const flush = (): void => {
+    if (!currentPath || added.length === 0) return;
+    targets.push({ path: currentPath, content: added.join("\n") });
+    added = [];
+  };
+
+  for (const line of diff.split("\n")) {
+    if (line.startsWith("diff --git ")) {
+      flush();
+      currentPath = null;
+      continue;
+    }
+
+    if (line.startsWith("+++ ")) {
+      flush();
+      const raw = line.slice(4).trim();
+      currentPath = raw === "/dev/null" ? null : normalizeProjectPath(raw);
+      continue;
+    }
+
+    if (line.startsWith("+") && !line.startsWith("+++")) {
+      if (!currentPath) currentPath = "";
+      added.push(line.slice(1));
+    }
+  }
+  flush();
+  return targets;
+}
+
 /**
  * Extract the added lines from a unified diff (lines starting with a single `+`,
  * excluding the `+++` file header). Mirrors the diff-handling already used by the
  * anti-pattern tokenizer so sensors fire on introductions, not mere mentions.
  */
 export function addedLinesFromDiff(diff: string): string {
+  const targets = sensorTargetsFromDiff(diff);
+  if (targets.length > 0) return targets.map((target) => target.content).join("\n");
   return diff
     .split("\n")
     .filter((l) => l.startsWith("+") && !l.startsWith("+++"))

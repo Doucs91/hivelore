@@ -5,6 +5,7 @@ import {
   runRegexSensor,
   runSensors,
   sensorAppliesToPath,
+  sensorTargetsFromDiff,
 } from "../src/sensors.js";
 import type { Memory, Sensor } from "../src/types.js";
 
@@ -81,6 +82,7 @@ describe("sensors", () => {
     const s = sensor({ paths: ["src/backend/"] });
     expect(sensorAppliesToPath(s, [], "src/backend/Repo.java")).toBe(true);
     expect(sensorAppliesToPath(s, [], "src/frontend/App.tsx")).toBe(false);
+    expect(sensorAppliesToPath(s, [], "src/other/src/backend/Repo.java")).toBe(false);
     // no sensor paths → fall back to anchor paths
     const s2 = sensor({ paths: [] });
     expect(sensorAppliesToPath(s2, ["config/"], "config/app.yml")).toBe(true);
@@ -115,5 +117,28 @@ describe("sensors", () => {
     // a sensor should fire on the added line, not the removed one
     const hit = runRegexSensor("m1", sensor(), { path: "src/app.properties", content: added });
     expect(hit).not.toBeNull();
+  });
+
+  it("splits unified diffs into per-file sensor targets", () => {
+    const diff = [
+      "diff --git a/src/backend/app.properties b/src/backend/app.properties",
+      "--- a/src/backend/app.properties",
+      "+++ b/src/backend/app.properties",
+      "+spring.jpa.open-in-view=true",
+      "diff --git a/src/frontend/App.tsx b/src/frontend/App.tsx",
+      "--- a/src/frontend/App.tsx",
+      "+++ b/src/frontend/App.tsx",
+      "+const flag = 'open-in-view=true';",
+    ].join("\n");
+
+    const targets = sensorTargetsFromDiff(diff);
+    expect(targets).toEqual([
+      { path: "src/backend/app.properties", content: "spring.jpa.open-in-view=true" },
+      { path: "src/frontend/App.tsx", content: "const flag = 'open-in-view=true';" },
+    ]);
+
+    const hits = runSensors([memory(sensor({ paths: ["src/backend/"] }))], targets);
+    expect(hits).toHaveLength(1);
+    expect(hits[0].file).toBe("src/backend/app.properties");
   });
 });

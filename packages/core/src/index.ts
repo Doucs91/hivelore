@@ -27,3 +27,4 @@ export * from "./runtime-journal.js";
 export * from "./enforcement.js";
 export * from "./memory-lifecycle.js";
 export * from "./sensors.js";
+export * from "./sensor-suggest.js";

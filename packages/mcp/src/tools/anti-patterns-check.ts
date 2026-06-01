@@ -8,8 +8,8 @@ import {
   loadUsageIndex,
   literalMatchesAnyToken,
   memoryMatchesAnchorPaths,
-  runRegexSensor,
-  sensorAppliesToPath,
+  runSensors,
+  sensorTargetsFromDiff,
   tokenizeQuery,
 } from "@hiveai/core";
 import { z } from "zod";
@@ -221,27 +221,22 @@ export async function antiPatternsCheck(
   // This is the feedback *computational* signal: same result every time, no warmup.
   if (input.diff) {
     const added = addedLinesFromDiff(input.diff);
-    const scanText = added.trim().length > 0 ? added : input.diff;
-    for (const { memory } of negative) {
-      const sensor = memory.frontmatter.sensor;
-      if (!sensor || sensor.kind !== "regex") continue;
-      const anchorPaths = memory.frontmatter.anchor.paths;
-      // When paths are provided, respect the sensor's path scope; otherwise scan globally.
-      const inScope =
-        input.paths.length === 0 ||
-        input.paths.some((p) => sensorAppliesToPath(sensor, anchorPaths, p));
-      if (!inScope) continue;
-      const hit = runRegexSensor(memory.frontmatter.id, sensor, {
-        path: input.paths[0] ?? "",
-        content: scanText,
-      });
-      if (hit) {
-        upsert(memory.frontmatter, memory.body, "sensor");
-        const w = seen.get(memory.frontmatter.id);
-        if (w) {
-          w.sensor_message = hit.message;
-          w.sensor_severity = hit.severity;
-        }
+    const diffTargets = sensorTargetsFromDiff(input.diff);
+    const hasFileTargets = diffTargets.some((target) => target.path.length > 0);
+    const targets = diffTargets.length > 0 && hasFileTargets
+      ? diffTargets
+      : input.paths.length > 0
+        ? input.paths.map((p) => ({ path: p, content: added.trim().length > 0 ? added : input.diff! }))
+        : [{ path: "", content: added.trim().length > 0 ? added : input.diff }];
+    const hits = runSensors(negative.map(({ memory }) => memory), targets);
+    for (const hit of hits) {
+      const found = negative.find(({ memory }) => memory.frontmatter.id === hit.memory_id);
+      if (!found) continue;
+      upsert(found.memory.frontmatter, found.memory.body, "sensor");
+      const w = seen.get(found.memory.frontmatter.id);
+      if (w) {
+        w.sensor_message = hit.message;
+        w.sensor_severity = hit.severity;
       }
     }
   }

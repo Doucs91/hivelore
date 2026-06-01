@@ -207,6 +207,25 @@ function classifyWarning(
     };
   }
 
+  if (warning.reasons.includes("sensor")) {
+    if (warning.sensor_severity === "block") {
+      return {
+        ...warning,
+        level: "blocking",
+        rationale: "deterministic hAIve sensor with block severity matched the added diff",
+        affected_files: affectedFiles,
+        repair_command: repairCommand,
+      };
+    }
+    return {
+      ...warning,
+      level: "review",
+      rationale: "deterministic hAIve sensor with warn severity matched the added diff",
+      affected_files: affectedFiles,
+      repair_command: repairCommand,
+    };
+  }
+
   if (isBlockingWarning(warning)) {
     return {
       ...warning,
