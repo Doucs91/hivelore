@@ -28,4 +28,23 @@ describe("suggestSensorFromMemory", () => {
     expect(suggestSensorFromMemory("Always keep code simple.", [])).toBeNull();
     expect(suggestSensorFromMemory("Always keep code simple.", ["src/app.ts"])).toBeNull();
   });
+
+  it("prefers assignment values over broad keys", () => {
+    const sensor = suggestSensorFromMemory(
+      "# open-in-view\n\n`open-in-view=true` is the bad setting. Keep `open-in-view=false`.",
+      ["src/app.properties"],
+    );
+
+    expect(sensor?.pattern).toBe("open-in-view\\s*=\\s*[\"']?true[\"']?");
+    expect(sensor?.pattern).not.toBe("open-in-view");
+  });
+
+  it("captures quoted assignment values", () => {
+    const sensor = suggestSensorFromMemory(
+      "# Status literals\n\nDo not write status = \"KO\" in this path; use the enum helper.",
+      ["src/status.ts"],
+    );
+
+    expect(sensor?.pattern).toBe("status\\s*=\\s*[\"']?KO[\"']?");
+  });
 });

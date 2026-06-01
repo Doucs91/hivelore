@@ -11,6 +11,7 @@ import {
   resolveHaivePaths,
   runSensors,
   sensorTargetsFromDiff,
+  serializeMemory,
   type Memory,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
@@ -31,6 +32,12 @@ interface SensorsCheckOptions {
 interface SensorsExportOptions {
   format?: "grep" | "eslint";
   outDir?: string;
+  dir?: string;
+}
+
+interface SensorsPromoteOptions {
+  severity?: "warn" | "block";
+  yes?: boolean;
   dir?: string;
 }
 
@@ -105,6 +112,55 @@ export function registerSensors(program: Command): void {
         }
       }
       if (hits.some((hit) => hit.severity === "block")) process.exitCode = 1;
+    });
+
+  sensors
+    .command("promote")
+    .description("Promote or demote an existing memory sensor severity")
+    .argument("<memory-id>", "memory id carrying the sensor")
+    .option("--severity <severity>", "block | warn", "block")
+    .option("--yes", "confirm promotion to block severity", false)
+    .option("-d, --dir <dir>", "project root")
+    .action(async (id: string, opts: SensorsPromoteOptions) => {
+      const severity = opts.severity ?? "block";
+      if (severity !== "block" && severity !== "warn") {
+        ui.error("--severity must be block or warn");
+        process.exitCode = 1;
+        return;
+      }
+      if (severity === "block" && !opts.yes) {
+        ui.error("Promoting a sensor to block makes the gate hard-fail. Re-run with --yes to confirm.");
+        process.exitCode = 1;
+        return;
+      }
+
+      const root = findProjectRoot(opts.dir);
+      const paths = resolveHaivePaths(root);
+      const loaded = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
+      const found = loaded.find(({ memory }) => memory.frontmatter.id === id);
+      if (!found) {
+        ui.error(`No memory found with id ${id}`);
+        process.exitCode = 1;
+        return;
+      }
+      const sensor = found.memory.frontmatter.sensor;
+      if (!sensor) {
+        ui.error(`Memory ${id} does not carry a sensor.`);
+        process.exitCode = 1;
+        return;
+      }
+
+      const next = {
+        frontmatter: {
+          ...found.memory.frontmatter,
+          sensor: { ...sensor, severity },
+        },
+        body: found.memory.body,
+      };
+      await writeFile(found.filePath, serializeMemory(next), "utf8");
+      ui.success(`Updated ${id}: sensor severity=${severity}`);
+      if (sensor.pattern) ui.info(`pattern=${JSON.stringify(sensor.pattern)}`);
+      ui.info(`message=${sensor.message}`);
     });
 
   sensors

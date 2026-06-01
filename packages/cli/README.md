@@ -177,6 +177,7 @@ Operate executable regex sensors stored on `gotcha`/`attempt` memories.
 haive sensors list
 haive sensors check                    # scans git diff --cached
 haive sensors check --diff-file diff.patch --json
+haive sensors promote <memory-id> --yes
 haive sensors export --format grep
 ```
 

@@ -69,6 +69,7 @@ promote high-confidence ones to `block`.
 ```bash
 haive sensors list
 haive sensors check              # scans git diff --cached
+haive sensors promote <id> --yes # promote a vetted sensor to block
 haive sensors export --format grep
 ```
 

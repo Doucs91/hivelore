@@ -7,7 +7,7 @@ const SENSOR_STOPWORDS = new Set([
   "before", "break", "broken", "cannot", "change", "code", "commit", "correct",
   "could", "default", "detect", "direct", "directory", "does", "error", "failed",
   "fails", "file", "files", "future", "instead", "memory", "never", "project",
-  "recorded", "repo", "return", "should", "source", "status", "string", "this",
+  "recorded", "repo", "return", "should", "source", "string", "this",
   "tried", "true", "type", "undefined", "value", "when", "where", "which", "with",
   "without",
 ]);
@@ -32,18 +32,54 @@ export function suggestSensorFromMemory(
   if (paths.length === 0) return null;
 
   const negativeText = body.split(/\*\*Instead,\s*use:\*\*|^##\s+Instead\b/im)[0] ?? body;
-  const token = pickDistinctiveToken(negativeText);
+  const assignment = pickAssignmentPattern(negativeText);
+  const token = assignment?.label ?? pickDistinctiveToken(negativeText);
   if (!token) return null;
 
   return {
     kind: "regex",
-    pattern: escapeRegExp(token),
+    pattern: assignment?.pattern ?? escapeRegExp(token),
     paths,
     message: sensorMessageFromBody(body, token),
     severity: "warn",
     autogen: true,
     last_fired: null,
   };
+}
+
+function pickAssignmentPattern(text: string): { label: string; pattern: string; score: number } | null {
+  const candidates: Array<{ label: string; pattern: string; score: number }> = [];
+  for (const source of assignmentSources(text)) {
+    for (const match of source.matchAll(/\b([A-Za-z][A-Za-z0-9_.:-]{2,79})\b\s*(=|:)\s*["']?([A-Za-z0-9_.:-]{2,80})["']?/g)) {
+      const key = match[1] ?? "";
+      const operator = match[2] ?? "";
+      const value = match[3] ?? "";
+      if (!isDistinctiveToken(key, true) || isBoringValue(value)) continue;
+      const label = `${key}${operator}${value}`;
+      candidates.push({
+        label,
+        pattern: `${escapeRegExp(key)}\\s*${escapeRegExp(operator)}\\s*["']?${escapeRegExp(value)}["']?`,
+        score: label.length + assignmentContextScore(source, match.index ?? 0, match[0].length),
+      });
+    }
+  }
+  return candidates.sort((a, b) => b.score - a.score)[0] ?? null;
+}
+
+function assignmentContextScore(source: string, index: number, length: number): number {
+  const before = source.slice(Math.max(0, index - 50), index).toLowerCase();
+  const after = source.slice(index + length, Math.min(source.length, index + length + 50)).toLowerCase();
+  const window = `${before} ${after}`;
+  let score = 0;
+  if (/\b(bad|failed|fails|broke|broken|wrong|avoid|forbid|forbidden|leaks?)\b/.test(after)) score += 50;
+  if (/do\s+not|don't|never|should\s+not|must\s+not/.test(window)) score += 40;
+  if (/\b(keep|instead|correct|right|use|prefer|allowed)\b/.test(before)) score -= 60;
+  if (/\b(keep|instead|correct|right|use|prefer|allowed)\b/.test(after)) score -= 25;
+  return score;
+}
+
+function assignmentSources(text: string): string[] {
+  return [text];
 }
 
 function pickDistinctiveToken(text: string): string | null {
@@ -76,6 +112,13 @@ function isDistinctiveToken(token: string, isCodeLike: boolean): boolean {
   if (!/[A-Za-z]/.test(token)) return false;
   const shaped = /[-_.:\d]/.test(token) || /[A-Z]/.test(token.slice(1));
   return shaped || isCodeLike;
+}
+
+function isBoringValue(value: string): boolean {
+  if (!value || value.length > 80) return true;
+  const lower = value.toLowerCase();
+  if (lower === "true" || lower === "false") return false;
+  return SENSOR_STOPWORDS.has(lower);
 }
 
 function sensorMessageFromBody(body: string, token: string): string {
