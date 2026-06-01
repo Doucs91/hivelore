@@ -113,3 +113,5 @@
 {"tool":"get_briefing","at":"2026-06-01T20:10:41.051Z","summary":"Commit v0.10.8 : sensor-veto étendu au path isBlockingWarning, sensors rétroactifs sur 6 mémoires historiques, bump version"}
 {"tool":"get_briefing","at":"2026-06-01T20:11:07.877Z","summary":"Commit v0.10.8 : sensor-veto étendu + sensors rétroactifs + bump version 0.10.8"}
 {"tool":"get_briefing","at":"2026-06-01T20:13:20.795Z","summary":"Push v0.10.8 et sync fichiers .ai/"}
+{"tool":"get_briefing","at":"2026-06-01T20:53:32.286Z","summary":"Committer les fichiers .ai/ de sync (code-map, tool-usage, session recap, project-context) laissés non commités par l'agent précédent"}
+{"tool":"mem_session_end","at":"2026-06-01T20:54:49.600Z","summary":"Analyser le code source de hAIve pour donner un avis objectif sur la qualité du "}
