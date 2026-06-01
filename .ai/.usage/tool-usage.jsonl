@@ -99,3 +99,17 @@
 {"tool":"get_briefing","at":"2026-05-31T22:08:14.208Z","summary":"Préparer et committer la release hAIve 0.10.2 de positionnement harness: versions npm alignées, changelog de release, docs/README/CLI help/package metadata mis à jour."}
 {"tool":"mem_session_end","at":"2026-05-31T22:09:18.823Z","summary":"Créer la release hAIve 0.10.2 après l'amélioration du positionnement produit."}
 {"tool":"get_briefing","at":"2026-05-31T22:44:22.862Z","summary":"Synchroniser le repo après changements d'un autre agent, puis enregistrer la convention de workflow: pull avant chaque nouvelle tâche et commit après la tâche."}
+{"tool":"get_briefing","at":"2026-06-01T15:02:53.557Z","summary":"Analyser le code source de hAIve pour donner un avis objectif sur l'outil : qualité du code, architecture, fonctionnalités, limites"}
+{"tool":"mem_tried","at":"2026-06-01T15:14:51.242Z","summary":"Démarrer une analyse de code sans faire git pull au préalable"}
+{"tool":"get_briefing","at":"2026-06-01T17:46:35.260Z","summary":"Refactoriser get-briefing.ts en extrayant les types dans briefing-types.ts et les helpers dans briefing-helpers.ts"}
+{"tool":"get_briefing","at":"2026-06-01T17:49:16.994Z","summary":"Corriger la gate briefing-first dans server.ts en utilisant hasRecentBriefingMarker comme fallback disque"}
+{"tool":"get_briefing","at":"2026-06-01T17:55:04.740Z","summary":"Bump version 0.10.5→0.10.6, refactor get-briefing.ts en briefing-types.ts + briefing-helpers.ts, harden briefing-first gate dans server.ts"}
+{"tool":"get_briefing","at":"2026-06-01T18:07:48.008Z","summary":"Modifier anti-patterns-check.ts pour que le matching littéral seul ne puisse pas bloquer quand la mémoire a un sensor qui ne fire pas"}
+{"tool":"get_briefing","at":"2026-06-01T18:09:52.773Z","summary":"Ajouter sensor-veto dans classifyWarning de precommit-check.ts pour qu'un sensor non-déclenché empêche le blocage par literal seul"}
+{"tool":"get_briefing","at":"2026-06-01T18:12:44.184Z","summary":"Bump 0.10.6→0.10.7 et ajouter sensor-veto dans antiPatternsCheck/precommit-check pour que le matching littéral ne bloque pas quand le sensor n'a pas fire"}
+{"tool":"get_briefing","at":"2026-06-01T18:13:12.389Z","summary":"Commit v0.10.7 : sensor-veto dans precommit-check, refactor get-briefing, gate robustness dans server.ts, bump version"}
+{"tool":"get_briefing","at":"2026-06-01T18:20:12.106Z","summary":"Push des commits v0.10.6-0.10.7 + sync des fichiers .ai/ (code-map, session_recap, project-context)"}
+{"tool":"get_briefing","at":"2026-06-01T20:09:16.668Z","summary":"Étendre le sensor-veto au path isBlockingWarning dans precommit-check.ts"}
+{"tool":"get_briefing","at":"2026-06-01T20:10:41.051Z","summary":"Commit v0.10.8 : sensor-veto étendu au path isBlockingWarning, sensors rétroactifs sur 6 mémoires historiques, bump version"}
+{"tool":"get_briefing","at":"2026-06-01T20:11:07.877Z","summary":"Commit v0.10.8 : sensor-veto étendu + sensors rétroactifs + bump version 0.10.8"}
+{"tool":"get_briefing","at":"2026-06-01T20:13:20.795Z","summary":"Push v0.10.8 et sync fichiers .ai/"}

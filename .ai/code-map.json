@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-05-31T15:20:10.669Z",
+  "generated_at": "2026-06-01T17:49:41.996Z",
   "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -103,7 +103,7 @@
           "line": 109
         }
       ],
-      "loc": 504
+      "loc": 506
     },
     "packages/cli/src/commands/doctor.ts": {
       "exports": [
@@ -130,15 +130,15 @@
         {
           "name": "registerEnforce",
           "kind": "function",
-          "line": 91
+          "line": 93
         },
         {
           "name": "runWithEnforcement",
           "kind": "function",
-          "line": 325
+          "line": 327
         }
       ],
-      "loc": 1176
+      "loc": 1177
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -269,10 +269,10 @@
         {
           "name": "registerMemoryAdd",
           "kind": "function",
-          "line": 41
+          "line": 42
         }
       ],
-      "loc": 317
+      "loc": 336
     },
     "packages/cli/src/commands/memory-approve.ts": {
       "exports": [
@@ -289,10 +289,10 @@
         {
           "name": "registerMemoryArchive",
           "kind": "function",
-          "line": 34
+          "line": 37
         }
       ],
-      "loc": 160
+      "loc": 178
     },
     "packages/cli/src/commands/memory-auto-promote.ts": {
       "exports": [
@@ -383,35 +383,35 @@
         {
           "name": "LintSeverity",
           "kind": "type",
-          "line": 21
+          "line": 23
         },
         {
           "name": "MemoryLintFinding",
           "kind": "interface",
-          "line": 23
+          "line": 25
         },
         {
           "name": "MemoryLintFix",
           "kind": "interface",
-          "line": 43
+          "line": 45
         },
         {
           "name": "MemoryLintReport",
           "kind": "interface",
-          "line": 50
+          "line": 52
         },
         {
           "name": "lintMemoriesAsync",
           "kind": "function",
-          "line": 55
+          "line": 57
         },
         {
           "name": "registerMemoryLint",
           "kind": "function",
-          "line": 358
+          "line": 394
         }
       ],
-      "loc": 430
+      "loc": 466
     },
     "packages/cli/src/commands/memory-list.ts": {
       "exports": [
@@ -543,10 +543,10 @@
         {
           "name": "registerMemoryTried",
           "kind": "function",
-          "line": 28
+          "line": 29
         }
       ],
-      "loc": 108
+      "loc": 114
     },
     "packages/cli/src/commands/memory-update.ts": {
       "exports": [
@@ -594,10 +594,10 @@
         {
           "name": "registerPrecommit",
           "kind": "function",
-          "line": 19
+          "line": 21
         }
       ],
-      "loc": 204
+      "loc": 215
     },
     "packages/cli/src/commands/resolve-project.ts": {
       "exports": [
@@ -628,6 +628,16 @@
         }
       ],
       "loc": 68
+    },
+    "packages/cli/src/commands/sensors.ts": {
+      "exports": [
+        {
+          "name": "registerSensors",
+          "kind": "function",
+          "line": 44
+        }
+      ],
+      "loc": 259
     },
     "packages/cli/src/commands/session-end.ts": {
       "summary": "haive session end — save a structured end-of-session recap.",
@@ -1018,35 +1028,47 @@
         {
           "name": "DEFAULT_CONFIG",
           "kind": "const",
-          "line": 181
+          "line": 195
         },
         {
           "name": "AUTOPILOT_DEFAULTS",
           "kind": "const",
-          "line": 210
+          "line": 224
+        },
+        {
+          "name": "AntiPatternGate",
+          "kind": "type",
+          "description": "The pre-commit anti-pattern gate hardness levels.",
+          "line": 254
+        },
+        {
+          "name": "antiPatternGateParams",
+          "kind": "function",
+          "description": "Single source of truth mapping a configured `antiPatternGate` to the `pre_commit_check` parameters that implement it.",
+          "line": 262
         },
         {
           "name": "configPath",
           "kind": "function",
-          "line": 239
+          "line": 278
         },
         {
           "name": "loadConfig",
           "kind": "function",
-          "line": 243
+          "line": 282
         },
         {
           "name": "loadConfigSync",
           "kind": "function",
-          "line": 260
+          "line": 299
         },
         {
           "name": "saveConfig",
           "kind": "function",
-          "line": 274
+          "line": 313
         }
       ],
-      "loc": 292
+      "loc": 331
     },
     "packages/core/src/conflict-candidates.ts": {
       "exports": [
@@ -1276,6 +1298,27 @@
       ],
       "loc": 47
     },
+    "packages/core/src/memory-lifecycle.ts": {
+      "exports": [
+        {
+          "name": "RetirementSignal",
+          "kind": "interface",
+          "line": 3
+        },
+        {
+          "name": "retirementSignal",
+          "kind": "function",
+          "description": "Explicit lifecycle gate for records that should not be fed back to agents as active policy.",
+          "line": 29
+        },
+        {
+          "name": "isRetiredMemory",
+          "kind": "function",
+          "line": 57
+        }
+      ],
+      "loc": 64
+    },
     "packages/core/src/memory-timeline.ts": {
       "exports": [
         {
@@ -1330,7 +1373,7 @@
           "line": 50
         }
       ],
-      "loc": 88
+      "loc": 90
     },
     "packages/core/src/paths.ts": {
       "exports": [
@@ -1492,18 +1535,24 @@
           "line": 25
         },
         {
+          "name": "SensorSchema",
+          "kind": "const",
+          "description": "An executable check derived from a memory — the \"feedback computational\" layer.",
+          "line": 42
+        },
+        {
           "name": "MemoryFrontmatterSchema",
           "kind": "const",
-          "line": 36
+          "line": 67
         },
         {
           "name": "CrossRepoProvenanceSchema",
           "kind": "const",
           "description": "Additional fields for cross-repo provenance (stored in frontmatter of imported memories)",
-          "line": 69
+          "line": 102
         }
       ],
-      "loc": 75
+      "loc": 108
     },
     "packages/core/src/search.ts": {
       "exports": [
@@ -1535,6 +1584,99 @@
         }
       ],
       "loc": 100
+    },
+    "packages/core/src/sensor-suggest.ts": {
+      "exports": [
+        {
+          "name": "SensorSuggestionOptions",
+          "kind": "interface",
+          "line": 15
+        },
+        {
+          "name": "suggestSensorFromMemory",
+          "kind": "function",
+          "description": "Conservatively suggest a regex sensor from a gotcha/attempt body.",
+          "line": 26
+        }
+      ],
+      "loc": 137
+    },
+    "packages/core/src/sensors.ts": {
+      "exports": [
+        {
+          "name": "SensorHit",
+          "kind": "interface",
+          "description": "Sensors — the feedback *computational* layer of the harness.",
+          "line": 13
+        },
+        {
+          "name": "SensorTarget",
+          "kind": "interface",
+          "description": "A unit of code to scan: a file path plus the text to match against.",
+          "line": 28
+        },
+        {
+          "name": "sensorAppliesToPath",
+          "kind": "function",
+          "description": "Does this sensor apply to `path`? A sensor with no explicit `paths` (and whose memory has no anchor paths) applies everywhere.",
+          "line": 53
+        },
+        {
+          "name": "compileRegexSensor",
+          "kind": "function",
+          "description": "Compile a regex sensor.",
+          "line": 72
+        },
+        {
+          "name": "runRegexSensor",
+          "kind": "function",
+          "description": "Run a single regex sensor over one target.",
+          "line": 87
+        },
+        {
+          "name": "runSensors",
+          "kind": "function",
+          "description": "Run every memory's regex sensor against every applicable target.",
+          "line": 117
+        },
+        {
+          "name": "sensorTargetsFromDiff",
+          "kind": "function",
+          "description": "Split a unified diff into per-file targets containing only added lines.",
+          "line": 136
+        },
+        {
+          "name": "addedLinesFromDiff",
+          "kind": "function",
+          "description": "Extract the added lines from a unified diff (lines starting with a single `+`, excluding the `+++` file header).",
+          "line": 175
+        }
+      ],
+      "loc": 184
+    },
+    "packages/core/src/specificity.ts": {
+      "summary": "Specificity (\"surprise\") scoring for memories.",
+      "exports": [
+        {
+          "name": "specificityScore",
+          "kind": "function",
+          "description": "Estimate how unguessable / team-specific a memory body is, in [0, 1].",
+          "line": 47
+        },
+        {
+          "name": "GUESSABLE_THRESHOLD",
+          "kind": "const",
+          "description": "Default threshold below which a memory is considered likely-guessable (low marginal value).",
+          "line": 75
+        },
+        {
+          "name": "isLikelyGuessable",
+          "kind": "function",
+          "description": "True when a memory body looks like generic knowledge a capable model already has.",
+          "line": 78
+        }
+      ],
+      "loc": 81
     },
     "packages/core/src/token-budget.ts": {
       "summary": "Token budgeting helpers.",
@@ -1600,35 +1742,40 @@
         {
           "name": "MemoryScope",
           "kind": "type",
-          "line": 10
+          "line": 11
         },
         {
           "name": "MemoryStatus",
           "kind": "type",
-          "line": 11
+          "line": 12
         },
         {
           "name": "MemoryType",
           "kind": "type",
-          "line": 12
+          "line": 13
         },
         {
           "name": "Anchor",
           "kind": "type",
-          "line": 13
+          "line": 14
+        },
+        {
+          "name": "Sensor",
+          "kind": "type",
+          "line": 15
         },
         {
           "name": "MemoryFrontmatter",
           "kind": "type",
-          "line": 14
+          "line": 16
         },
         {
           "name": "Memory",
           "kind": "interface",
-          "line": 16
+          "line": 18
         }
       ],
-      "loc": 20
+      "loc": 22
     },
     "packages/core/src/usage-log.ts": {
       "exports": [
@@ -2201,40 +2348,40 @@
         {
           "name": "EXPERIMENTAL_PROFILE_TOOLS",
           "kind": "const",
-          "line": 326
+          "line": 325
         },
         {
           "name": "TOOL_PROFILES",
           "kind": "const",
-          "line": 337
+          "line": 336
         },
         {
           "name": "getAllowedToolsForProfile",
           "kind": "function",
-          "line": 343
+          "line": 342
         },
         {
           "name": "createHaiveServer",
           "kind": "function",
-          "line": 364
+          "line": 363
         },
         {
           "name": "parseMcpCliArgs",
           "kind": "function",
           "description": "Parse argv for the standalone haive-mcp binary / CLI subprocess parity.",
-          "line": 1322
+          "line": 1321
         },
         {
           "name": "printHaiveMcpVersion",
           "kind": "function",
           "description": "Print MCP server version (same as haive CLI when bundled together).",
-          "line": 1345
+          "line": 1344
         },
         {
           "name": "runHaiveMcpStdio",
           "kind": "function",
           "description": "Run the MCP server over stdio.",
-          "line": 1353
+          "line": 1352
         },
         {
           "name": "getBriefing",
@@ -2327,7 +2474,7 @@
           "line": 268
         }
       ],
-      "loc": 1360
+      "loc": 1359
     },
     "packages/mcp/src/session-tracker.ts": {
       "summary": "Auto-session tracker for autopilot mode.",
@@ -2368,31 +2515,31 @@
         {
           "name": "AntiPatternsCheckInputSchema",
           "kind": "const",
-          "line": 14
+          "line": 18
         },
         {
           "name": "AntiPatternsCheckInput",
-          "kind": "type",
-          "line": 43
+          "kind": "interface",
+          "line": 56
         },
         {
           "name": "AntiPatternsWarning",
           "kind": "interface",
-          "line": 47
+          "line": 64
         },
         {
           "name": "AntiPatternsCheckOutput",
           "kind": "interface",
-          "line": 61
+          "line": 81
         },
         {
           "name": "antiPatternsCheck",
           "kind": "function",
           "description": "Scan a diff (or set of paths) against documented attempt/gotcha memories.",
-          "line": 108
+          "line": 138
         }
       ],
-      "loc": 228
+      "loc": 287
     },
     "packages/mcp/src/tools/bootstrap-project-save.ts": {
       "exports": [
@@ -2484,56 +2631,25 @@
         {
           "name": "GetBriefingInputSchema",
           "kind": "const",
-          "line": 39
+          "line": 61
         },
         {
           "name": "GetBriefingZod",
           "kind": "const",
-          "description": "Single inferred type — optional keys are optional (not `| undefined` required everywhere).",
-          "line": 114
+          "line": 135
         },
         {
           "name": "GetBriefingInput",
           "kind": "type",
-          "line": 116
-        },
-        {
-          "name": "BriefingMemoryPriority",
-          "kind": "type",
-          "line": 118
-        },
-        {
-          "name": "BriefingQuality",
-          "kind": "interface",
-          "line": 120
-        },
-        {
-          "name": "BriefingMemory",
-          "kind": "interface",
-          "line": 125
-        },
-        {
-          "name": "CodeMapSymbolHit",
-          "kind": "interface",
-          "line": 147
-        },
-        {
-          "name": "ActionRequiredItem",
-          "kind": "interface",
-          "line": 158
-        },
-        {
-          "name": "BriefingOutput",
-          "kind": "interface",
-          "line": 170
+          "line": 136
         },
         {
           "name": "getBriefing",
           "kind": "function",
-          "line": 212
+          "line": 138
         }
       ],
-      "loc": 1059
+      "loc": 744
     },
     "packages/mcp/src/tools/get-project-context.ts": {
       "exports": [
@@ -2834,25 +2950,25 @@
           "name": "MemObserveInputSchema",
           "kind": "const",
           "description": "mem_observe — capture a code-level discovery made during exploration.",
-          "line": 19
+          "line": 20
         },
         {
           "name": "MemObserveInput",
           "kind": "type",
-          "line": 45
+          "line": 54
         },
         {
           "name": "MemObserveOutput",
           "kind": "interface",
-          "line": 49
+          "line": 58
         },
         {
           "name": "memObserve",
           "kind": "function",
-          "line": 55
+          "line": 67
         }
       ],
-      "loc": 108
+      "loc": 136
     },
     "packages/mcp/src/tools/mem-pending.ts": {
       "exports": [
@@ -2961,25 +3077,25 @@
         {
           "name": "MemSaveInputSchema",
           "kind": "const",
-          "line": 15
+          "line": 16
         },
         {
           "name": "MemSaveInput",
           "kind": "type",
-          "line": 66
+          "line": 67
         },
         {
           "name": "MemSaveOutput",
           "kind": "interface",
-          "line": 70
+          "line": 71
         },
         {
           "name": "memSave",
           "kind": "function",
-          "line": 121
+          "line": 123
         }
       ],
-      "loc": 313
+      "loc": 331
     },
     "packages/mcp/src/tools/mem-search.ts": {
       "exports": [
@@ -3082,25 +3198,25 @@
         {
           "name": "MemTriedInputSchema",
           "kind": "const",
-          "line": 12
+          "line": 13
         },
         {
           "name": "MemTriedInput",
           "kind": "type",
-          "line": 35
+          "line": 36
         },
         {
           "name": "MemTriedOutput",
           "kind": "interface",
-          "line": 39
+          "line": 40
         },
         {
           "name": "memTried",
           "kind": "function",
-          "line": 45
+          "line": 46
         }
       ],
-      "loc": 91
+      "loc": 96
     },
     "packages/mcp/src/tools/mem-update.ts": {
       "exports": [
@@ -3231,10 +3347,10 @@
         {
           "name": "classifyAntiPatternWarningForTest",
           "kind": "function",
-          "line": 287
+          "line": 306
         }
       ],
-      "loc": 425
+      "loc": 444
     },
     "packages/mcp/src/tools/runtime-journal-append.ts": {
       "exports": [
