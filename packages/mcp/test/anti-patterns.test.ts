@@ -760,4 +760,90 @@ describe("preCommitCheck", () => {
     }, ctx);
     expect(result.should_block).toBe(false);
   });
+
+  // ── Sensor-veto: memory with sensor that did NOT fire → review, not blocking ─
+
+  it("sensor-veto: downgrades blocking to review when memory has a sensor that did not fire", () => {
+    // A memory with a precise sensor (e.g. BigInt in a specific form) should NOT block when
+    // the diff contains a related token but the sensor regex doesn't match — the sensor is
+    // the authoritative check, so the broad literal match alone is insufficient.
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-no-bigint",
+      type: "gotcha",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "# No BigInt\n\nBigInt broke JSON serialization — do not use BigInt.",
+      reasons: ["anchor", "literal"],
+      anchor_paths: ["src/math.ts"],
+      has_sensor: true, // memory has a sensor, but it did NOT fire (no "sensor" in reasons)
+    }, ["src/math.ts"], true); // anchoredBlocks = true
+
+    // Should be review, not blocking — sensor didn't confirm the bad pattern
+    expect(warning.level).toBe("review");
+    expect(warning.rationale).toContain("sensor");
+    expect(warning.rationale).toContain("did not fire");
+  });
+
+  it("sensor-veto: still blocks when the sensor DID fire (sensor reason present)", () => {
+    // If the sensor itself fires, it takes precedence — this is a true positive
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-no-bigint",
+      type: "gotcha",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "# No BigInt\n\nBigInt broke JSON serialization — do not use BigInt.",
+      reasons: ["anchor", "literal", "sensor"],
+      anchor_paths: ["src/math.ts"],
+      has_sensor: true,
+      sensor_severity: "block",
+    }, ["src/math.ts"], true);
+
+    expect(warning.level).toBe("blocking");
+    expect(warning.rationale).toContain("sensor");
+  });
+
+  it("sensor-veto: end-to-end — sensor that does not match prevents blocking on literal tokens", async () => {
+    // Memory has sensor pattern `BigInt\s*\(` — matches only direct BigInt() calls.
+    // Diff uses BigInt in a comment (not calling it), so sensor should not fire.
+    // With sensor-veto, anchor + literal should be downgraded to review.
+    await writeMemory(
+      ctx.paths.teamDir!,
+      "2024-01-01-gotcha-bigint-call",
+      "gotcha",
+      "# BigInt() calls crash serialization\n\nDo not call BigInt() — it breaks JSON.",
+      {
+        paths: ["src/math.ts"],
+        sensor: {
+          pattern: "BigInt\\s*\\(",
+          message: "BigInt() calls break JSON serialization",
+          severity: "warn",
+          paths: ["src/math.ts"],
+        },
+      },
+    );
+
+    const result = await preCommitCheck({
+      // Diff mentions BigInt in a comment — literal match fires, sensor does NOT
+      diff: [
+        "diff --git a/src/math.ts b/src/math.ts",
+        "--- a/src/math.ts",
+        "+++ b/src/math.ts",
+        "+// NOTE: BigInt was removed from this module entirely",
+      ].join("\n"),
+      paths: ["src/math.ts"],
+      block_on: "high-confidence",
+      anchored_blocks: true,
+      semantic: false,
+    }, ctx);
+
+    const warning = result.warnings.find((w) => w.id === "2024-01-01-gotcha-bigint-call");
+    expect(warning).toBeDefined();
+    expect(warning?.reasons).toContain("literal");
+    expect(warning?.reasons).not.toContain("sensor");
+    // Sensor-veto: downgraded from blocking to review
+    expect(warning?.level).toBe("review");
+    // should_block checks only blocking warnings (stale anchors are separate)
+    const blockingWarnings = result.warnings.filter((w) => w.level === "blocking");
+    expect(blockingWarnings).toHaveLength(0);
+  });
 });

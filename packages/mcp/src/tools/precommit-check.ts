@@ -254,6 +254,21 @@ function classifyWarning(
     warning.reasons.includes("anchor") &&
     (warning.reasons.includes("literal") || (hasSemantic && semanticScore >= 0.45))
   ) {
+    // Sensor veto: if the memory has a sensor and it did NOT fire, the sensor is the
+    // authoritative check for this memory. Broad literal token matching is too noisy
+    // to block on its own — the sensor encodes the exact bad pattern. Downgrade to review
+    // so the human sees the warning without being hard-blocked on a false positive.
+    if (warning.has_sensor && !warning.reasons.includes("sensor")) {
+      return {
+        ...warning,
+        level: "review",
+        rationale:
+          "memory has a sensor that did not fire — literal match alone is insufficient to block; sensor is the authoritative check",
+        affected_files: affectedFiles,
+        repair_command: repairCommand,
+      };
+    }
+
     return {
       ...warning,
       level: "blocking",

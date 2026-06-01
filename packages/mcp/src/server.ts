@@ -180,7 +180,7 @@ import {
   type ImportDocsArgs,
 } from "./prompts/import-docs.js";
 import { SessionTracker } from "./session-tracker.js";
-import { loadConfigSync } from "@hiveai/core";
+import { hasRecentBriefingMarker, loadConfigSync } from "@hiveai/core";
 
 // Re-export tool implementations so `@hiveai/cli` (and integrators) can call
 // them programmatically without going through the MCP stdio transport.
@@ -410,12 +410,19 @@ export function createHaiveServer(
           return await handler(input as TInput);
         }
         if (requireBriefingFirst && MUTATING_TOOLS.has(name) && !briefingLoaded) {
-          return jsonResult({
-            error: "haive_briefing_required",
-            message:
-              "This hAIve project requires get_briefing or mem_relevant_to before state-changing hAIve tools. Call get_briefing({ task: '...' }) first.",
-            tool: name,
-          });
+          // Fall back to the disk-persisted marker before blocking — covers client
+          // reconnections where the server process is fresh but a recent briefing ran.
+          const hasDiskMarker = await hasRecentBriefingMarker(context.paths).catch(() => false);
+          if (hasDiskMarker) {
+            briefingLoaded = true;
+          } else {
+            return jsonResult({
+              error: "haive_briefing_required",
+              message:
+                "This hAIve project requires get_briefing or mem_relevant_to before state-changing hAIve tools. Call get_briefing({ task: '...' }) first.",
+              tool: name,
+            });
+          }
         }
         return await handler(input as TInput);
       },

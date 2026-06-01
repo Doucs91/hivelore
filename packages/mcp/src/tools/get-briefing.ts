@@ -1,6 +1,5 @@
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import path from "node:path";
 import {
   allocateBudget,
   DEFAULT_AUTO_PROMOTE_RULE,
@@ -9,11 +8,9 @@ import {
   extractActionsBriefBody,
   getUsage,
   inferModulesFromPaths,
-  isGlobPath,
-  isRetiredMemory,
   isAutoPromoteEligible,
   isDecaying,
-  isStackPackSeed,
+  isRetiredMemory,
   literalMatchesAllTokens,
   literalMatchesAnyToken,
   loadCodeMap,
@@ -21,7 +18,6 @@ import {
   loadMemoriesFromDir,
   loadUsageIndex,
   memoryMatchesAnchorPaths,
-  pathsOverlap,
   queryCodeMap,
   resolveBriefingBudget,
   serializeMemory,
@@ -31,13 +27,36 @@ import {
   trackReads,
   truncateToTokens,
   writeBriefingMarker,
-  type ConfidenceLevel,
   type LoadedMemory,
   type UsageIndex,
 } from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 import { pendingDistillPath, type PendingDistill } from "../session-tracker.js";
+import type {
+  ActionRequiredItem,
+  BriefingMemory,
+  BriefingOutput,
+} from "./briefing-types.js";
+import {
+  classifyBriefingQuality,
+  classifyMemoryPriority,
+  compactSummary,
+  explainWhySurfaced,
+  loadModuleContexts,
+  priorityRank,
+  trySemanticHits,
+} from "./briefing-helpers.js";
+
+// Re-export types so existing importers (server.ts, mem-relevant-to.ts) don't need to change.
+export type {
+  ActionRequiredItem,
+  BriefingMemory,
+  BriefingMemoryPriority,
+  BriefingOutput,
+  BriefingQuality,
+  CodeMapSymbolHit,
+} from "./briefing-types.js";
 
 export const GetBriefingInputSchema = {
   task: z
@@ -113,112 +132,8 @@ export const GetBriefingInputSchema = {
     ),
 };
 
-/** Single inferred type — optional keys are optional (not `| undefined` required everywhere). */
 export const GetBriefingZod = z.object(GetBriefingInputSchema);
-
 export type GetBriefingInput = z.infer<typeof GetBriefingZod>;
-
-export type BriefingMemoryPriority = "must_read" | "useful" | "background";
-
-export interface BriefingQuality {
-  level: "strong" | "thin" | "noisy";
-  reasons: string[];
-}
-
-export interface BriefingMemory {
-  id: string;
-  scope: string;
-  type: string;
-  module?: string;
-  tags: string[];
-  status: string;
-  confidence: ConfidenceLevel;
-  /** Present when confidence is 'low' or 'unverified' — AI should weight this memory cautiously. */
-  unverified?: true;
-  read_count: number;
-  reasons: Array<"anchor" | "module" | "domain" | "semantic" | "symbol">;
-  match_quality: "exact" | "partial" | "semantic";
-  semantic_score?: number;
-  /** Relevance tier for the current task. `must_read` should be consumed before edits. */
-  priority: BriefingMemoryPriority;
-  /** Human/agent-readable explanation for why this record was surfaced. */
-  why?: string[];
-  body: string;
-  file_path: string;
-}
-
-export interface CodeMapSymbolHit {
-  symbol: string;
-  /** files that export this symbol */
-  locations: Array<{
-    file: string;
-    kind: string;
-    line: number;
-    description?: string;
-  }>;
-}
-
-export interface ActionRequiredItem {
-  /** Memory id containing the alert */
-  id: string;
-  /** Short human-readable summary of the issue */
-  summary: string;
-  /**
-   * The exact message to show the developer before doing anything.
-   * Copy-paste this verbatim — do NOT paraphrase or act before confirmation.
-   */
-  developer_message: string;
-}
-
-export interface BriefingOutput {
-  task?: string;
-  search_mode: "semantic" | "literal_fallback" | "literal";
-  match_quality_note?: string;
-  inferred_modules: string[];
-  last_session?: { id: string; scope: string; revision_count: number; body: string };
-  project_context: { content: string; truncated: boolean; is_template?: boolean; auto_generated?: boolean } | null;
-  module_contexts: Array<{ name: string; content: string; truncated: boolean }>;
-  memories: BriefingMemory[];
-  briefing_quality: BriefingQuality;
-  symbol_locations?: CodeMapSymbolHit[];
-  /**
-   * Memories that require explicit human confirmation before any code action.
-   * IMPORTANT: for each item, show developer_message to the developer and
-   * wait for explicit approval before modifying any code.
-   * These are surfaced separately from memories to make them impossible to miss.
-   */
-  action_required: ActionRequiredItem[];
-  decay_warnings: string[];
-  setup_warnings: string[];
-  /**
-   * True when this briefing carries little actionable signal:
-   * - project-context.md is still the default template
-   * - no memories matched the task (or none exist at all)
-   * - no previous session recap
-   * Clients can use this flag to skip surfacing a near-empty briefing to the model.
-   */
-  low_value?: true;
-  /**
-   * Whether this briefing carries knowledge a capable model could NOT have inferred on its own.
-   * - "high": at least one surfaced memory is arbitrary/team-specific (unguessable).
-   * - "low":  nothing team-specific matched — a generic agent would reach the same answer.
-   * When "low" and the project context is still auto-generated/template, the adaptive briefing
-   * trims that inferable context to keep the call near-zero-cost (config: adaptiveBriefing).
-   */
-  briefing_value?: "high" | "low";
-  /**
-   * Short, action-oriented hints surfaced to the agent based on the briefing payload.
-   * Examples: "haive is uninitialized — use Read/Grep directly", "gotcha memories present — read first".
-   * Always non-empty when low_value=true.
-   */
-  hints?: string[];
-  estimated_tokens: number;
-  budget: {
-    max_tokens: number;
-    spent: { project: number; modules: number; memories: number };
-    preset_applied?: "quick" | "balanced" | "deep";
-  };
-}
 
 export async function getBriefing(
   input: GetBriefingInput,
@@ -245,7 +160,6 @@ export async function getBriefing(
   if (existsSync(ctx.paths.memoriesDir)) {
     const allLoaded = await loadMemoriesFromDir(ctx.paths.memoriesDir);
 
-    // Find the most recent session_recap (by created_at) — exclude from main ranking
     const recaps = allLoaded
       .filter(({ memory }) => memory.frontmatter.type === "session_recap")
       .sort((a, b) =>
@@ -268,17 +182,15 @@ export async function getBriefing(
       if (s === "rejected" || s === "deprecated") return false;
       if (!input.include_stale && s === "stale") return false;
       if (!input.include_stale && isRetiredMemory(memory.frontmatter, memory.body)) return false;
-      // session_recap surfaces separately in last_session, not in the ranked memories list
       if (memory.frontmatter.type === "session_recap") return false;
       return true;
     });
     usage = await loadUsageIndex(ctx.paths);
-    // Build the id→loaded map up-front so the semantic-hits loop below
-    // (and the related-id expansion later) can resolve hits to LoadedMemory.
-    // Pre-fix: byId was assigned only after the semantic loop, so semantic hits
-    // were silently dropped — search_mode said "semantic" but no memory ever
-    // received a semantic_score. Fixed in v0.5.0.
+
+    // byId MUST be populated before the semanticHits loop that uses it.
+    // (gotcha: 2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid)
     byId = new Map(allMemories.map((m) => [m.memory.frontmatter.id, m]));
+
     const semanticHits = input.task && input.semantic
       ? await trySemanticHits(ctx, input.task, allMemories.length * 2)
       : null;
@@ -302,7 +214,6 @@ export async function getBriefing(
         if (score !== undefined && (existing.semantic_score ?? 0) < score) {
           existing.semantic_score = score;
         }
-        // upgrade match_quality if better evidence found
         if (matchQuality === "exact" && existing.match_quality !== "exact") {
           existing.match_quality = "exact";
         } else if (matchQuality === "semantic" && existing.match_quality === "partial") {
@@ -330,6 +241,7 @@ export async function getBriefing(
       });
     };
 
+    // ── Matching passes ────────────────────────────────────────────────────
     if (input.files.length > 0) {
       for (const loaded of allMemories) {
         if (memoryMatchesAnchorPaths(loaded.memory, input.files)) addOrUpdate(loaded, "anchor", undefined, "exact");
@@ -352,38 +264,26 @@ export async function getBriefing(
 
     if (input.task) {
       const tokens = tokenizeQuery(input.task);
-      // AND first — exact match
       const andHits = allMemories.filter((m) => literalMatchesAllTokens(m.memory, tokens));
-      for (const loaded of andHits) {
-        addOrUpdate(loaded, "semantic", undefined, "exact");
-      }
-      // OR fallback — if AND produced nothing, partial match is better than nothing
+      for (const loaded of andHits) addOrUpdate(loaded, "semantic", undefined, "exact");
       if (andHits.length === 0 && tokens.length > 1) {
         for (const loaded of allMemories) {
-          if (literalMatchesAnyToken(loaded.memory, tokens)) {
-            addOrUpdate(loaded, "semantic", undefined, "partial");
-          }
+          if (literalMatchesAnyToken(loaded.memory, tokens)) addOrUpdate(loaded, "semantic", undefined, "partial");
         }
       }
       if (semanticHits) {
         for (const hit of semanticHits) {
-          // Filter out weakly-related semantic hits when caller asked for a stricter threshold.
-          // Memories already attached via anchor/module/literal stay (addOrUpdate just upgrades them).
-          if (hit.score < input.min_semantic_score) {
-            const existing = seen.get(hit.id);
-            if (!existing) continue;
-          }
+          if (hit.score < input.min_semantic_score && !seen.has(hit.id)) continue;
           const loaded = byId.get(hit.id);
           if (loaded) addOrUpdate(loaded, "semantic", hit.score, "semantic");
         }
       }
     }
 
+    // ── Ranking ────────────────────────────────────────────────────────────
     const ranked = [...seen.values()].sort((a, b) => {
-      const priorityScore = (m: BriefingMemory): number =>
-        priorityRank(classifyMemoryPriority(m, byId.get(m.id), input.files, input.symbols));
       const reasonScore = (m: BriefingMemory): number =>
-        (m.type === "attempt" ? 3 : 0) + // attempt = negative knowledge, surface first to prevent repeating mistakes
+        (m.type === "attempt" ? 3 : 0) +
         (m.reasons.includes("anchor") ? 4 : 0) +
         (m.reasons.includes("symbol") ? 4 : 0) +
         (m.reasons.includes("module") ? 2 : 0) +
@@ -394,13 +294,14 @@ export async function getBriefing(
         m.confidence === "trusted" ? 3 :
         m.confidence === "low" ? 1 :
         m.confidence === "stale" ? -2 : 0;
-      const sa = priorityScore(a) * 100 + reasonScore(a) + confidenceScore(a) + (a.semantic_score ?? 0);
-      const sb = priorityScore(b) * 100 + reasonScore(b) + confidenceScore(b) + (b.semantic_score ?? 0);
+      const sa = priorityRank(classifyMemoryPriority(a, byId.get(a.id), input.files, input.symbols)) * 100
+        + reasonScore(a) + confidenceScore(a) + (a.semantic_score ?? 0);
+      const sb = priorityRank(classifyMemoryPriority(b, byId.get(b.id), input.files, input.symbols)) * 100
+        + reasonScore(b) + confidenceScore(b) + (b.semantic_score ?? 0);
       return sb - sa;
     });
 
-    // Expand related_ids: pull in memories linked from the top results
-    // (byId was already populated above, before the semantic-hits loop)
+    // Expand related_ids from top results
     for (const mem of ranked.slice(0, briefingMaxMemories)) {
       if (seen.size >= briefingMaxMemories * 2) break;
       const loaded = byId.get(mem.id);
@@ -414,12 +315,12 @@ export async function getBriefing(
 
     memories.push(...ranked.slice(0, briefingMaxMemories));
 
+    // ── Track reads + inline auto-promote ─────────────────────────────────
     if (input.track && memories.length > 0) {
       await trackReads(ctx.paths, memories.map((m) => m.id));
-
-      // ── Inline auto-promote: promote proposed memories that just crossed minReads
-      // Load fresh usage after trackReads incremented the counters.
       const freshUsage = await loadUsageIndex(ctx.paths);
+      // Use configured autoPromoteMinReads — not the hardcoded default.
+      // (gotcha: 2026-05-04-gotcha-auto-promote-ignores-config-minreads)
       const cfg = await loadConfig(ctx.paths);
       const rule = {
         minReads: cfg.autoPromoteMinReads ?? DEFAULT_AUTO_PROMOTE_RULE.minReads,
@@ -430,23 +331,17 @@ export async function getBriefing(
         if (!loaded) continue;
         const u = getUsage(freshUsage, m.id);
         if (!isAutoPromoteEligible(loaded.memory.frontmatter, u, rule)) continue;
-        // Promote in-place
         const newFm = { ...loaded.memory.frontmatter, status: "validated" as const };
         try {
-          await writeFile(
-            loaded.filePath,
-            serializeMemory({ frontmatter: newFm, body: loaded.memory.body }),
-            "utf8",
-          );
-          // Update the in-memory object so the briefing output reflects validated status
+          await writeFile(loaded.filePath, serializeMemory({ frontmatter: newFm, body: loaded.memory.body }), "utf8");
           m.status = "validated";
           m.confidence = "trusted";
-        } catch { /* non-fatal — auto-promote is best-effort */ }
+        } catch { /* non-fatal */ }
       }
     }
   }
 
-  // Build raw section payloads
+  // ── Project context ────────────────────────────────────────────────────
   const projectContextRaw =
     input.include_project_context && existsSync(ctx.paths.projectContext)
       ? await readFile(ctx.paths.projectContext, "utf8")
@@ -457,10 +352,8 @@ export async function getBriefing(
 
   const setupWarnings: string[] = [];
   let autoContextGenerated = false;
-
-  // In autopilot mode: if project-context.md is still the template, auto-generate
-  // a minimal context from the code-map so get_briefing is useful immediately.
   let projectContext = isTemplateContext ? "" : projectContextRaw;
+
   if ((isTemplateContext || !existsSync(ctx.paths.projectContext)) && input.include_project_context) {
     const haiveConfig = await loadConfig(ctx.paths);
     if (haiveConfig.autoContext) {
@@ -477,8 +370,6 @@ export async function getBriefing(
           .slice(0, 5)
           .map(([e, n]) => `${e} (${n})`)
           .join(", ");
-
-        // Pick top exported symbols as a starting overview
         const topSymbols = Object.entries(codeMap.files)
           .flatMap(([fp, entry]) =>
             entry.exports.slice(0, 3).map((e) => `${e.name} (${fp.split("/").slice(-2).join("/")})`),
@@ -510,20 +401,17 @@ export async function getBriefing(
         );
       }
     } else {
-      if (isTemplateContext) {
-        setupWarnings.push(
-          "project-context.md still contains the default template. " +
-          "Invoke the bootstrap_project MCP prompt to auto-fill it from your codebase. " +
-          "Until then, get_briefing returns no project context.",
-        );
-      } else {
-        setupWarnings.push(
-          "No project-context.md found. Run `haive init` then invoke the bootstrap_project MCP prompt.",
-        );
-      }
+      setupWarnings.push(
+        isTemplateContext
+          ? "project-context.md still contains the default template. " +
+            "Invoke the bootstrap_project MCP prompt to auto-fill it from your codebase. " +
+            "Until then, get_briefing returns no project context."
+          : "No project-context.md found. Run `haive init` then invoke the bootstrap_project MCP prompt.",
+      );
     }
   }
 
+  // ── Module contexts + budget allocation ───────────────────────────────
   const moduleContents = briefingIncludeModules
     ? await loadModuleContexts(ctx, inferred)
     : [];
@@ -535,7 +423,6 @@ export async function getBriefing(
     })
     .join("\n\n---\n\n");
 
-  // Allocate budget across the three large pieces
   const slices = allocateBudget(
     [
       { key: "project", text: projectContext, weight: 3, mode: "head" },
@@ -556,7 +443,6 @@ export async function getBriefing(
 
   const trimmedModules: BriefingOutput["module_contexts"] = [];
   if (modulesSlice.text.length > 0 && moduleContents.length > 0) {
-    // Distribute the modules slice across module entries proportionally
     const subSlices = allocateBudget(
       moduleContents.map((m) => ({ key: m.name, text: m.content, weight: 1, mode: "head" as const })),
       modulesSlice.allocatedTokens,
@@ -567,9 +453,7 @@ export async function getBriefing(
     }
   }
 
-  // Recompute memory bodies to fit using a cascade approach:
-  // top-ranked memories get full budget first; lower-ranked ones are dropped if budget runs out.
-  // This is better than uniform truncation which gives all memories a 37%-fragment.
+  // Cascade budget: top-ranked memories get full budget first; lower-ranked are dropped.
   const trimmedMemories: BriefingMemory[] = [];
   if (!memoriesSlice.truncated) {
     trimmedMemories.push(...memories);
@@ -582,19 +466,17 @@ export async function getBriefing(
         trimmedMemories.push(m);
         remaining -= bodyTokens;
       } else if (remaining > 80) {
-        // Enough budget for a meaningful fragment — truncate and include
         const t = truncateToTokens(m.body, { maxTokens: remaining, mode: "head" });
         trimmedMemories.push({ ...m, body: t.text });
         remaining = 0;
       }
-      // Otherwise skip — too small a fragment to be useful
     }
   }
 
   const totalTokens =
     projectSlice.estimatedTokens + modulesSlice.estimatedTokens + memoriesSlice.estimatedTokens;
 
-  // Decay warnings: memories not read in >90 days
+  // ── Decay warnings ─────────────────────────────────────────────────────
   const decayWarnings: string[] = [];
   for (const m of trimmedMemories) {
     const u = getUsage(usage, m.id);
@@ -603,21 +485,20 @@ export async function getBriefing(
     if (isDecaying(u, createdAt)) decayWarnings.push(m.id);
   }
 
-  // Compact / actions: squeeze bodies for fewer downstream tokens
+  // ── Format + priority + why ────────────────────────────────────────────
   const formattedMemories =
     input.format === "compact"
       ? trimmedMemories.map((m) => ({ ...m, body: compactSummary(m.body) }))
       : input.format === "actions"
-        ? trimmedMemories.map((m) => ({
-            ...m,
-            body: extractActionsBriefBody(m.body),
-          }))
+        ? trimmedMemories.map((m) => ({ ...m, body: extractActionsBriefBody(m.body) }))
         : trimmedMemories;
+
   const outputMemories = formattedMemories.map((m) => ({
     ...m,
     priority: classifyMemoryPriority(m, byId.get(m.id), input.files, input.symbols),
     why: explainWhySurfaced(m, byId.get(m.id), input.files, inferred),
   }));
+
   const briefingQuality = classifyBriefingQuality(outputMemories, {
     isTemplateContext,
     autoContextGenerated,
@@ -625,15 +506,11 @@ export async function getBriefing(
     searchMode,
   });
 
-  // ── Code-map symbol lookup ──────────────────────────────────────────────
-  // Also auto-look up symbols found in anchor paths of returned memories +
-  // any explicit symbols[] the caller requested.
-  let symbolLocations: CodeMapSymbolHit[] | undefined;
+  // ── Code-map symbol lookup ─────────────────────────────────────────────
+  let symbolLocations: BriefingOutput["symbol_locations"];
   const symbolsToLookup = new Set<string>(input.symbols);
-  // Auto-collect symbols from memory anchors so agents get locations for free
   for (const m of outputMemories) {
-    const loaded = byId.get(m.id);
-    for (const sym of loaded?.memory.frontmatter.anchor.symbols ?? []) {
+    for (const sym of byId.get(m.id)?.memory.frontmatter.anchor.symbols ?? []) {
       symbolsToLookup.add(sym);
     }
   }
@@ -663,14 +540,11 @@ export async function getBriefing(
     }
   }
 
-  // ── action_required: memories that need explicit human confirmation ──────
+  // ── action_required ────────────────────────────────────────────────────
   const actionRequired: ActionRequiredItem[] = [];
-  for (const m of outputMemories) {
-    const loaded = byId.get(m.id);
-    if (!loaded?.memory.frontmatter.requires_human_approval) continue;
 
-    // Extract the developer message from the memory body (between the > quote block)
-    const bodyLines = loaded.memory.body.split("\n");
+  const extractActionItem = (id: string, body: string): ActionRequiredItem => {
+    const bodyLines = body.split("\n");
     const quoteBlock = bodyLines
       .filter((l) => l.startsWith("> "))
       .map((l) => l.slice(2))
@@ -678,54 +552,35 @@ export async function getBriefing(
       .replace(/^\*«\s*/, "")
       .replace(/\s*»\*$/, "")
       .trim();
-
-    // Build a short summary from the first heading
     const headingLine = bodyLines.find((l) => l.startsWith("## "));
-    const summary = headingLine?.replace(/^##\s*/, "").trim() ?? m.id;
-
-    actionRequired.push({
-      id: m.id,
+    const summary = headingLine?.replace(/^##\s*/, "").trim() ?? id;
+    return {
+      id,
       summary,
       developer_message: quoteBlock ||
-        `Une modification externe potentiellement incompatible a été détectée (${m.id}). ` +
+        `Une modification externe potentiellement incompatible a été détectée (${id}). ` +
         `Veux-tu que j'analyse l'impact et que je propose des mises à jour ?`,
-    });
+    };
+  };
+
+  for (const m of outputMemories) {
+    const loaded = byId.get(m.id);
+    if (loaded?.memory.frontmatter.requires_human_approval) {
+      actionRequired.push(extractActionItem(m.id, loaded.memory.body));
+    }
   }
-  // Also load action_required memories that weren't in the ranked set
-  // (they may not be relevant to the task but are still urgent)
   if (existsSync(ctx.paths.memoriesDir)) {
     const allMems = await loadMemoriesFromDir(ctx.paths.memoriesDir);
     for (const { memory } of allMems) {
       const fm = memory.frontmatter;
       if (!fm.requires_human_approval) continue;
       if (fm.status === "rejected" || fm.status === "deprecated") continue;
-      if (actionRequired.some((a) => a.id === fm.id)) continue; // already included
-
-      const bodyLines = memory.body.split("\n");
-      const quoteBlock = bodyLines
-        .filter((l) => l.startsWith("> "))
-        .map((l) => l.slice(2))
-        .join(" ")
-        .replace(/^\*«\s*/, "")
-        .replace(/\s*»\*$/, "")
-        .trim();
-      const headingLine = bodyLines.find((l) => l.startsWith("## "));
-      const summary = headingLine?.replace(/^##\s*/, "").trim() ?? fm.id;
-
-      actionRequired.push({
-        id: fm.id,
-        summary,
-        developer_message: quoteBlock ||
-          `Une modification externe potentiellement incompatible a été détectée (${fm.id}). ` +
-          `Veux-tu que j'analyse l'impact et que je propose des mises à jour ?`,
-      });
+      if (actionRequired.some((a) => a.id === fm.id)) continue;
+      actionRequired.push(extractActionItem(fm.id, memory.body));
     }
   }
 
-  // ── pending-distill: prompt agent to run post_task if shallow auto-recap ──
-  // If the previous session was closed by autopilot (no manual post_task),
-  // surface an action_required item so the LLM host distills learnings via
-  // the post_task prompt. Auto-expires after 7 days (stale diff = useless).
+  // ── Pending distill ────────────────────────────────────────────────────
   const pendingDistillFile = pendingDistillPath(ctx);
   if (existsSync(pendingDistillFile)) {
     try {
@@ -752,7 +607,6 @@ export async function getBriefing(
             `When done, call \`mem_session_end\` to acknowledge — this clears the pending distill marker.`,
         });
       } else {
-        // Auto-expire stale pending distill (> 7 days old)
         try {
           const { rm } = await import("node:fs/promises");
           await rm(pendingDistillFile);
@@ -761,35 +615,18 @@ export async function getBriefing(
     } catch { /* malformed or deleted between check and read — skip */ }
   }
 
-  // ── low_value detection + hints ────────────────────────────────────────
-  // A briefing is "low value" when the project has not been initialized yet
-  // (template context + zero memories + no past session). Clients can short-circuit
-  // and tell the model to use plain Read/Grep instead of paying for a near-empty briefing.
+  // ── low_value + adaptive trim + hints ─────────────────────────────────
   const memoriesEmpty = outputMemories.length === 0;
   const hasMemoriesDir = existsSync(ctx.paths.memoriesDir);
-  const isColdStart =
-    isTemplateContext &&
-    memoriesEmpty &&
-    !lastSession &&
-    !autoContextGenerated;
+  const isColdStart = isTemplateContext && memoriesEmpty && !lastSession && !autoContextGenerated;
 
-  // ── Adaptive value gate ─────────────────────────────────────────────────
-  // hAIve only earns its token cost when it carries knowledge a capable model could NOT
-  // have inferred. A briefing is "high value" when at least one surfaced memory is both
-  // relevant (must_read/useful) AND specific/unguessable. Otherwise it is "low value":
-  // a generic agent would reach the same answer, so we avoid paying for inferable noise.
   const hasUnguessableSignal = outputMemories.some(
     (m) =>
       (m.priority === "must_read" || m.priority === "useful") &&
       specificityScore(m.body) >= GUESSABLE_THRESHOLD,
   );
   const briefingValueLow = !hasUnguessableSignal;
-  // Trim ONLY the inferable, auto-generated/template project context — never a curated one,
-  // which is real team knowledge. Keeps the call near-zero-cost when there is nothing to say.
   const adaptiveConfig = await loadConfig(ctx.paths);
-  // An init-bootstrapped project context (the common real-world state) still reads as inferable
-  // code-map noise until a human fills it in. Detect that: the bootstrap marker plus ≥2 unfilled
-  // "TODO —" sections. A curated context (no bootstrap marker, or TODOs filled in) is never trimmed.
   const bootstrapUnfilled =
     /Auto-generated by `haive init/i.test(projectContextRaw) &&
     (projectContextRaw.match(/TODO —/g)?.length ?? 0) >= 2;
@@ -824,7 +661,6 @@ export async function getBriefing(
       );
     }
     if (input.task && outputMemories.length > 0 && actionRequired.length === 0) {
-      // Encourage capturing new knowledge proactively.
       hints.push(
         "After completing the task: capture new gotchas with mem_observe, " +
         "failed approaches with mem_tried, validated patterns with mem_save.",
@@ -850,10 +686,7 @@ export async function getBriefing(
     );
   }
 
-  // Record a briefing marker so an MCP-native agent that calls get_briefing before
-  // editing satisfies the enforcement gate — without having to shell out to the CLI
-  // `haive briefing`. memory_ids carry the surfaced anchored policies so the per-file
-  // decision-coverage check passes for the files this briefing actually covered.
+  // ── Briefing marker (satisfies enforcement gate for MCP-native agents) ─
   if (existsSync(ctx.paths.haiveDir)) {
     await writeBriefingMarker(ctx.paths, {
       sessionId: process.env.HAIVE_SESSION_ID,
@@ -907,205 +740,4 @@ export async function getBriefing(
       },
     },
   };
-}
-
-function compactSummary(body: string): string {
-  for (const line of body.split("\n")) {
-    const trimmed = line.replace(/^#+\s*/, "").trim();
-    if (trimmed.length > 0) return trimmed.slice(0, 120);
-  }
-  return body.slice(0, 120);
-}
-
-function classifyMemoryPriority(
-  memory: BriefingMemory,
-  loaded: LoadedMemory | undefined,
-  inputFiles: string[],
-  inputSymbols: string[],
-): BriefingMemoryPriority {
-  const fm = loaded?.memory.frontmatter;
-  const directAnchor = Boolean(
-    fm && inputFiles.length > 0 &&
-    fm.anchor.paths.some((p) => inputFiles.some((file) => pathsOverlap(p, file))),
-  );
-  const directSymbol = Boolean(
-    fm && inputSymbols.length > 0 &&
-    fm.anchor.symbols.some((sym) =>
-      inputSymbols.some((wanted) => wanted.toLowerCase() === sym.toLowerCase()),
-    ),
-  );
-  const strongSemantic = (memory.semantic_score ?? 0) >= 0.65;
-  const usefulSemantic = (memory.semantic_score ?? 0) >= 0.35;
-
-  if (
-    fm?.requires_human_approval ||
-    directAnchor ||
-    directSymbol ||
-    (memory.type === "attempt" && (memory.match_quality === "exact" || strongSemantic)) ||
-    (memory.type === "skill" && (memory.match_quality === "exact" || strongSemantic))
-  ) {
-    return "must_read";
-  }
-
-  // Generic stack-pack seeds never claim `useful` rank on a semantic/tag match alone —
-  // they would otherwise crowd out repo-specific memories. A direct anchor/symbol match
-  // (handled above) is the only way a seed earns a higher tier, which means it has been
-  // anchored to a real file the agent is editing.
-  if (isStackPackSeed(fm)) {
-    return "background";
-  }
-
-  if (
-    memory.type === "skill" ||
-    memory.reasons.includes("module") ||
-    memory.reasons.includes("domain") ||
-    memory.match_quality === "exact" ||
-    usefulSemantic
-  ) {
-    return "useful";
-  }
-
-  return "background";
-}
-
-function priorityRank(priority: BriefingMemoryPriority): number {
-  return priority === "must_read" ? 3 : priority === "useful" ? 2 : 1;
-}
-
-function classifyBriefingQuality(
-  memories: BriefingMemory[],
-  context: {
-    isTemplateContext: boolean;
-    autoContextGenerated: boolean;
-    hasLastSession: boolean;
-    searchMode: BriefingOutput["search_mode"];
-  },
-): BriefingQuality {
-  const mustRead = memories.filter((m) => m.priority === "must_read").length;
-  const useful = memories.filter((m) => m.priority === "useful").length;
-  const background = memories.filter((m) => m.priority === "background").length;
-  const weakSemantic = memories.filter((m) =>
-    m.reasons.length === 1 &&
-    m.reasons.includes("semantic") &&
-    (m.semantic_score ?? 0) > 0 &&
-    (m.semantic_score ?? 0) < 0.35,
-  ).length;
-  const reasons: string[] = [];
-
-  if (memories.length === 0) reasons.push("no memories matched the task or files");
-  if (context.isTemplateContext && !context.autoContextGenerated) reasons.push("project context is still a template");
-  if (!context.hasLastSession) reasons.push("no previous session recap");
-  if (mustRead > 0) reasons.push(`${mustRead} must_read memor${mustRead === 1 ? "y" : "ies"} matched directly`);
-  if (useful > 0) reasons.push(`${useful} useful memor${useful === 1 ? "y" : "ies"} matched`);
-  if (background > useful + mustRead && background > 2) reasons.push(`${background} background memories dominate the result`);
-  if (weakSemantic > 0) reasons.push(`${weakSemantic} weak semantic-only match${weakSemantic === 1 ? "" : "es"}`);
-  if (context.searchMode === "literal_fallback") reasons.push("semantic index unavailable or empty; literal fallback used");
-
-  if (memories.length === 0 || (mustRead === 0 && useful === 0)) {
-    return { level: "thin", reasons };
-  }
-  if (background > useful + mustRead && background > 2) {
-    return { level: "noisy", reasons };
-  }
-  return { level: "strong", reasons };
-}
-
-function explainWhySurfaced(
-  memory: BriefingMemory,
-  loaded: LoadedMemory | undefined,
-  inputFiles: string[],
-  inferredModules: string[],
-): string[] {
-  const why: string[] = [];
-  const fm = loaded?.memory.frontmatter;
-  if (memory.reasons.includes("anchor") && fm) {
-    const matching = fm.anchor.paths.filter((p) =>
-      inputFiles.length === 0 || inputFiles.some((file) => pathsOverlap(p, file)),
-    );
-    if (matching.length > 0) {
-      const exact = matching.filter((p) =>
-        !isGlobPath(p) && inputFiles.some((file) => p === file || pathsOverlap(p, file)),
-      );
-      const glob = matching.filter((p) => isGlobPath(p));
-      if (exact.length > 0) {
-        why.push(`Exact/file anchor match: ${exact.slice(0, 4).join(", ")}`);
-      }
-      if (glob.length > 0) {
-        why.push(`Glob anchor match: ${glob.slice(0, 4).join(", ")}`);
-      }
-      if (exact.length === 0 && glob.length === 0) {
-        why.push(`Anchored to touched path${matching.length === 1 ? "" : "s"}: ${matching.slice(0, 4).join(", ")}`);
-      }
-    } else if (fm.anchor.paths.length > 0) {
-      why.push(`Pulled by related anchor: ${fm.anchor.paths.slice(0, 4).join(", ")}`);
-    }
-    if (fm.anchor.symbols.length > 0) {
-      why.push(`Anchor symbol${fm.anchor.symbols.length === 1 ? "" : "s"}: ${fm.anchor.symbols.slice(0, 4).join(", ")}`);
-    }
-  }
-  if (memory.reasons.includes("symbol") && fm) {
-    why.push(`Explicit symbol match: ${fm.anchor.symbols.slice(0, 4).join(", ")}`);
-  }
-  if (memory.reasons.includes("module")) {
-    const moduleHints = [
-      ...(memory.module ? [memory.module] : []),
-      ...memory.tags.filter((tag) => inferredModules.includes(tag)),
-    ];
-    const shown = moduleHints.length > 0 ? [...new Set(moduleHints)].join(", ") : inferredModules.join(", ");
-    why.push(shown ? `Matched inferred module/tag: ${shown}` : "Matched inferred module context.");
-  }
-  if (memory.reasons.includes("domain")) {
-    why.push("Matched inferred domain from the target file paths.");
-  }
-  if (memory.reasons.includes("semantic")) {
-    const score = memory.semantic_score !== undefined
-      ? ` score=${Math.round(memory.semantic_score * 100) / 100}`
-      : "";
-    why.push(`${memory.match_quality === "exact" ? "Literal task match" : "Semantic/task relevance"}${score}.`);
-  }
-  why.push(`Confidence: ${memory.confidence}; read ${memory.read_count} time${memory.read_count === 1 ? "" : "s"}.`);
-  if (memory.type === "attempt") why.push("Failed-approach record; read before repeating the same path.");
-  if (memory.type === "skill") why.push("Skill (reusable procedure/playbook) — follow the steps described when doing this type of task.");
-  if (memory.status === "proposed" || memory.status === "draft") {
-    why.push("Unvalidated record; use cautiously or ask a human before treating it as policy.");
-  }
-  return why;
-}
-
-async function trySemanticHits(
-  ctx: HaiveContext,
-  task: string,
-  limit: number,
-): Promise<Array<{ id: string; score: number }> | null> {
-  let mod: typeof import("@hiveai/embeddings");
-  try {
-    mod = await import("@hiveai/embeddings");
-  } catch {
-    return null;
-  }
-  const result = await mod.semanticSearch(ctx.paths, task, { limit });
-  if (!result) return null;
-  return result.hits.map((h) => ({ id: h.id, score: h.score }));
-}
-
-async function loadModuleContexts(
-  ctx: HaiveContext,
-  modules: string[],
-): Promise<Array<{ name: string; content: string }>> {
-  if (modules.length === 0) return [];
-  if (!existsSync(ctx.paths.modulesContextDir)) return [];
-  const available = new Set(
-    (await readdir(ctx.paths.modulesContextDir, { withFileTypes: true }))
-      .filter((d) => d.isDirectory())
-      .map((d) => d.name),
-  );
-  const out: Array<{ name: string; content: string }> = [];
-  for (const m of modules) {
-    if (!available.has(m)) continue;
-    const file = path.join(ctx.paths.modulesContextDir, m, "context.md");
-    if (existsSync(file)) {
-      out.push({ name: m, content: await readFile(file, "utf8") });
-    }
-  }
-  return out;
 }

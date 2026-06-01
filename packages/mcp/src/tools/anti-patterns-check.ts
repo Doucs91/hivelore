@@ -76,6 +76,12 @@ export interface AntiPatternsWarning {
   tags?: string[];
   /** Anchor paths of the memory — lets the gate tell what kind of file this warning is about. */
   anchor_paths?: string[];
+  /**
+   * True when the memory has an executable sensor defined.
+   * Used by the pre-commit gate: if a sensor exists but did NOT fire (no "sensor" reason),
+   * the sensor is the authoritative check and literal matching alone should not block.
+   */
+  has_sensor?: boolean;
 }
 
 export interface AntiPatternsCheckOutput {
@@ -168,7 +174,7 @@ export async function antiPatternsCheck(
   const seen = new Map<string, AntiPatternsWarning>();
 
   const upsert = (
-    fm: { id: string; type: string; scope: string; tags?: string[]; anchor?: { paths?: string[] } },
+    fm: { id: string; type: string; scope: string; tags?: string[]; anchor?: { paths?: string[] }; sensor?: unknown },
     body: string,
     reason: AntiPatternsWarning["reasons"][number],
     score?: number,
@@ -191,6 +197,7 @@ export async function antiPatternsCheck(
       reasons: [reason],
       tags: fm.tags ?? [],
       anchor_paths: fm.anchor?.paths ?? [],
+      ...(fm.sensor != null ? { has_sensor: true } : {}),
       ...(score !== undefined ? { semantic_score: score } : {}),
     });
   };
