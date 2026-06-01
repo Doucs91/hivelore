@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveHaivePaths } from "@hiveai/core";
+import { loadUsageIndex, recordApplied, resolveHaivePaths, saveUsageIndex } from "@hiveai/core";
 import type { HaiveContext } from "../src/context.js";
 import { getBriefing } from "../src/tools/get-briefing.js";
 
@@ -58,5 +58,21 @@ describe("adaptive briefing", () => {
     const b = await getBriefing({ ...baseInput, task: "implement toPublicId", files: ["src/ids.ts"] }, ctx);
     expect(b.briefing_value).toBe("high");
     expect(b.project_context?.content ?? "").not.toMatch(/adaptive briefing/i);
+  });
+
+  it("ranks an applied memory above an equally-relevant never-applied one and surfaces impact_tier", async () => {
+    // Two memories anchored to the same file → identical relevance/confidence; impact is the only differentiator.
+    await writeMemory(ctx.paths.teamDir!, "2024-01-01-convention-applied", "# Applied rule\n\nKeep handlers pure.", "src/svc.ts");
+    await writeMemory(ctx.paths.teamDir!, "2024-01-01-convention-unused", "# Unused rule\n\nKeep handlers pure.", "src/svc.ts");
+
+    const idx = await loadUsageIndex(ctx.paths);
+    for (let i = 0; i < 4; i++) recordApplied(idx, "2024-01-01-convention-applied");
+    await saveUsageIndex(ctx.paths, idx);
+
+    const b = await getBriefing({ ...baseInput, task: "edit the service handler", files: ["src/svc.ts"] }, ctx);
+    expect(b.memories[0]?.id).toBe("2024-01-01-convention-applied");
+    expect(b.memories[0]?.impact_tier).toBe("high");
+    const unused = b.memories.find((m) => m.id === "2024-01-01-convention-unused");
+    expect(unused?.impact_score ?? 0).toBeLessThan(b.memories[0]!.impact_score ?? 0);
   });
 });

@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import {
   allocateBudget,
+  computeImpact,
   DEFAULT_AUTO_PROMOTE_RULE,
   deriveConfidence,
   estimateTokens,
@@ -222,6 +223,7 @@ export async function getBriefing(
         return;
       }
       const u = getUsage(usage, fm.id);
+      const imp = computeImpact(fm, u);
       seen.set(fm.id, {
         id: fm.id,
         scope: fm.scope,
@@ -232,6 +234,8 @@ export async function getBriefing(
         confidence: deriveConfidence(fm, u),
         ...(fm.status === "draft" || fm.status === "proposed" ? { unverified: true as const } : {}),
         read_count: u.read_count,
+        impact_score: imp.score,
+        impact_tier: imp.tier,
         reasons: [reason],
         match_quality: matchQuality ?? "partial",
         ...(score !== undefined ? { semantic_score: score } : {}),
@@ -294,10 +298,14 @@ export async function getBriefing(
         m.confidence === "trusted" ? 3 :
         m.confidence === "low" ? 1 :
         m.confidence === "stale" ? -2 : 0;
+      // Demonstrated-utility nudge (0..3): a memory that agents actually applied — or
+      // whose sensor caught a regression — edges out an equally-relevant one that
+      // never proved useful. Small on purpose: never overrides anchor/symbol relevance.
+      const impactScore = (m: BriefingMemory): number => (m.impact_score ?? 0) * 3;
       const sa = priorityRank(classifyMemoryPriority(a, byId.get(a.id), input.files, input.symbols)) * 100
-        + reasonScore(a) + confidenceScore(a) + (a.semantic_score ?? 0);
+        + reasonScore(a) + confidenceScore(a) + impactScore(a) + (a.semantic_score ?? 0);
       const sb = priorityRank(classifyMemoryPriority(b, byId.get(b.id), input.files, input.symbols)) * 100
-        + reasonScore(b) + confidenceScore(b) + (b.semantic_score ?? 0);
+        + reasonScore(b) + confidenceScore(b) + impactScore(b) + (b.semantic_score ?? 0);
       return sb - sa;
     });
 

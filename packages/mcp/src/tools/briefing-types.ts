@@ -1,4 +1,4 @@
-import type { ConfidenceLevel } from "@hiveai/core";
+import type { ConfidenceLevel, ImpactTier } from "@hiveai/core";
 
 export type BriefingMemoryPriority = "must_read" | "useful" | "background";
 
@@ -18,6 +18,10 @@ export interface BriefingMemory {
   /** Present when confidence is 'low' or 'unverified' — AI should weight this memory cautiously. */
   unverified?: true;
   read_count: number;
+  /** Demonstrated-utility score in [0,1] from the closed-loop impact layer (reads + applied + sensor fires vs rejections/stale/dormancy). */
+  impact_score?: number;
+  /** Impact tier derived from {@link impact_score}. A nudge in ranking; surfaced for transparency. */
+  impact_tier?: ImpactTier;
   reasons: Array<"anchor" | "module" | "domain" | "semantic" | "symbol">;
   match_quality: "exact" | "partial" | "semantic";
   semantic_score?: number;
