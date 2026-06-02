@@ -138,3 +138,4 @@
 {"tool":"get_briefing","at":"2026-06-02T15:48:46.736Z","summary":"Produce a CLI/MCP command surface coherence map for hAIve: group all commands by verb, propose renames for ambiguous pairs, define a golden path of ~10 commands. This is a consolidation/UX design deliverable, no behavior changes."}
 {"tool":"get_briefing","at":"2026-06-02T16:14:14.261Z","summary":"Rename user-facing memory-verb hints in doctor.ts fix strings to the canonical verbs (save/delete) to match MCP tool names. Cosmetic string-only change."}
 {"tool":"get_briefing","at":"2026-06-02T16:19:52.242Z","summary":"Commit Phase A: align memory CLI verbs with MCP tool names, lockstep version bump to 0.13.2, add coherence map doc. Need decision coverage for the changed CLI/package files before committing."}
+{"tool":"mem_session_end","at":"2026-06-02T16:23:05.016Z","summary":"Analyser le harness engineering vs hAIve, produire la carte de cohérence de surf"}
