@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "generated_at": "2026-06-02T03:15:59.144Z",
-  "root": "/home/sd/Documents/Dev/New idea",
+  "generated_at": "2026-06-02T20:14:47.213Z",
+  "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
       "exports": [
@@ -18,7 +18,7 @@
         {
           "name": "CreateOrderInputSchema",
           "kind": "const",
-          "description": "Intentionnellement trop permissif — les tests exigent une contrainte métier plus stricte sur qty et sku.",
+          "description": "Intentionally too permissive; tests require stricter business constraints on qty and sku.",
           "line": 4
         },
         {
@@ -44,7 +44,7 @@
         {
           "name": "CreateOrderInputSchema",
           "kind": "const",
-          "description": "Intentionnellement trop permissif — les tests exigent une contrainte métier plus stricte sur qty et sku.",
+          "description": "Intentionally too permissive; tests require stricter business constraints on qty and sku.",
           "line": 4
         },
         {
@@ -83,7 +83,7 @@
           "line": 32
         }
       ],
-      "loc": 169
+      "loc": 170
     },
     "packages/cli/src/commands/benchmark.ts": {
       "exports": [
@@ -103,7 +103,17 @@
           "line": 109
         }
       ],
-      "loc": 506
+      "loc": 532
+    },
+    "packages/cli/src/commands/dashboard.ts": {
+      "exports": [
+        {
+          "name": "registerDashboard",
+          "kind": "function",
+          "line": 20
+        }
+      ],
+      "loc": 144
     },
     "packages/cli/src/commands/doctor.ts": {
       "exports": [
@@ -135,20 +145,20 @@
         {
           "name": "runWithEnforcement",
           "kind": "function",
-          "line": 575
+          "line": 578
         }
       ],
-      "loc": 1839
+      "loc": 1928
     },
     "packages/cli/src/commands/eval.ts": {
       "exports": [
         {
           "name": "registerEval",
           "kind": "function",
-          "line": 39
+          "line": 54
         }
       ],
-      "loc": 245
+      "loc": 336
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -170,6 +180,16 @@
         }
       ],
       "loc": 184
+    },
+    "packages/cli/src/commands/ingest.ts": {
+      "exports": [
+        {
+          "name": "registerIngest",
+          "kind": "function",
+          "line": 38
+        }
+      ],
+      "loc": 271
     },
     "packages/cli/src/commands/init-bootstrap.ts": {
       "summary": "Bootstrap: auto-generate .ai/project-context.md from local filesystem signals.",
@@ -212,47 +232,47 @@
           "name": "createContext",
           "kind": "function",
           "description": "createContext(): resolve session once, share across all procedures",
-          "line": 480
+          "line": 506
         },
         {
           "name": "dbConnect",
           "kind": "function",
-          "line": 506
+          "line": 532
         },
         {
           "name": "SUPPORTED_STACKS",
           "kind": "const",
-          "line": 626
+          "line": 908
         },
         {
           "name": "isValidStack",
           "kind": "function",
-          "line": 628
+          "line": 910
         },
         {
           "name": "autoDetectStacks",
           "kind": "function",
           "description": "Auto-detect which stacks are present from a package.json dep map.",
-          "line": 633
+          "line": 915
         },
         {
           "name": "seedStackPack",
           "kind": "function",
           "description": "Seed memory pack files on disk.",
-          "line": 662
+          "line": 944
         }
       ],
-      "loc": 691
+      "loc": 986
     },
     "packages/cli/src/commands/init.ts": {
       "exports": [
         {
           "name": "registerInit",
           "kind": "function",
-          "line": 220
+          "line": 241
         }
       ],
-      "loc": 590
+      "loc": 614
     },
     "packages/cli/src/commands/install-hooks.ts": {
       "exports": [
@@ -282,7 +302,7 @@
           "line": 45
         }
       ],
-      "loc": 354
+      "loc": 355
     },
     "packages/cli/src/commands/memory-approve.ts": {
       "exports": [
@@ -501,7 +521,7 @@
           "line": 21
         }
       ],
-      "loc": 69
+      "loc": 70
     },
     "packages/cli/src/commands/memory-seed.ts": {
       "exports": [
@@ -521,7 +541,7 @@
           "line": 20
         }
       ],
-      "loc": 75
+      "loc": 76
     },
     "packages/cli/src/commands/memory-stats.ts": {
       "exports": [
@@ -627,7 +647,7 @@
           "line": 21
         }
       ],
-      "loc": 215
+      "loc": 216
     },
     "packages/cli/src/commands/resolve-project.ts": {
       "exports": [
@@ -715,7 +735,7 @@
           "line": 48
         }
       ],
-      "loc": 661
+      "loc": 671
     },
     "packages/cli/src/commands/tui.ts": {
       "exports": [
@@ -1194,6 +1214,42 @@
       ],
       "loc": 243
     },
+    "packages/core/src/dashboard.ts": {
+      "exports": [
+        {
+          "name": "DashboardOptions",
+          "kind": "interface",
+          "line": 19
+        },
+        {
+          "name": "ImpactRow",
+          "kind": "interface",
+          "line": 27
+        },
+        {
+          "name": "SensorRow",
+          "kind": "interface",
+          "line": 35
+        },
+        {
+          "name": "DormantRow",
+          "kind": "interface",
+          "line": 41
+        },
+        {
+          "name": "DashboardReport",
+          "kind": "interface",
+          "line": 47
+        },
+        {
+          "name": "buildDashboard",
+          "kind": "function",
+          "description": "Build the full observability rollup from the loaded corpus + usage index.",
+          "line": 102
+        }
+      ],
+      "loc": 237
+    },
     "packages/core/src/dep-tracker.ts": {
       "summary": "Dependency version tracker.",
       "exports": [
@@ -1416,24 +1472,120 @@
           "line": 187
         },
         {
+          "name": "MetricDelta",
+          "kind": "interface",
+          "description": "Baseline / compare — makes the \"hAIve improves retrieval by N%\" claim reproducible.",
+          "line": 200
+        },
+        {
+          "name": "EvalDelta",
+          "kind": "interface",
+          "line": 207
+        },
+        {
+          "name": "compareEvalReports",
+          "kind": "function",
+          "description": "Diff a current report against a baseline.",
+          "line": 223
+        },
+        {
           "name": "titleFromBody",
           "kind": "function",
           "description": "Extract a short task-like title from a memory body (first heading or first line).",
-          "line": 195
+          "line": 247
         },
         {
           "name": "SelfEvalOptions",
           "kind": "interface",
-          "line": 208
+          "line": 260
         },
         {
           "name": "synthesizeSelfEvalCases",
           "kind": "function",
           "description": "Synthesize retrieval cases from a repo's own anchored memories — zero-setup eval.",
-          "line": 221
+          "line": 273
         }
       ],
-      "loc": 244
+      "loc": 296
+    },
+    "packages/core/src/findings.ts": {
+      "exports": [
+        {
+          "name": "FindingSeverity",
+          "kind": "type",
+          "description": "Findings ingestion — the self-feeding half of the sensors story (feature B).",
+          "line": 22
+        },
+        {
+          "name": "Finding",
+          "kind": "interface",
+          "line": 24
+        },
+        {
+          "name": "MemoryDraft",
+          "kind": "interface",
+          "line": 45
+        },
+        {
+          "name": "DraftOptions",
+          "kind": "interface",
+          "line": 56
+        },
+        {
+          "name": "DraftsOptions",
+          "kind": "interface",
+          "line": 65
+        },
+        {
+          "name": "normalizeFindingSeverity",
+          "kind": "function",
+          "description": "Normalize a tool-specific severity string to the shared scale.",
+          "line": 81
+        },
+        {
+          "name": "parseSarif",
+          "kind": "function",
+          "description": "Parse SARIF 2.1.0 (`runs[].results[]`).",
+          "line": 132
+        },
+        {
+          "name": "parseSonar",
+          "kind": "function",
+          "description": "Parse the SonarQube issues payload (`issues[]` from `/api/issues/search`).",
+          "line": 180
+        },
+        {
+          "name": "parseFindings",
+          "kind": "function",
+          "description": "Dispatch to the right parser by declared format.",
+          "line": 214
+        },
+        {
+          "name": "findingBody",
+          "kind": "function",
+          "description": "Build the markdown body for a finding-derived memory.",
+          "line": 241
+        },
+        {
+          "name": "findingToDraft",
+          "kind": "function",
+          "description": "Convert one finding into a proposed memory draft (with a conservative sensor when derivable).",
+          "line": 259
+        },
+        {
+          "name": "draftsFromFindings",
+          "kind": "function",
+          "description": "Convert a batch of findings into drafts, deduped within the batch and capped/filtered.",
+          "line": 285
+        },
+        {
+          "name": "filterNewDrafts",
+          "kind": "function",
+          "description": "Drop drafts whose topic already exists in the corpus (cross-run dedup).",
+          "line": 300
+        }
+      ],
+      "loc": 304
     },
     "packages/core/src/impact.ts": {
       "exports": [
@@ -2601,158 +2753,158 @@
         {
           "name": "SERVER_NAME",
           "kind": "const",
-          "line": 280
+          "line": 285
         },
         {
           "name": "SERVER_VERSION",
           "kind": "const",
-          "line": 281
+          "line": 286
         },
         {
           "name": "ToolProfile",
           "kind": "type",
-          "line": 282
+          "line": 287
         },
         {
           "name": "ENFORCEMENT_PROFILE_TOOLS",
           "kind": "const",
-          "line": 295
+          "line": 300
         },
         {
           "name": "MAINTENANCE_PROFILE_TOOLS",
           "kind": "const",
-          "line": 309
+          "line": 314
         },
         {
           "name": "EXPERIMENTAL_PROFILE_TOOLS",
           "kind": "const",
-          "line": 331
+          "line": 337
         },
         {
           "name": "TOOL_PROFILES",
           "kind": "const",
-          "line": 342
+          "line": 348
         },
         {
           "name": "getAllowedToolsForProfile",
           "kind": "function",
-          "line": 348
+          "line": 354
         },
         {
           "name": "createHaiveServer",
           "kind": "function",
-          "line": 370
+          "line": 377
         },
         {
           "name": "parseMcpCliArgs",
           "kind": "function",
           "description": "Parse argv for the standalone haive-mcp binary / CLI subprocess parity.",
-          "line": 1358
+          "line": 1396
         },
         {
           "name": "printHaiveMcpVersion",
           "kind": "function",
           "description": "Print MCP server version (same as haive CLI when bundled together).",
-          "line": 1381
+          "line": 1419
         },
         {
           "name": "runHaiveMcpStdio",
           "kind": "function",
           "description": "Run the MCP server over stdio.",
-          "line": 1389
+          "line": 1427
         },
         {
           "name": "getBriefing",
           "kind": "const",
-          "line": 193
+          "line": 198
         },
         {
           "name": "codeMapTool",
           "kind": "const",
-          "line": 198
+          "line": 203
         },
         {
           "name": "getRecap",
           "kind": "const",
-          "line": 203
+          "line": 208
         },
         {
           "name": "memRelevantTo",
           "kind": "const",
-          "line": 208
+          "line": 213
         },
         {
           "name": "codeSearch",
           "kind": "const",
-          "line": 213
+          "line": 218
         },
         {
           "name": "whyThisFile",
           "kind": "const",
-          "line": 218
+          "line": 223
         },
         {
           "name": "antiPatternsCheck",
           "kind": "const",
-          "line": 223
+          "line": 228
         },
         {
           "name": "memDistill",
           "kind": "const",
-          "line": 228
+          "line": 233
         },
         {
           "name": "whyThisDecision",
           "kind": "const",
-          "line": 233
+          "line": 238
         },
         {
           "name": "memConflicts",
           "kind": "const",
-          "line": 238
+          "line": 243
         },
         {
           "name": "preCommitCheck",
           "kind": "const",
-          "line": 243
+          "line": 248
         },
         {
           "name": "patternDetect",
           "kind": "const",
-          "line": 248
+          "line": 253
         },
         {
           "name": "memResolveProject",
           "kind": "const",
-          "line": 253
+          "line": 258
         },
         {
           "name": "memSuggestTopic",
           "kind": "const",
-          "line": 257
+          "line": 262
         },
         {
           "name": "memTimeline",
           "kind": "const",
-          "line": 261
+          "line": 266
         },
         {
           "name": "memConflictCandidates",
           "kind": "const",
-          "line": 265
+          "line": 270
         },
         {
           "name": "runtimeJournalAppend",
           "kind": "const",
-          "line": 269
+          "line": 274
         },
         {
           "name": "runtimeJournalTail",
           "kind": "const",
-          "line": 273
+          "line": 278
         }
       ],
-      "loc": 1396
+      "loc": 1434
     },
     "packages/mcp/src/session-tracker.ts": {
       "summary": "Auto-session tracker for autopilot mode.",
@@ -3054,6 +3206,31 @@
         }
       ],
       "loc": 76
+    },
+    "packages/mcp/src/tools/ingest-findings.ts": {
+      "exports": [
+        {
+          "name": "IngestFindingsInputSchema",
+          "kind": "const",
+          "line": 17
+        },
+        {
+          "name": "IngestFindingsInput",
+          "kind": "type",
+          "line": 48
+        },
+        {
+          "name": "IngestFindingsOutput",
+          "kind": "interface",
+          "line": 52
+        },
+        {
+          "name": "ingestFindings",
+          "kind": "function",
+          "line": 70
+        }
+      ],
+      "loc": 149
     },
     "packages/mcp/src/tools/mem-approve.ts": {
       "exports": [
@@ -3849,15 +4026,15 @@
           "name": "activate",
           "kind": "function",
           "description": "── Activation ────────────────────────────────────────────────────────────────",
-          "line": 57
+          "line": 58
         },
         {
           "name": "deactivate",
           "kind": "function",
-          "line": 580
+          "line": 715
         }
       ],
-      "loc": 581
+      "loc": 716
     },
     "packages/vscode/src/harnessHealth.ts": {
       "exports": [
@@ -3917,6 +4094,31 @@
         }
       ],
       "loc": 249
+    },
+    "packages/vscode/src/observabilityProvider.ts": {
+      "exports": [
+        {
+          "name": "ObservabilitySnapshot",
+          "kind": "interface",
+          "line": 143
+        },
+        {
+          "name": "ObservabilityMode",
+          "kind": "type",
+          "line": 155
+        },
+        {
+          "name": "ObservabilityItem",
+          "kind": "class",
+          "line": 157
+        },
+        {
+          "name": "ObservabilityProvider",
+          "kind": "class",
+          "line": 198
+        }
+      ],
+      "loc": 697
     },
     "packages/vscode/src/treeProvider.ts": {
       "exports": [

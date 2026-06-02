@@ -44,6 +44,13 @@ export interface DormantRow {
   age_days: number;
 }
 
+export interface PreventionRow {
+  id: string;
+  type: string;
+  prevented_count: number;
+  last_prevented_at: string | null;
+}
+
 export interface DashboardReport {
   generated_at: string;
   inventory: {
@@ -78,6 +85,13 @@ export interface DashboardReport {
     decay_days: number;
     decaying: number;
     top_dormant: DormantRow[];
+  };
+  /** OUTCOME measurement: prevention events = times a memory's sensor fired on a real diff,
+   *  intercepting a known mistake. Distinct from retrieval (reads) — demonstrated value. */
+  prevention: {
+    total_events: number;
+    memories_with_catches: number;
+    top: PreventionRow[];
   };
   corpus: {
     /** Number of memory files (policy corpus, excludes session_recap). */
@@ -132,6 +146,8 @@ export function buildDashboard(
   let decaying = 0;
   let bodyChars = 0;
   const dormantRows: DormantRow[] = [];
+  let preventionEvents = 0;
+  const preventionRows: PreventionRow[] = [];
 
   for (const { memory } of memories) {
     const fm = memory.frontmatter;
@@ -185,6 +201,17 @@ export function buildDashboard(
       prune_candidate: impact.pruneCandidate,
     });
 
+    // ── Prevention (outcome) ──
+    if (memUsage.prevented_count > 0) {
+      preventionEvents += memUsage.prevented_count;
+      preventionRows.push({
+        id: fm.id,
+        type: fm.type,
+        prevented_count: memUsage.prevented_count,
+        last_prevented_at: memUsage.last_prevented_at,
+      });
+    }
+
     // ── Decay ──
     if (isDecaying(memUsage, fm.created_at)) decaying += 1;
     if (impact.tier === "dormant") {
@@ -226,6 +253,13 @@ export function buildDashboard(
       decay_days: DECAY_DAYS,
       decaying,
       top_dormant: dormantRows.slice(0, top),
+    },
+    prevention: {
+      total_events: preventionEvents,
+      memories_with_catches: preventionRows.length,
+      top: preventionRows
+        .sort((a, b) => b.prevented_count - a.prevented_count)
+        .slice(0, top),
     },
     corpus: {
       memory_files: inventory.total,

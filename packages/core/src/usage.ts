@@ -18,6 +18,14 @@ export interface MemoryUsage {
    */
   applied_count: number;
   last_applied_at: string | null;
+  /**
+   * Number of *prevention* events — times this memory's sensor actually fired on a scanned diff,
+   * intercepting a known mistake before it landed. This is an OUTCOME signal (defect prevented),
+   * the closest proxy hAIve has to "did the knowledge stop a real problem?", distinct from
+   * retrieval (read) and self-reported usefulness (applied). Recorded by `haive sensors check`.
+   */
+  prevented_count: number;
+  last_prevented_at: string | null;
 }
 
 export interface UsageIndex {
@@ -37,6 +45,8 @@ export function emptyUsage(): MemoryUsage {
     rejection_reason: null,
     applied_count: 0,
     last_applied_at: null,
+    prevented_count: 0,
+    last_prevented_at: null,
   };
 }
 
@@ -128,6 +138,30 @@ export function recordApplied(index: UsageIndex, id: string): UsageIndex {
     last_applied_at: now,
   };
   return index;
+}
+
+/** Debounce window so re-scanning the same diff within a few minutes doesn't inflate prevention
+ *  counts (a pre-commit hook can run the check several times for one commit). */
+export const PREVENTION_DEBOUNCE_MS = 5 * 60 * 1000;
+
+/**
+ * Record a *prevention* event: a memory's sensor fired on a scanned diff, intercepting a known
+ * mistake before it landed. Outcome signal (defect prevented), stronger than a read. Debounced by
+ * {@link PREVENTION_DEBOUNCE_MS}. Returns true if a NEW event was recorded (false if debounced).
+ */
+export function recordPrevention(index: UsageIndex, id: string, now: number = Date.now()): boolean {
+  const current = normalizeUsage(index.by_id[id]);
+  const last = current.last_prevented_at ? Date.parse(current.last_prevented_at) : 0;
+  if (Number.isFinite(last) && last > 0 && now - last < PREVENTION_DEBOUNCE_MS) {
+    index.by_id[id] = current; // normalize in place, no count change
+    return false;
+  }
+  index.by_id[id] = {
+    ...current,
+    prevented_count: current.prevented_count + 1,
+    last_prevented_at: new Date(now).toISOString(),
+  };
+  return true;
 }
 
 export const DECAY_DAYS = 90;

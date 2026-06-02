@@ -229,6 +229,22 @@ export function registerEnforce(program: Command): void {
     });
 
   enforce
+    .command("commit-msg <msgfile>")
+    .description(
+      "git commit-msg hook: block a CI-skip directive in a commit that also changes shippable code " +
+      "(GitHub scans the whole message and would skip CI for the entire push). `.ai/`-only sync commits are allowed.",
+    )
+    .option("-d, --dir <dir>", "project root")
+    .action(async (msgfile: string, opts: EnforceOptions) => {
+      const root = findProjectRoot(opts.dir);
+      const verdict = await checkCommitMessageSkipCi(root, msgfile);
+      if (verdict.block) {
+        ui.error(verdict.message);
+        process.exit(1);
+      }
+    });
+
+  enforce
     .command("session-start")
     .description("Claude Code SessionStart hook: inject briefing and write a local briefing marker.")
     .option("-d, --dir <dir>", "project root")
@@ -1365,6 +1381,47 @@ function isShippablePath(file: string): boolean {
     VERSION_FILES.includes(file as (typeof VERSION_FILES)[number]);
 }
 
+/** Directives that make GitHub Actions skip a whole push (matched on the cleaned message). */
+const CI_SKIP_DIRECTIVE = /\[skip ci\]|\[ci skip\]|\[no ci\]|\[skip actions\]|\*\*\*NO_CI\*\*\*|skip-checks: *true/i;
+
+/**
+ * commit-msg prevention for the skip-ci footgun: GitHub scans the ENTIRE commit message
+ * (subject + body) for a CI-skip directive and then skips CI for the whole push. Blocking such a
+ * directive ONLY when the commit also carries shippable code keeps legitimate `.ai/`-only sync
+ * commits (which correctly use [skip ci]) working. Comment lines (`#…`, stripped by git) are
+ * ignored so merely discussing the directive in a comment never blocks.
+ */
+async function checkCommitMessageSkipCi(
+  root: string,
+  msgfile: string,
+): Promise<{ block: boolean; message: string }> {
+  const file = path.isAbsolute(msgfile) ? msgfile : path.join(root, msgfile);
+  const raw = await readFile(file, "utf8").catch(() => "");
+  const cleaned = raw
+    .split("\n")
+    .filter((line) => !line.startsWith("#"))
+    .join("\n");
+  if (!CI_SKIP_DIRECTIVE.test(cleaned)) return { block: false, message: "" };
+
+  const staged = (await runCommand("git", ["diff", "--cached", "--name-only"], root).catch(() => ""))
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const shippable = staged.filter(isShippablePath);
+  if (shippable.length === 0) return { block: false, message: "" };
+
+  return {
+    block: true,
+    message:
+      "This commit message contains a CI-skip directive ([skip ci] / [ci skip] / [no ci]) but the commit changes shippable code:\n" +
+      shippable.slice(0, 6).map((f) => `  - ${f}`).join("\n") +
+      (shippable.length > 6 ? `\n  …and ${shippable.length - 6} more` : "") +
+      "\nGitHub scans the whole commit message and would skip CI for the ENTIRE push — your code would land untested.\n" +
+      "Fix: reword the message so it does not contain the literal directive (e.g. write 'skip-ci'), or move the\n" +
+      "skip-ci sync into a separate `.ai/`-only commit.",
+  };
+}
+
 interface ReleaseVersionState {
   lockstep: boolean;
   version?: string;
@@ -1638,6 +1695,13 @@ ${ENFORCE_HOOK_MARKER}
 haive enforce check --stage pre-push --dir . || exit $?
 `,
     },
+    {
+      name: "commit-msg",
+      body: `#!/bin/sh
+${ENFORCE_HOOK_MARKER}
+haive enforce commit-msg "$1" --dir . || exit $?
+`,
+    },
   ];
   for (const hook of hooks) {
     const file = path.join(hooksDir, hook.name);
@@ -1653,7 +1717,7 @@ haive enforce check --stage pre-push --dir . || exit $?
     }
     await chmod(file, 0o755);
   }
-  ui.success("Installed blocking git enforcement hooks: pre-commit, pre-push");
+  ui.success("Installed blocking git enforcement hooks: pre-commit, pre-push, commit-msg");
 }
 
 async function installCiEnforcement(root: string): Promise<void> {

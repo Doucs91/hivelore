@@ -917,6 +917,100 @@ describe("hAIve CLI integration", () => {
     }
   });
 
+  it("commit-msg hook blocks a skip-ci directive on a commit that changes shippable code (E prevention)", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-commit-msg-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
+      const msgFile = path.join(repo, "COMMIT_MSG.txt");
+
+      // Shippable code staged + a skip-ci directive in the body → blocked.
+      await writeFile(path.join(repo, "package.json"), JSON.stringify({ name: "x", version: "1.0.0" }), "utf8");
+      await exec("git", ["add", "package.json"], { cwd: repo });
+      await writeFile(msgFile, "feat: real code change\n\nincidentally mentions [skip ci] in the body\n", "utf8");
+      const blocked = await runAllowFailure(repo, ["enforce", "commit-msg", msgFile, "--dir", repo]);
+      expect(blocked.code).toBe(1);
+
+      // Same staged code, clean message → allowed.
+      await writeFile(msgFile, "feat: real code change\n", "utf8");
+      const clean = await runAllowFailure(repo, ["enforce", "commit-msg", msgFile, "--dir", repo]);
+      expect(clean.code).toBe(0);
+
+      // skip-ci directive but only .ai/ staged (a legit sync commit) → allowed.
+      await exec("git", ["reset"], { cwd: repo });
+      await writeFile(path.join(repo, ".ai/note.md"), "note\n", "utf8");
+      await exec("git", ["add", ".ai/note.md"], { cwd: repo });
+      await writeFile(msgFile, "chore: haive sync [skip ci]\n", "utf8");
+      const aiOnly = await runAllowFailure(repo, ["enforce", "commit-msg", msgFile, "--dir", repo]);
+      expect(aiOnly.code).toBe(0);
+
+      // A `#` comment line mentioning the directive must NOT block (git strips comments).
+      await exec("git", ["add", "package.json"], { cwd: repo });
+      await writeFile(msgFile, "feat: code\n\n# note: avoid [skip ci] here\n", "utf8");
+      const commented = await runAllowFailure(repo, ["enforce", "commit-msg", msgFile, "--dir", repo]);
+      expect(commented.code).toBe(0);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("sensors check records a prevention event surfaced by the dashboard (outcome measurement)", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-prevention-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
+      // A validated gotcha carrying a regex sensor that fires on a sentinel token.
+      const mem = path.join(repo, ".ai/memories/team/2099-01-01-gotcha-forbidden-token.md");
+      await writeFile(mem, [
+        "---",
+        "id: 2099-01-01-gotcha-forbidden-token",
+        "scope: team",
+        "type: gotcha",
+        "status: validated",
+        "created_at: 2099-01-01T00:00:00.000Z",
+        "anchor:",
+        "  paths: []",
+        "  symbols: []",
+        "tags: []",
+        "sensor:",
+        "  kind: regex",
+        "  pattern: FORBIDDEN_TOKEN",
+        "  paths: []",
+        "  message: do not use FORBIDDEN_TOKEN",
+        "  severity: warn",
+        "  autogen: false",
+        "---",
+        "Never introduce FORBIDDEN_TOKEN; use the approved API instead.",
+        "",
+      ].join("\n"), "utf8");
+
+      const diffFile = path.join(repo, "change.diff");
+      await writeFile(diffFile, [
+        "diff --git a/src/x.ts b/src/x.ts",
+        "--- a/src/x.ts",
+        "+++ b/src/x.ts",
+        "@@ -0,0 +1 @@",
+        "+const x = FORBIDDEN_TOKEN;",
+        "",
+      ].join("\n"), "utf8");
+
+      const check = await run(repo, ["sensors", "check", "--diff-file", diffFile, "--json", "--dir", repo]);
+      const checkReport = JSON.parse(check.stdout) as { hits: Array<{ memory_id: string }> };
+      expect(checkReport.hits.some((h) => h.memory_id === "2099-01-01-gotcha-forbidden-token")).toBe(true);
+
+      const dash = await run(repo, ["dashboard", "--json", "--dir", repo]);
+      const report = JSON.parse(dash.stdout) as {
+        prevention: { total_events: number; memories_with_catches: number; top: Array<{ id: string; prevented_count: number }> };
+      };
+      expect(report.prevention.total_events).toBeGreaterThanOrEqual(1);
+      expect(report.prevention.top.some((p) => p.id === "2099-01-01-gotcha-forbidden-token")).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("session end --auto falls back to a git diff recap when no observation log exists", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-auto-session-end-"));
     try {

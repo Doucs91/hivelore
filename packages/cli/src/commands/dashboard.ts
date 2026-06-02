@@ -59,7 +59,7 @@ export function registerDashboard(program: Command): void {
 }
 
 function renderDashboard(r: DashboardReport): void {
-  const { inventory: inv, impact, sensors, health, decay, corpus } = r;
+  const { inventory: inv, impact, sensors, health, decay, corpus, prevention } = r;
 
   console.log(ui.bold("hAIve dashboard"));
   console.log(
@@ -98,6 +98,20 @@ function renderDashboard(r: DashboardReport): void {
   for (const s of sensors.recently_fired.slice(0, 5)) {
     const marker = s.severity === "block" ? ui.red("✗") : ui.yellow("⚠");
     console.log(`    ${marker} ${s.id} ${ui.dim(`last fired ${s.last_fired.slice(0, 10)}`)}`);
+  }
+
+  // ── Prevention (outcome) ──
+  console.log();
+  console.log(ui.bold("Prevention") + ui.dim("  (outcome: sensors that caught a real diff)"));
+  console.log(
+    `  ${prevention.total_events > 0 ? ui.green(`${prevention.total_events} catch event(s)`) : "0 catch events"}` +
+    ` · ${prevention.memories_with_catches} memor${prevention.memories_with_catches === 1 ? "y" : "ies"} with catches`,
+  );
+  for (const p of prevention.top.slice(0, 5)) {
+    console.log(
+      `    ${ui.green("✓")} ${p.prevented_count}× ${p.id}` +
+      (p.last_prevented_at ? ui.dim(`  last ${p.last_prevented_at.slice(0, 10)}`) : ""),
+    );
   }
 
   // ── Health ──

@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/cli",
-  "version": "0.13.7",
+  "version": "0.13.8",
   "description": "hAIve CLI - repo-native memory and context policy for coding-agent harnesses",
   "license": "Apache-2.0",
   "repository": {

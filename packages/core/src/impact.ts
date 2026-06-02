@@ -92,9 +92,14 @@ export function computeImpact(
     signals.push(`applied ${usage.applied_count}×`);
   }
 
-  // POSITIVE — the memory's sensor actually fired on a real diff: a documented
-  // mistake became a guardrail that caught a regression. Demonstrated value.
-  if (hasSensorFired(fm)) {
+  // POSITIVE — prevention events (OUTCOME): the memory's sensor fired on real diffs, intercepting a
+  // documented mistake before it landed. The strongest demonstrated-value signal — 3 catches
+  // saturate this 0.60 component (enough to reach "high" alone, like applied). Falls back to the
+  // frontmatter `sensor.last_fired` flag for memories that fired before prevention counting existed.
+  if (usage.prevented_count > 0) {
+    raw += Math.min(1, usage.prevented_count / 3) * 0.6;
+    signals.push(`prevented ${usage.prevented_count}×`);
+  } else if (hasSensorFired(fm)) {
     raw += 0.25;
     signals.push("sensor fired");
   }

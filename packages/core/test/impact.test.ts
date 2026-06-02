@@ -5,7 +5,15 @@ import {
   summarizeImpact,
   DEFAULT_DORMANT_DAYS,
 } from "../src/impact.js";
-import { emptyUsage, getUsage, recordApplied, recordRejection, type MemoryUsage } from "../src/usage.js";
+import {
+  emptyUsage,
+  getUsage,
+  recordApplied,
+  recordPrevention,
+  recordRejection,
+  PREVENTION_DEBOUNCE_MS,
+  type MemoryUsage,
+} from "../src/usage.js";
 import type { MemoryFrontmatter } from "../src/types.js";
 
 const NOW = new Date("2026-06-01T00:00:00.000Z");
@@ -73,6 +81,12 @@ describe("computeImpact", () => {
     const notFired = computeImpact(fm(), usage({ read_count: 4, last_read_at: recent }), { now: NOW });
     expect(fired.score).toBeGreaterThan(notFired.score);
     expect(fired.signals).toContain("sensor fired");
+  });
+
+  it("treats prevention events as a top-tier outcome signal (can reach high alone)", () => {
+    const r = computeImpact(fm(), usage({ prevented_count: 3 }), { now: NOW });
+    expect(r.tier).toBe("high");
+    expect(r.signals.join(" ")).toContain("prevented 3×");
   });
 
   it("flags more-rejected-than-read as a prune candidate", () => {
@@ -162,5 +176,18 @@ describe("usage outcome recording (backward compatible)", () => {
     // recordRejection on a legacy record still works
     recordRejection(index, "m1", "wrong");
     expect(getUsage(index, "m1").rejected_count).toBe(1);
+  });
+
+  it("recordPrevention counts a catch and debounces rapid re-scans of the same diff", () => {
+    const index = { version: 1 as const, updated_at: NOW.toISOString(), by_id: {} };
+    const t0 = NOW.getTime();
+    expect(recordPrevention(index, "m1", t0)).toBe(true);
+    // A second catch within the debounce window does NOT inflate the count.
+    expect(recordPrevention(index, "m1", t0 + 1000)).toBe(false);
+    expect(getUsage(index, "m1").prevented_count).toBe(1);
+    // A catch after the window counts again.
+    expect(recordPrevention(index, "m1", t0 + PREVENTION_DEBOUNCE_MS + 1)).toBe(true);
+    expect(getUsage(index, "m1").prevented_count).toBe(2);
+    expect(getUsage(index, "m1").last_prevented_at).not.toBeNull();
   });
 });

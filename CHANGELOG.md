@@ -6,6 +6,24 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.13.8] — skip-ci prevention hook + outcome measurement
+
+### Added
+- **`commit-msg` hook that PREVENTS the skip-ci footgun.** `haive enforce install` now installs a
+  `commit-msg` hook (and a `haive enforce commit-msg <file>` command) that blocks a commit whose
+  message contains a CI-skip directive ([skip ci] / [ci skip] / [no ci]) **when the commit also
+  changes shippable code** — GitHub scans the whole message and would skip CI for the entire push.
+  `.ai/`-only sync commits (which legitimately use [skip ci]) are allowed, and `#` comment lines are
+  ignored. This is the preventive counterpart to 0.13.7's post-hoc detection.
+- **Outcome measurement — prevention events.** A new `prevented_count` / `last_prevented_at` usage
+  signal records when a memory's sensor actually fires on a scanned diff (`haive sensors check`),
+  i.e. the encoded lesson intercepted a known mistake before it landed. This is hAIve's first true
+  OUTCOME metric (defect prevented), distinct from retrieval (reads) and self-reported usefulness
+  (applied). Recording is debounced (5 min) so re-scanning the same diff doesn't inflate counts.
+- **`haive dashboard` now shows a Prevention section** (total catch events, memories with catches,
+  top memories by catches), and `computeImpact` folds `prevented_count` in as a top-tier
+  demonstrated-value signal (3 catches can reach "high" on their own, like applied outcomes).
+
 ## [0.13.7] — release/enforcement reliability hardening
 
 Five fixes to the exit machinery — the brittle, footgun-prone part that lands every change.

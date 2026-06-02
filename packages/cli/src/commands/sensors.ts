@@ -8,8 +8,11 @@ import {
   findProjectRoot,
   isRetiredMemory,
   loadMemoriesFromDir,
+  loadUsageIndex,
+  recordPrevention,
   resolveHaivePaths,
   runSensors,
+  saveUsageIndex,
   sensorTargetsFromDiff,
   serializeMemory,
   type Memory,
@@ -89,6 +92,18 @@ export function registerSensors(program: Command): void {
         : await stagedDiff(root);
       const targets = sensorTargetsFromDiff(diff);
       const hits = runSensors(memories, targets.length > 0 ? targets : [{ path: "", content: diff }]);
+
+      // Outcome measurement: a sensor firing on a real diff is a *prevention* event — the encoded
+      // lesson intercepted a known mistake before it landed. Record it (debounced) so impact and
+      // the dashboard can show demonstrated value, not just retrieval.
+      const firedIds = [...new Set(hits.map((hit) => hit.memory_id))];
+      if (firedIds.length > 0) {
+        const usage = await loadUsageIndex(paths);
+        let recorded = 0;
+        for (const id of firedIds) if (recordPrevention(usage, id)) recorded++;
+        if (recorded > 0) await saveUsageIndex(paths, usage).catch(() => { /* best-effort telemetry */ });
+      }
+
       const output = {
         scanned: memories.length,
         hits: hits.map((hit) => ({

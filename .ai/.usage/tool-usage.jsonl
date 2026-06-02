@@ -150,3 +150,4 @@
 {"tool":"get_briefing","at":"2026-06-02T19:12:36.566Z","summary":"Implement fixes B/C/D/E in enforce.ts: generalize atomic staging to all re-synced .ai files except telemetry; add NEXT REQUIRED ACTION to finish; treat external (Sonar) workflows as non-blocking transient; detect skip-ci directive in HEAD commit message when runs are missing."}
 {"tool":"get_briefing","at":"2026-06-02T19:21:30.961Z","summary":"Fix A properly: union anchored-policy ids with surfaced ids in the final briefing marker write so budget does not omit them."}
 {"tool":"mem_session_end","at":"2026-06-02T19:26:38.649Z","summary":"Harden hAIve's release/enforcement machinery before adding new features: merge t"}
+{"tool":"get_briefing","at":"2026-06-02T20:22:08.116Z","summary":"Add outcome measurement: prevented_count in usage, fold into impact scoring, surface a prevention rollup in dashboard."}
