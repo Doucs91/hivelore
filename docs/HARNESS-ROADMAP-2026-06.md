@@ -41,10 +41,12 @@ B makes them self-populating).
 - Safety: drafts are `status: proposed`, sensors `severity: warn` + `autogen: true`. **Never**
   auto-validate, never auto-block (safety rules + `2026-05-07-attempt-strict-precommit-gate-on-haive`).
 
-### P1 — Observability completion (#6)
-`haive tui` is a stub (PLAN.md §7.2). Make `haive stats` / a non-interactive `haive dashboard`
-print: top memories by impact, sensors fired (from `last_fired`), stale/anchorless counts, decay
-warnings, briefing token budget. Pure aggregation in core; CLI prints. TUI optional.
+### P1 — Observability completion (#6)  ✅ DONE (v0.12.6)
+Note: `haive tui` turned out to be already implemented (interactive Ink dashboard, needs a TTY).
+The real gap was a **non-interactive** rollup an agent/CI can read. Delivered `haive dashboard`
+(+ `--json`), backed by pure `core/dashboard.ts` (`buildDashboard`): inventory, impact tiers + top
+memories, sensors (and which fired via `last_fired`), health (stale / anchorless / pending / prune),
+decay, and corpus token weight.
 
 ### P2 — Harness templates by topology (#3)
 Grow `init-stack-packs.ts`: each pack ships seed `convention`/`gotcha` memories **with sensors** for

@@ -33,3 +33,4 @@ export * from "./memory-lifecycle.js";
 export * from "./sensors.js";
 export * from "./sensor-suggest.js";
 export * from "./findings.js";
+export * from "./dashboard.js";

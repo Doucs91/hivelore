@@ -6,6 +6,17 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.12.6] — observability dashboard
+
+### Added
+- **`haive dashboard` (+ `--json`)** — a non-interactive, scriptable observability snapshot of the
+  memory corpus that an agent or CI job can read in one shot (unlike `haive tui`, which needs a TTY).
+  Surfaces: inventory (by scope/type/status, active vs retired), impact tiers + the top memories by
+  demonstrated utility, sensors (totals by severity + which ones actually fired), health (stale /
+  anchorless / pending / prune candidates), decay (>90d), and corpus token weight.
+- New pure core module `dashboard.ts` (`buildDashboard`) aggregating the existing impact, usage,
+  sensor, retirement and decay primitives. No I/O — unit-tested in `core/test/dashboard.test.ts`.
+
 ## [0.12.5] — findings ingestion (self-feeding sensors)
 
 ### Added
