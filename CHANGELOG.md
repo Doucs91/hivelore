@@ -6,6 +6,25 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.11.0] — impact-aware ranking, eval harness, skill activation
+
+### Added
+- **Impact-aware briefing ranking** — `get_briefing` (and `mem_relevant_to`) now factor a
+  memory's demonstrated-utility score into ranking: a memory agents actually applied, or whose
+  sensor caught a regression, edges out an equally-relevant one that never proved useful. The
+  nudge is small by design and never overrides anchor/symbol relevance. `impact_score` /
+  `impact_tier` are surfaced on each briefing memory for transparency.
+- **`haive eval`** — a rigorous, model-free, CI-runnable quality eval. Measures briefing
+  retrieval (recall + MRR) and sensor catch-rate against labeled cases (`--spec`), or
+  auto-synthesizes cases from the repo's own anchored memories (zero setup). Emits a chiffré
+  0–100 score so a ranking/sensor regression fails the build. `--semantic-only`, `-k`, `--json`,
+  `--out`.
+- **Selective skill activation (progressive disclosure)** — `skill` memories may declare an
+  `activation` block (`keywords` / `globs` / `always`). A skill with activation triggers is
+  surfaced only when the task or edited files match, and an activated skill earns a ranking
+  boost; skills without the block keep the legacy always-eligible behavior. Authorable via
+  `mem_save`.
+
 ## [0.10.10] — closed-loop memory impact
 
 ### Added

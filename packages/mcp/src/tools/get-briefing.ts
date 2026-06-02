@@ -6,6 +6,7 @@ import {
   DEFAULT_AUTO_PROMOTE_RULE,
   deriveConfidence,
   estimateTokens,
+  evaluateSkillActivation,
   extractActionsBriefBody,
   getUsage,
   inferModulesFromPaths,
@@ -284,6 +285,26 @@ export async function getBriefing(
       }
     }
 
+    // ── Progressive disclosure for skills ────────────────────────────────────
+    // A skill that declares `activation` triggers is disclosed only when the task or
+    // edited files match; an activated skill earns a ranking boost (it's a playbook
+    // to follow now). Skills without an activation block keep legacy behavior.
+    const activatedSkills = new Set<string>();
+    for (const [id, m] of seen) {
+      if (m.type !== "skill") continue;
+      const loaded = byId.get(id);
+      if (!loaded) continue;
+      const act = evaluateSkillActivation(loaded.memory.frontmatter, {
+        task: input.task,
+        files: input.files,
+      });
+      if (act.applicable && !act.activated) {
+        seen.delete(id);
+        continue;
+      }
+      if (act.applicable && act.activated) activatedSkills.add(id);
+    }
+
     // ── Ranking ────────────────────────────────────────────────────────────
     const ranked = [...seen.values()].sort((a, b) => {
       const reasonScore = (m: BriefingMemory): number =>
@@ -302,10 +323,12 @@ export async function getBriefing(
       // whose sensor caught a regression — edges out an equally-relevant one that
       // never proved useful. Small on purpose: never overrides anchor/symbol relevance.
       const impactScore = (m: BriefingMemory): number => (m.impact_score ?? 0) * 3;
+      // An explicitly-activated skill is an actionable playbook for this exact task — surface it high.
+      const activationBoost = (m: BriefingMemory): number => (activatedSkills.has(m.id) ? 5 : 0);
       const sa = priorityRank(classifyMemoryPriority(a, byId.get(a.id), input.files, input.symbols)) * 100
-        + reasonScore(a) + confidenceScore(a) + impactScore(a) + (a.semantic_score ?? 0);
+        + reasonScore(a) + confidenceScore(a) + impactScore(a) + activationBoost(a) + (a.semantic_score ?? 0);
       const sb = priorityRank(classifyMemoryPriority(b, byId.get(b.id), input.files, input.symbols)) * 100
-        + reasonScore(b) + confidenceScore(b) + impactScore(b) + (b.semantic_score ?? 0);
+        + reasonScore(b) + confidenceScore(b) + impactScore(b) + activationBoost(b) + (b.semantic_score ?? 0);
       return sb - sa;
     });
 

@@ -62,6 +62,18 @@ export const MemSaveInputSchema = {
       "Stable key for this memory. If a memory with the same topic already exists in this scope, " +
       "it is updated in-place (revision_count++). Use for knowledge that evolves over time.",
     ),
+  activation: z
+    .object({
+      keywords: z.array(z.string()).default([]),
+      globs: z.array(z.string()).default([]),
+      always: z.boolean().default(false),
+    })
+    .optional()
+    .describe(
+      "Only for type='skill'. Progressive-disclosure triggers: the skill is surfaced ONLY when " +
+      "a keyword matches the task or a glob matches the edited files (or always=true). Omit to keep " +
+      "the skill always-eligible.",
+    ),
 };
 
 export type MemSaveInput = {
@@ -249,6 +261,7 @@ export async function memSave(
     topic: input.topic,
     status: haiveConfig.defaultStatus === "validated" ? "validated" : undefined,
     sensor: suggestSensorForSavedMemory(input.type, input.body, input.paths) ?? undefined,
+    activation: input.type === "skill" ? input.activation : undefined,
   });
 
   const file = memoryFilePath(

@@ -22,6 +22,26 @@ async function writeMemory(dir: string, id: string, body: string, anchorPath: st
   await writeFile(path.join(dir, `${id}.md`), `${fm}\n${body}\n`, "utf8");
 }
 
+async function writeSkill(
+  dir: string,
+  id: string,
+  body: string,
+  activation: { keywords?: string[]; globs?: string[]; always?: boolean },
+  anchorPath = "",
+): Promise<void> {
+  const lines = [
+    "---", `id: ${id}`, "scope: team", "type: skill", "status: validated",
+    `created_at: ${new Date().toISOString()}`,
+    "anchor:", `  paths: [${anchorPath ? `"${anchorPath}"` : ""}]`, "  symbols: []", "tags: []",
+    "activation:",
+    `  keywords: [${(activation.keywords ?? []).map((k) => `"${k}"`).join(", ")}]`,
+    `  globs: [${(activation.globs ?? []).map((g) => `"${g}"`).join(", ")}]`,
+    `  always: ${activation.always ?? false}`,
+    "---",
+  ].join("\n");
+  await writeFile(path.join(dir, `${id}.md`), `${lines}\n${body}\n`, "utf8");
+}
+
 describe("adaptive briefing", () => {
   let workDir: string;
   let ctx: HaiveContext;
@@ -74,5 +94,25 @@ describe("adaptive briefing", () => {
     expect(b.memories[0]?.impact_tier).toBe("high");
     const unused = b.memories.find((m) => m.id === "2024-01-01-convention-unused");
     expect(unused?.impact_score ?? 0).toBeLessThan(b.memories[0]!.impact_score ?? 0);
+  });
+
+  it("progressive disclosure: suppresses a lexically-matching skill whose activation does not fire", async () => {
+    // Both skill bodies share the task's tokens, so both WOULD surface via literal match.
+    // Only the activation block should decide which is disclosed.
+    await writeSkill(ctx.paths.teamDir!, "2024-01-01-skill-stripe", "# Stripe retries\n\nstripe payment retries playbook.", { keywords: ["stripe"] });
+    await writeSkill(ctx.paths.teamDir!, "2024-01-01-skill-graphql", "# GraphQL note\n\nstripe payment retries via the graphql gateway.", { keywords: ["graphql"] });
+
+    const b = await getBriefing({ ...baseInput, task: "set up stripe payment retries", files: [] }, ctx);
+    const ids = b.memories.map((m) => m.id);
+    expect(ids).toContain("2024-01-01-skill-stripe"); // keyword "stripe" matches → disclosed
+    expect(ids).not.toContain("2024-01-01-skill-graphql"); // would match lexically, but activation "graphql" does not fire → suppressed
+  });
+
+  it("an activated skill is ranked above an equally-anchored non-skill memory", async () => {
+    await writeMemory(ctx.paths.teamDir!, "2024-01-01-convention-auth", "# Auth rule\n\nUse the auth guard.", "src/auth.ts");
+    await writeSkill(ctx.paths.teamDir!, "2024-01-01-skill-auth", "# Auth playbook\n\nSteps to add an endpoint.", { globs: ["src/auth.ts"] }, "src/auth.ts");
+
+    const b = await getBriefing({ ...baseInput, task: "add an endpoint", files: ["src/auth.ts"] }, ctx);
+    expect(b.memories[0]?.id).toBe("2024-01-01-skill-auth");
   });
 });

@@ -59,6 +59,25 @@ export const SensorSchema = z.object({
   last_fired: z.string().nullable().default(null),
 });
 
+/**
+ * Progressive-disclosure activation triggers for a `skill` memory.
+ *
+ * A skill is a reusable playbook (feedforward harness guide). Injecting every skill
+ * on every briefing bloats the context and dilutes signal (the "instruction budget"
+ * problem). An `activation` block makes a skill surface ONLY when it is relevant:
+ * its keywords match the task, or its globs match the files being edited. A skill
+ * that defines `activation` and matches none of it is suppressed from the briefing;
+ * a skill with no `activation` block keeps the legacy always-eligible behavior.
+ */
+export const ActivationSchema = z.object({
+  /** Case-insensitive substrings matched against the task text. */
+  keywords: z.array(z.string()).default([]),
+  /** Glob-ish path patterns matched against the files being edited. */
+  globs: z.array(z.string()).default([]),
+  /** Always activate (rare — for truly universal playbooks). */
+  always: z.boolean().default(false),
+});
+
 const IsoDateString = z
   .union([z.string(), z.date()])
   .transform((v) => (v instanceof Date ? v.toISOString() : v))
@@ -74,6 +93,8 @@ export const MemoryFrontmatterSchema = z
     anchor: AnchorSchema.default({ paths: [], symbols: [] }),
     /** Optional executable check derived from this memory (feedback computational layer). */
     sensor: SensorSchema.optional(),
+    /** Optional progressive-disclosure triggers — only meaningful for `type: skill`. */
+    activation: ActivationSchema.optional(),
     tags: z.array(z.string()).default([]),
     domain: z.string().optional(),
     author: z.string().optional(),

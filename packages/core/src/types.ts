@@ -6,6 +6,7 @@ import type {
   MemoryStatusSchema,
   MemoryTypeSchema,
   SensorSchema,
+  ActivationSchema,
 } from "./schema.js";
 
 export type MemoryScope = z.infer<typeof MemoryScopeSchema>;
@@ -13,6 +14,7 @@ export type MemoryStatus = z.infer<typeof MemoryStatusSchema>;
 export type MemoryType = z.infer<typeof MemoryTypeSchema>;
 export type Anchor = z.infer<typeof AnchorSchema>;
 export type Sensor = z.infer<typeof SensorSchema>;
+export type Activation = z.infer<typeof ActivationSchema>;
 export type MemoryFrontmatter = z.infer<typeof MemoryFrontmatterSchema>;
 
 export interface Memory {

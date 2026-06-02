@@ -1,6 +1,6 @@
 import matter from "gray-matter";
 import { MemoryFrontmatterSchema } from "./schema.js";
-import type { Memory, MemoryFrontmatter, Sensor } from "./types.js";
+import type { Activation, Memory, MemoryFrontmatter, Sensor } from "./types.js";
 
 const PRIVATE_BLOCK_RE = /<private>[\s\S]*?<\/private>/g;
 
@@ -62,6 +62,7 @@ export function buildFrontmatter(input: {
   status?: MemoryFrontmatter["status"];
   relatedIds?: string[];
   sensor?: Sensor;
+  activation?: Activation;
 }): MemoryFrontmatter {
   const now = new Date();
   const id = newMemoryId(input.type, input.slug, now);
@@ -83,6 +84,7 @@ export function buildFrontmatter(input: {
     expires_when: null,
     topic: input.topic,
     sensor: input.sensor,
+    activation: input.activation,
     revision_count: 0,
     related_ids: input.relatedIds ?? [],
   });
