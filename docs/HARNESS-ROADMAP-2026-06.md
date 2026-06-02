@@ -48,9 +48,13 @@ The real gap was a **non-interactive** rollup an agent/CI can read. Delivered `h
 memories, sensors (and which fired via `last_fired`), health (stale / anchorless / pending / prune),
 decay, and corpus token weight.
 
-### P2 — Harness templates by topology (#3)
-Grow `init-stack-packs.ts`: each pack ships seed `convention`/`gotcha` memories **with sensors** for
-its stack (Next.js+NestJS, Python/FastAPI, Go). `haive init --stack <name>` seeds them as `proposed`.
+### P2 — Harness templates by topology (#3)  ✅ DONE (v0.12.7)
+`init-stack-packs.ts` now lets a pack memory carry a curated regex `sensor`, so seeded templates are
+feedforward+feedback (the lesson fires on the user's diff, not just when surfaced). Added crisp
+sensors to high-signal existing packs (Next.js `NEXT_PUBLIC_*SECRET`, React `key={index}`) and three
+new backend packs — **fastapi**, **django**, **go** — with sensors (django `DEBUG = True`, hardcoded
+`SECRET_KEY`, fastapi `uvicorn reload=True`, bare `except:`). Seeded via `haive init --stack <names>`;
+seed sensors are `warn` + `autogen:false` (vetted, never auto-block).
 
 ### P3 — Portable standard (#8)
 Emit/read `AGENTS.md` alongside the existing bridge files in `haive sync --inject-bridge`, so the

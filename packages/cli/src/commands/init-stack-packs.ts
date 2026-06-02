@@ -14,17 +14,35 @@ import {
   serializeMemory,
   STACK_PACK_TAG,
   type HaivePaths,
+  type Sensor,
 } from "@hiveai/core";
+
+/**
+ * A curated, hand-authored regex sensor for a stack-pack memory. Turns generic
+ * framework guidance into a deterministic feedforward+feedback guardrail: the
+ * lesson fires on the user's own diff, not just when the briefing surfaces it.
+ * Seed sensors are always `warn` (never auto-block) and `autogen: false` (vetted).
+ */
+interface PackSensor {
+  pattern: string;
+  flags?: string;
+  message: string;
+  /** Optional exact-file/dir-prefix scoping. Empty = applies to all added diff lines. */
+  paths?: string[];
+}
 
 interface PackMemory {
   slug: string;
   type: "gotcha" | "convention" | "decision" | "architecture";
   tags: string[];
   body: string;
+  /** Optional executable guardrail derived from this lesson. */
+  sensor?: PackSensor;
 }
 
 type StackName = "nestjs" | "nextjs" | "remix" | "react" | "express" | "fastify" | "prisma" | "drizzle"
-  | "zustand" | "redux" | "reactquery" | "trpc" | "mongoose" | "graphql";
+  | "zustand" | "redux" | "reactquery" | "trpc" | "mongoose" | "graphql"
+  | "fastapi" | "django" | "go";
 
 const PACKS: Record<StackName, PackMemory[]> = {
   nestjs: [
@@ -100,6 +118,10 @@ causes a cryptic runtime error. Check for browser globals (window, document, loc
 
 Never put secrets in NEXT_PUBLIC_* variables — they are bundled into the client JS.
 Variables without the prefix are server-only and safe for API keys, database URLs, etc.`,
+      sensor: {
+        pattern: "NEXT_PUBLIC_[A-Z0-9_]*(SECRET|PRIVATE|TOKEN|PASSWORD|API_?KEY)",
+        message: "A NEXT_PUBLIC_ env var with a secret-looking name is bundled into client JS — move the secret to a server-only (non-NEXT_PUBLIC_) variable.",
+      },
     },
     {
       slug: "nextjs-fetch-cache-defaults",
@@ -170,6 +192,10 @@ and event listeners that accumulate across re-renders.`,
 Using index as key causes React to re-render wrong items on reorder/filter,
 corrupts form state, and triggers avoidable DOM mutations.
 Use item.id or a stable hash — never Math.random().`,
+      sensor: {
+        pattern: "key=\\{\\s*index\\s*\\}",
+        message: "Array index used as a React key — switch to a stable unique id to avoid state corruption on reorder.",
+      },
     },
     {
       slug: "react-avoid-use-effect-for-derived-state",
@@ -612,6 +638,154 @@ new ApolloServer({
     },
   ],
 
+  fastapi: [
+    {
+      slug: "fastapi-validate-with-pydantic",
+      type: "convention",
+      tags: ["fastapi", "python", "validation"],
+      body: `Declare request/response models with Pydantic — never read raw dict bodies.
+
+\`\`\`py
+class CreateUser(BaseModel):
+    email: EmailStr
+    age: int = Field(ge=0)
+
+@app.post("/users")
+def create(user: CreateUser): ...
+\`\`\`
+
+Pydantic validates and coerces at the boundary; raw \`dict\` bodies bypass validation and typing.`,
+    },
+    {
+      slug: "fastapi-no-blocking-io-in-async",
+      type: "gotcha",
+      tags: ["fastapi", "python", "async", "performance"],
+      body: `Never call blocking I/O (requests, time.sleep, sync DB drivers) inside an \`async def\` route.
+
+A blocking call inside the event loop freezes the whole worker for every concurrent request.
+Use an async client (httpx.AsyncClient, asyncpg) or run blocking work in a threadpool
+(\`await run_in_threadpool(...)\` / \`def\` route, which FastAPI runs in a threadpool).`,
+    },
+    {
+      slug: "fastapi-uvicorn-reload-not-in-prod",
+      type: "gotcha",
+      tags: ["fastapi", "python", "deployment"],
+      body: `\`uvicorn.run(..., reload=True)\` is a dev-only feature — never ship it to production.
+
+Reload spawns a file-watcher process and disables multi-worker scaling.
+In production run \`uvicorn app:app --workers N\` (no reload) behind a process manager.`,
+      sensor: {
+        pattern: "uvicorn\\.run\\([^)]*reload\\s*=\\s*True",
+        message: "uvicorn reload=True is dev-only — remove it from production entrypoints.",
+      },
+    },
+    {
+      slug: "fastapi-no-bare-except",
+      type: "convention",
+      tags: ["fastapi", "python", "error-handling"],
+      body: `Never use a bare \`except:\` — it swallows KeyboardInterrupt/SystemExit and hides real bugs.
+
+Catch the specific exception you expect, or \`except Exception as e:\` at most, and log it.`,
+      sensor: {
+        pattern: "except\\s*:",
+        message: "Bare `except:` swallows everything (incl. KeyboardInterrupt) — catch a specific exception type.",
+      },
+    },
+  ],
+
+  django: [
+    {
+      slug: "django-debug-false-in-prod",
+      type: "gotcha",
+      tags: ["django", "python", "security", "deployment"],
+      body: `\`DEBUG = True\` in production leaks stack traces, settings, and SQL to any visitor.
+
+Drive it from the environment and default to safe:
+
+\`\`\`py
+DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
+\`\`\``,
+      sensor: {
+        pattern: "DEBUG\\s*=\\s*True",
+        message: "DEBUG = True leaks internals in production — read it from the environment and default to False.",
+      },
+    },
+    {
+      slug: "django-secret-key-from-env",
+      type: "gotcha",
+      tags: ["django", "python", "security"],
+      body: `Never hardcode SECRET_KEY in settings — load it from the environment.
+
+A committed SECRET_KEY lets anyone forge sessions and signed tokens.
+
+\`\`\`py
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
+\`\`\``,
+      sensor: {
+        pattern: "SECRET_KEY\\s*=\\s*[\"'][^\"']+[\"']",
+        message: "Hardcoded SECRET_KEY — load it from os.environ instead of committing a literal.",
+      },
+    },
+    {
+      slug: "django-select-related-n-plus-one",
+      type: "gotcha",
+      tags: ["django", "python", "orm", "performance"],
+      body: `Accessing a ForeignKey in a loop triggers one query per row (N+1).
+
+Use \`select_related\` (FK / one-to-one, SQL JOIN) and \`prefetch_related\` (M2M / reverse FK):
+
+\`\`\`py
+for order in Order.objects.select_related("customer").all():
+    order.customer.name  # no extra query
+\`\`\``,
+    },
+  ],
+
+  go: [
+    {
+      slug: "go-check-every-error",
+      type: "convention",
+      tags: ["go", "error-handling"],
+      body: `Check every returned error — never discard it with \`_\`.
+
+\`\`\`go
+// ❌ silently ignores failure
+val, _ := doThing()
+
+// ✅
+val, err := doThing()
+if err != nil {
+    return fmt.Errorf("doThing: %w", err)
+}
+\`\`\`
+Wrap with \`%w\` to preserve the chain for errors.Is/As.`,
+    },
+    {
+      slug: "go-defer-close-after-error-check",
+      type: "gotcha",
+      tags: ["go", "resources"],
+      body: `Place \`defer rows.Close()\` (or file/body Close) AFTER checking the open error, not before.
+
+\`\`\`go
+rows, err := db.Query(q)
+if err != nil { return err }
+defer rows.Close() // only reached when rows is non-nil
+\`\`\`
+Deferring before the error check can call Close on a nil resource and panic.`,
+    },
+    {
+      slug: "go-context-first-param",
+      type: "convention",
+      tags: ["go", "context", "api-design"],
+      body: `context.Context is always the FIRST parameter and is never stored in a struct.
+
+\`\`\`go
+func Fetch(ctx context.Context, id string) (*User, error)
+\`\`\`
+Pass it explicitly down the call chain so cancellation and deadlines propagate.`,
+    },
+  ],
+
 };
 
 /**
@@ -670,6 +844,18 @@ export async function seedStackPack(
 
   let count = 0;
   for (const mem of memories) {
+    const sensor: Sensor | undefined = mem.sensor
+      ? {
+          kind: "regex",
+          pattern: mem.sensor.pattern,
+          ...(mem.sensor.flags ? { flags: mem.sensor.flags } : {}),
+          paths: mem.sensor.paths ?? [],
+          message: mem.sensor.message,
+          severity: "warn",
+          autogen: false,
+          last_fired: null,
+        }
+      : undefined;
     const fm = buildFrontmatter({
       type: mem.type,
       slug: `${stack}-${mem.slug}`,
@@ -678,6 +864,7 @@ export async function seedStackPack(
       // STACK_PACK_TAG marks this as generic seed knowledge so briefing ranking
       // keeps it at `background` priority until it earns a repo-specific anchor.
       tags: [...mem.tags, STACK_PACK_TAG],
+      ...(sensor ? { sensor } : {}),
     });
     const filePath = memoryFilePath(haivePaths, "team", fm.id);
     if (existsSync(filePath)) continue; // never overwrite existing

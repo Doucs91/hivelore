@@ -6,6 +6,19 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.12.7] — stack packs with executable sensors + backend packs
+
+### Added
+- **Stack-pack memories can now carry a curated regex `sensor`** — seeded templates become
+  feedforward+feedback guardrails (the lesson fires deterministically on the user's own diff, not
+  just when the briefing surfaces it). Seed sensors are `warn` + `autogen:false` (vetted; never
+  auto-block).
+- Crisp sensors added to high-signal existing packs: Next.js `NEXT_PUBLIC_*` secret leak, React
+  `key={index}`.
+- **Three new backend stack packs**: `fastapi`, `django`, `go` (seed via `haive init --stack
+  fastapi,django,go`). Carry sensors where a precise pattern exists — django `DEBUG = True` and
+  hardcoded `SECRET_KEY`, fastapi `uvicorn reload=True` and bare `except:`.
+
 ## [0.12.6] — observability dashboard
 
 ### Added

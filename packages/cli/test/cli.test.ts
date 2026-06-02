@@ -126,6 +126,37 @@ describe("hAIve CLI integration", () => {
     expect(config.enforcement?.requireMemoryVerify).toBe(true);
   });
 
+  it("init --stack seeds backend packs whose memories carry executable sensors", async () => {
+    const stackDir = await mkdtemp(path.join(tmpdir(), "haive-stack-test-"));
+    try {
+      await run(stackDir, ["init", "--stack", "django,fastapi", "--no-bootstrap", "-y", "--dir", stackDir]);
+      const teamDir = path.join(stackDir, ".ai/memories/team");
+      const files = (await readdir(teamDir)).filter((f) => f.endsWith(".md"));
+      expect(files.some((f) => f.includes("django"))).toBe(true);
+      expect(files.some((f) => f.includes("fastapi"))).toBe(true);
+
+      const debugFile = files.find((f) => f.includes("django-debug"));
+      expect(debugFile).toBeDefined();
+      const body = await readFile(path.join(teamDir, debugFile!), "utf8");
+      expect(body).toContain("sensor:");
+      expect(body).toContain("DEBUG");
+      expect(body).toContain("severity: warn");
+
+      // The seeded sensor must actually fire on a matching diff.
+      const diffFile = path.join(stackDir, "bad.diff");
+      await writeFile(
+        diffFile,
+        "diff --git a/settings.py b/settings.py\n--- a/settings.py\n+++ b/settings.py\n@@ -1 +1 @@\n+DEBUG = True\n",
+        "utf8",
+      );
+      const { stdout } = await run(stackDir, ["sensors", "check", "--diff-file", diffFile, "--dir", stackDir]);
+      expect(stdout).toContain("hit(s)");
+      expect(stdout).toContain("django-debug");
+    } finally {
+      await rm(stackDir, { recursive: true, force: true });
+    }
+  });
+
   it("init writes project-level MCP configs with HAIVE_PROJECT_ROOT", async () => {
     // These files are written by haive init to fix the multi-project CWD bug.
     const cursorMcp = path.join(workDir, ".cursor", "mcp.json");
