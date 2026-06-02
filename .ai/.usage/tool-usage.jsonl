@@ -127,3 +127,5 @@
 {"tool":"mem_session_end","at":"2026-06-02T00:53:58.228Z","summary":"Complete the last roadmap item: improve semantic-only briefing retrieval (was ~1"}
 {"tool":"mem_save","at":"2026-06-02T01:01:14.459Z","summary":"atomic-release-commit-and-skip-ci-tip"}
 {"tool":"mem_session_end","at":"2026-06-02T01:11:56.928Z","summary":"Investigate why the GitHub Actions pipeline didn't run after pushes, and add the"}
+{"tool":"mem_save","at":"2026-06-02T03:55:39.514Z","summary":"harness-engineering-positioning-roadmap"}
+{"tool":"get_briefing","at":"2026-06-02T03:55:41.864Z","summary":"Implement a roadmap of 9 harness-engineering features in hAIve, starting with a memory→guardrail compiler that turns gotcha/convention/attempt memories into executable checks (lint rules, fitness functions, pre-commit hooks). Then CI/PR auto-capture, harness templates, eval/behaviour linking, memory lifecycle, observability dashboard, hard guardrails, portable standard, progressive context loading."}

@@ -6,6 +6,29 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.12.5] — findings ingestion (self-feeding sensors)
+
+### Added
+- **`haive ingest` + `ingest_findings` MCP tool** — turn scanner findings (SonarQube issues JSON
+  or any SARIF report from ESLint/Semgrep/CodeQL) into proposed, anchored `gotcha`/`convention`
+  memories, pre-filled with a conservative `warn` sensor. This closes the review↔memory loop and
+  kills the cold-start problem: a real defect a scanner found becomes a permanent guardrail that
+  steers the next agent away from it.
+- New pure core module `findings.ts`: `parseSarif`, `parseSonar`, `parseFindings`,
+  `normalizeFindingSeverity`, `findingToDraft`, `draftsFromFindings`, `filterNewDrafts`. No I/O.
+- Cross-run dedup via a stable `topic: ingest:<tool>:<rule>:<path>`, so re-running a scan upserts
+  instead of duplicating. `--dry-run`, `--min-severity`, `--limit`, `--scope`, `--type` supported.
+
+### Safety
+- Ingested drafts are `status: proposed` and their sensors are `severity: warn` + `autogen: true`.
+  Ingestion never auto-validates and never auto-blocks — a human reviews (`haive memory pending`)
+  and promotes (`haive sensors promote <id> --yes`).
+
+### Docs
+- `docs/HARNESS-ROADMAP-2026-06.md` — reconciles a harness-engineering research wishlist against the
+  actual codebase (most points already shipped) and sets the execution order; findings ingestion (B)
+  was the one genuine gap and is delivered here.
+
 ## [0.12.4] — pipeline-aware finish gate
 
 ### Added

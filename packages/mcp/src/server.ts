@@ -65,6 +65,11 @@ import {
   type MemTriedInput,
 } from "./tools/mem-tried.js";
 import {
+  IngestFindingsInputSchema,
+  ingestFindings,
+  type IngestFindingsInput,
+} from "./tools/ingest-findings.js";
+import {
   MemObserveInputSchema,
   memObserve,
   type MemObserveInput,
@@ -326,6 +331,7 @@ export const MAINTENANCE_PROFILE_TOOLS = [
   "mem_timeline",
   "mem_conflict_candidates",
   "mem_feedback",
+  "ingest_findings",
 ] as const;
 
 export const EXPERIMENTAL_PROFILE_TOOLS = [
@@ -365,6 +371,7 @@ const MUTATING_TOOLS = new Set([
   "mem_feedback",
   "runtime_journal_append",
   "pattern_detect",
+  "ingest_findings",
 ]);
 
 export function createHaiveServer(
@@ -521,6 +528,37 @@ export function createHaiveServer(
     async (input: MemTriedInput) => {
       tracker.record("mem_tried", input.what.slice(0, 80));
       return jsonResult(await memTried(input, context));
+    },
+  );
+
+  registerTool(
+    "ingest_findings",
+    [
+      "Turn scanner findings (SonarQube / SARIF) into proposed, anchored memories with sensors.",
+      "",
+      "USE THIS to seed hAIve from your existing quality tooling: each real defect a scanner",
+      "found becomes a `gotcha`/`convention` memory anchored to the file, pre-filled with a",
+      "conservative `warn` sensor — so the next agent is steered away from it before re-writing it.",
+      "This closes the review↔memory loop and kills the cold-start problem.",
+      "",
+      "SAFETY: drafts are status=proposed and sensors are warn-only + autogen. This tool NEVER",
+      "auto-validates and NEVER auto-blocks. A human reviews (mem_pending) and promotes the sensor.",
+      "",
+      "PARAMETERS:",
+      "  format       — 'sarif' (ESLint/Semgrep/CodeQL) | 'sonar' (SonarQube issues JSON)",
+      "  report_path  — project-relative path to the report file (OR pass `report` inline)",
+      "  report       — inline JSON content (OR pass `report_path`)",
+      "  type         — gotcha (default) | convention",
+      "  scope        — team (default) | personal | module",
+      "  min_severity — drop findings below this severity",
+      "  dry_run      — preview what would be created without writing",
+      "",
+      "RETURNS: { format, parsed, new, skipped_existing, created[], notice }",
+    ].join("\n"),
+    IngestFindingsInputSchema,
+    async (input: IngestFindingsInput) => {
+      tracker.record("ingest_findings", `${input.format}:${input.report_path ?? "inline"}`);
+      return jsonResult(await ingestFindings(input, context));
     },
   );
 
