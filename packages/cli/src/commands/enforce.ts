@@ -222,7 +222,10 @@ export function registerEnforce(program: Command): void {
     .action(async (opts: FinishOptions) => {
       const report = await buildFinishReport(opts.dir);
       printReport(report, Boolean(opts.json), Boolean(opts.explain));
-      if (report.should_block) process.exit(2);
+      if (report.should_block) {
+        if (!opts.json) printNextRequiredAction(report);
+        process.exit(2);
+      }
     });
 
   enforce
@@ -1496,11 +1499,24 @@ async function verifyGithubActionsForHead(
   }
 
   if (runs.length === 0) {
+    // Pinpoint the most common cause: GitHub scans the WHOLE HEAD commit message (subject AND
+    // body) for a CI-skip directive and then skips the entire push — even when it carries code.
+    const headMsg = (await runCommand("git", ["log", "-1", "--pretty=%B"], root).catch(() => "")).trim();
+    if (/\[skip ci\]|\[ci skip\]|\[no ci\]|\*\*\*NO_CI\*\*\*|skip-checks: *true/i.test(headMsg)) {
+      return [{
+        severity: "error",
+        code: "github-actions-skipped-by-message",
+        message: "No GitHub Actions runs for HEAD because the HEAD commit message contains a CI-skip directive ([skip ci] / [ci skip] / [no ci]) — this skips the WHOLE push, including code.",
+        fix: "Reword the HEAD commit so its message (subject AND body) does not contain the literal skip-ci directive — write it as 'skip-ci'. Then re-push, or trigger CI manually with `gh workflow run <workflow.yml> --ref <branch>`.",
+        reason: "GitHub scans the entire commit message; a code commit whose message includes a skip-ci directive silently skips CI for the whole push.",
+        impact: 60,
+      }];
+    }
     return [{
       severity: "error",
       code: "github-actions-runs-missing",
       message: "No GitHub Actions runs were found for HEAD.",
-      fix: "Wait for GitHub to create the workflow runs, or verify that the push was not skipped by a `[skip ci]` head commit; rerun `haive enforce finish` after the runs appear.",
+      fix: "Wait for GitHub to create the workflow runs, or verify that the push was not skipped by a skip-ci head commit; rerun `haive enforce finish` after the runs appear.",
       impact: 50,
     }];
   }
@@ -1517,13 +1533,28 @@ async function verifyGithubActionsForHead(
   }
 
   const failed = runs.filter((run) => run.conclusion !== "success");
-  if (failed.length > 0) {
+  const failedCore = failed.filter((run) => !isExternalTransientWorkflow(run));
+  const failedExternal = failed.filter((run) => isExternalTransientWorkflow(run));
+
+  if (failedCore.length > 0) {
     return [{
       severity: "error",
       code: "github-actions-failed",
-      message: `${failed.length}/${runs.length} GitHub Actions workflow run(s) for HEAD did not pass: ${formatGithubRunNames(failed)}.`,
+      message: `${failedCore.length}/${runs.length} GitHub Actions workflow run(s) for HEAD did not pass: ${formatGithubRunNames(failedCore)}.`,
       fix: "Inspect the failed run logs with `gh run view <run-id> --log`, fix the issue, push the fix, then rerun `haive enforce finish`.",
       impact: 80,
+    }];
+  }
+
+  if (failedExternal.length > 0) {
+    // Don't let a flaky external integration (e.g. SonarQube network/timeout) masquerade as a
+    // product regression. hAIve's principle is zero hard dependency on the user's environment, so
+    // external workflows are advisory: surfaced as info, never blocking `finish`.
+    return [{
+      severity: "info",
+      code: "github-actions-external-transient",
+      message: `${failedExternal.length} external/transient workflow run(s) for HEAD did not pass (non-blocking): ${formatGithubRunNames(failedExternal)}. All core workflows passed.`,
+      fix: "External integrations can fail on transient network/timeout. Re-run with `gh run rerun <run-id>` if you want them green — not required to finish.",
     }];
   }
 
@@ -1532,6 +1563,13 @@ async function verifyGithubActionsForHead(
     code: "github-actions-pass",
     message: `All ${runs.length} GitHub Actions workflow run(s) for HEAD completed successfully.`,
   }];
+}
+
+/** External integrations whose failures are advisory (flaky network/timeout), not product
+ *  regressions. Matched by workflow name so it works regardless of file naming. */
+function isExternalTransientWorkflow(run: GithubActionsRun): boolean {
+  const label = `${run.workflowName ?? ""} ${run.name ?? ""}`.toLowerCase();
+  return /\bsonar(qube|cloud)?\b|\bcodeql\b|\bsnyk\b|\bcodecov\b/.test(label);
 }
 
 async function githubRemoteForCurrentBranch(root: string): Promise<string | null> {
@@ -1706,6 +1744,20 @@ function printFinding(finding: EnforcementFinding, explain = false): void {
     if (finding.fix) console.log(ui.dim(`${explain ? "  repair: " : "  fix: "}${finding.fix}`));
 }
 
+/**
+ * Turn the blocking report into one guided next step. Findings are produced in protocol order
+ * (worktree clean → synced → version bumped → tag → push → CI), so the first blocking finding
+ * with a fix IS the next required action. Surfacing it removes the "assemble the steps yourself"
+ * burden that makes the exit protocol error-prone.
+ */
+function printNextRequiredAction(report: EnforcementReport): void {
+  const blocker = report.findings.find((f) => f.severity === "error" && f.fix);
+  if (!blocker) return;
+  console.log("");
+  console.log(ui.bold("→ NEXT REQUIRED ACTION") + ui.dim(`  (${blocker.code})`));
+  for (const line of blocker.fix!.split("\n")) console.log(`  ${line}`);
+}
+
 async function applyLightweightRepairs(
   root: string,
   paths: ReturnType<typeof resolveHaivePaths>,
@@ -1835,21 +1887,28 @@ async function readStdin(maxBytes: number): Promise<string> {
  * Best-effort — never blocks a commit. Scoped to the project-context file so it does
  * not sweep in telemetry churn (e.g. the tool-usage log) that belongs in a later sync.
  */
+/** Machine-local `.ai/` subtrees that must NOT enter the release commit — they belong in a
+ *  separate later `chore: haive sync` push (telemetry, runtime markers, derived caches). */
+const ATOMIC_STAGE_EXCLUDE = ["/.usage/", "/.runtime/", "/.cache/"];
+
 async function stageResyncedArtifacts(
   root: string,
   paths: ReturnType<typeof resolveHaivePaths>,
 ): Promise<void> {
-  const rel = path.relative(root, paths.projectContext);
-  // Only act on a tracked file that has unstaged modifications.
-  const tracked = await runCommand("git", ["ls-files", "--error-unmatch", "--", rel], root)
-    .then(() => true)
-    .catch(() => false);
-  if (!tracked) return;
-  const unchanged = await runCommand("git", ["diff", "--quiet", "--", rel], root)
-    .then(() => true) // exit 0 → working tree matches index, nothing to stage
-    .catch(() => false); // exit != 0 → unstaged diff present
-  if (unchanged) return;
-  await runCommand("git", ["add", "--", rel], root).catch(() => { /* best-effort */ });
+  // Stage every tracked `.ai/` file the lightweight repair just re-synced (project-context
+  // version header, auto-promoted/re-validated memories, code-map) so the release commit is
+  // atomic and the haive-sync workflow has nothing left to commit as a `[skip ci]` tip.
+  // `git diff --name-only` lists only tracked files with UNSTAGED changes, relative to the repo
+  // root — exactly the repair output. Telemetry subtrees are excluded on purpose.
+  const aiRel = path.relative(root, paths.haiveDir);
+  const out = await runCommand("git", ["diff", "--name-only", "--", aiRel], root).catch(() => "");
+  const toStage = out
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((file) => !ATOMIC_STAGE_EXCLUDE.some((excl) => `/${file}`.includes(excl)));
+  if (toStage.length === 0) return;
+  await runCommand("git", ["add", "--", ...toStage], root).catch(() => { /* best-effort */ });
 }
 
 function runCommand(cmd: string, args: string[], cwd: string): Promise<string> {

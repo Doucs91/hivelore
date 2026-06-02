@@ -6,6 +6,36 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.13.7] — release/enforcement reliability hardening
+
+Five fixes to the exit machinery — the brittle, footgun-prone part that lands every change.
+Driven by friction hit firsthand while shipping 0.13.2–0.13.5.
+
+### Fixed
+- **A — `haive briefing` now records the anchored-policy memory ids in the briefing marker.**
+  The decision-coverage gate suggests "Run `haive briefing --files …`" as its fix, but the CLI
+  briefing wrote a marker with no `memory_ids`, so the suggested command never unblocked the gate
+  (only the MCP `get_briefing` did). The CLI briefing now writes exactly the validated policy
+  memories anchored to the requested files, using the same match function the gate uses — so the
+  fix the tool proposes is the fix that unblocks. CLI/MCP briefing are now at parity here.
+- **B — the atomic pre-commit staging is generalized** beyond `project-context.md` to every tracked
+  `.ai/` file the lightweight repair re-synced (auto-promoted/re-validated memories, code-map),
+  excluding machine-local telemetry (`.usage`/`.runtime`/`.cache`). Closes the general case of a
+  later `chore: haive sync` tip skipping CI, not just the version-header case.
+- **D — external CI integrations (SonarQube/CodeQL/Snyk/Codecov) are treated as advisory** in
+  `enforce finish`: a transient failure (network/timeout) is surfaced as a non-blocking `info`
+  instead of a blocking error, so an external service can't masquerade as a product regression
+  (aligns with the "zero hard dependency on the user's environment" principle). Core workflow
+  failures still block.
+- **E — when no Actions runs exist for HEAD, the gate detects a skip-ci directive in the commit
+  message** and says so explicitly (GitHub scans the whole message, subject and body), with a fix
+  that points to rewording or `gh workflow run`. Turns a confusing "no runs" into an actionable cause.
+
+### Changed
+- **C — `enforce finish` now prints a single "NEXT REQUIRED ACTION"** when it blocks: the first
+  blocking finding (in protocol order) with its fix, so the exit path is a guided next step instead
+  of a checklist the agent must reassemble.
+
 ## [0.13.6] — strategic VS Code cockpit and English tool surface
 
 ### Added

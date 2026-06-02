@@ -879,6 +879,44 @@ describe("hAIve CLI integration", () => {
     }
   });
 
+  it("haive briefing --files records anchored policy ids so the decision-coverage gate unblocks (fix A)", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-briefing-marker-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
+
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/pay.ts"), "export const pay = 1;\n", "utf8");
+      // A validated policy decision anchored to the file that will change.
+      await run(repo, [
+        "memory", "save", "--type", "decision", "--slug", "pay-decimal-policy",
+        "--scope", "team", "--paths", "src/pay.ts",
+        "--body", "Payments must use Decimal, never float.", "--dir", repo,
+      ]);
+      await run(repo, ["memory", "approve", "--all", "--dir", repo]).catch(() => { /* already validated in autopilot */ });
+      await exec("git", ["add", "-A"], { cwd: repo });
+      await exec("git", ["commit", "-m", "base", "--no-verify"], { cwd: repo });
+
+      // Stage a change to the anchored file → decision-coverage now has a relevant policy.
+      await writeFile(path.join(repo, "src/pay.ts"), "export const pay = 2;\n", "utf8");
+      await exec("git", ["add", "src/pay.ts"], { cwd: repo });
+
+      // Run the EXACT command the gate suggests as its fix.
+      await run(repo, ["briefing", "--files", "src/pay.ts", "--task", "edit payments", "--dir", repo]);
+
+      const res = await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo]);
+      const report = JSON.parse(res.stdout) as { findings: Array<{ code: string }> };
+      const codes = report.findings.map((f) => f.code);
+      // The fix command must actually unblock the gate.
+      expect(codes).toContain("decision-coverage-pass");
+      expect(codes).not.toContain("decision-coverage-missing");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("session end --auto falls back to a git diff recap when no observation log exists", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-auto-session-end-"));
     try {

@@ -229,6 +229,27 @@ export function registerBriefing(program: Command): void {
       type LoadedWithOrigin = Awaited<ReturnType<typeof loadMemoriesFromDir>>[number] & { origin?: string };
       const ownMemories: LoadedWithOrigin[] = await loadMemoriesFromDir(paths.memoriesDir);
 
+      // Make the gate's fix hint actually unblock — and independently of --budget / ranking.
+      // The decision-coverage gate checks that the validated policy memories
+      // (decision/gotcha/architecture/convention) anchored to the changed files are present in the
+      // marker's memory_ids. The displayed ("surfaced") set is budget-limited and can omit some of
+      // them, so we compute the FULL anchored-policy set here with the SAME match function the gate
+      // uses and UNION it into the final marker write below. Then `haive briefing --files <changed>`
+      // (the command the gate suggests) satisfies the gate regardless of --budget.
+      const POLICY_TYPES = new Set(["decision", "gotcha", "architecture", "convention"]);
+      const anchoredPolicyIds =
+        markerFiles.length > 0
+          ? ownMemories
+              .map((m) => m.memory)
+              .filter(
+                (mem) =>
+                  POLICY_TYPES.has(mem.frontmatter.type) &&
+                  mem.frontmatter.status === "validated" &&
+                  memoryMatchesAnchorPaths(mem, markerFiles),
+              )
+              .map((mem) => mem.frontmatter.id)
+          : [];
+
       // Multi-project aggregation: merge memories from --include <path> projects.
       const externalRoots: string[] = [];
       if (opts.include && opts.include.length > 0) {
@@ -412,11 +433,16 @@ export function registerBriefing(program: Command): void {
       const ids = top.map(({ memory: mem }) => mem.frontmatter.id);
       if (ids.length > 0) {
         await trackReads(paths, ids).catch(() => { /* non-fatal */ });
+      }
+      // Union the surfaced ids with the anchored-policy ids so the marker always covers what the
+      // decision-coverage gate checks, even when --budget trimmed the surfaced set.
+      const markerIds = [...new Set([...ids, ...anchoredPolicyIds])];
+      if (markerIds.length > 0) {
         await writeBriefingMarker(paths, {
           task: opts.task ?? "CLI briefing",
           source: "haive-briefing-cli",
           sessionId: process.env.HAIVE_SESSION_ID,
-          memoryIds: ids,
+          memoryIds: markerIds,
           files: filePaths,
         }).catch(() => { /* marker is best-effort */ });
       }
