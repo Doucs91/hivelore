@@ -6,6 +6,17 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.13.3] — golden path made visible (harness coherence, Phase B)
+
+### Changed
+- **`haive --help` now documents the golden path** — the day-to-day workflow
+  (`init → doctor → agent setup → briefing → memory save/tried → sensors check → enforce finish → sync → session end`)
+  and the CLI↔MCP verb parity (`memory save/search/get/delete ↔ mem_save/mem_search/mem_get/mem_delete`,
+  old verbs still aliased). Makes the already-existing focused surface (core commands visible by default,
+  the rest one `--advanced` away) explicit instead of implicit.
+- **README**: new "CLI at a glance — the golden path" section with the ~11 core commands grouped by
+  lifecycle stage and the verb-parity note. Phase B of `docs/HARNESS-COHERENCE-MAP-2026-06.md`.
+
 ## [0.13.2] — CLI verbs aligned with MCP tool names (harness coherence, Phase A)
 
 ### Changed

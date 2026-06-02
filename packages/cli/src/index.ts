@@ -194,8 +194,12 @@ function applySurfaceVisibility(root: Command): void {
     "after",
     [
       "",
-      "Default help shows the core harness workflow: init, doctor, agent setup, briefing, enforcement,",
-      "sync, session recaps, and high-signal memory commands.",
+      "Golden path (what you type day to day):",
+      "  init → doctor → agent setup → briefing → memory save/tried → sensors check → enforce finish → sync → session end",
+      "",
+      "Memory verbs mirror the MCP tools: memory save/search/get/delete <-> mem_save/mem_search/mem_get/mem_delete",
+      "(old verbs add/query/show/rm still work as aliases).",
+      "",
       "Run `haive --advanced --help` or set HAIVE_SHOW_ADVANCED=1 to show maintenance and experimental commands.",
     ].join("\n"),
   );

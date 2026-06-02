@@ -174,6 +174,32 @@ haive enforce ci            # CI entrypoint (exits 1 on violations)
 
 ---
 
+## CLI at a glance — the golden path
+
+`haive --help` shows only the commands you use day to day. Everything else (review, import,
+diagnostics, benchmarks) is one `haive --advanced --help` away — the focused surface is deliberate,
+not a missing feature.
+
+| Stage | Command | What it does |
+|---|---|---|
+| **Set up** | `haive init` | Create `.ai/`, bridge files, MCP config, hooks, CI |
+| | `haive doctor` | Check the install is healthy |
+| | `haive agent setup` | Wire your AI client (MCP, hooks) |
+| **Before editing** | `haive briefing` | Feedforward context — the CLI mirror of `get_briefing` |
+| **Capture knowledge** | `haive memory save` | Record a decision / convention / gotcha |
+| | `haive memory tried` | Record a failed approach so it isn't repeated |
+| **Retrieve** | `haive memory search` · `get` | Find, then read a record |
+| **Feedback** | `haive sensors check` | Scan the diff against documented lessons |
+| **Gate** | `haive enforce finish` | Exit gate before you call the task done |
+| **Sync** | `haive sync` | Re-check stale anchors, refresh bridge files |
+| **Close** | `haive session end` | Save a recap for the next session |
+
+**One vocabulary across CLI and MCP.** The memory verbs mirror the MCP tool names, so an agent learns
+them once: `haive memory save/search/get/delete` ↔ `mem_save`/`mem_search`/`mem_get`/`mem_delete`
+(the older `add`/`query`/`show`/`rm` still work as aliases).
+
+---
+
 ## What hAIve enforces
 
 | Gate | What it checks |

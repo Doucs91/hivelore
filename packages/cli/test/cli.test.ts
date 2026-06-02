@@ -368,10 +368,18 @@ describe("hAIve CLI integration", () => {
     expect(stdout).toContain("doctor");
     expect(stdout).toContain("briefing");
     expect(stdout).toContain("enforce");
-    expect(stdout).toContain("Default help shows the core harness workflow");
+    expect(stdout).toContain("Golden path (what you type day to day)");
     expect(stdout).not.toContain("playback");
     expect(stdout).not.toContain("snapshot");
     expect(stdout).not.toContain("benchmark");
+  });
+
+  it("default root help documents the golden path and CLI<->MCP verb parity", async () => {
+    const { stdout } = await run(workDir, ["--help"]);
+    expect(stdout).toContain("Golden path");
+    // The memory verbs are advertised as mirroring the MCP tool names.
+    expect(stdout).toContain("memory save/search/get/delete");
+    expect(stdout).toContain("mem_save/mem_search/mem_get/mem_delete");
   });
 
   it("advanced help exposes maintenance and experimental commands", async () => {

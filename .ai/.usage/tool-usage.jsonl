@@ -139,3 +139,5 @@
 {"tool":"get_briefing","at":"2026-06-02T16:14:14.261Z","summary":"Rename user-facing memory-verb hints in doctor.ts fix strings to the canonical verbs (save/delete) to match MCP tool names. Cosmetic string-only change."}
 {"tool":"get_briefing","at":"2026-06-02T16:19:52.242Z","summary":"Commit Phase A: align memory CLI verbs with MCP tool names, lockstep version bump to 0.13.2, add coherence map doc. Need decision coverage for the changed CLI/package files before committing."}
 {"tool":"mem_session_end","at":"2026-06-02T16:23:05.016Z","summary":"Analyser le harness engineering vs hAIve, produire la carte de cohérence de surf"}
+{"tool":"get_briefing","at":"2026-06-02T16:36:44.172Z","summary":"Phase B coherence: make the golden path visible in README.md and the CLI --help after-text (index.ts). Documentation/UX only — list the ~10 day-to-day core commands; no behavior change."}
+{"tool":"get_briefing","at":"2026-06-02T16:42:02.874Z","summary":"Commit Phase B: document the golden path in README and CLI --help after-text, lockstep bump to 0.13.3. Need decision coverage for all changed files (README, index.ts, test, CHANGELOG, package.json x5) before committing."}
