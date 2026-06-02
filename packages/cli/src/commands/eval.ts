@@ -35,6 +35,7 @@ interface EvalOptions {
   compare?: boolean;
   baselineFile?: string;
   failOnRegression?: boolean;
+  regressionGate?: boolean;
   dir?: string;
 }
 
@@ -68,6 +69,7 @@ export function registerEval(program: Command): void {
     .option("--compare", "diff this run against the saved baseline and print the delta", false)
     .option("--baseline-file <path>", "baseline file to read/write (default: .ai/eval/baseline.json)")
     .option("--fail-on-regression", "with --compare, exit non-zero if the score dropped vs the baseline", false)
+    .option("--regression-gate", "CI-safe gate: compare against the baseline IF one exists (fail on regression), else no-op", false)
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: EvalOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -129,15 +131,22 @@ export function registerEval(program: Command): void {
       }
 
       // ── Compare against baseline ──────────────────────────────────────────
+      // `--regression-gate` is the CI-safe variant: it compares only when a baseline
+      // exists and otherwise no-ops, so it can be dropped into any pipeline unconditionally.
       let delta: EvalDelta | null = null;
-      if (opts.compare) {
+      if (opts.compare || opts.regressionGate) {
         if (!existsSync(baselineFile)) {
-          ui.error(`No baseline at ${path.relative(root, baselineFile)}. Run \`haive eval --baseline\` first.`);
-          process.exitCode = 1;
-          return;
+          if (opts.regressionGate) {
+            if (!opts.json) ui.info(`No baseline at ${path.relative(root, baselineFile)} — regression gate skipped. Run \`haive eval --baseline\` to enable it.`);
+          } else {
+            ui.error(`No baseline at ${path.relative(root, baselineFile)}. Run \`haive eval --baseline\` first.`);
+            process.exitCode = 1;
+            return;
+          }
+        } else {
+          const snapshot = JSON.parse(await readFile(baselineFile, "utf8")) as BaselineSnapshot;
+          delta = compareEvalReports(snapshot.report, report);
         }
-        const snapshot = JSON.parse(await readFile(baselineFile, "utf8")) as BaselineSnapshot;
-        delta = compareEvalReports(snapshot.report, report);
       }
 
       if (opts.json) {
@@ -175,7 +184,7 @@ function applyExitGates(opts: EvalOptions, report: EvalReport, delta: EvalDelta 
       process.exitCode = 1;
     }
   }
-  if (opts.failOnRegression && delta?.regressed) {
+  if ((opts.failOnRegression || opts.regressionGate) && delta?.regressed) {
     ui.error(`eval score regressed ${delta.score.baseline} → ${delta.score.current} (Δ ${delta.score.delta}) vs baseline`);
     process.exitCode = 1;
   }

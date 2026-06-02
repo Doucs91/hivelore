@@ -42,7 +42,7 @@ interface PackMemory {
 
 type StackName = "nestjs" | "nextjs" | "remix" | "react" | "express" | "fastify" | "prisma" | "drizzle"
   | "zustand" | "redux" | "reactquery" | "trpc" | "mongoose" | "graphql"
-  | "fastapi" | "django" | "go";
+  | "fastapi" | "django" | "go" | "flask" | "vue" | "spring";
 
 const PACKS: Record<StackName, PackMemory[]> = {
   nestjs: [
@@ -737,6 +737,114 @@ Use \`select_related\` (FK / one-to-one, SQL JOIN) and \`prefetch_related\` (M2M
 \`\`\`py
 for order in Order.objects.select_related("customer").all():
     order.customer.name  # no extra query
+\`\`\``,
+    },
+  ],
+
+  flask: [
+    {
+      slug: "flask-no-debug-in-prod",
+      type: "gotcha",
+      tags: ["flask", "python", "security", "deployment"],
+      body: `\`app.run(debug=True)\` enables the Werkzeug debugger — remote code execution if exposed.
+
+Never ship debug mode. Run behind a real WSGI server (gunicorn/uwsgi) in production and
+drive debug from the environment for local dev only.`,
+      sensor: {
+        pattern: "app\\.run\\([^)]*debug\\s*=\\s*True",
+        message: "Flask debug=True exposes the Werkzeug console (RCE) — never run it in production.",
+      },
+    },
+    {
+      slug: "flask-secret-key-from-env",
+      type: "convention",
+      tags: ["flask", "python", "security"],
+      body: `Load \`SECRET_KEY\` from the environment — never commit a literal.
+
+\`\`\`py
+app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
+\`\`\`
+A committed key lets anyone forge sessions and CSRF tokens.`,
+    },
+    {
+      slug: "flask-no-sql-string-interpolation",
+      type: "gotcha",
+      tags: ["flask", "python", "security", "sql-injection"],
+      body: `Never build SQL with f-strings/%-formatting — use parameterized queries.
+
+\`\`\`py
+# ❌ SQL injection
+db.execute(f"SELECT * FROM users WHERE id = {uid}")
+# ✅
+db.execute("SELECT * FROM users WHERE id = %s", (uid,))
+\`\`\``,
+    },
+  ],
+
+  vue: [
+    {
+      slug: "vue-v-html-xss",
+      type: "gotcha",
+      tags: ["vue", "security", "xss"],
+      body: `\`v-html\` renders raw HTML and bypasses Vue's escaping — an XSS sink for user content.
+
+Only use it on trusted/sanitized content. Prefer text interpolation ({{ }}) or sanitize
+with DOMPurify before binding.`,
+      sensor: {
+        pattern: "v-html",
+        message: "v-html renders unescaped HTML (XSS risk) — sanitize the value or use text interpolation.",
+      },
+    },
+    {
+      slug: "vue-key-in-v-for",
+      type: "convention",
+      tags: ["vue", "performance"],
+      body: `Always bind a stable \`:key\` on \`v-for\` — and never the loop index.
+
+Index keys corrupt component state on reorder/insert, exactly like React. Use a stable id.`,
+    },
+    {
+      slug: "vue-props-are-readonly",
+      type: "gotcha",
+      tags: ["vue", "reactivity"],
+      body: `Never mutate a prop inside a child component — props are one-way (parent → child).
+
+Mutating a prop breaks the data flow and warns in dev. Emit an event (\`update:modelValue\`)
+or copy the prop into local state, depending on intent.`,
+    },
+  ],
+
+  spring: [
+    {
+      slug: "spring-constructor-injection",
+      type: "convention",
+      tags: ["spring", "java", "di", "testing"],
+      body: `Prefer constructor injection over \`@Autowired\` field injection.
+
+Constructor injection makes dependencies explicit, allows \`final\` fields, and lets you
+instantiate the class in tests without a Spring context. Field injection hides dependencies
+and forces reflection-based test setup.`,
+    },
+    {
+      slug: "spring-no-cors-wildcard",
+      type: "gotcha",
+      tags: ["spring", "java", "security", "cors"],
+      body: `\`@CrossOrigin(origins = "*")\` (or wildcard CORS config) allows any site to call your API.
+
+Combined with credentials it leaks authenticated data cross-origin. Whitelist explicit origins.`,
+      sensor: {
+        pattern: "@CrossOrigin\\([^)]*\\*",
+        message: "Wildcard CORS (@CrossOrigin origins=\"*\") lets any site call your API — whitelist explicit origins.",
+      },
+    },
+    {
+      slug: "spring-no-field-secrets",
+      type: "convention",
+      tags: ["spring", "java", "security", "config"],
+      body: `Keep secrets in externalized config (env / vault / application.yml placeholders), not in source.
+
+\`\`\`java
+@Value("\${app.api-key}") private String apiKey; // resolved from env, not hardcoded
 \`\`\``,
     },
   ],

@@ -6,6 +6,25 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.13.0] — portable extensions (Sonar live-fetch, regression gate, more packs)
+
+> Design principle reinforced this release: **every hAIve tool works standalone**. No command
+> requires an external service or a specific local setup; optional integrations degrade gracefully
+> with one clear message and never crash. See decision
+> `2026-06-02-decision-tools-must-be-environment-independent`.
+
+### Added
+- **`haive ingest --from sonar-api`** — fetch open issues live from any SonarQube/SonarCloud
+  instance over plain HTTPS (Node built-in `fetch`), with `--sonar-url` / `--sonar-token` /
+  `--sonar-component` (or `SONAR_HOST_URL` / `SONAR_TOKEN`). **No MCP or special setup required** —
+  if creds are absent it prints one actionable message and exits; file-based `--from sonar|sarif`
+  always works regardless.
+- **`haive eval --regression-gate`** — CI-safe quality gate: compares against the baseline IF one
+  exists (failing on a score regression) and otherwise no-ops (exit 0), so it can be dropped into any
+  pipeline unconditionally.
+- **Three new stack packs** — `flask`, `vue`, `spring` — with curated sensors (flask
+  `app.run(debug=True)`, vue `v-html` XSS, spring wildcard `@CrossOrigin`).
+
 ## [0.12.9] — eval baseline & delta reporting
 
 ### Added

@@ -75,6 +75,14 @@ retrieval by N%" claim is now reproducible.
 All of P0–P4 are shipped (v0.12.5 → v0.12.9). The remaining wishlist items (#1/#4/#5/#7/#9) were
 already in the codebase before this effort; see the table at the top.
 
+## Extensions (v0.13.0) — portable by design
+Follow-up to the recap's extension ideas, under a hard rule: **every tool must work standalone, with
+no dependency on the user's environment** (decision `2026-06-02-decision-tools-must-be-environment-independent`).
+- **Sonar live-fetch**: `haive ingest --from sonar-api` over plain HTTPS with user-supplied creds —
+  NOT via anyone's Sonar MCP. Graceful when unconfigured; file-based ingest always available.
+- **CI regression gate**: `haive eval --regression-gate` — compares vs baseline if present, else no-op.
+- **More stack packs**: flask / vue / spring with curated sensors.
+
 ## Done-criteria each step
 `pnpm -r build && pnpm -r test && pnpm check:artifacts` green; CHANGELOG entry; lockstep version bump
 + tag if shippable code changed; `haive enforce finish` passes; targeted `haive briefing --files`

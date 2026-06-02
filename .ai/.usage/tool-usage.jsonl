@@ -134,3 +134,4 @@
 {"tool":"mem_session_end","at":"2026-06-02T04:21:12.808Z","summary":"Research \"harness engineering\", position hAIve against it, then implement the re"}
 {"tool":"get_briefing","at":"2026-06-02T04:24:57.750Z","summary":"P1 observability: turn the stub `haive tui`/dashboard into a real (non-interactive first) dashboard printing top memories by impact, sensors fired (last_fired), stale/anchorless counts, decay warnings, briefing token budget. Pure aggregation in core, CLI prints."}
 {"tool":"mem_session_end","at":"2026-06-02T05:08:21.826Z","summary":"Execute the harness-engineering roadmap (docs/HARNESS-ROADMAP-2026-06.md) P1→P4 "}
+{"tool":"mem_save","at":"2026-06-02T14:23:55.608Z","summary":"tools-must-be-environment-independent"}

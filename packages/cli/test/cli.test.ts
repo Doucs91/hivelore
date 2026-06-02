@@ -234,6 +234,55 @@ describe("hAIve CLI integration", () => {
     }
   });
 
+  it("ingest --from sonar-api degrades gracefully when no credentials are configured", async () => {
+    const d = await mkdtemp(path.join(tmpdir(), "haive-sonarapi-test-"));
+    try {
+      await run(d, ["init", "--no-bootstrap", "--stack", "none", "-y", "--dir", d]);
+      let out = "";
+      try {
+        const r = await run(d, ["ingest", "--from", "sonar-api", "--dir", d]);
+        out = r.stdout + r.stderr;
+      } catch (e) {
+        const err = e as { stdout?: string; stderr?: string };
+        out = (err.stdout ?? "") + (err.stderr ?? "");
+      }
+      // Clear, actionable message — never a crash/stack trace; the rest of hAIve is unaffected.
+      expect(out).toMatch(/sonar-url|SONAR_HOST_URL/);
+      expect(out).not.toMatch(/at Object\.|node:internal/);
+    } finally {
+      await rm(d, { recursive: true, force: true });
+    }
+  });
+
+  it("eval --regression-gate is a no-op (exit 0) when no baseline exists", async () => {
+    const d = await mkdtemp(path.join(tmpdir(), "haive-gate-test-"));
+    try {
+      await run(d, ["init", "--no-bootstrap", "--stack", "none", "-y", "--dir", d]);
+      const memFile = path.join(d, ".ai/memories/team/2099-01-01-gotcha-gate.md");
+      await writeFile(
+        memFile,
+        [
+          "---", "id: 2099-01-01-gotcha-gate", "scope: team", "type: gotcha", "status: validated",
+          "created_at: 2099-01-01T00:00:00.000Z", "anchor:", "  paths: []", "  symbols: []", "tags: []",
+          "sensor:", "  kind: regex", '  pattern: "GATEPATTERN"', '  message: "no gate"',
+          "  severity: warn", "  autogen: false", "  last_fired: null", "---", "# Gate", "Avoid GATEPATTERN.",
+        ].join("\n"),
+        "utf8",
+      );
+      const specFile = path.join(d, "spec.json");
+      await writeFile(
+        specFile,
+        JSON.stringify({ sensors: [{ name: "g", diff: "+ GATEPATTERN", expect_fire_ids: ["2099-01-01-gotcha-gate"] }] }),
+        "utf8",
+      );
+      // No baseline written → gate must skip, not fail.
+      const r = await run(d, ["eval", "--spec", specFile, "--regression-gate", "--dir", d]);
+      expect(r.stdout + r.stderr).toMatch(/regression gate skipped/i);
+    } finally {
+      await rm(d, { recursive: true, force: true });
+    }
+  });
+
   it("init writes project-level MCP configs with HAIVE_PROJECT_ROOT", async () => {
     // These files are written by haive init to fix the multi-project CWD bug.
     const cursorMcp = path.join(workDir, ".cursor", "mcp.json");

@@ -17,7 +17,7 @@ import {
 import { ui } from "../utils/ui.js";
 
 interface IngestOptions {
-  from?: "sarif" | "sonar";
+  from?: "sarif" | "sonar" | "sonar-api";
   dryRun?: boolean;
   scope?: "personal" | "team" | "module";
   module?: string;
@@ -26,6 +26,10 @@ interface IngestOptions {
   limit?: string;
   author?: string;
   json?: boolean;
+  sonarUrl?: string;
+  sonarToken?: string;
+  sonarComponent?: string;
+  sonarBranch?: string;
   dir?: string;
 }
 
@@ -39,12 +43,16 @@ export function registerIngest(program: Command): void {
       "  Closes the review↔memory loop: a real defect a scanner found becomes a `gotcha`/`convention`\n" +
       "  memory anchored to the file, pre-filled with a conservative `warn` sensor, so the next agent\n" +
       "  is steered away from it. Drafts are status=proposed; a human validates/promotes them.\n\n" +
+      "  `sonar-api` fetches issues live over plain HTTPS from any SonarQube/SonarCloud instance —\n" +
+      "  no MCP or special setup required, just a URL + token you provide (or SONAR_HOST_URL /\n" +
+      "  SONAR_TOKEN env). If you don't use it, file-based ingest works exactly the same.\n\n" +
       "  Example:\n" +
       "    haive ingest --from sarif eslint.sarif --dry-run\n" +
-      "    haive ingest --from sonar sonar-issues.json --scope team --min-severity major\n",
+      "    haive ingest --from sonar sonar-issues.json --scope team --min-severity major\n" +
+      "    haive ingest --from sonar-api --sonar-component my_project --min-severity major\n",
     )
-    .argument("<file>", "path to the findings report (JSON)")
-    .requiredOption("--from <format>", "report format: sarif | sonar")
+    .argument("[file]", "path to the findings report JSON (required for --from sarif|sonar)")
+    .requiredOption("--from <format>", "report format: sarif | sonar | sonar-api")
     .option("--dry-run", "show what would be created without writing", false)
     .option("--scope <scope>", "memory scope: personal | team | module", "team")
     .option("--module <name>", "module name (required when scope=module)")
@@ -53,11 +61,15 @@ export function registerIngest(program: Command): void {
     .option("--limit <n>", "cap the number of memories created")
     .option("--author <author>", "author email or handle")
     .option("--json", "emit JSON", false)
+    .option("--sonar-url <url>", "SonarQube base URL for --from sonar-api (or env SONAR_HOST_URL)")
+    .option("--sonar-token <token>", "SonarQube token for --from sonar-api (or env SONAR_TOKEN)")
+    .option("--sonar-component <key>", "SonarQube project/component key for --from sonar-api")
+    .option("--sonar-branch <branch>", "optional SonarQube branch for --from sonar-api")
     .option("-d, --dir <dir>", "project root")
-    .action(async (file: string, opts: IngestOptions) => {
+    .action(async (file: string | undefined, opts: IngestOptions) => {
       const format = opts.from;
-      if (format !== "sarif" && format !== "sonar") {
-        ui.error("--from must be sarif or sonar");
+      if (format !== "sarif" && format !== "sonar" && format !== "sonar-api") {
+        ui.error("--from must be sarif, sonar, or sonar-api");
         process.exitCode = 1;
         return;
       }
@@ -80,25 +92,42 @@ export function registerIngest(program: Command): void {
         return;
       }
 
-      const reportPath = path.resolve(root, file);
-      if (!existsSync(reportPath)) {
-        ui.error(`Report file not found: ${reportPath}`);
-        process.exitCode = 1;
-        return;
-      }
+      // `sonar-api` parses with the same Sonar reader; only the source differs (HTTP vs file).
+      const parseFormat: "sarif" | "sonar" = format === "sarif" ? "sarif" : "sonar";
 
       let raw: string;
-      try {
-        raw = await readFile(reportPath, "utf8");
-      } catch (err) {
-        ui.error(`Could not read ${reportPath}: ${err instanceof Error ? err.message : String(err)}`);
-        process.exitCode = 1;
-        return;
+      if (format === "sonar-api") {
+        const fetched = await fetchSonarIssues(opts);
+        if (!fetched.ok) {
+          ui.error(fetched.error);
+          process.exitCode = 1;
+          return;
+        }
+        raw = fetched.json;
+      } else {
+        if (!file) {
+          ui.error(`--from ${format} needs a report file argument, e.g. \`haive ingest --from ${format} report.json\`.`);
+          process.exitCode = 1;
+          return;
+        }
+        const reportPath = path.resolve(root, file);
+        if (!existsSync(reportPath)) {
+          ui.error(`Report file not found: ${reportPath}`);
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          raw = await readFile(reportPath, "utf8");
+        } catch (err) {
+          ui.error(`Could not read ${reportPath}: ${err instanceof Error ? err.message : String(err)}`);
+          process.exitCode = 1;
+          return;
+        }
       }
 
       let drafts: MemoryDraft[];
       try {
-        const findings = parseFindings(format, raw);
+        const findings = parseFindings(parseFormat, raw);
         drafts = draftsFromFindings(findings, {
           type: opts.type ?? "gotcha",
           scope: opts.scope ?? "team",
@@ -189,4 +218,53 @@ async function writeDraft(paths: ReturnType<typeof resolveHaivePaths>, draft: Me
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, serializeMemory({ frontmatter: draft.frontmatter, body: draft.body }), "utf8");
   return file;
+}
+
+type SonarFetchResult = { ok: true; json: string } | { ok: false; error: string };
+
+/**
+ * Fetch open issues from any SonarQube / SonarCloud instance over plain HTTPS, using the
+ * SonarQube Web API (`/api/issues/search`). This is deliberately MCP-free and dependency-free
+ * (Node's built-in fetch) so hAIve works on any project: credentials are supplied by the user
+ * via flags or env, and when they are absent this returns a clear error instead of crashing —
+ * file-based ingest (`--from sonar|sarif`) is always available regardless.
+ */
+async function fetchSonarIssues(opts: IngestOptions): Promise<SonarFetchResult> {
+  const baseUrl = (opts.sonarUrl ?? process.env.SONAR_HOST_URL ?? "").trim().replace(/\/+$/, "");
+  const token = (opts.sonarToken ?? process.env.SONAR_TOKEN ?? "").trim();
+  const component = (opts.sonarComponent ?? "").trim();
+
+  if (!baseUrl) {
+    return { ok: false, error: "--from sonar-api needs --sonar-url (or env SONAR_HOST_URL)." };
+  }
+  if (!token) {
+    return { ok: false, error: "--from sonar-api needs --sonar-token (or env SONAR_TOKEN)." };
+  }
+  if (!component) {
+    return { ok: false, error: "--from sonar-api needs --sonar-component <projectKey>." };
+  }
+  if (typeof fetch !== "function") {
+    return { ok: false, error: "global fetch is unavailable — Node 18+ is required for --from sonar-api." };
+  }
+
+  const params = new URLSearchParams({ componentKeys: component, resolved: "false", ps: "500" });
+  if (opts.sonarBranch) params.set("branch", opts.sonarBranch);
+  const url = `${baseUrl}/api/issues/search?${params.toString()}`;
+
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    });
+    if (!res.ok) {
+      const hint = res.status === 401 || res.status === 403 ? " (check the token and its permissions)" : "";
+      return { ok: false, error: `SonarQube API returned ${res.status} ${res.statusText}${hint}.` };
+    }
+    const json = await res.text();
+    return { ok: true, json };
+  } catch (err) {
+    return {
+      ok: false,
+      error: `Could not reach SonarQube at ${baseUrl}: ${err instanceof Error ? err.message : String(err)}. File-based ingest (--from sonar) still works.`,
+    };
+  }
 }
