@@ -5,6 +5,11 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  # Allow manual runs from the Actions tab (e.g. when the last push tip carried
+  # [skip ci]). GitHub skips the WHOLE push's CI when the HEAD commit message
+  # contains [skip ci] — so never let a sync/[skip ci] commit be a push tip that
+  # also includes code. See the release-commit decision in .ai/memories.
+  workflow_dispatch:
 
 jobs:
   build-and-test:

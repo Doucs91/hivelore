@@ -125,3 +125,4 @@
 {"tool":"mem_session_end","at":"2026-06-02T00:35:24.918Z","summary":"Implement the noted next-steps and, above all, eliminate pre-commit false positi"}
 {"tool":"get_briefing","at":"2026-06-02T00:45:24.478Z","summary":"Improve semantic-only briefing retrieval recall (currently ~19% in haive eval --semantic-only): diagnose misses and add a hybrid lexical/BM25 rerank or query expansion to get_briefing ranking without regressing anchored retrieval."}
 {"tool":"mem_session_end","at":"2026-06-02T00:53:58.228Z","summary":"Complete the last roadmap item: improve semantic-only briefing retrieval (was ~1"}
+{"tool":"mem_save","at":"2026-06-02T01:01:14.459Z","summary":"atomic-release-commit-and-skip-ci-tip"}
