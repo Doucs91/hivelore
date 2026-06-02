@@ -20,6 +20,19 @@ last_read_at: null
 revision_count: 0
 requires_human_approval: false
 ---
-# Convention Use Pnpm Workspaces
+# hAIve Uses Pinned pnpm Workspaces
 
-This monorepo uses pnpm workspaces (not npm/yarn workspaces, not turborepo). Run pnpm install at the repo root to install everything. Run pnpm -r build / pnpm -r test to act on every package. Cross-package deps use 'workspace:*'.
+This repo is pinned to `pnpm@9.14.2` in root `packageManager`; do not use npm/yarn workspace commands for local development or release checks.
+
+Cross-package hAIve dependencies must stay `workspace:*`. Using published semver ranges such as `^0.12.1` can make pnpm resolve stale registry packages instead of local workspace code, hiding source changes from dependent package builds.
+
+Canonical local commands:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm -r build
+pnpm -r typecheck
+pnpm -r test
+```
+
+Shells without global pnpm should use `npx pnpm@9.14.2 ...`; `haive doctor` reports this as `pnpm-not-on-path` so agents do not mistake the missing binary for a repo failure.

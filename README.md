@@ -344,9 +344,18 @@ haive embeddings query <text>                 # Semantic search
 
 # Diagnostics
 haive doctor                                  # Analyze setup, emit recommendations
+haive eval --fail-under 80                    # Retrieval + sensor quality gate
 haive tui                                     # Interactive terminal dashboard
 haive bench                                   # Self-test MCP tools
 ```
+
+`haive eval` auto-synthesizes retrieval cases from anchored memories and, when present, also loads
+`.ai/eval/spec.json` for labeled retrieval/sensor cases. This repo uses that file to keep executable
+memory sensors in CI, so a broken guardrail is caught before release.
+
+`haive doctor` reports local setup drift that can make agents misdiagnose the repo: missing `pnpm`,
+stale workspace `dist` artifacts, global CLI/MCP version skew, outdated code-search indexes, and low
+memory-anchor coverage.
 
 ---
 

@@ -31,6 +31,11 @@ interface EvalOptions {
   dir?: string;
 }
 
+interface ResolvedEvalSpec {
+  spec: EvalSpec;
+  source: string;
+}
+
 export function registerEval(program: Command): void {
   program
     .command("eval")
@@ -57,7 +62,8 @@ export function registerEval(program: Command): void {
       const k = Math.max(1, parseInt(opts.top ?? "8", 10) || 8);
       const ctx = { paths };
 
-      const spec = await resolveSpec(opts, paths.memoriesDir);
+      const resolvedSpec = await resolveSpec(opts, root, paths.memoriesDir);
+      const spec = resolvedSpec.spec;
       if ((spec.retrieval?.length ?? 0) === 0 && (spec.sensors?.length ?? 0) === 0) {
         ui.warn("No eval cases (no anchored memories and no --spec). Nothing to score.");
         return;
@@ -88,9 +94,9 @@ export function registerEval(program: Command): void {
       const report = buildReport(retrievalAgg, sensorAgg);
 
       if (opts.json) {
-        console.log(JSON.stringify({ root, k, report }, null, 2));
+        console.log(JSON.stringify({ root, k, spec_source: resolvedSpec.source, report }, null, 2));
       } else {
-        const md = renderMarkdown(root, k, report);
+        const md = renderMarkdown(root, k, resolvedSpec.source, report);
         if (opts.out) {
           const outFile = path.isAbsolute(opts.out) ? opts.out : path.join(root, opts.out);
           await writeFile(outFile, md, "utf8");
@@ -114,14 +120,31 @@ export function registerEval(program: Command): void {
     });
 }
 
-async function resolveSpec(opts: EvalOptions, memoriesDir: string): Promise<EvalSpec> {
+async function resolveSpec(opts: EvalOptions, root: string, memoriesDir: string): Promise<ResolvedEvalSpec> {
   if (opts.spec) {
     const file = path.resolve(opts.spec);
     const raw = await readFile(file, "utf8");
-    return JSON.parse(raw) as EvalSpec;
+    return { spec: JSON.parse(raw) as EvalSpec, source: file };
+  }
+  const defaultSpec = path.join(root, ".ai", "eval", "spec.json");
+  if (existsSync(defaultSpec)) {
+    const raw = await readFile(defaultSpec, "utf8");
+    const explicit = JSON.parse(raw) as EvalSpec;
+    const memories = await loadMemoriesFromDir(memoriesDir);
+    const synthesized = synthesizeSelfEvalCases(memories, { includeFiles: !opts.semanticOnly });
+    return {
+      spec: {
+        retrieval: [...synthesized, ...(explicit.retrieval ?? [])],
+        sensors: explicit.sensors ?? [],
+      },
+      source: ".ai/eval/spec.json + synthesized anchored retrieval",
+    };
   }
   const memories = await loadMemoriesFromDir(memoriesDir);
-  return { retrieval: synthesizeSelfEvalCases(memories, { includeFiles: !opts.semanticOnly }) };
+  return {
+    spec: { retrieval: synthesizeSelfEvalCases(memories, { includeFiles: !opts.semanticOnly }) },
+    source: "synthesized anchored retrieval",
+  };
 }
 
 async function runRetrieval(
@@ -164,11 +187,12 @@ function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
 }
 
-function renderMarkdown(root: string, k: number, report: ReturnType<typeof buildReport>): string {
+function renderMarkdown(root: string, k: number, source: string, report: ReturnType<typeof buildReport>): string {
   const lines = [
     "# hAIve eval report",
     "",
     `Project: \`${root}\` · top-k: ${k}`,
+    `Spec: ${source}`,
     "",
     `## Overall score: ${report.score}/100`,
     "",

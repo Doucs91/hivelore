@@ -6,6 +6,23 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.12.2] — quality gate and doctor excellence pass
+
+### Added
+- **Repo-native eval specs** — `haive eval` now auto-loads `.ai/eval/spec.json` when present and
+  merges those labeled cases with synthesized anchored-memory retrieval cases. hAIve's own CI now
+  exercises eight executable sensor cases, so the 0–100 score covers retrieval and guardrail catch-rate.
+- **Sharper setup diagnostics** — `haive doctor` now reports missing local `pnpm`, stale or missing
+  workspace `dist` artifacts, and dist/source version mismatch as explicit actionable findings.
+- **Architecture coverage memories** — core, CLI, and MCP package boundaries are documented as anchored
+  team memories so harness coverage reflects real module policy instead of generic advice.
+
+### Improved
+- Low-value generic workflow memories were rewritten as concrete hAIve release/toolchain policies,
+  including the exact CI-equivalent command chain and the `npx pnpm@9.14.2` fallback.
+- CLI docs, README, and PLAN now describe eval specs, doctor setup drift checks, and the current
+  harness-engineering positioning.
+
 ## [0.12.1] — hybrid lexical rerank (much better semantic retrieval)
 
 ### Improved

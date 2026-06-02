@@ -4,7 +4,10 @@ scope: team
 type: convention
 status: validated
 anchor:
-  paths: []
+  paths:
+    - .github/workflows/ci.yml
+    - package.json
+    - scripts/verify-build-artifacts.mjs
   symbols: []
 tags:
   - workflow
@@ -17,6 +20,25 @@ last_read_at: null
 revision_count: 0
 requires_human_approval: false
 ---
-# Convention Always Run Tests Before Commit
+# hAIve Release Verification Chain
 
-Personal habit: pnpm test from the root before any commit. Catches the cross-package breakage that local watch mode misses.
+hAIve tests import freshly built workspace `dist` artifacts, so the release-quality local check is the same ordered chain as CI:
+
+```bash
+pnpm -r build
+pnpm check:artifacts
+pnpm -r typecheck
+pnpm -r test
+node packages/cli/dist/index.js eval --fail-under 80
+```
+
+If `pnpm` is not on PATH in a local shell, use the pinned package-manager fallback:
+
+```bash
+npx pnpm@9.14.2 -r build
+npx pnpm@9.14.2 check:artifacts
+npx pnpm@9.14.2 -r typecheck
+npx pnpm@9.14.2 -r test
+```
+
+Run `build` before `typecheck` because downstream packages deliberately check fresh workspace dists with `scripts/ensure-workspace-dists.mjs`.

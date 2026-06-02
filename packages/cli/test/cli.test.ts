@@ -342,6 +342,55 @@ describe("hAIve CLI integration", () => {
     expect(content).toContain("severity: block");
   });
 
+  it("eval automatically includes .ai/eval/spec.json sensor cases", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-eval-spec-"));
+    try {
+      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
+      await run(repo, [
+        "memory",
+        "tried",
+        "--what", "Bad feature flag",
+        "--why-failed", "`open-in-view=true` leaks sessions.",
+        "--instead", "keep open-in-view=false",
+        "--paths", "src/app.properties",
+        "--scope", "team",
+        "--dir", repo,
+      ]);
+      const teamFiles = await readdir(path.join(repo, ".ai/memories/team"));
+      const sensorId = teamFiles.find((file) => file.includes("bad-feature-flag"))!.replace(/\.md$/, "");
+      await mkdir(path.join(repo, ".ai/eval"), { recursive: true });
+      await writeFile(
+        path.join(repo, ".ai/eval/spec.json"),
+        JSON.stringify({
+          sensors: [
+            {
+              name: "feature flag regression",
+              diff:
+                "diff --git a/src/app.properties b/src/app.properties\n" +
+                "+++ b/src/app.properties\n" +
+                "@@\n" +
+                "+open-in-view=true\n",
+              paths: ["src/app.properties"],
+              expect_fire_ids: [sensorId],
+            },
+          ],
+        }, null, 2),
+        "utf8",
+      );
+
+      const { stdout } = await run(repo, ["eval", "--json", "--dir", repo]);
+      const report = JSON.parse(stdout) as {
+        spec_source: string;
+        report: { sensors: { catch_rate: number; cases: unknown[] } | null };
+      };
+      expect(report.spec_source).toContain(".ai/eval/spec.json");
+      expect(report.report.sensors?.catch_rate).toBe(1);
+      expect(report.report.sensors?.cases.length).toBe(1);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("memory promote moves a memory from personal to team with status=proposed", async () => {
     await run(workDir, [
       "memory",

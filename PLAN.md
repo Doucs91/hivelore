@@ -1,8 +1,8 @@
 # Plan détaillé — hAIve
 
-> **hAIve** (mélange de *hive* et *AI*) — couche de mémoire IA persistante et synchronisée pour les équipes.
+> **hAIve** (mélange de *hive* et *AI*) — couche Git-native de contexte, mémoire et policy gates pour les harnesses d'agents de code.
 > Document de référence pour reprendre le travail à froid après fermeture de session.
-> Dernière mise à jour : 2026-04-30
+> Dernière mise à jour : 2026-06-02
 
 ---
 
@@ -15,6 +15,11 @@ Construire un outil **agnostique** (compatible Claude Code, Cursor, Copilot, Con
 3. **Pas de synchronisation des apprentissages spécialisés** : les savoirs gagnés par chaque IA (ex: "champ X retiré par décision légale") ne se propagent pas aux IA des autres collègues.
 
 But final : toutes les IA d'une équipe partagent une compréhension commune du projet et continuent à enrichir cette compréhension de manière collaborative, sans noyer chaque IA d'informations non pertinentes.
+
+Positionnement actuel : hAIve n'est pas une mémoire générale ni un dashboard d'agent. C'est la couche
+**repo-native context policy** du harness : briefing feedforward avant travail, mémoires Markdown
+ancrées au code, sensors déterministes, hooks/Git/CI enforcement, et evals répétables pour mesurer que
+la bonne connaissance et les bons garde-fous ressortent encore.
 
 ---
 
@@ -89,7 +94,9 @@ Au démarrage d'une tâche, pull :
 - **Langage** : TypeScript (Node).
 - **Cible Node minimum** : Node 20 LTS.
 - **Structure** : monorepo (CLI + serveur MCP + packages partagés).
-- **Build / Test** : `tsup` (build) + `vitest` (test).
+- **Build / Test** : `tsup` (build) + `vitest` (test), avec `pnpm@9.14.2` pinned.
+- **Quality gate** : `pnpm -r build`, `pnpm check:artifacts`, `pnpm -r typecheck`, `pnpm -r test`,
+  puis `haive eval --fail-under 80`. `haive eval` auto-charge `.ai/eval/spec.json` quand présent.
 - **Agnostique** : exposé via **MCP** (Model Context Protocol) pour fonctionner avec Claude Code, Cursor, Continue, etc.
 - **Bootstrap initial** : **délégué à l'IA déjà ouverte chez le dev** via un outil exposé par le serveur MCP.
   - Avantages : aucune clé API à gérer, vraiment agnostique, l'IA a déjà accès au filesystem.
@@ -114,9 +121,10 @@ Au démarrage d'une tâche, pull :
   - Pas de chargement automatique par module touché.
 
 ### Positionnement hAIve
-> **"Explicit team curation"** vs Engram *"invisible individual infrastructure"*.
+> **"Repo-native context policy for teams"** vs Engram *"invisible individual infrastructure"*.
 >
-> hAIve cible les **équipes** qui veulent un savoir collectif curé et partagé, pas les solos qui veulent une mémoire perso transparente.
+> hAIve cible les **équipes** qui veulent un savoir collectif curé, auditable, mesurable et enforceable,
+> pas les solos qui veulent uniquement une mémoire perso transparente.
 
 ---
 

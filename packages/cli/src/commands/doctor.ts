@@ -356,6 +356,7 @@ export function registerDoctor(program: Command): void {
 
       // ── 7. Installation / integration version sanity ──────────────────────
       findings.push(...await collectInstallFindings(root, __HAIVE_VERSION__));
+      findings.push(...await collectToolchainFindings(root));
 
       // ── 8. Legacy standalone haive-mcp ──────────────────────────────────────
       // MCP runs inside `haive mcp --stdio` — updating @hiveai/cli is enough.
@@ -742,6 +743,7 @@ async function collectInstallFindings(root: string, expectedVersion: string): Pr
   const findings: Finding[] = [];
 
   findings.push(...await collectWorkspaceVersionFindings(root, expectedVersion));
+  findings.push(...await collectDistFreshnessFindings(root, expectedVersion));
 
   const haiveBins = listHaiveBins();
   if (haiveBins.length === 0) {
@@ -806,6 +808,87 @@ async function collectInstallFindings(root: string, expectedVersion: string): Pr
           fix: "Run `haive agent setup --no-global` and `haive enforce install` to refresh stale paths.",
         });
       }
+    }
+  }
+
+  return findings;
+}
+
+async function collectToolchainFindings(root: string): Promise<Finding[]> {
+  const findings: Finding[] = [];
+  const pkg = await readJson<{ packageManager?: string; scripts?: Record<string, string> }>(
+    path.join(root, "package.json"),
+  );
+  const wantsPnpm = pkg?.packageManager?.startsWith("pnpm@") ||
+    Object.values(pkg?.scripts ?? {}).some((script) => /\bpnpm\b/.test(script));
+  if (!wantsPnpm) return findings;
+
+  const expected = pkg?.packageManager?.replace(/^pnpm@/, "") ?? "9.14.2";
+  if (!commandExists("pnpm", ["--version"])) {
+    const corepackAvailable = commandExists("corepack", ["--version"]);
+    findings.push({
+      severity: "warn",
+      code: "pnpm-not-on-path",
+      message:
+        `This workspace uses pnpm${expected ? ` ${expected}` : ""}, but no pnpm binary is available on PATH. ` +
+        `Local build/test commands may fail even though CI works.`,
+      fix: corepackAvailable
+        ? `corepack prepare pnpm@${expected} --activate`
+        : `npx pnpm@${expected} install --frozen-lockfile`,
+      section: "Agent coverage",
+    });
+  }
+  return findings;
+}
+
+async function collectDistFreshnessFindings(root: string, expectedVersion: string): Promise<Finding[]> {
+  const findings: Finding[] = [];
+  const isHaiveWorkspace =
+    (await readJson<{ name?: string }>(path.join(root, "package.json")))?.name === "haive-monorepo";
+  if (!isHaiveWorkspace) return findings;
+
+  const cliDist = path.join(root, "packages/cli/dist/index.js");
+  if (!existsSync(cliDist)) {
+    findings.push({
+      severity: "warn",
+      code: "workspace-dist-missing",
+      message: "packages/cli/dist/index.js is missing; local hAIve smoke commands cannot reflect source changes.",
+      fix: "pnpm -r build",
+      section: "Agent coverage",
+    });
+    return findings;
+  }
+
+  const distVersion = versionForNodeEntrypoint(cliDist);
+  if (distVersion && distVersion !== expectedVersion) {
+    findings.push({
+      severity: "warn",
+      code: "workspace-dist-version-mismatch",
+      message:
+        `packages/cli/dist/index.js reports ${distVersion}, but this source build expects ${expectedVersion}. ` +
+        `Run a fresh workspace build after pull before trusting local doctor/enforce output.`,
+      fix: "pnpm -r build\npnpm check:artifacts",
+      section: "Agent coverage",
+    });
+  }
+
+  const sourceFiles = [
+    "packages/core/src/index.ts",
+    "packages/mcp/src/server.ts",
+    "packages/cli/src/index.ts",
+  ].map((rel) => path.join(root, rel)).filter(existsSync);
+  if (sourceFiles.length > 0) {
+    const distMtime = statSync(cliDist).mtimeMs;
+    const newestSource = Math.max(...sourceFiles.map((file) => statSync(file).mtimeMs));
+    if (newestSource > distMtime + 1000) {
+      findings.push({
+        severity: "info",
+        code: "workspace-dist-older-than-source",
+        message:
+          "Built CLI artifacts are older than key source files; rebuild before running release smoke checks.",
+        fix: "pnpm -r build\npnpm check:artifacts",
+        section: "Agent coverage",
+      });
     }
   }
 
@@ -938,6 +1021,32 @@ function versionForBinary(bin: string): string | null {
     return out.match(/\d+\.\d+\.\d+/)?.[0] ?? null;
   } catch {
     return null;
+  }
+}
+
+function versionForNodeEntrypoint(file: string): string | null {
+  try {
+    const out = execFileSync(process.execPath, [file, "--version"], {
+      encoding: "utf8",
+      timeout: 3000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return out.match(/\d+\.\d+\.\d+/)?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function commandExists(command: string, args: string[]): boolean {
+  try {
+    execFileSync(command, args, {
+      encoding: "utf8",
+      timeout: 3000,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return true;
+  } catch {
+    return false;
   }
 }
 
