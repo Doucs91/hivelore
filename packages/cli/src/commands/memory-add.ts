@@ -36,6 +36,9 @@ interface AddOptions {
   body?: string;
   bodyFile?: string;
   topic?: string;
+  activationKeyword?: string;
+  activationGlob?: string;
+  activationAlways?: boolean;
   dir?: string;
 }
 
@@ -79,6 +82,9 @@ export function registerMemoryAdd(memory: Command): void {
     .option("--body-file <path>", "read memory body from a Markdown file — for long content")
     .option("--no-auto-tag", "disable automatic tag suggestions inferred from anchor paths")
     .option("--topic <key>", "stable key for upsert: if a memory with this topic+scope already exists, update it in-place (revision_count++)")
+    .option("--activation-keyword <csv>", "skill only: comma-separated keywords that trigger progressive disclosure of this skill")
+    .option("--activation-glob <csv>", "skill only: comma-separated path globs that trigger this skill")
+    .option("--activation-always", "skill only: always surface this skill (no triggers needed)")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: AddOptions & { autoTag?: boolean }) => {
       const root = findProjectRoot(opts.dir);
@@ -92,6 +98,16 @@ export function registerMemoryAdd(memory: Command): void {
 
       const userTags = parseCsv(opts.tags);
       const anchorPaths = parseCsv(opts.paths ?? opts.files);
+      // Skill progressive-disclosure triggers (ignored for non-skill types).
+      const activation =
+        opts.type === "skill" &&
+        (opts.activationKeyword || opts.activationGlob || opts.activationAlways)
+          ? {
+              keywords: parseCsv(opts.activationKeyword),
+              globs: parseCsv(opts.activationGlob),
+              always: Boolean(opts.activationAlways),
+            }
+          : undefined;
       const autoTagsEnabled = opts.autoTag !== false;
       const inferredTags = autoTagsEnabled ? inferModulesFromPaths(anchorPaths) : [];
       const mergedTags = Array.from(new Set([...userTags, ...inferredTags]));
@@ -157,6 +173,7 @@ export function registerMemoryAdd(memory: Command): void {
           const newFrontmatter: MemoryFrontmatter = {
             ...fm,
             revision_count: revisionCount,
+            ...(activation ? { activation } : {}),
             tags: mergedTags.length ? mergedTags : fm.tags,
             anchor: {
               commit: opts.commit ?? fm.anchor.commit,
@@ -191,6 +208,7 @@ export function registerMemoryAdd(memory: Command): void {
         topic: opts.topic,
         status: config.defaultStatus === "validated" ? "validated" : undefined,
         sensor: suggestSensorForCliMemory(opts.type, body, anchorPaths) ?? undefined,
+        activation,
       });
 
       const file = memoryFilePath(paths, frontmatter.scope, frontmatter.id, frontmatter.module);

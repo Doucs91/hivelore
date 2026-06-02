@@ -27,6 +27,7 @@ interface EvalOptions {
   top?: string;
   json?: boolean;
   out?: string;
+  failUnder?: string;
   dir?: string;
 }
 
@@ -43,6 +44,7 @@ export function registerEval(program: Command): void {
     .option("-k, --top <n>", "briefing top-k considered a hit", "8")
     .option("--json", "emit JSON", false)
     .option("--out <file>", "write a Markdown report")
+    .option("--fail-under <score>", "exit non-zero if the overall score is below this (0–100) — for CI gates")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: EvalOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -87,17 +89,28 @@ export function registerEval(program: Command): void {
 
       if (opts.json) {
         console.log(JSON.stringify({ root, k, report }, null, 2));
-        return;
+      } else {
+        const md = renderMarkdown(root, k, report);
+        if (opts.out) {
+          const outFile = path.isAbsolute(opts.out) ? opts.out : path.join(root, opts.out);
+          await writeFile(outFile, md, "utf8");
+          ui.success(`wrote ${path.relative(process.cwd(), outFile)}`);
+        } else {
+          console.log(md);
+        }
       }
 
-      const md = renderMarkdown(root, k, report);
-      if (opts.out) {
-        const outFile = path.isAbsolute(opts.out) ? opts.out : path.join(root, opts.out);
-        await writeFile(outFile, md, "utf8");
-        ui.success(`wrote ${path.relative(process.cwd(), outFile)}`);
-        return;
+      // CI gate: fail the build when quality regresses below the threshold.
+      if (opts.failUnder !== undefined) {
+        const threshold = Number(opts.failUnder);
+        if (Number.isNaN(threshold)) {
+          ui.error(`--fail-under expects a number, got "${opts.failUnder}"`);
+          process.exitCode = 1;
+        } else if (report.score < threshold) {
+          ui.error(`eval score ${report.score} is below --fail-under ${threshold}`);
+          process.exitCode = 1;
+        }
       }
-      console.log(md);
     });
 }
 

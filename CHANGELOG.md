@@ -6,6 +6,24 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.12.0] — fewer false positives, CLI parity, eval CI gate
+
+### Fixed
+- **Pre-commit false positives** — the anchored gate hard-blocked whenever a diff shared
+  *any* ≥4-char token with an anchored gotcha's body, firing on ubiquitous domain words
+  ("memory", "scope", "input", "version") and on version-bump diffs — making agents work for
+  nothing. A `literal` overlap now only corroborates a **block** when at least one shared token
+  is *distinctive* to that gotcha (rare in the corpus, TF-IDF style; `core/distinctive.ts`).
+  Common-word overlaps still surface for review but never hard-block.
+
+### Added
+- **`haive memory feedback <id> --applied|--rejected`** — CLI mirror of the `mem_feedback`
+  MCP tool, closing the impact loop from the terminal.
+- **`haive memory add --activation-keyword/--activation-glob/--activation-always`** — author
+  skill progressive-disclosure triggers from the CLI.
+- **`haive eval --fail-under <score>`** — non-zero exit below the threshold; wired into CI
+  (`ci.yml`) so a briefing-retrieval or sensor-catch-rate regression fails the build.
+
 ## [0.11.0] — impact-aware ranking, eval harness, skill activation
 
 ### Added
