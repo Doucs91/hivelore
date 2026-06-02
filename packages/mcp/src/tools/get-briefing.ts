@@ -20,6 +20,7 @@ import {
   loadMemoriesFromDir,
   loadUsageIndex,
   memoryMatchesAnchorPaths,
+  rankMemoriesLexical,
   queryCodeMap,
   resolveBriefingBudget,
   serializeMemory,
@@ -305,6 +306,26 @@ export async function getBriefing(
       if (act.applicable && act.activated) activatedSkills.add(id);
     }
 
+    // ── Lexical relevance (BM25) ─────────────────────────────────────────────
+    // Semantic cosine alone (0..1) is too weak to overcome the type/confidence/impact
+    // bonuses, so popular high-read attempt memories dominated EVERY task — the actually
+    // relevant memory got buried. A BM25 score over the candidate set rewards overlap on
+    // the query's *distinctive* terms (high IDF), pulling the on-topic memory up. It does
+    // not touch anchored ranking: anchor/symbol hits stay must_read (priority * 100).
+    const lexNorm = new Map<string, number>();
+    if (input.task) {
+      const candidates = [...seen.keys()]
+        .map((id) => byId.get(id))
+        .filter((x): x is LoadedMemory => Boolean(x));
+      const lex = rankMemoriesLexical(candidates, input.task, candidates.length);
+      const maxScore = lex.scores.reduce((m, s) => (s > m ? s : m), 0);
+      if (maxScore > 0) {
+        lex.ranked.forEach((loaded, i) => {
+          lexNorm.set(loaded.memory.frontmatter.id, (lex.scores[i] ?? 0) / maxScore);
+        });
+      }
+    }
+
     // ── Ranking ────────────────────────────────────────────────────────────
     const ranked = [...seen.values()].sort((a, b) => {
       const reasonScore = (m: BriefingMemory): number =>
@@ -325,10 +346,14 @@ export async function getBriefing(
       const impactScore = (m: BriefingMemory): number => (m.impact_score ?? 0) * 3;
       // An explicitly-activated skill is an actionable playbook for this exact task — surface it high.
       const activationBoost = (m: BriefingMemory): number => (activatedSkills.has(m.id) ? 5 : 0);
+      // Lexical relevance weight (0..12): strong enough to lift the on-topic memory above a
+      // popular-but-unrelated attempt (whose type+confidence head start is ~7), yet far below
+      // the priority tier (×100) so anchored/symbol matches are never displaced.
+      const lexScore = (m: BriefingMemory): number => 12 * (lexNorm.get(m.id) ?? 0);
       const sa = priorityRank(classifyMemoryPriority(a, byId.get(a.id), input.files, input.symbols)) * 100
-        + reasonScore(a) + confidenceScore(a) + impactScore(a) + activationBoost(a) + (a.semantic_score ?? 0);
+        + reasonScore(a) + confidenceScore(a) + impactScore(a) + activationBoost(a) + lexScore(a) + (a.semantic_score ?? 0);
       const sb = priorityRank(classifyMemoryPriority(b, byId.get(b.id), input.files, input.symbols)) * 100
-        + reasonScore(b) + confidenceScore(b) + impactScore(b) + activationBoost(b) + (b.semantic_score ?? 0);
+        + reasonScore(b) + confidenceScore(b) + impactScore(b) + activationBoost(b) + lexScore(b) + (b.semantic_score ?? 0);
       return sb - sa;
     });
 

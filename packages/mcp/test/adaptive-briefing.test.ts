@@ -13,9 +13,9 @@ const baseInput = {
   format: "full" as const, symbols: [] as string[], min_semantic_score: 0,
 };
 
-async function writeMemory(dir: string, id: string, body: string, anchorPath: string): Promise<void> {
+async function writeMemory(dir: string, id: string, body: string, anchorPath: string, type = "convention"): Promise<void> {
   const fm = [
-    "---", `id: ${id}`, "scope: team", "type: convention", "status: validated",
+    "---", `id: ${id}`, "scope: team", `type: ${type}`, "status: validated",
     `created_at: ${new Date().toISOString()}`,
     "anchor:", `  paths: ["${anchorPath}"]`, "  symbols: []", "tags: []", "---",
   ].join("\n");
@@ -114,5 +114,21 @@ describe("adaptive briefing", () => {
 
     const b = await getBriefing({ ...baseInput, task: "add an endpoint", files: ["src/auth.ts"] }, ctx);
     expect(b.memories[0]?.id).toBe("2024-01-01-skill-auth");
+  });
+
+  it("lexical rerank lifts the on-topic memory above a structurally-favored attempt", async () => {
+    // The attempt gets a type bonus (+3) and would win on the old additive ranking.
+    // The target matches the query's distinctive terms (graphql, dataloader) → BM25 lifts it.
+    await writeMemory(ctx.paths.teamDir!, "2024-01-01-attempt-caching", "# Caching note\n\nA caching layer failed once here.", "src/a.ts", "attempt");
+    await writeMemory(ctx.paths.teamDir!, "2024-01-01-convention-graphql", "# GraphQL\n\nUse a GraphQL dataloader to batch resolver caching.", "src/b.ts", "convention");
+
+    // Both surface (share "caching"); only the target matches graphql+dataloader.
+    const b = await getBriefing({ ...baseInput, task: "graphql dataloader caching", files: [] }, ctx);
+    const ids = b.memories.map((m) => m.id);
+    expect(ids).toContain("2024-01-01-convention-graphql");
+    expect(ids.indexOf("2024-01-01-convention-graphql")).toBeLessThan(
+      ids.indexOf("2024-01-01-attempt-caching") === -1 ? Infinity : ids.indexOf("2024-01-01-attempt-caching"),
+    );
+    expect(b.memories[0]?.id).toBe("2024-01-01-convention-graphql");
   });
 });

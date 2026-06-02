@@ -6,6 +6,17 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.12.1] — hybrid lexical rerank (much better semantic retrieval)
+
+### Improved
+- **`get_briefing` / `mem_relevant_to` ranking** now blends a BM25 lexical-relevance score
+  (over the candidate set) into the sort. Previously a handful of popular high-read `attempt`
+  memories dominated *every* task because their type+confidence bonuses dwarfed the semantic
+  cosine (0–1); the actually on-topic memory got buried. The lexical term (weight ≤12, well
+  below the priority tier) lifts the memory that shares the query's distinctive terms.
+  Measured with `haive eval`: semantic-only retrieval **19 → 98**, anchored **95 → 100**
+  (no regression — anchored/symbol matches stay must_read).
+
 ## [0.12.0] — fewer false positives, CLI parity, eval CI gate
 
 ### Fixed
