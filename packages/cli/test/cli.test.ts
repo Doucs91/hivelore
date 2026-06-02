@@ -834,6 +834,38 @@ describe("hAIve CLI integration", () => {
     }
   });
 
+  it("pre-commit stages the re-synced project-context version (atomic release commit)", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-atomic-ctx-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await writeFile(path.join(repo, "package.json"), JSON.stringify({ name: "x", version: "9.9.9" }), "utf8");
+      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
+
+      // Force a stale version header, commit it as the baseline (mimics a release whose
+      // bump landed in package.json but not yet in project-context.md).
+      const ctx = path.join(repo, ".ai/project-context.md");
+      await writeFile(ctx, "# Project context — hAIve (v0.0.1)\n\n> **Current version**: 0.0.1 — x\n\nbody\n", "utf8");
+      await exec("git", ["add", "-A"], { cwd: repo });
+      await exec("git", ["commit", "-m", "base", "--no-verify"], { cwd: repo });
+
+      // Pre-commit gate runs the lightweight repair (heading → 9.9.9) and must stage it.
+      await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--dir", repo]);
+
+      const staged = await exec("git", ["show", ":.ai/project-context.md"], { cwd: repo });
+      expect(staged.stdout).toContain("v9.9.9");
+      // No leftover unstaged drift → the workflow has nothing to commit as a [skip ci] tip.
+      const driftExit = await new Promise<number | null>((resolve) => {
+        const child = spawn("git", ["diff", "--quiet", "--", ".ai/project-context.md"], { cwd: repo });
+        child.on("close", (code) => resolve(code));
+      });
+      expect(driftExit).toBe(0);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("session end --auto falls back to a git diff recap when no observation log exists", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-auto-session-end-"));
     try {

@@ -6,6 +6,17 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.13.4] — atomic release commits (no more `[skip ci]` tips)
+
+### Fixed
+- **The pre-commit gate (`enforce check --stage pre-commit`) now stages the project-context version
+  header it re-syncs.** Previously a version bump left `.ai/project-context.md` drifting (the repair
+  ran *after* staging), so the `haive-sync` workflow committed a `chore: haive sync [skip ci]` tip on
+  top of the release — which skips CI for the whole push. Now the re-synced header lands in the release
+  commit itself, keeping the release commit the push tip (decision
+  `2026-06-02-decision-atomic-release-commit-and-skip-ci-tip`). Best-effort and scoped to the
+  project-context file, so telemetry churn (the tool-usage log) still flows through a later sync.
+
 ## [0.13.3] — golden path made visible (harness coherence, Phase B)
 
 ### Changed

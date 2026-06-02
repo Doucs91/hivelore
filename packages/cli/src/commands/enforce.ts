@@ -689,7 +689,14 @@ async function buildEnforcementReport(
   const paths = resolveHaivePaths(root);
   const initialized = existsSync(paths.haiveDir);
   const config = initialized ? await loadConfig(paths) : {};
-  if (initialized) await applyLightweightRepairs(root, paths);
+  if (initialized) {
+    await applyLightweightRepairs(root, paths);
+    // Atomic release commit: when the repair re-syncs the project-context version
+    // header to package.json, stage it so it lands in THIS commit instead of drifting
+    // into a later `chore: haive sync [skip ci]` tip — which would skip CI for the whole
+    // push (decision 2026-06-02-decision-atomic-release-commit-and-skip-ci-tip).
+    if (stage === "pre-commit") await stageResyncedArtifacts(root, paths);
+  }
   const mode = config.enforcement?.mode ?? "strict";
   const findings: EnforcementFinding[] = [];
 
@@ -1820,6 +1827,29 @@ async function readStdin(maxBytes: number): Promise<string> {
     process.stdin.on("error", finish);
     setTimeout(finish, 2000);
   });
+}
+
+/**
+ * Stage `.ai/` artifacts that a pre-commit lightweight repair just re-synced
+ * (currently the project-context version header) so the release commit is atomic.
+ * Best-effort — never blocks a commit. Scoped to the project-context file so it does
+ * not sweep in telemetry churn (e.g. the tool-usage log) that belongs in a later sync.
+ */
+async function stageResyncedArtifacts(
+  root: string,
+  paths: ReturnType<typeof resolveHaivePaths>,
+): Promise<void> {
+  const rel = path.relative(root, paths.projectContext);
+  // Only act on a tracked file that has unstaged modifications.
+  const tracked = await runCommand("git", ["ls-files", "--error-unmatch", "--", rel], root)
+    .then(() => true)
+    .catch(() => false);
+  if (!tracked) return;
+  const unchanged = await runCommand("git", ["diff", "--quiet", "--", rel], root)
+    .then(() => true) // exit 0 → working tree matches index, nothing to stage
+    .catch(() => false); // exit != 0 → unstaged diff present
+  if (unchanged) return;
+  await runCommand("git", ["add", "--", rel], root).catch(() => { /* best-effort */ });
 }
 
 function runCommand(cmd: string, args: string[], cwd: string): Promise<string> {
