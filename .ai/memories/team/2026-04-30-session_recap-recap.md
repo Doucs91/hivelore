@@ -5,14 +5,14 @@ type: session_recap
 status: validated
 anchor:
   paths:
-    - packages/cli/src/commands/enforce.ts
-    - packages/cli/src/commands/sensors.ts
-    - packages/cli/src/commands/dashboard.ts
-    - packages/core/src/usage.ts
-    - packages/core/src/impact.ts
+    - packages/core/src/prevention.ts
+    - packages/core/src/index.ts
     - packages/core/src/dashboard.ts
+    - packages/cli/src/commands/dashboard.ts
+    - packages/cli/src/commands/sensors.ts
+    - packages/mcp/src/tools/anti-patterns-check.ts
+    - packages/core/test/prevention.test.ts
     - packages/cli/test/cli.test.ts
-    - packages/core/test/impact.test.ts
     - CHANGELOG.md
   symbols: []
 tags:
@@ -20,38 +20,41 @@ tags:
   - recap
 created_at: '2026-04-30T00:02:07.282Z'
 expires_when: null
-verified_at: '2026-06-02T20:35:11.200Z'
+verified_at: '2026-06-02T21:06:40.616Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 topic: session-recap-team
-revision_count: 23
+revision_count: 24
 requires_human_approval: false
 ---
 ## Goal
-Implement the two remaining hardening items before any new feature: a commit-msg hook that PREVENTS the skip-ci footgun, and the first real OUTCOME metric (prevention events), not just retrieval.
+Complete the outcome-measurement story: record prevention from the anti-pattern path (not just regex sensors), add a prevention trend over time, and a recurrence metric (lessons re-introduced after capture).
 
 ## Accomplished
-Shipped v0.13.8 (CI-green, enforce finish 100%):
-- commit-msg hook + `haive enforce commit-msg <file>`: blocks a CI-skip directive in a commit message when the commit changes shippable code; allows .ai-only sync commits; ignores # comment lines. Installed by `haive enforce install`. Preventive counterpart to 0.13.7's post-hoc detection.
-- Outcome measurement: usage.prevented_count/last_prevented_at; `haive sensors check` records a prevention event (debounced 5 min) when a sensor fires on a real diff; computeImpact folds it in as a top-tier signal (3 catches reach 'high' alone); `haive dashboard` shows a Prevention section.
-- Tests: core 188 (recordPrevention debounce, impact prevented signal), cli 61 (commit-msg block/allow/comment/ai-only; end-to-end sensors check -> prevented_count -> dashboard).
+Shipped v0.13.9 (CI-green, enforce finish 100%):
+- anti_patterns_check (MCP, used by the pre-commit gate) now records a prevention event for STRONG diff-corroborated matches (fired sensor / distinctive_literal / anchor+literal); weak semantic-only matches stay advisory and are not counted.
+- New pure core/prevention.ts: appendPreventionEvent / loadPreventionEvents + computePreventionTrend + computeRecurrence. Event log lives in .ai/.cache/prevention-log.jsonl (gitignored telemetry).
+- sensors check also appends to the event log.
+- dashboard shows a Prevention trend (last 7d/30d + weekly sparkline) and a Recurrence section (lessons caught on >= 2 distinct days = re-introduced after capture). buildDashboard stays pure (events via options).
+- Tests: core 192 (+4 prevention pure fns), cli 61 (dashboard trend assertion), mcp 112 (anti-patterns unchanged).
 
 ## Discoveries & surprises
-- Fix A (0.13.7) re-validated under a new edge: the pre-commit repair modifies .ai/code-map.json + project-context.md, which become 'changed files', pulling in decisions anchored to them (e.g. git-sync-protocol). The CLI briefing must include those .ai files — and the gate's fix hint now lists them, so running the exact suggested command unblocks (12/13 -> 13/13). Lesson: when filtering files for a coverage briefing, do NOT pre-filter .ai/ — the repair can make them changed.
-- prevented_count lives in usage.json (telemetry, excluded from atomic staging by fix B), so recording catches does not churn memory frontmatter files.
-- Sensor prevention is the cleanest computational OUTCOME proxy (regex fired on added diff lines). anti-pattern/semantic prevention recording is a possible follow-up.
+- noUncheckedIndexedAccess: weekly[idx] += 1 fails DTS build; use weekly[idx] = (weekly[idx] ?? 0) + 1.
+- Recurrence is defined as catches on >= 2 distinct UTC days (not raw count) so multiple catches of the same diff in one session don't look like recurrence — complements the 5-min debounce on the counter.
+- Honest scoping: only strong/diff-corroborated anti-pattern matches count as prevention; weak semantic matches are review noise, not catches. Keeps the outcome metric trustworthy.
+- The prevention log is gitignored (.ai/.cache), so it never churns a release or triggers the sync-tip — and buildDashboard stays pure by taking events through options rather than reading disk.
 
 ## Files touched
-- `packages/cli/src/commands/enforce.ts`
-- `packages/cli/src/commands/sensors.ts`
-- `packages/cli/src/commands/dashboard.ts`
-- `packages/core/src/usage.ts`
-- `packages/core/src/impact.ts`
+- `packages/core/src/prevention.ts`
+- `packages/core/src/index.ts`
 - `packages/core/src/dashboard.ts`
+- `packages/cli/src/commands/dashboard.ts`
+- `packages/cli/src/commands/sensors.ts`
+- `packages/mcp/src/tools/anti-patterns-check.ts`
+- `packages/core/test/prevention.test.ts`
 - `packages/cli/test/cli.test.ts`
-- `packages/core/test/impact.test.ts`
 - `CHANGELOG.md`
 
 ## Next steps
-Possible follow-ups (all enhancements to existing): record prevention from the anti-pattern/pre_commit_check path too (semantic catches), surface prevention trend over time in the VS Code cockpit, and a defect-recurrence metric (a gotcha re-introduced after capture).
+Outcome measurement is now end-to-end (sensor + anti-pattern catches, counter + event log, impact + dashboard trend + recurrence). Possible future: surface the prevention trend/recurrence in the VS Code cockpit; a periodic digest of recurring lessons; correlate recurrence with whether a stronger fix (lint rule) was added.
