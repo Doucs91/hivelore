@@ -1,0 +1,1098 @@
+{
+  "saved_at": "2026-06-02T15:14:45.081Z",
+  "k": 8,
+  "spec_source": ".ai/eval/spec.json + synthesized anchored retrieval",
+  "report": {
+    "retrieval": {
+      "cases": [
+        {
+          "name": "2026-05-07-attempt-strict-precommit-gate-on-haive",
+          "expect_ids": [
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+          ],
+          "surfaced_ids": [
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-31-gotcha-enforcement-is-process-not-violation",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-gotcha-decision-coverage-gate-needs-high-max-memories",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-06-02-decision-ci-decision-coverage-local-marker",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code"
+          ],
+          "hits": [
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-07-attempt-using-haive-briefing-format-from",
+          "expect_ids": [
+            "2026-05-07-attempt-using-haive-briefing-format-from"
+          ],
+          "surfaced_ids": [
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-05-07-attempt-using-haive-init-yes-in",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-gotcha-decision-coverage-gate-needs-high-max-memories",
+            "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp"
+          ],
+          "hits": [
+            "2026-05-07-attempt-using-haive-briefing-format-from"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-07-attempt-using-haive-init-name-in",
+          "expect_ids": [
+            "2026-05-07-attempt-using-haive-init-name-in"
+          ],
+          "surfaced_ids": [
+            "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-05-07-attempt-using-haive-init-yes-in",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-decision-tools-must-be-environment-independent",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+          ],
+          "hits": [
+            "2026-05-07-attempt-using-haive-init-name-in"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-07-attempt-using-haive-init-yes-in",
+          "expect_ids": [
+            "2026-05-07-attempt-using-haive-init-yes-in"
+          ],
+          "surfaced_ids": [
+            "2026-05-07-attempt-using-haive-init-yes-in",
+            "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-decision-tools-must-be-environment-independent",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+          ],
+          "hits": [
+            "2026-05-07-attempt-using-haive-init-yes-in"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-25-architecture-embedderlike-interface",
+          "expect_ids": [
+            "2026-04-25-architecture-embedderlike-interface"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-architecture-embedderlike-interface",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-installing-hiveaicore-via-npm-install",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
+            "2026-05-07-attempt-using-haive-init-yes-in",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
+          ],
+          "hits": [
+            "2026-04-25-architecture-embedderlike-interface"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-25-architecture-pure-tool-handlers",
+          "expect_ids": [
+            "2026-04-25-architecture-pure-tool-handlers"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-05-04-gotcha-mem-save-scope-overridden-by-defaultscope",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-05-31-gotcha-enforcement-is-process-not-violation",
+            "2026-05-04-gotcha-pattern-detect-slug-collision-same-filename"
+          ],
+          "hits": [
+            "2026-04-25-architecture-pure-tool-handlers"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-25-convention-always-run-tests-before-commit",
+          "expect_ids": [
+            "2026-04-25-convention-always-run-tests-before-commit"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-04-25-convention-use-pnpm-workspaces",
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-07-attempt-using-haive-init-yes-in",
+            "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale"
+          ],
+          "hits": [
+            "2026-04-25-convention-always-run-tests-before-commit"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-25-convention-use-pnpm-workspaces",
+          "expect_ids": [
+            "2026-04-25-convention-use-pnpm-workspaces"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-convention-use-pnpm-workspaces",
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-04-28-attempt-installing-hiveaicore-via-npm-install",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
+            "2026-04-28-convention-version-bump-all-packages-together",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-07-attempt-using-haive-init-name-in"
+          ],
+          "hits": [
+            "2026-04-25-convention-use-pnpm-workspaces"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-25-decision-esm-only",
+          "expect_ids": [
+            "2026-04-25-decision-esm-only"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-decision-esm-only",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-installing-hiveaicore-via-npm-install",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code",
+            "2026-06-01-decision-harness-engineering-positioning-reconciliation",
+            "2026-05-07-attempt-using-haive-init-yes-in"
+          ],
+          "hits": [
+            "2026-04-25-decision-esm-only"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-25-gotcha-tsup-externals-required",
+          "expect_ids": [
+            "2026-04-25-gotcha-tsup-externals-required"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-gotcha-tsup-externals-required",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-05-07-attempt-using-haive-init-yes-in"
+          ],
+          "hits": [
+            "2026-04-25-gotcha-tsup-externals-required"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-27-decision-zod-error-formatting-no-direct-import",
+          "expect_ids": [
+            "2026-04-27-decision-zod-error-formatting-no-direct-import"
+          ],
+          "surfaced_ids": [
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-06-02-decision-harness-engineering-positioning-roadmap",
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+          ],
+          "hits": [
+            "2026-04-27-decision-zod-error-formatting-no-direct-import"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-27-gotcha-embeddings-load-error-double-print",
+          "expect_ids": [
+            "2026-04-27-gotcha-embeddings-load-error-double-print"
+          ],
+          "surfaced_ids": [
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code"
+          ],
+          "hits": [
+            "2026-04-27-gotcha-embeddings-load-error-double-print"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-27-gotcha-mcp-exports-package-json",
+          "expect_ids": [
+            "2026-04-27-gotcha-mcp-exports-package-json"
+          ],
+          "surfaced_ids": [
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-27-gotcha-embeddings-load-error-double-print"
+          ],
+          "hits": [
+            "2026-04-27-gotcha-mcp-exports-package-json"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-27-gotcha-version-define-tsup-and-vitest",
+          "expect_ids": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "surfaced_ids": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-02-decision-harness-engineering-positioning-roadmap",
+            "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+          ],
+          "hits": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-28-architecture-adding-new-mcp-tool",
+          "expect_ids": [
+            "2026-04-28-architecture-adding-new-mcp-tool"
+          ],
+          "surfaced_ids": [
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-06-02-decision-harness-engineering-positioning-roadmap",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-04-27-gotcha-mcp-exports-package-json"
+          ],
+          "hits": [
+            "2026-04-28-architecture-adding-new-mcp-tool"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-28-decision-benchmark-results-v027-token-reduction",
+          "expect_ids": [
+            "2026-04-28-decision-benchmark-results-v027-token-reduction"
+          ],
+          "surfaced_ids": [
+            "2026-04-28-decision-benchmark-results-v027-token-reduction",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-05-04-gotcha-mem-save-scope-overridden-by-defaultscope",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+          ],
+          "hits": [
+            "2026-04-28-decision-benchmark-results-v027-token-reduction"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+          "expect_ids": [
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing"
+          ],
+          "surfaced_ids": [
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-05-07-attempt-using-haive-init-yes-in",
+            "2026-05-07-attempt-using-haive-init-name-in"
+          ],
+          "hits": [
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-28-gotcha-serializememory-undefined-values-crash",
+          "expect_ids": [
+            "2026-04-28-gotcha-serializememory-undefined-values-crash"
+          ],
+          "surfaced_ids": [
+            "2026-04-28-gotcha-serializememory-undefined-values-crash",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-07-attempt-using-haive-init-yes-in",
+            "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
+          ],
+          "hits": [
+            "2026-04-28-gotcha-serializememory-undefined-values-crash"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+          "expect_ids": [
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges"
+          ],
+          "surfaced_ids": [
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale",
+            "2026-04-28-convention-version-bump-all-packages-together",
+            "2026-04-25-convention-use-pnpm-workspaces",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-28-attempt-installing-hiveaicore-via-npm-install"
+          ],
+          "hits": [
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+          "expect_ids": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "surfaced_ids": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-06-01-decision-harness-engineering-positioning-reconciliation",
+            "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-04-28-attempt-installing-hiveaicore-via-npm-install"
+          ],
+          "hits": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-04-decision-v091-bugfixes-overview",
+          "expect_ids": [
+            "2026-05-04-decision-v091-bugfixes-overview"
+          ],
+          "surfaced_ids": [
+            "2026-05-04-decision-v091-bugfixes-overview",
+            "2026-05-04-gotcha-mem-save-scope-overridden-by-defaultscope",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code",
+            "2026-05-04-gotcha-pattern-detect-slug-collision-same-filename",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-05-07-attempt-using-haive-briefing-format-from"
+          ],
+          "hits": [
+            "2026-05-04-decision-v091-bugfixes-overview"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+          "expect_ids": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "surfaced_ids": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-05-04-decision-v091-bugfixes-overview",
+            "2026-05-04-gotcha-mem-save-scope-overridden-by-defaultscope",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code"
+          ],
+          "hits": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-04-gotcha-mem-save-scope-overridden-by-defaultscope",
+          "expect_ids": [
+            "2026-05-04-gotcha-mem-save-scope-overridden-by-defaultscope"
+          ],
+          "surfaced_ids": [
+            "2026-05-04-gotcha-mem-save-scope-overridden-by-defaultscope",
+            "2026-05-04-decision-v091-bugfixes-overview",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+          ],
+          "hits": [
+            "2026-05-04-gotcha-mem-save-scope-overridden-by-defaultscope"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale",
+          "expect_ids": [
+            "2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale"
+          ],
+          "surfaced_ids": [
+            "2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-04-28-attempt-installing-hiveaicore-via-npm-install",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+          ],
+          "hits": [
+            "2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-04-gotcha-pattern-detect-slug-collision-same-filename",
+          "expect_ids": [
+            "2026-05-04-gotcha-pattern-detect-slug-collision-same-filename"
+          ],
+          "surfaced_ids": [
+            "2026-05-04-gotcha-pattern-detect-slug-collision-same-filename",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-05-04-decision-v091-bugfixes-overview",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code",
+            "2026-05-31-decision-git-sync-protocol-multi-agent",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
+          ],
+          "hits": [
+            "2026-05-04-gotcha-pattern-detect-slug-collision-same-filename"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-28-decision-codemap-tracked-files-by-default",
+          "expect_ids": [
+            "2026-05-28-decision-codemap-tracked-files-by-default"
+          ],
+          "surfaced_ids": [
+            "2026-05-28-decision-codemap-tracked-files-by-default",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-04-28-attempt-installing-hiveaicore-via-npm-install"
+          ],
+          "hits": [
+            "2026-05-28-decision-codemap-tracked-files-by-default"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+          "expect_ids": [
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "surfaced_ids": [
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
+            "2026-04-28-attempt-installing-hiveaicore-via-npm-install",
+            "2026-04-27-gotcha-embeddings-load-error-double-print"
+          ],
+          "hits": [
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+          "expect_ids": [
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
+          ],
+          "surfaced_ids": [
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-04-28-attempt-installing-hiveaicore-via-npm-install",
+            "2026-05-07-attempt-using-haive-init-yes-in",
+            "2026-05-29-skill-close-session-properly",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+          ],
+          "hits": [
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-31-decision-git-sync-protocol-multi-agent",
+          "expect_ids": [
+            "2026-05-31-decision-git-sync-protocol-multi-agent"
+          ],
+          "surfaced_ids": [
+            "2026-05-31-decision-git-sync-protocol-multi-agent",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code",
+            "2026-06-01-decision-phase2-sensors-continuation",
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-06-02-decision-tools-must-be-environment-independent",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-06-02-convention-verify-pipelines-before-closing"
+          ],
+          "hits": [
+            "2026-05-31-decision-git-sync-protocol-multi-agent"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-31-gotcha-enforcement-is-process-not-violation",
+          "expect_ids": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "surfaced_ids": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-06-02-decision-ci-decision-coverage-local-marker",
+            "2026-06-02-gotcha-decision-coverage-gate-needs-high-max-memories",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-02-convention-verify-pipelines-before-closing"
+          ],
+          "hits": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-01-decision-harness-engineering-positioning-reconciliation",
+          "expect_ids": [
+            "2026-06-01-decision-harness-engineering-positioning-reconciliation"
+          ],
+          "surfaced_ids": [
+            "2026-06-01-decision-harness-engineering-positioning-reconciliation",
+            "2026-06-01-decision-phase2-sensors-continuation",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-02-decision-harness-engineering-positioning-roadmap",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-07-attempt-using-haive-init-yes-in"
+          ],
+          "hits": [
+            "2026-06-01-decision-harness-engineering-positioning-reconciliation"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-01-decision-phase2-sensors-continuation",
+          "expect_ids": [
+            "2026-06-01-decision-phase2-sensors-continuation"
+          ],
+          "surfaced_ids": [
+            "2026-06-01-decision-phase2-sensors-continuation",
+            "2026-06-01-decision-harness-engineering-positioning-reconciliation",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-04-28-gotcha-serializememory-undefined-values-crash",
+            "2026-06-02-decision-harness-engineering-positioning-roadmap",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
+          ],
+          "hits": [
+            "2026-06-01-decision-phase2-sensors-continuation"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-architecture-cli-command-surface",
+          "expect_ids": [
+            "2026-06-02-architecture-cli-command-surface"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-07-attempt-using-haive-init-yes-in",
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-07-attempt-using-haive-init-name-in"
+          ],
+          "hits": [
+            "2026-06-02-architecture-cli-command-surface"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-architecture-core-pure-domain-layer",
+          "expect_ids": [
+            "2026-06-02-architecture-core-pure-domain-layer"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-01-decision-phase2-sensors-continuation",
+            "2026-06-01-decision-harness-engineering-positioning-reconciliation",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-gotcha-serializememory-undefined-values-crash",
+            "2026-06-02-decision-harness-engineering-positioning-roadmap",
+            "2026-05-28-decision-codemap-tracked-files-by-default",
+            "2026-05-04-decision-v091-bugfixes-overview"
+          ],
+          "hits": [
+            "2026-06-02-architecture-core-pure-domain-layer"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-architecture-mcp-tool-contract",
+          "expect_ids": [
+            "2026-06-02-architecture-mcp-tool-contract"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-05-04-gotcha-pattern-detect-slug-collision-same-filename",
+            "2026-05-04-gotcha-mem-save-scope-overridden-by-defaultscope"
+          ],
+          "hits": [
+            "2026-06-02-architecture-mcp-tool-contract"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-convention-verify-pipelines-before-closing",
+          "expect_ids": [
+            "2026-06-02-convention-verify-pipelines-before-closing"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-07-attempt-using-haive-init-yes-in",
+            "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-31-gotcha-enforcement-is-process-not-violation",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-04-28-decision-benchmark-results-v027-token-reduction"
+          ],
+          "hits": [
+            "2026-06-02-convention-verify-pipelines-before-closing"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+          "expect_ids": [
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-31-decision-git-sync-protocol-multi-agent",
+            "2026-04-28-attempt-installing-hiveaicore-via-npm-install",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges"
+          ],
+          "hits": [
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-decision-ci-decision-coverage-local-marker",
+          "expect_ids": [
+            "2026-06-02-decision-ci-decision-coverage-local-marker"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-decision-ci-decision-coverage-local-marker",
+            "2026-06-02-gotcha-decision-coverage-gate-needs-high-max-memories",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-31-gotcha-enforcement-is-process-not-violation",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
+            "2026-05-07-attempt-using-haive-briefing-format-from"
+          ],
+          "hits": [
+            "2026-06-02-decision-ci-decision-coverage-local-marker"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-decision-harness-engineering-positioning-roadmap",
+          "expect_ids": [
+            "2026-06-02-decision-harness-engineering-positioning-roadmap"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-decision-harness-engineering-positioning-roadmap",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code"
+          ],
+          "hits": [
+            "2026-06-02-decision-harness-engineering-positioning-roadmap"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-decision-tools-must-be-environment-independent",
+          "expect_ids": [
+            "2026-06-02-decision-tools-must-be-environment-independent"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-decision-tools-must-be-environment-independent",
+            "2026-05-07-attempt-using-haive-init-yes-in",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges"
+          ],
+          "hits": [
+            "2026-06-02-decision-tools-must-be-environment-independent"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-gotcha-decision-coverage-gate-needs-high-max-memories",
+          "expect_ids": [
+            "2026-06-02-gotcha-decision-coverage-gate-needs-high-max-memories"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-gotcha-decision-coverage-gate-needs-high-max-memories",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-31-gotcha-enforcement-is-process-not-violation",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-decision-ci-decision-coverage-local-marker",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-05-07-attempt-using-haive-init-yes-in"
+          ],
+          "hits": [
+            "2026-06-02-gotcha-decision-coverage-gate-needs-high-max-memories"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-gotcha-sonarqube-ci-transient-connect-timeout",
+          "expect_ids": [
+            "2026-06-02-gotcha-sonarqube-ci-transient-connect-timeout"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-gotcha-sonarqube-ci-transient-connect-timeout",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-07-attempt-using-haive-briefing-format-from",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-01-attempt-dmarrer-une-analyse-de-code",
+            "2026-05-07-attempt-using-haive-init-yes-in"
+          ],
+          "hits": [
+            "2026-06-02-gotcha-sonarqube-ci-transient-connect-timeout"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        }
+      ],
+      "mean_precision": 0.125,
+      "mean_recall": 1,
+      "mrr": 1
+    },
+    "sensors": {
+      "cases": [
+        {
+          "name": "mcp package.json export guard",
+          "expect_fire_ids": [
+            "2026-04-27-gotcha-mcp-exports-package-json"
+          ],
+          "fired_ids": [
+            "2026-04-27-gotcha-mcp-exports-package-json"
+          ],
+          "hits": [
+            "2026-04-27-gotcha-mcp-exports-package-json"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "hardcoded version guard",
+          "expect_fire_ids": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "fired_ids": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "hits": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "workspace dependency caret guard",
+          "expect_fire_ids": [
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges"
+          ],
+          "fired_ids": [
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges"
+          ],
+          "hits": [
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "semantic hit byId lookup guard",
+          "expect_fire_ids": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "fired_ids": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "hits": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "auto promote config guard",
+          "expect_fire_ids": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "fired_ids": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "hits": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "global cli install stale mcp guard",
+          "expect_fire_ids": [
+            "2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale"
+          ],
+          "fired_ids": [
+            "2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale"
+          ],
+          "hits": [
+            "2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "anti-pattern level assertion guard",
+          "expect_fire_ids": [
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
+          ],
+          "fired_ids": [
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
+          ],
+          "hits": [
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "enforcement off guard",
+          "expect_fire_ids": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "fired_ids": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "hits": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "misses": [],
+          "recall": 1
+        }
+      ],
+      "catch_rate": 1
+    },
+    "score": 100
+  }
+}

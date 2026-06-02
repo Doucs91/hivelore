@@ -4,14 +4,15 @@ scope: team
 type: gotcha
 status: validated
 anchor:
-  paths: []
+  paths:
+    - .github/workflows/sonar.yml
+    - sonar-project.properties
   symbols: []
 tags:
   - ci
   - sonarqube
   - flake
   - enforce-finish
-  - needs_anchor
 created_at: '2026-06-02T04:17:33.245Z'
 expires_when: null
 verified_at: null
