@@ -6,6 +6,15 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.12.8] — AGENTS.md portable bridge
+
+### Added
+- **`haive init` now emits `AGENTS.md`** (the emerging cross-harness convention used by Codex and
+  others) alongside CLAUDE.md / .cursorrules / copilot-instructions.md, so the `.ai/` corpus is
+  consumable by any AGENTS.md-aware agent — not just Claude.
+- **`haive sync --inject-bridge` injects the memory breadcrumbs into both CLAUDE.md and AGENTS.md**
+  by default (when present). An explicit `--bridge-file` still targets a single file.
+
 ## [0.12.7] — stack packs with executable sensors + backend packs
 
 ### Added

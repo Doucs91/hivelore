@@ -90,6 +90,7 @@ describe("hAIve CLI integration", () => {
     expect(existsSync(path.join(workDir, ".ai/memories/module"))).toBe(true);
     expect(existsSync(path.join(workDir, ".ai", ".runtime", "README.md"))).toBe(true);
     expect(existsSync(path.join(workDir, "CLAUDE.md"))).toBe(true);
+    expect(existsSync(path.join(workDir, "AGENTS.md"))).toBe(true);
     expect(existsSync(path.join(workDir, ".cursorrules"))).toBe(true);
     expect(existsSync(path.join(workDir, ".github/copilot-instructions.md"))).toBe(true);
     expect(
@@ -154,6 +155,26 @@ describe("hAIve CLI integration", () => {
       expect(stdout).toContain("django-debug");
     } finally {
       await rm(stackDir, { recursive: true, force: true });
+    }
+  });
+
+  it("sync --inject-bridge injects into both CLAUDE.md and AGENTS.md", async () => {
+    const bridgeDir = await mkdtemp(path.join(tmpdir(), "haive-bridge-test-"));
+    try {
+      await run(bridgeDir, ["init", "--no-bootstrap", "--stack", "none", "-y", "--dir", bridgeDir]);
+      await run(bridgeDir, [
+        "memory", "add", "--type", "convention", "--slug", "bridge-demo",
+        "--body", "Always use the bridge demo convention.", "--scope", "team", "--dir", bridgeDir,
+      ]);
+      await run(bridgeDir, ["sync", "--inject-bridge", "--quiet", "--dir", bridgeDir]);
+
+      const claude = await readFile(path.join(bridgeDir, "CLAUDE.md"), "utf8");
+      const agents = await readFile(path.join(bridgeDir, "AGENTS.md"), "utf8");
+      expect(claude).toContain("bridge-demo");
+      expect(agents).toContain("haive:memories-start");
+      expect(agents).toContain("bridge-demo");
+    } finally {
+      await rm(bridgeDir, { recursive: true, force: true });
     }
   });
 

@@ -227,7 +227,7 @@ export function registerInit(program: Command): void {
       "  Add --no-bootstrap and --stack none to disable the auto-features.",
     )
     .option("-d, --dir <dir>", "project root", process.cwd())
-    .option("--no-bridges", "do not generate CLAUDE.md / .cursorrules / copilot-instructions.md / .cursor/rules/haive-mcp-required.mdc")
+    .option("--no-bridges", "do not generate CLAUDE.md / AGENTS.md / .cursorrules / copilot-instructions.md / .cursor/rules/haive-mcp-required.mdc")
     .option("--with-ci", "write a GitHub Actions workflow (.github/workflows/haive-sync.yml) — included automatically in autopilot mode")
     .option(
       "--manual",
@@ -322,6 +322,9 @@ export function registerInit(program: Command): void {
 
       if (opts.bridges) {
         await writeBridge(root, "CLAUDE.md");
+        // AGENTS.md is the emerging cross-harness convention (Codex et al.) — emit it
+        // so the .ai/ corpus is consumable by any AGENTS.md-aware agent, not just Claude.
+        await writeBridge(root, "AGENTS.md");
         await writeBridge(root, ".cursorrules");
         await writeBridge(root, path.join(".github", "copilot-instructions.md"));
         await writeCursorHaiveRule(root);

@@ -56,9 +56,11 @@ new backend packs — **fastapi**, **django**, **go** — with sensors (django `
 `SECRET_KEY`, fastapi `uvicorn reload=True`, bare `except:`). Seeded via `haive init --stack <names>`;
 seed sensors are `warn` + `autogen:false` (vetted, never auto-block).
 
-### P3 — Portable standard (#8)
-Emit/read `AGENTS.md` alongside the existing bridge files in `haive sync --inject-bridge`, so the
-`.ai/` corpus is consumable by any AGENTS.md-aware harness (Codex, etc.). Round-trip test.
+### P3 — Portable standard (#8)  ✅ DONE (v0.12.8)
+`haive init` now emits `AGENTS.md` (the emerging cross-harness convention) alongside CLAUDE.md /
+.cursorrules / copilot-instructions.md, and `haive sync --inject-bridge` injects the memory
+breadcrumbs into both CLAUDE.md and AGENTS.md by default (explicit `--bridge-file` still targets a
+single file). The `.ai/` corpus is now consumable by any AGENTS.md-aware agent (Codex, etc.).
 
 ### P4 — Eval delta reporting (#4 polish)
 `haive eval --baseline` to record a score snapshot and `haive eval --compare` to print the +X%/−X%

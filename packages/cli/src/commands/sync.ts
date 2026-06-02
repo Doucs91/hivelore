@@ -73,7 +73,7 @@ export function registerSync(program: Command): void {
     .option("--no-promote", "skip the auto-promotion step")
     .option(
       "--inject-bridge",
-      "inject top validated memories into CLAUDE.md (or --bridge-file) between <!-- haive:memories-start/end --> markers",
+      "inject top validated memories into CLAUDE.md + AGENTS.md (or --bridge-file) between <!-- haive:memories-start/end --> markers",
     )
     .option("--bridge-file <path>", "bridge file to inject into (default: CLAUDE.md)")
     .option("--bridge-max-memories <n>", "max memories to inject into bridge file", "5")
@@ -267,11 +267,21 @@ export function registerSync(program: Command): void {
       }
 
       if (opts.injectBridge) {
-        const bridgeFile = opts.bridgeFile
-          ? path.resolve(opts.bridgeFile)
-          : path.join(root, "CLAUDE.md");
         const maxInject = Math.max(1, Number(opts.bridgeMaxMemories ?? 5));
-        await injectBridge(bridgeFile, paths.memoriesDir, maxInject, root, opts.quiet);
+        // With an explicit --bridge-file, inject only there. Otherwise inject into the
+        // standard bridges: CLAUDE.md always, plus AGENTS.md (cross-harness convention)
+        // when it exists, so an AGENTS.md-aware agent gets the same breadcrumbs.
+        let bridgeTargets: string[];
+        if (opts.bridgeFile) {
+          bridgeTargets = [path.resolve(opts.bridgeFile)];
+        } else {
+          const agentsMd = path.join(root, "AGENTS.md");
+          bridgeTargets = [path.join(root, "CLAUDE.md")];
+          if (existsSync(agentsMd)) bridgeTargets.push(agentsMd);
+        }
+        for (const bridgeFile of bridgeTargets) {
+          await injectBridge(bridgeFile, paths.memoriesDir, maxInject, root, opts.quiet);
+        }
       }
 
       if (sinceReport && !opts.quiet) {
