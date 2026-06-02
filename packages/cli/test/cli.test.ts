@@ -105,6 +105,9 @@ describe("hAIve CLI integration", () => {
     const syncWorkflow = await readFile(path.join(workDir, ".github/workflows/haive-sync.yml"), "utf8");
     expect(syncWorkflow).toContain("Doucs91/hAIve/packages/github-action@v");
     expect(syncWorkflow).not.toContain("Doucs91/hAIve/packages/github-action@main");
+    // No-op-safe harness quality regression gate is wired into the generated CI.
+    expect(syncWorkflow).toContain("pr-eval-gate");
+    expect(syncWorkflow).toContain("haive eval --regression-gate");
     const enforcementWorkflow = await readFile(path.join(workDir, ".github/workflows/haive-enforcement.yml"), "utf8");
     expect(enforcementWorkflow).toContain("HAIVE_BASE_SHA");
     expect(enforcementWorkflow).toContain("HAIVE_HEAD_SHA");

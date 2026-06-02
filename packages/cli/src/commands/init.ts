@@ -195,6 +195,27 @@ jobs:
           # post-if-empty: 'true'   # uncomment to always post (even when no memories found)
           # max-memories: '5'       # limit memories per file in the comment
 
+  # On pull request: fail if the harness quality score regressed vs the committed baseline.
+  # Measures whether the right memories still surface and the right sensors still fire.
+  # No-op (passes) when no .ai/eval/baseline.json exists — safe to keep enabled before you
+  # ever create one. To turn the gate on: run \`haive eval --baseline\` locally and commit
+  # .ai/eval/baseline.json. Needs nothing external — no secrets, no services.
+  pr-eval-gate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: install haive
+        run: npm install -g @hiveai/cli
+
+      - name: harness quality regression gate
+        run: haive eval --regression-gate
+
   # On push to main: push shared memories to the hub (if hubPath is configured)
   # Uncomment and configure hubPath in .ai/haive.config.json to enable.
   # hub-push:

@@ -6,6 +6,15 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.13.1] — regression gate wired into generated CI
+
+### Added
+- **`haive init` now wires `haive eval --regression-gate` into the generated CI** (a `pr-eval-gate`
+  job in `haive-sync.yml`, runs on pull requests). It fails a PR only when the harness quality score
+  drops vs the committed `.ai/eval/baseline.json`, and is a **no-op when no baseline exists** — so it
+  is safe to ship enabled by default and needs nothing external (no secrets, no services). Create a
+  baseline with `haive eval --baseline` to turn the gate on.
+
 ## [0.13.0] — portable extensions (Sonar live-fetch, regression gate, more packs)
 
 > Design principle reinforced this release: **every hAIve tool works standalone**. No command
