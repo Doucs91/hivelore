@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://github.com/Doucs91/hAIve">
+    <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/wordmark.svg" alt="hAIve" width="240" />
+  </a>
+</p>
+
 # @hiveai/cli
 
 > **hAIve** - repo-native memory and context policy for coding-agent harnesses.

@@ -1,6 +1,14 @@
-# hAIve
+<p align="center">
+  <a href="https://github.com/Doucs91/hAIve">
+    <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/logo.svg" alt="hAIve logo" width="96" />
+  </a>
+</p>
 
-**Repo-native memory and context policy for coding-agent harnesses.**
+<h1 align="center">hAIve</h1>
+
+<p align="center">
+  <strong>Repo-native memory and context policy for coding-agent harnesses.</strong>
+</p>
 
 hAIve is the team-knowledge layer inside an AI coding-agent harness. It gives agents a feedforward briefing before work starts, then adds feedback gates in MCP, Git hooks, CI, and wrappers so changes cannot quietly bypass repo policy.
 

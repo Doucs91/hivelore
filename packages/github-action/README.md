@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://github.com/Doucs91/hAIve">
+    <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/logo.svg" alt="hAIve logo" width="96" />
+  </a>
+</p>
+
 # hAIve PR Memory Check — GitHub Action
 
 Automatically surfaces relevant team memories, gotchas, and conventions in every pull request. Posts a structured comment so reviewers and AI agents never miss non-obvious constraints.

@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://github.com/Doucs91/hAIve">
+    <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/logo.svg" alt="hAIve logo" width="96" />
+  </a>
+</p>
+
 # @hiveai/embeddings
 
 > **Optional add-on for hAIve** — local semantic ranking for hAIve briefings and memory search. No data leaves your machine.

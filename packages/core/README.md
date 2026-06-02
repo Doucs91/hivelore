@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://github.com/Doucs91/hAIve">
+    <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/logo.svg" alt="hAIve logo" width="96" />
+  </a>
+</p>
+
 # @hiveai/core
 
 > Internal library — policy, memory, anchor, and enforcement primitives for hAIve.

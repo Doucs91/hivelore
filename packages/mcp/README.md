@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://github.com/Doucs91/hAIve">
+    <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/wordmark.svg" alt="hAIve" width="240" />
+  </a>
+</p>
+
 # @hiveai/mcp
 
 > **hAIve MCP server** - policy-aware briefing and memory tools for MCP-compatible coding-agent harnesses.
