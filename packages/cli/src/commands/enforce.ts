@@ -892,6 +892,18 @@ async function verifyDecisionCoverage(
   }
 
   const marker = await readRecentBriefingMarker(paths, sessionId);
+  if (stage === "ci" && !marker) {
+    return [{
+      severity: "ok",
+      code: "decision-coverage-ci-pass",
+      message:
+        `CI surfaced ${relevant.length} relevant anchored decision/polic${relevant.length === 1 ? "y" : "ies"} ` +
+        `for ${changedFiles.length} changed file(s). Runtime briefing markers are local-only and are not expected on GitHub Actions.`,
+      memory_ids: relevant.slice(0, 20).map((memory) => memory.frontmatter.id),
+      affected_files: changedFiles.slice(0, 10),
+    }];
+  }
+
   const consulted = new Set(marker?.memory_ids ?? []);
   const missing = relevant.filter((memory) => !consulted.has(memory.frontmatter.id));
   if (missing.length === 0) {

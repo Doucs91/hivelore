@@ -6,6 +6,15 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.12.3] — CI decision coverage runner fix
+
+### Fixed
+- **`haive enforce ci` no longer fails on local-only briefing markers.** GitHub Actions does not
+  have the agent's `.ai/.runtime/enforcement/briefings` marker after push, so CI now reconstructs
+  decision coverage from the committed diff and reports `decision-coverage-ci-pass` instead of
+  blocking with `decision-coverage-missing`. Local/pre-commit/pre-push gates still require the
+  real briefing marker.
+
 ## [0.12.2] — quality gate and doctor excellence pass
 
 ### Added

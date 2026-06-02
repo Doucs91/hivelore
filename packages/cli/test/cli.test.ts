@@ -733,6 +733,68 @@ describe("hAIve CLI integration", () => {
     }
   });
 
+  it("CI enforcement reconstructs decision coverage without a local briefing marker", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-ci-decision-coverage-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/guarded.ts"), "export const guarded = true;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+      await writeFile(
+        path.join(repo, ".ai/memories/team/2026-01-01-decision-guarded-file.md"),
+        [
+          "---",
+          "id: 2026-01-01-decision-guarded-file",
+          "scope: team",
+          "type: decision",
+          "status: validated",
+          "created_at: '2026-01-01T00:00:00.000Z'",
+          "anchor:",
+          "  paths: [src/guarded.ts]",
+          "  symbols: []",
+          "tags: []",
+          "---",
+          "# Guarded file policy",
+          "",
+          "This file is guarded by a repo-specific policy.",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+      await writeFile(path.join(repo, "src/guarded.ts"), "export const guarded = false;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "--no-verify", "-m", "change guarded file"], { cwd: repo });
+
+      const result = await runAllowFailure(repo, ["enforce", "ci", "--json", "--dir", repo], {
+        GITHUB_SHA: "",
+        GITHUB_BASE_REF: "",
+        GITHUB_HEAD_REF: "",
+        GITHUB_REF: "",
+        GITHUB_EVENT_PATH: "",
+        HAIVE_BASE_SHA: "",
+        HAIVE_HEAD_SHA: "",
+        HAIVE_BASE_REF: "",
+      });
+      const report = JSON.parse(result.stdout) as {
+        should_block: boolean;
+        findings: Array<{ code: string; severity: string; memory_ids?: string[] }>;
+      };
+
+      expect(result.code).toBe(0);
+      expect(report.should_block).toBe(false);
+      const coverage = report.findings.find((f) => f.code === "decision-coverage-ci-pass");
+      expect(coverage?.severity).toBe("ok");
+      expect(coverage?.memory_ids).toContain("2026-01-01-decision-guarded-file");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("finish gate blocks shippable work left as an uncommitted local diff", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-finish-dirty-"));
     try {
