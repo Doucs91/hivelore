@@ -6,6 +6,26 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.13.5] — surface coherence Phases C/D/E (disambiguation + grouping)
+
+### Changed
+- **Phase C — `bench` renamed to `selftest`** (with `bench` kept as an alias). The two near-identical
+  names no longer collide: `selftest` checks the local install's latency; `benchmark` measures
+  hAIve-vs-plain agent value. Both descriptions now state the distinction explicitly.
+- **Phase D — `install-hooks` and `precommit` are labelled as `enforce` equivalents** in their help
+  (`install-hooks` = `enforce install`, `precommit` = `enforce check --stage pre-commit`), so the
+  overlap is discoverable instead of confusing. Kept as-is (non-breaking); `enforce` remains canonical.
+- **Phase E — the advanced surface is now grouped by family in `haive --advanced --help`**
+  (reports / eval / index / runtime / ops). Shown only in advanced help so the default golden-path
+  help stays focused.
+
+### Notes
+- Deeper command-tree regrouping (moving `dashboard`/`stats` under a `report` parent, or `code-search`/
+  `embeddings` under `index`) is **intentionally deferred**: `report` is already a subcommand of
+  `benchmark` and `index` is a leaf command, so those moves would require renaming existing commands —
+  i.e. they'd be breaking, which violates the non-breaking rule of the coherence map. Documented in
+  `docs/HARNESS-COHERENCE-MAP-2026-06.md`.
+
 ## [0.13.4] — atomic release commits (no more `[skip ci]` tips)
 
 ### Fixed

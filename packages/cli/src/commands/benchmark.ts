@@ -27,7 +27,7 @@ interface AgentBenchmarkRow {
 export function registerBenchmark(program: Command): void {
   const benchmark = program
     .command("benchmark")
-    .description("Official hAIve benchmark/demo utilities for measuring agent enforcement value.");
+    .description("Measure hAIve's VALUE: paired hAIve-vs-plain agent runs (correctness, tokens, tools). Different from `selftest` (which only checks local install latency).");
 
   benchmark
     .command("report")

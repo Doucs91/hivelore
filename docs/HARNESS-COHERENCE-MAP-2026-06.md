@@ -197,3 +197,24 @@ Le golden path doit avoir un snapshot test du `--help` par défaut (≤ 12 ligne
 - Pour les 5 verbes de §2 : `mem_X` (MCP) et `memory X` (CLI) partagent le **même verbe** canonique.
 - Aucune paire de noms top-level distants de < 2 caractères d'édition sans désambiguïsation (tue `bench`/`benchmark`).
 - Aucun outil supprimé ; aucune commande existante cassée (suite d'alias verte).
+
+---
+
+## 8. Statut d'exécution (2026-06-02)
+
+| Phase | Statut | Version |
+|-------|--------|---------|
+| **A** — aligner 5 verbes `memory` sur le MCP | ✅ livré | v0.13.2 |
+| **B** — rendre le golden path visible (README + help) | ✅ livré | v0.13.3 |
+| **(racine)** — commit de release atomique (plus de `[skip ci]` en tip) | ✅ livré | v0.13.4 |
+| **C** — désambiguïser `bench` → `selftest` (alias `bench`) | ✅ livré | v0.13.5 |
+| **D** — `install-hooks`/`precommit` étiquetés équivalents `enforce` | ✅ livré | v0.13.5 |
+| **E** — groupement par familles dans `--advanced` help | ✅ livré (partiel) | v0.13.5 |
+
+**E — précision sur le périmètre.** Le groupement *de découvrabilité* (familles dans `--advanced`)
+est livré. Le **regroupement d'arbre profond** (déplacer `dashboard`/`stats` sous un parent `report`,
+ou `code-search`/`embeddings` sous `index`) est **délibérément différé** : `report` est déjà une
+sous-commande de `benchmark` et `index` est une commande-feuille — ces déplacements exigeraient de
+**renommer de l'existant**, donc seraient *breaking*, ce qui viole la règle d'or non-breaking de cette
+carte. Le faire proprement nécessiterait soit une dépréciation en plusieurs étapes, soit l'accord
+explicite d'introduire une rupture — à décider séparément.

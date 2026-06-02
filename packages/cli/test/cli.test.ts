@@ -389,6 +389,19 @@ describe("hAIve CLI integration", () => {
     expect(stdout).toContain("benchmark");
   });
 
+  it("phase C/D/E: bench is renamed to selftest (alias bench), and advanced families are documented", async () => {
+    // C: selftest is canonical; bench kept as alias (commander renders "selftest|bench").
+    const advanced = await run(workDir, ["--advanced", "--help"]);
+    expect(advanced.stdout).toContain("selftest");
+    // E: the advanced surface is grouped by family — only in advanced help, so the
+    // default golden-path help stays focused (those names must not leak into core).
+    expect(advanced.stdout).toContain("Advanced surface, by family");
+    expect(advanced.stdout).toContain("reports:");
+    expect(advanced.stdout).toContain("runtime:");
+    const help = await run(workDir, ["--help"]);
+    expect(help.stdout).not.toContain("Advanced surface, by family");
+  });
+
   it("default memory help hides corpus maintenance commands", async () => {
     const { stdout } = await run(workDir, ["memory", "--help"]);
     expect(stdout).toContain("add");

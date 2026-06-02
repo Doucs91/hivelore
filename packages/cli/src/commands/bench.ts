@@ -31,8 +31,9 @@ interface ScenarioResult {
 
 export function registerBench(program: Command): void {
   program
-    .command("bench")
-    .description("Self-test the local hAIve setup: runs core MCP tools against this project and reports latency + payload size.")
+    .command("selftest")
+    .alias("bench")
+    .description("Self-test the LOCAL hAIve install: runs core MCP tools against this project and reports latency + payload size. Different from `benchmark` (which measures hAIve-vs-plain agent value). Alias: bench")
     .option("-t, --task <task>", "task description for ranking-aware tools", "audit dependencies for security risks")
     .option("--json", "emit JSON instead of a table", false)
     .option("-d, --dir <dir>", "project root")

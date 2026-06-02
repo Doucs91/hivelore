@@ -22,7 +22,8 @@ export function registerPrecommit(program: Command): void {
   program
     .command("precommit")
     .description(
-      "Run a pre-commit safety check: scans `git diff --cached` against known anti-patterns,\n" +
+      "Run a pre-commit safety check (manual variant of `haive enforce check --stage pre-commit`):\n" +
+      "  scans `git diff --cached` against known anti-patterns,\n" +
       "  surfaces conventions/decisions anchored to touched files, and warns about stale anchored memories.\n\n" +
       "  Wire it into git as: `.git/hooks/pre-commit` running `haive precommit` (exit 1 = block).\n\n" +
       "  Examples:\n" +

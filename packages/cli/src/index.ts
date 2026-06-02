@@ -190,6 +190,18 @@ function applySurfaceVisibility(root: Command): void {
 
   if (!showAdvanced) hideNonCoreCommands(root);
 
+  // Families block lists advanced command names, so it only shows in advanced help —
+  // the default help stays focused on the golden path (those names would otherwise leak
+  // into the core surface). See Phase E of docs/HARNESS-COHERENCE-MAP-2026-06.md.
+  const familiesBlock = showAdvanced
+    ? [
+        "",
+        "Advanced surface, by family:",
+        "  reports:  dashboard · stats · playback        eval:     eval · benchmark · selftest (alias: bench)",
+        "  index:    index · code-search · embeddings    runtime:  runtime · observe · snapshot",
+        "  ops:      memory <sub> · sensors · ingest · hub · sync · install-hooks (= enforce install) · precommit (= enforce check)",
+      ]
+    : [];
   root.addHelpText(
     "after",
     [
@@ -199,6 +211,7 @@ function applySurfaceVisibility(root: Command): void {
       "",
       "Memory verbs mirror the MCP tools: memory save/search/get/delete <-> mem_save/mem_search/mem_get/mem_delete",
       "(old verbs add/query/show/rm still work as aliases).",
+      ...familiesBlock,
       "",
       "Run `haive --advanced --help` or set HAIVE_SHOW_ADVANCED=1 to show maintenance and experimental commands.",
     ].join("\n"),

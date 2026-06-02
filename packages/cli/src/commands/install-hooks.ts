@@ -145,7 +145,7 @@ export function registerInstallHooks(program: Command): void {
   program
     .command("install-hooks [target]")
     .description(
-      "Install hAIve hooks. Targets:\n\n" +
+      "Install hAIve hooks (same effect as `haive enforce install`, kept for back-compat). Targets:\n\n" +
       "    git     (default) post-merge / post-rewrite / pre-push for haive sync + precommit\n" +
       "    claude  SessionStart + PreToolUse + PostToolUse + SessionEnd hooks\n" +
       "            for briefing injection, pre-edit blocking, and capture (Claude Code only)\n\n" +
