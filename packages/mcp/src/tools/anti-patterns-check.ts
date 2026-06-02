@@ -1,7 +1,10 @@
 import { existsSync } from "node:fs";
 import {
   addedLinesFromDiff,
+  buildDocFrequency,
+  CODE_STOPWORDS,
   deriveConfidence,
+  diffHasDistinctiveOverlap,
   getUsage,
   isRetiredMemory,
   loadMemoriesFromDir,
@@ -11,6 +14,7 @@ import {
   runSensors,
   sensorTargetsFromDiff,
   tokenizeQuery,
+  type DocFrequency,
 } from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
@@ -68,6 +72,13 @@ export interface AntiPatternsWarning {
   confidence: string;
   body_preview: string;
   reasons: Array<"anchor" | "literal" | "semantic" | "sensor">;
+  /**
+   * True when the LITERAL overlap includes a token that is *distinctive* to this memory
+   * (rare across the gotcha corpus) — e.g. `BigInt`, `open-in-view`. Only a distinctive
+   * literal overlap is precise enough to hard-block; a shared common word ("memory",
+   * "scope", "version") sets only the `literal` reason for review. Powers the gate.
+   */
+  distinctive_literal?: boolean;
   semantic_score?: number;
   /** When a regex sensor fired: its self-correction message and severity. */
   sensor_message?: string;
@@ -90,18 +101,6 @@ export interface AntiPatternsCheckOutput {
   warnings: AntiPatternsWarning[];
   notice?: string;
 }
-
-/**
- * Common code tokens that would match almost any memory body and create literal noise.
- * Excluded from diff literal-matching so the "literal" reason stays a meaningful signal.
- */
-const CODE_STOPWORDS = new Set([
-  "import", "export", "function", "return", "const", "let", "var", "class", "public",
-  "private", "protected", "static", "this", "true", "false", "null", "undefined", "void",
-  "async", "await", "from", "type", "interface", "extends", "implements", "number", "string",
-  "boolean", "value", "default", "case", "break", "continue", "throw", "catch", "finally",
-  "else", "while", "for", "new", "super", "yield", "module", "require", "console",
-]);
 
 /**
  * Tokenize a diff for LITERAL anti-pattern matching.
@@ -171,6 +170,9 @@ export async function antiPatternsCheck(
   }
 
   const usage = await loadUsageIndex(ctx.paths);
+  // Document frequency over the gotcha/attempt corpus — drives distinctive-token
+  // corroboration so a shared *common* word never hard-blocks (false positives).
+  const docFreq: DocFrequency = buildDocFrequency(negative.map(({ memory }) => memory.body));
   const seen = new Map<string, AntiPatternsWarning>();
 
   const upsert = (
@@ -214,10 +216,18 @@ export async function antiPatternsCheck(
   // 2. Literal token overlap from diff
   if (input.diff) {
     const tokens = tokenizeDiffForLiteral(input.diff);
+    const added = addedLinesFromDiff(input.diff);
+    const addedText = added.trim().length > 0 ? added : input.diff;
     if (tokens.length > 0) {
       for (const { memory } of negative) {
         if (literalMatchesAnyToken(memory, tokens)) {
           upsert(memory.frontmatter, memory.body, "literal");
+          // Distinguish a meaningful overlap (the diff contains a token rare to this
+          // gotcha) from incidental shared domain words. Only the former can hard-block.
+          if (diffHasDistinctiveOverlap(addedText, memory.body, docFreq)) {
+            const w = seen.get(memory.frontmatter.id);
+            if (w) w.distinctive_literal = true;
+          }
         }
       }
     }

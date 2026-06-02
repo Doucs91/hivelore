@@ -562,11 +562,29 @@ describe("preCommitCheck", () => {
       confidence: "trusted",
       body_preview: "BigInt broke serialization in math — do not use BigInt.",
       reasons: ["anchor", "literal"],
+      distinctive_literal: true, // the diff reintroduced the distinctive token (BigInt)
       anchor_paths: ["src/math.ts"],
     }, ["src/math.ts"], true);
 
     expect(warning.level).toBe("blocking");
     expect(warning.rationale).toContain("anchored gate");
+  });
+
+  it("anchored gate does NOT block on a non-distinctive literal overlap (false-positive guard)", () => {
+    // Anchor + literal on a COMMON word (no distinctive_literal) — e.g. editing an anchored
+    // file for an unrelated reason, or a version bump. Must be review, never blocking.
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-scope-thing",
+      type: "gotcha",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "mem_save scope was overridden by defaultScope.",
+      reasons: ["anchor", "literal"], // literal present, but distinctive_literal is absent
+      anchor_paths: ["src/mem-save.ts"],
+    }, ["src/mem-save.ts"], true);
+
+    expect(warning.level).toBe("review");
+    expect(warning.rationale).not.toContain("anchored gate");
   });
 
   it("anchored gate keeps personal anti-pattern memories as review guidance", () => {
@@ -820,6 +838,7 @@ describe("preCommitCheck", () => {
       confidence: "authoritative",
       body_preview: "# No BigInt\n\nBigInt broke JSON serialization — do not use BigInt.",
       reasons: ["anchor", "literal"],
+      distinctive_literal: true, // distinctive overlap, but the sensor (authoritative) did not fire
       anchor_paths: ["src/math.ts"],
       has_sensor: true, // memory has a sensor, but it did NOT fire (no "sensor" in reasons)
     }, ["src/math.ts"], true); // anchoredBlocks = true

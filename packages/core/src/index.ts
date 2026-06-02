@@ -10,6 +10,7 @@ export * from "./impact.js";
 export * from "./eval.js";
 export * from "./confidence.js";
 export * from "./relevance.js";
+export * from "./distinctive.js";
 export * from "./skill-activation.js";
 export * from "./specificity.js";
 export * from "./token-budget.js";

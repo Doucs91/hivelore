@@ -281,7 +281,12 @@ function classifyWarning(
     highConfidence &&
     warning.scope !== "personal" &&
     warning.reasons.includes("anchor") &&
-    (warning.reasons.includes("literal") || (hasSemantic && semanticScore >= 0.45))
+    // A literal overlap only corroborates a BLOCK when it is on a token *distinctive*
+    // to this gotcha (rare in the corpus). Sharing a common domain word ("memory",
+    // "scope", "version") — or a version-bump diff — no longer hard-blocks; it falls
+    // through to `review` below. This kills the incidental-token false positives that
+    // made agents work for nothing. A moderate semantic match still corroborates.
+    (warning.distinctive_literal === true || (hasSemantic && semanticScore >= 0.45))
   ) {
     // Sensor veto: if the memory has a sensor and it did NOT fire, the sensor is the
     // authoritative check for this memory. Broad literal token matching is too noisy
