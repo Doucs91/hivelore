@@ -34,6 +34,8 @@ last_read_at: null
 revision_count: 0
 requires_human_approval: false
 ---
+# Gotcha Decision Coverage Gate Needs High Max Memories
+
 When a commit touches many files anchored to many decisions/architecture memories (e.g. a multi-package feature touching core+cli+mcp+package.jsons), the pre-commit `decision-coverage` gate fails with `decision-coverage-missing: N/M relevant anchored decisions were not present in the latest briefing`.
 
 **Why:** `haive briefing` defaults to `--max-memories 8`. If 14 anchored decisions are relevant, a default briefing surfaces only 8, so the gate (which requires ALL relevant anchored decisions to have been surfaced in the latest briefing marker) blocks.
