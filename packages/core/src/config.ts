@@ -150,6 +150,14 @@ export interface HaiveConfig {
     mode?: "off" | "advisory" | "strict";
     /** Require get_briefing / mem_relevant_to before state-changing MCP tools. */
     requireBriefingFirst?: boolean;
+    /**
+     * Pre-edit (PreToolUse) behaviour when a file's anchored policy was not yet surfaced:
+     *   - "advise" (default): inject the relevant memory content into the agent's context and record
+     *     it in the briefing marker, then ALLOW the edit — no round-trip, no separate briefing command.
+     *   - "block": hard-block the edit until a briefing covers the file (the legacy strict behaviour).
+     * The commit-time decision-coverage gate and CI enforcement remain the hard backstops either way.
+     */
+    preEditGate?: "advise" | "block";
     /** Require a session recap before pre-push / CI gates pass. */
     requireSessionRecap?: boolean;
     /** Require memory anchor verification before pre-commit / CI gates pass. */

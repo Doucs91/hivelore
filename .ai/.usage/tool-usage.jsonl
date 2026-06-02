@@ -154,3 +154,4 @@
 {"tool":"mem_session_end","at":"2026-06-02T20:35:11.182Z","summary":"Implement the two remaining hardening items before any new feature: a commit-msg"}
 {"tool":"get_briefing","at":"2026-06-02T20:55:48.811Z","summary":"Implement prevention trend + recurrence + anti-pattern catch recording: export prevention module, record catches from antiPatternsCheck strong matches, append event log in sensors check, surface trend+recurrence in dashboard."}
 {"tool":"mem_session_end","at":"2026-06-02T21:06:40.598Z","summary":"Complete the outcome-measurement story: record prevention from the anti-pattern "}
+{"tool":"get_briefing","at":"2026-06-02T21:24:41.326Z","summary":"P0 friction reduction: add enforcement.preEditGate config; make pre-tool-use hook advise (inject context + record marker + allow) instead of block; exclude generated .ai artifacts from decision-coverage."}

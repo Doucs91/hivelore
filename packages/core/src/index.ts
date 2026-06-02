@@ -8,6 +8,7 @@ export * from "./verifier.js";
 export * from "./usage.js";
 export * from "./impact.js";
 export * from "./prevention.js";
+export * from "./context-throttle.js";
 export * from "./eval.js";
 export * from "./confidence.js";
 export * from "./relevance.js";

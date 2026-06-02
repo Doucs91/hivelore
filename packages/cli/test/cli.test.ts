@@ -711,78 +711,98 @@ describe("hAIve CLI integration", () => {
     expect(threw).toBe(true);
   });
 
-  it("enforce pre-tool-use blocks writes until session-start creates a briefing marker", async () => {
-    const payload = JSON.stringify({
-      cwd: workDir,
-      session_id: "cli-test-session",
-      tool_name: "Write",
-      tool_input: { file_path: "src/new.ts" },
-    });
-
-    const blocked = await runWithInput(workDir, ["enforce", "pre-tool-use", "--dir", workDir], payload);
-    expect(blocked.code).toBe(2);
-    expect(blocked.stderr).toContain("hAIve enforcement blocked this action");
-
-    const started = await runWithInput(workDir, ["enforce", "session-start", "--dir", workDir], payload);
-    expect(started.code).toBe(0);
-    expect(started.stdout).toContain("hAIve briefing loaded");
-
-    const allowed = await runWithInput(workDir, ["enforce", "pre-tool-use", "--dir", workDir], payload);
-    expect(allowed.code).toBe(0);
-    expect(allowed.stderr).toBe("");
-  });
-
-  it("enforce pre-tool-use blocks writes to files with unbriefed anchored policies", async () => {
-    const repo = await mkdtemp(path.join(tmpdir(), "haive-targeted-pretool-"));
+  it("enforce pre-tool-use ADVISES by default: allows the write and injects the relevant policy (P0)", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-pretool-advise-"));
     try {
       await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
       await mkdir(path.join(repo, "src"), { recursive: true });
       await writeFile(path.join(repo, "src", "guarded.ts"), "export const guarded = true;\n", "utf8");
       await run(repo, [
-        "memory", "add",
-        "--type", "decision",
-        "--slug", "guarded-edit-policy",
-        "--paths", "src/guarded.ts",
-        "--body", "Always load the guarded edit policy before changing this file.",
+        "memory", "add", "--type", "decision", "--slug", "guarded-edit-policy",
+        "--paths", "src/guarded.ts", "--body", "Always load the guarded edit policy before changing this file.",
         "--dir", repo,
       ]);
-
-      const markerDir = path.join(repo, ".ai/.runtime/enforcement/briefings");
-      await mkdir(markerDir, { recursive: true });
-      await writeFile(path.join(markerDir, "targeted-session.json"), JSON.stringify({
-        session_id: "targeted-session",
-        task: "generic briefing",
-        source: "test",
-        created_at: new Date().toISOString(),
-        root: repo,
-        memory_ids: [],
-      }, null, 2), "utf8");
+      await run(repo, ["memory", "approve", "--all", "--dir", repo]).catch(() => { /* autopilot may pre-validate */ });
 
       const payload = JSON.stringify({
-        cwd: repo,
-        session_id: "targeted-session",
-        tool_name: "Write",
+        cwd: repo, session_id: "advise-session", tool_name: "Write",
+        tool_input: { file_path: "src/guarded.ts" },
+      });
+      const res = await runWithInput(repo, ["enforce", "pre-tool-use", "--dir", repo], payload);
+      // Advise default: never blocks…
+      expect(res.code).toBe(0);
+      // …and injects the relevant memory as PreToolUse additionalContext (no round-trip, no command).
+      expect(res.stdout).toContain("additionalContext");
+      expect(res.stdout).toContain("guarded-edit-policy");
+      // The context is recorded, so a follow-up edit clean-passes with no further output.
+      const again = await runWithInput(repo, ["enforce", "pre-tool-use", "--dir", repo], payload);
+      expect(again.code).toBe(0);
+      expect(again.stdout).toBe("");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("enforce pre-tool-use BLOCKS under preEditGate:block, recording context so the retry passes", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-pretool-block-"));
+    try {
+      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
+      const cfgPath = path.join(repo, ".ai/haive.config.json");
+      const cfg = existsSync(cfgPath) ? JSON.parse(await readFile(cfgPath, "utf8")) : {};
+      cfg.enforcement = { ...(cfg.enforcement ?? {}), preEditGate: "block" };
+      await writeFile(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
+
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src", "guarded.ts"), "export const guarded = true;\n", "utf8");
+      await run(repo, [
+        "memory", "add", "--type", "decision", "--slug", "guarded-edit-policy",
+        "--paths", "src/guarded.ts", "--body", "Always load the guarded edit policy before changing this file.",
+        "--dir", repo,
+      ]);
+      await run(repo, ["memory", "approve", "--all", "--dir", repo]).catch(() => { /* autopilot may pre-validate */ });
+
+      const payload = JSON.stringify({
+        cwd: repo, session_id: "block-session", tool_name: "Write",
         tool_input: { file_path: "src/guarded.ts" },
       });
       const blocked = await runWithInput(repo, ["enforce", "pre-tool-use", "--dir", repo], payload);
       expect(blocked.code).toBe(2);
-      expect(blocked.stderr).toContain("required hAIve context");
       expect(blocked.stderr).toContain("guarded-edit-policy");
+      // No separate briefing command — the context is recorded, so re-issuing the edit passes.
+      expect(blocked.stderr).toContain("re-issue the same edit");
+      const retry = await runWithInput(repo, ["enforce", "pre-tool-use", "--dir", repo], payload);
+      expect(retry.code).toBe(0);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
 
-      const teamFiles = await readdir(path.join(repo, ".ai/memories/team"));
-      const memoryId = teamFiles.find((file) => file.includes("guarded-edit-policy"))!.replace(/\.md$/, "");
-      await writeFile(path.join(markerDir, "targeted-session.json"), JSON.stringify({
-        session_id: "targeted-session",
-        task: "targeted briefing",
-        source: "test",
-        created_at: new Date().toISOString(),
-        root: repo,
-        memory_ids: [memoryId],
-      }, null, 2), "utf8");
+  it("decision-coverage ignores generated .ai artifacts like project-context.md (P0)", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-artifact-cov-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
+      // A validated decision anchored to the generated artifact (worst case for the old behaviour).
+      await run(repo, [
+        "memory", "add", "--type", "decision", "--slug", "context-doc-policy",
+        "--paths", ".ai/project-context.md", "--body", "Keep the project context current.", "--dir", repo,
+      ]);
+      await run(repo, ["memory", "approve", "--all", "--dir", repo]).catch(() => { /* autopilot */ });
+      await exec("git", ["add", "-A"], { cwd: repo });
+      await exec("git", ["commit", "-m", "base", "--no-verify"], { cwd: repo });
 
-      const allowed = await runWithInput(repo, ["enforce", "pre-tool-use", "--dir", repo], payload);
-      expect(allowed.code).toBe(0);
-      expect(allowed.stderr).toBe("");
+      // Stage a change to ONLY the generated artifact.
+      await writeFile(path.join(repo, ".ai/project-context.md"), "# Project context — hAIve\n\nedited\n", "utf8");
+      await exec("git", ["add", ".ai/project-context.md"], { cwd: repo });
+
+      const res = await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo]);
+      const report = JSON.parse(res.stdout) as { findings: Array<{ code: string }> };
+      const codes = report.findings.map((f) => f.code);
+      // The generated artifact is excluded → no decision coverage is demanded for it.
+      expect(codes).not.toContain("decision-coverage-missing");
+      expect(codes).toContain("decision-coverage-no-changes");
     } finally {
       await rm(repo, { recursive: true, force: true });
     }

@@ -313,7 +313,7 @@ export function registerEnforce(program: Command): void {
 
   enforce
     .command("pre-tool-use")
-    .description("Claude Code PreToolUse hook: block writes until hAIve briefing has been loaded.")
+    .description("Claude Code PreToolUse hook: surface the relevant team policy for the edited file (advise; configurable to block).")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: EnforceOptions) => {
       const payload = await readHookPayload();
@@ -323,45 +323,105 @@ export function registerEnforce(program: Command): void {
       if (!existsSync(paths.haiveDir)) return;
       if (!isWriteLikeTool(payload)) return;
 
-      const ok = await hasRecentBriefingMarker(paths, payload.session_id);
-      if (ok) {
-        const targetFiles = extractToolPaths(payload, root);
-        if (targetFiles.length === 0) return;
-        const missing = await missingRequiredMemoriesForFiles(paths, targetFiles, payload.session_id);
-        if (missing.length === 0) return;
-        const ids = missing.slice(0, 6).map((memory) => memory.memory.frontmatter.id);
+      const config = await loadConfig(paths);
+      if (config.enforcement?.requireBriefingFirst === false) return;
+      const gate = config.enforcement?.preEditGate ?? "advise";
+
+      const targetFiles = extractToolPaths(payload, root);
+      const hasMarker = await hasRecentBriefingMarker(paths, payload.session_id);
+      const missing = targetFiles.length > 0
+        ? await missingRequiredMemoriesForFiles(paths, targetFiles, payload.session_id)
+        : [];
+
+      // Clean pass: a recent briefing exists and the touched files carry no un-surfaced policy.
+      if (hasMarker && missing.length === 0) return;
+
+      // Auto-resolve: record the relevant policy for the touched files into the briefing marker so
+      // the agent gets credit for it AND the commit-time decision-coverage gate accumulates coverage
+      // as the agent edits — no separate `haive briefing` command needed.
+      if (targetFiles.length > 0) {
+        await recordFilesIntoBriefingMarker(paths, targetFiles, missing, payload.session_id)
+          .catch(() => { /* best-effort */ });
+      }
+
+      const contextText = buildPreEditContext(payload.tool_name ?? "write tool", targetFiles, missing, hasMarker);
+
+      if (gate === "block") {
+        // Legacy strict behaviour: block — but with the actual content and no separate command.
+        // The relevant policy is already recorded, so simply re-issuing the edit passes.
         console.error(
-          [
-            "hAIve enforcement blocked this action.",
-            `Tool: ${payload.tool_name ?? "write tool"}`,
-            `Files: ${targetFiles.slice(0, 6).join(", ")}`,
-            "",
-            "These files have required hAIve context that was not in the current briefing:",
-            ...ids.map((id) => `  - ${id}`),
-            "",
-            "Load the targeted briefing before editing:",
-            `  ${briefingCommandForFiles(targetFiles)}`,
-          ].join("\n"),
+          contextText +
+          "\n\nThe relevant context is now recorded — re-issue the same edit to proceed " +
+          "(no `haive briefing` command needed). To make this advisory instead of blocking, set " +
+          '`{ "enforcement": { "preEditGate": "advise" } }` in .ai/haive.config.json.',
         );
         process.exit(2);
       }
 
-      const tool = payload.tool_name ?? "write tool";
-      console.error(
-        [
-          "hAIve enforcement blocked this action.",
-          `Tool: ${tool}`,
-          "",
-          "This project is initialized with hAIve. Load the team briefing before editing:",
-          "  haive enforce session-start",
-          "or call MCP get_briefing / mem_relevant_to from your AI client.",
-          "",
-          "If this is intentional, a human can disable enforcement in .ai/haive.config.json:",
-          '  { "enforcement": { "requireBriefingFirst": false } }',
-        ].join("\n"),
-      );
-      process.exit(2);
+      // advise (default): inject the context into the agent and ALLOW the edit — zero round-trip.
+      // Commit-time decision-coverage + CI enforcement remain the hard backstops.
+      emitPreToolUseContext(contextText);
     });
+}
+
+/**
+ * Record the validated policy memories anchored to the touched files into the briefing marker,
+ * unioned with whatever is already there. Mirrors what `haive briefing --files` records, so the
+ * commit-time decision-coverage gate accumulates coverage as the agent edits (no broad re-briefing).
+ */
+async function recordFilesIntoBriefingMarker(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  files: string[],
+  missing: LoadedMemory[],
+  sessionId?: string,
+): Promise<void> {
+  const existing = await readRecentBriefingMarker(paths, sessionId);
+  const ids = new Set<string>(existing?.memory_ids ?? []);
+  for (const { memory } of missing) ids.add(memory.frontmatter.id);
+  await writeBriefingMarker(paths, {
+    sessionId,
+    task: existing?.task ?? "pre-edit auto-briefing",
+    source: "haive-pre-edit",
+    files,
+    memoryIds: [...ids],
+  });
+}
+
+/** Build the context block surfaced to the agent at edit time (the actual memory bodies). */
+function buildPreEditContext(
+  tool: string,
+  files: string[],
+  missing: LoadedMemory[],
+  hasMarker: boolean,
+): string {
+  const lines: string[] = ["hAIve — relevant team policy for this edit", `Tool: ${tool}`];
+  if (files.length > 0) lines.push(`Files: ${files.slice(0, 6).join(", ")}`);
+  if (missing.length > 0) {
+    lines.push("", "Consult these before editing (anchored to the files you are touching):");
+    for (const { memory } of missing.slice(0, 5)) {
+      const fm = memory.frontmatter;
+      lines.push("", `### ${fm.id}  (${fm.scope}/${fm.type})`, memory.body.trim().slice(0, 900));
+    }
+  } else if (!hasMarker) {
+    lines.push(
+      "",
+      "No team briefing was loaded yet this session. Proceeding — but for substantive work call " +
+      "get_briefing / mem_relevant_to for richer context.",
+    );
+  }
+  return lines.join("\n");
+}
+
+/** Emit a Claude Code PreToolUse hook result that injects context for the model WITHOUT blocking. */
+function emitPreToolUseContext(text: string): void {
+  console.log(
+    JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        additionalContext: text,
+      },
+    }),
+  );
 }
 
 async function buildFinishReport(dir: string | undefined): Promise<EnforcementReport> {
@@ -895,7 +955,9 @@ async function verifyDecisionCoverage(
   sessionId?: string,
 ): Promise<EnforcementFinding[]> {
   if (!existsSync(paths.memoriesDir)) return [];
-  const changedFiles = await getChangedFiles(paths.root, stage);
+  // Exclude hAIve-generated artifacts: the agent doesn't author them, so requiring decision
+  // coverage for them is pure friction (and blocked release commits over repair-touched files).
+  const changedFiles = (await getChangedFiles(paths.root, stage)).filter((f) => !isGeneratedArtifact(f));
   if (changedFiles.length === 0) {
     return [{ severity: "info", code: "decision-coverage-no-changes", message: "No changed files to match against policy memories." }];
   }
@@ -1915,8 +1977,17 @@ async function missingRequiredMemoriesForFiles(
     .map(({ memory, filePath }) => ({ memory, filePath }));
 }
 
-function briefingCommandForFiles(files: string[]): string {
-  return `haive briefing --files "${files.slice(0, 10).join(",")}" --task "edit ${files.slice(0, 3).join(", ")}"`;
+/**
+ * hAIve-generated `.ai/` artifacts that the agent never authors — they are re-synced by the
+ * lightweight repair (version header, code-map) or are pure telemetry. Requiring a human-reviewed
+ * "decision" to cover them is friction with no value, and it caused the gate to block release
+ * commits whose only "uncovered" change was a repair-touched artifact. Excluded from
+ * decision-coverage's notion of "changed files". Source code and real `.ai/memories/*` still count.
+ */
+function isGeneratedArtifact(file: string): boolean {
+  if (file === ".ai/project-context.md" || file === ".ai/code-map.json") return true;
+  if (file.startsWith(".ai/.cache/") || file.startsWith(".ai/.runtime/") || file.startsWith(".ai/.usage/")) return true;
+  return false;
 }
 
 async function readStdin(maxBytes: number): Promise<string> {

@@ -6,6 +6,40 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.14.0] — make the harness helpful, not a burden (friction P0–P3)
+
+The exit machinery and outcome metrics are solid; the *entry* friction was the thing that would make
+an agent (or human) stop using hAIve. This release attacks that directly — surface context, don't
+block; and trim what wastes time.
+
+### Changed
+- **P0 — the pre-edit gate now ADVISES by default instead of blocking.** When you edit a file whose
+  anchored team policy wasn't surfaced yet, the PreToolUse hook now *injects that memory's content
+  into the agent's context* (via `additionalContext`) and **allows the edit** — no round-trip, no
+  separate `haive briefing` command. It also records the policy into the briefing marker, so the
+  commit-time decision-coverage gate accumulates coverage as you edit. Set
+  `{ "enforcement": { "preEditGate": "block" } }` to keep the strict behaviour (which now also
+  records context, so a simple re-issue of the edit passes — still no briefing command).
+  The commit gate and CI enforcement remain the hard backstops.
+- **P0 — decision-coverage ignores hAIve-generated artifacts** (`.ai/project-context.md`,
+  `.ai/code-map.json`, `.ai/.cache|.runtime|.usage/`). They are tool-generated, not human decisions,
+  and were the cause of release commits being blocked over a repair-touched file.
+- **P2 — `get_briefing` no longer re-emits an unchanged project context** within a short window
+  (8 min). The first call sends it and records a content-hash marker; repeats omit it with a short
+  notice (the agent already has it). Pass `dedupe_project_context: false` to force a full copy. Saves
+  ~1.5k tokens per repeat briefing in a long session.
+
+### Added
+- **P3 — `haive dev link`** codifies the dist→global hot-swap (including the nested `@hiveai/core`
+  copies pnpm requires), so working on hAIve itself no longer needs a copy-paste shell snippet or an
+  npm publish to test enforcement/MCP/hook changes against the real `haive` binary.
+- New `enforcement.preEditGate: "advise" | "block"` config (default `advise`).
+
+### Notes
+- **P1 — diff-scan layers are now documented in-place.** `sensors check` (regex) and
+  `anti_patterns_check` (memory match) are components; `pre_commit_check` combines them; `haive
+  enforce check` is the gate. The overlapping commands now say so in their descriptions.
+
 ## [0.13.9] — prevention from the anti-pattern path + trend + recurrence
 
 Completes the outcome-measurement story started in 0.13.8.

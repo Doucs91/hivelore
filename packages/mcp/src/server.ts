@@ -1118,6 +1118,7 @@ export function createHaiveServer(
     "anti_patterns_check",
     [
       "Scan a diff (or set of paths) against documented attempt/gotcha memories.",
+      "[Diff-scan layer: the MEMORY-MATCH component. `pre_commit_check` combines this with sensors + stale checks; `haive enforce check` is the gate.]",
       "Surfaces 'you are about to repeat a known mistake' warnings BEFORE you commit.",
       "",
       "USE BEFORE finalizing a non-trivial change. Cheap and high-signal: the only",
@@ -1272,6 +1273,7 @@ export function createHaiveServer(
     "pre_commit_check",
     [
       "One-shot 'should I block this commit?' check. Combines three signals:",
+      "[Diff-scan layer: the COMBINED check (sensors + anti-patterns + stale). `haive enforce check` is the gate that runs this at commit time.]",
       "",
       "  1. anti_patterns_check — known gotchas/attempts that match the diff",
       "  2. mem_for_files       — conventions/decisions anchored to touched files",

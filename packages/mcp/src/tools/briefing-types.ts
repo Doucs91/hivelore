@@ -62,7 +62,7 @@ export interface BriefingOutput {
   match_quality_note?: string;
   inferred_modules: string[];
   last_session?: { id: string; scope: string; revision_count: number; body: string };
-  project_context: { content: string; truncated: boolean; is_template?: boolean; auto_generated?: boolean } | null;
+  project_context: { content: string; truncated: boolean; is_template?: boolean; auto_generated?: boolean; omitted_recent?: boolean } | null;
   module_contexts: Array<{ name: string; content: string; truncated: boolean }>;
   memories: BriefingMemory[];
   briefing_quality: BriefingQuality;

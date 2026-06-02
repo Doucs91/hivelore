@@ -56,6 +56,7 @@ import { registerAgent } from "./commands/agent.js";
 import { registerSensors } from "./commands/sensors.js";
 import { registerIngest } from "./commands/ingest.js";
 import { registerDashboard } from "./commands/dashboard.js";
+import { registerDevLink } from "./commands/dev-link.js";
 
 const program = new Command();
 
@@ -77,6 +78,7 @@ registerAgent(program);
 registerSensors(program);
 registerIngest(program);
 registerDashboard(program);
+registerDevLink(program);
 
 registerMcp(program);
 registerBriefing(program);

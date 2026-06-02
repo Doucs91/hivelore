@@ -80,7 +80,11 @@ export function registerSensors(program: Command): void {
 
   sensors
     .command("check")
-    .description("Run regex sensors against a diff; defaults to `git diff --cached`")
+    .description(
+      "Run regex sensors against a diff (the deterministic/computational layer); defaults to `git diff --cached`.\n" +
+      "  Diff-scan layers: `sensors check` (regex) and `anti_patterns_check` (memory match) are components;\n" +
+      "  `pre_commit_check` combines them; `haive enforce check` is THE gate that runs at commit.",
+    )
     .option("--diff-file <path>", "read unified diff from a file instead of staged changes")
     .option("--json", "emit JSON", false)
     .option("-d, --dir <dir>", "project root")
