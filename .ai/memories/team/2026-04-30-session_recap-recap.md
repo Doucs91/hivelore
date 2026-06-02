@@ -5,14 +5,15 @@ type: session_recap
 status: validated
 anchor:
   paths:
+    - packages/cli/src/commands/enforce.ts
     - packages/cli/src/index.ts
+    - packages/cli/src/commands/bench.ts
+    - packages/cli/src/commands/benchmark.ts
     - packages/cli/src/commands/memory-query.ts
     - packages/cli/src/commands/memory-show.ts
-    - packages/cli/src/commands/memory-add.ts
-    - packages/cli/src/commands/memory-rm.ts
-    - packages/cli/src/commands/doctor.ts
     - packages/cli/test/cli.test.ts
     - docs/HARNESS-COHERENCE-MAP-2026-06.md
+    - README.md
     - CHANGELOG.md
   symbols: []
 tags:
@@ -20,39 +21,43 @@ tags:
   - recap
 created_at: '2026-04-30T00:02:07.282Z'
 expires_when: null
-verified_at: '2026-06-02T16:23:05.034Z'
+verified_at: '2026-06-02T17:30:18.524Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 topic: session-recap-team
-revision_count: 20
+revision_count: 21
 requires_human_approval: false
 ---
 ## Goal
-Analyser le harness engineering vs hAIve, produire la carte de cohérence de surface CLI/MCP (P0), puis implémenter la Phase A (aligner les verbes memory CLI sur les noms d'outils MCP).
+Rendre l'existant de hAIve cohérent (carte de cohérence CLI/MCP) : exécuter Phase A (verbes), B (golden path), le fix racine skip-ci-tip, puis C/D/E — tout non-breaking, chaque release atomique et CI-vérifiée.
 
 ## Accomplished
-- Recherche web indépendante (Fowler, Thoughtworks, Augment) + analyse croisée avec un autre agent.
-- docs/HARNESS-COHERENCE-MAP-2026-06.md : cartographie exhaustive CLI (11 core + 18 advanced + 29 memory) et MCP (4 profils), plan en 5 phases non-breaking.
-- Phase A livrée (v0.13.2) : haive memory add→save, query→search, show→get, rm→delete (canoniques), anciens verbes en alias. CORE_MEMORY_COMMANDS + hints (doctor/welcome/sync/stats/pending) mis à jour. 3 tests de non-régression. 55 tests verts, 4 workflows CI verts, enforce finish 100%.
+- A (v0.13.2): verbes memory alignés sur MCP (save/search/get/delete canoniques, anciens en alias).
+- B (v0.13.3): golden path rendu visible (README + after-text du --help).
+- Fix racine (v0.13.4): enforce check --stage pre-commit stage maintenant .ai/project-context.md re-synchronisé → commit de release atomique, plus jamais de tip 'chore sync skip-ci'. Prouvé: HEAD reste le commit de release, git pull 'déjà à jour'.
+- C/D/E (v0.13.5): bench→selftest (alias), install-hooks/precommit étiquetés équivalents enforce, familles dans --advanced help. Regroupement d'arbre profond différé (collisions report/index = breaking).
+- 58 tests CLI verts ; 4 workflows CI verts par release ; enforce finish 100%.
 
 ## Discoveries & surprises
-- La prémisse "hAIve = 60 commandes plates, charge cognitive" est FAUSSE : le golden path existe déjà (index.ts CORE_ROOT/MEMORY/SESSION_COMMANDS derrière --advanced) ET le MCP a 4 profils (enforcement défaut = 11 outils). Vérifier le code avant de croire un diagnostic de surface.
-- Les "doublons" allégués n'en sont pas : bench.ts (self-test latence) ≠ benchmark.ts (mesure haive-vs-plain) ; observe.ts (hook PostToolUse) ≠ runtime-journal.ts (journal NDJSON) ; memory-* (CLI) vs mem-* (MCP) = parité voulue à 2 façades.
-- memory digest (rapport Markdown de revue) ≠ mcp mem_distill (clustering d'observations) — NE PAS aliaser, opérations différentes.
-- Le vrai défaut de cohérence = dérive de vocabulaire entre les 2 façades (mem_search vs memory query, mem_get vs memory show).
-- Le gate decision-coverage au pre-commit exige un get_briefing MCP (pas le briefing CLI) couvrant TOUS les fichiers changés, avec max_memories élevé (cf. memory decision-coverage-gate-needs-high-max-memories). Le briefing CLI ne pose pas le même marqueur que le hook lit.
+- GOTCHA MAJEUR (capturé en mémoire): GitHub scanne TOUT le message de commit (sujet ET corps) pour [skip ci]. Mon commit du fix v0.13.4 citait la chaîne dans son corps → CI sautée pour tout le push (0 run). Ne jamais mettre la chaîne littérale skip-ci dans un message de commit qui contient du code. Fallback: ci.yml a workflow_dispatch.
+- La prémisse initiale 'hAIve = 60 commandes plates' était FAUSSE: golden path (--advanced) + profils MCP existaient déjà. Et bench/benchmark, observe/runtime ne sont PAS des doublons.
+- Cause racine skip-ci-tip: applyLightweightRepairs sync project-context APRÈS le staging → drift → workflow le commit en skip-ci. Fix = stager dans le stage pre-commit.
+- Le hook git pre-commit utilise le haive GLOBAL, pas le dist du repo: pour qu'un fix d'enforcement s'applique à mon propre commit, il faut hot-swap dist→global d'abord.
+- Le gate decision-coverage exige un get_briefing MCP (pas CLI) couvrant TOUS les fichiers changés avec max_memories élevé.
+- E non-breaking est limité par collisions de noms (report sous benchmark, index feuille): regrouper agressivement serait breaking.
 
 ## Files touched
+- `packages/cli/src/commands/enforce.ts`
 - `packages/cli/src/index.ts`
+- `packages/cli/src/commands/bench.ts`
+- `packages/cli/src/commands/benchmark.ts`
 - `packages/cli/src/commands/memory-query.ts`
 - `packages/cli/src/commands/memory-show.ts`
-- `packages/cli/src/commands/memory-add.ts`
-- `packages/cli/src/commands/memory-rm.ts`
-- `packages/cli/src/commands/doctor.ts`
 - `packages/cli/test/cli.test.ts`
 - `docs/HARNESS-COHERENCE-MAP-2026-06.md`
+- `README.md`
 - `CHANGELOG.md`
 
 ## Next steps
-Phases B-E de la carte de cohérence (toutes non-breaking) : B documenter le golden path (README+help), C désambiguïser bench/benchmark, D folder install-hooks/precommit sous enforce, E grouper l'avancé en familles index/report/eval/runtime.
+Optionnel: regroupement d'arbre profond de E (report/index families) en mode breaking assumé avec dépréciation multi-étapes, si l'équipe l'accepte. Sinon les phases A–E de la carte de cohérence sont complètes.
