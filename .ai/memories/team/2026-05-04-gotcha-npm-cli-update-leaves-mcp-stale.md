@@ -32,18 +32,18 @@ sensor:
     - packages/cli/package.json
     - packages/mcp/package.json
 ---
-# `npm install -g @hiveai/cli@latest` ne met PAS à jour `@hiveai/mcp` global
+# `npm install -g @hiveai/cli@latest` does NOT update global `@hiveai/mcp`
 
-**Reproduit en v0.9.0** :
-- `npm i -g @hiveai/cli@latest` → CLI passe à 0.9.0
-- Mais `haive-mcp --version` reste à la version précédemment installée (0.6.0 sur cette machine)
-- Conséquence : tous les nouveaux tools MCP (pattern_detect, etc.) sont **inaccessibles** aux clients (Claude Code, Cursor) puisque leurs configs pointent vers le binaire global `haive-mcp`.
+**Reproduced in v0.9.0**:
+- `npm i -g @hiveai/cli@latest` upgrades CLI to 0.9.0
+- But `haive-mcp --version` stays on the previously installed version (0.6.0 on this machine)
+- Consequence: all new MCP tools (`pattern_detect`, etc.) are **inaccessible** to clients (Claude Code, Cursor) because their configs point to the global `haive-mcp` binary.
 
-**Pourquoi** : `@hiveai/mcp` est un package séparé sur npm avec son propre binaire global. Il n'est pas une dépendance hoist-able du CLI au niveau global.
+**Why**: `@hiveai/mcp` is a separate npm package with its own global binary. It is not a globally hoistable CLI dependency.
 
-**Fix utilisateur** : `npm i -g @hiveai/cli@latest @hiveai/mcp@latest` (les deux ensemble).
+**User fix**: `npm i -g @hiveai/cli@latest @hiveai/mcp@latest` (both together).
 
-**Fix produit (suggestions)** :
-1. Ajouter à `haive doctor` un check version-mismatch CLI vs MCP qui suggère la commande de fix
-2. Ou intégrer le serveur MCP directement dans le binaire `haive` (ex. `haive mcp --stdio`) pour qu'il n'y ait qu'un seul package à mettre à jour
-3. Ou faire de `@hiveai/cli` un meta-package qui dépend de `@hiveai/mcp` ET expose les deux binaires
+**Product fix (suggestions)**:
+1. Add a CLI vs MCP version-mismatch check to `haive doctor` that suggests the fix command.
+2. Or embed the MCP server directly in the `haive` binary (for example `haive mcp --stdio`) so there is only one package to update.
+3. Or make `@hiveai/cli` a meta-package that depends on `@hiveai/mcp` AND exposes both binaries.

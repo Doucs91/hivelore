@@ -20,48 +20,48 @@ topic: skill/close-session
 revision_count: 0
 requires_human_approval: false
 ---
-# Skill: Fermer une session proprement
+# Skill: Close a session properly
 
-**Règle** : avant de conclure une tâche significative (> 30 min ou > 5 fichiers modifiés), faire le checklist ci-dessous.
+**Rule**: before concluding a significant task (> 30 min or > 5 modified files), run the checklist below.
 
-## Checklist avant de conclure
+## Checklist before concluding
 
-1. **Approches échouées documentées ?**  
-   → Relire mentalement la session. Y a-t-il eu des erreurs/refactos/revenirs-en-arrière ?  
-   → Si oui et pas encore documentées : `mem_tried` maintenant.
+1. **Failed approaches documented?**
+   Mentally replay the session. Were there mistakes/refactors/backtracks?
+   If yes and not yet documented: call `mem_tried` now.
 
-2. **Décisions architecturales capturées ?**  
-   → Y a-t-il eu un choix non-évident (lib, pattern, structure) ?  
-   → Si oui et pas encore documenté : `mem_save type=decision` maintenant.
+2. **Architectural decisions captured?**
+   Was there a non-obvious choice (library, pattern, structure)?
+   If yes and not yet documented: call `mem_save type=decision` now.
 
-3. **Gotchas découverts ?**  
-   → Comportements surprenants dans le code ou les dépendances ?  
-   → Si oui et pas encore documentés : `mem_save type=gotcha` maintenant.
+3. **Gotchas discovered?**
+   Surprising behavior in code or dependencies?
+   If yes and not yet documented: call `mem_save type=gotcha` now.
 
-4. **Appeler `mem_session_end` avec les vrais champs remplis :**
+4. **Call `mem_session_end` with the real fields filled:**
 
 ```
 mem_session_end(
-  goal: "Ce que tu essayais d'accomplir (1-2 phrases)",
+  goal: "What you were trying to accomplish (1-2 sentences)",
   accomplished: "- bullet 1\n- bullet 2\n...",
-  discoveries: "Ce qui t'a surpris, les pièges rencontrés, les angles morts",  ← NE PAS LAISSER VIDE
-  files_touched: ["les fichiers clés modifiés"],
-  next_steps: "Ce qui reste à faire",
-  scope: "team"  // si c'est une session de travail partagé
+  discoveries: "What surprised you, traps encountered, blind spots",  // DO NOT LEAVE EMPTY
+  files_touched: ["key modified files"],
+  next_steps: "What remains to do",
+  scope: "team"  // if this is a shared work session
 )
 ```
 
-5. **Verifier que la pipeline passe avant de dire "termine" :**  
-   → Apres avoir pousse le travail, attendre que les workflows GitHub Actions du commit HEAD soient tous en succes.  
-   → Executer `haive enforce finish`; si la gate rapporte `github-actions-pending`, `github-actions-failed`, `github-actions-runs-missing` ou `github-actions-unverified`, ne pas cloturer. Attendre, inspecter les logs, corriger puis pousser un nouveau commit si necessaire.
+5. **Verify that the pipeline passes before saying "done":**
+   After pushing the work, wait until all GitHub Actions workflows for the HEAD commit succeed.
+   Run `haive enforce finish`; if the gate reports `github-actions-pending`, `github-actions-failed`, `github-actions-runs-missing`, or `github-actions-unverified`, do not close. Wait, inspect logs, fix, then push a new commit if necessary.
 
-## Le champ `discoveries` est le plus important
+## The `discoveries` field is the most important
 
-C'est ce que la prochaine session ne pourra pas deviner depuis git diff. Exemples :
-- "Le pre-commit gate bloque sur les commits config-only à cause du matching littéral"
-- "anchor_paths dans MemMatch était vide — le fix était d'exposer fm.anchor.paths"
-- "L'assertion `level === 'info'` était fausse car anchorPathTokens inclut les segments de chemin"
+This is what the next session cannot infer from the git diff. Examples:
+- "The pre-commit gate blocks config-only commits because of literal matching"
+- "`anchor_paths` in `MemMatch` was empty; the fix was to expose `fm.anchor.paths`"
+- "The `level === 'info'` assertion was wrong because `anchorPathTokens` includes path segments"
 
 ## Anti-pattern
 
-❌ `mem_session_end(goal: "...", accomplished: "...", discoveries: "")` — session-end sans discoveries n'a aucune valeur au-delà de ce que git log montre déjà.
+❌ `mem_session_end(goal: "...", accomplished: "...", discoveries: "")` - a session end with empty discoveries has no value beyond what git log already shows.

@@ -1,5 +1,5 @@
-# Fixture haive (bras avec haive)
+# hAIve Fixture (with hAIve arm)
 
-Projet initialisé avec hAIve (`.ai/` + mémoires). Objectif: faire passer `pnpm test`.
+Project initialized with hAIve (`.ai/` + memories). Goal: make `pnpm test` pass.
 
-Pour les agents: appeler `get_briefing` au début, puis consulter les mémoires d’équipe sur la validation Zod des commandes.
+For agents: call `get_briefing` at the start, then consult team memories about Zod order validation.

@@ -1,58 +1,58 @@
-# Spécification — inspirations Engram, rester enforcement-first (hAIve)
+# Specification - Engram-Inspired, Enforcement-First (hAIve)
 
-## Formule courte
+## Short Formula
 
-**Vérité durable : Git + repo policy** (`.ai/memories/`, PRs, mono ou multi-dépôt via `crossRepoSources`).  
-**Emprunt à l’esprit Engram :** meilleure **récupération**, **réduction du bruit**, et **continuité de session** — mais au service d'une couche de **context enforcement**. Les mémoires sont le substrat; les gates et breadcrumbs sont la promesse produit.
+**Durable truth: Git + repo policy** (`.ai/memories/`, PRs, single repo or multi-repo through `crossRepoSources`).
+**Borrowed from Engram's spirit:** better **retrieval**, **noise reduction**, and **session continuity**, but in service of a **context enforcement** layer. Memories are the substrate; gates and breadcrumbs are the product promise.
 
-## Modèle à deux couches
+## Two-Layer Model
 
-| Couche | Rôle | Versionné |
-|--------|------|-----------|
-| **Records de contexte** | Conventions, décisions, gotchas, archi — breadcrumbs de politique repo | Oui (Git) |
-| **Runtime** | Brouillons, journal de session machine-locale, caches non partagés | Non (voir `.gitignore` sous `.ai/.runtime/`) |
+| Layer | Role | Versioned |
+|-------|------|-----------|
+| **Context records** | Conventions, decisions, gotchas, architecture; repo-policy breadcrumbs | Yes (Git) |
+| **Runtime** | Drafts, machine-local session journal, unshared caches | No (see `.gitignore` under `.ai/.runtime/`) |
 
-## Progressive disclosure (outils MCP)
+## Progressive Disclosure (MCP Tools)
 
-1. **`get_briefing`** — premier appel : contexte projet, récap session, mémoires classées sous budget.
-2. **`mem_relevant_to`** / **`mem_search`** — exploration ciblée ; `mem_search` peut utiliser le **classement lexical** (`lexical_rank`) pour les requêtes type phrase sans index sémantique.
-3. **`mem_get`** — corps complet quand un id est connu.
+1. **`get_briefing`** - first call: project context, session recap, memories ranked under budget.
+2. **`mem_relevant_to`** / **`mem_search`** - targeted exploration; `mem_search` can use **lexical ranking** (`lexical_rank`) for phrase-like queries without a semantic index.
+3. **`mem_get`** - full body when an id is known.
 
-## Résolution de projet (multi-racine / Cursor)
+## Project Resolution (Multi-Root / Cursor)
 
-- **`mem_resolve_project`** (MCP) et **`haive resolve-project`** (CLI) renvoient toujours un JSON structuré et **ne lèvent pas** d’erreur fatale : racine résolue, `HAIVE_PROJECT_ROOT` si défini, présence de `.ai/` et de `memories/`.
+- **`mem_resolve_project`** (MCP) and **`haive resolve-project`** (CLI) always return structured JSON and **do not throw** fatal errors: resolved root, `HAIVE_PROJECT_ROOT` if defined, `.ai/` presence, and `memories/` presence.
 
-## Sujets / topics (clés stables)
+## Topics (Stable Keys)
 
-- **`mem_suggest_topic`** + **`haive memory suggest-topic`** : proposent une clé `topic` de style `famille/slug` (ex. `architecture/…`, `bug/…`, `decision/…`) alignée sur le `type` de mémoire, pour le pattern topic-upsert déjà présent dans le frontmatter.
+- **`mem_suggest_topic`** + **`haive memory suggest-topic`** propose a `topic` key in `family/slug` style (for example `architecture/...`, `bug/...`, `decision/...`) aligned with the memory `type`, for the topic-upsert pattern already present in frontmatter.
 
-## Conflits
+## Conflicts
 
-- **`mem_conflicts_with`** reste l’outil principal (heuristiques + sémantique optionnelle).
-- **`mem_conflict_candidates`** : scan **léger sans id cible** — (1) paires à fort recouvrement lexical (Jaccard), (2) paires qui partagent **`topic`** avec statuts **validated** × **rejected**. Suit `mem_conflicts_with` pour une analyse sérieuse.
+- **`mem_conflicts_with`** remains the primary tool (heuristics + optional semantics).
+- **`mem_conflict_candidates`**: a **lightweight scan without a target id**: (1) pairs with high lexical overlap (Jaccard), (2) pairs sharing the same **`topic`** with **validated** x **rejected** statuses. Use `mem_conflicts_with` afterward for serious analysis.
 
-## Chronologie
+## Timeline
 
-- **`mem_timeline`** : à partir d’un **`memory_id`** et/ou d’un **`topic`**, liste des mémoires liées (`related_ids`, même `topic`, ancres qui se recoupent), tri chronologique (`created_at`).
+- **`mem_timeline`**: from a **`memory_id`** and/or a **`topic`**, lists related memories (`related_ids`, same `topic`, overlapping anchors), sorted chronologically (`created_at`).
 
-## Journal runtime (P2)
+## Runtime Journal (P2)
 
-- Fichier local : `.ai/.runtime/session-journal.ndjson` (une ligne JSON par entrée).
-- **MCP** : `runtime_journal_append`, `runtime_journal_tail`.
-- **CLI** : `haive runtime journal append <message>`, `haive runtime journal tail`.
-- En mode autopilot, une ligne est ajoutée à la **fermeture** du serveur MCP (récap auto + résumé d’outils).
+- Local file: `.ai/.runtime/session-journal.ndjson` (one JSON entry per line).
+- **MCP**: `runtime_journal_append`, `runtime_journal_tail`.
+- **CLI**: `haive runtime journal append <message>`, `haive runtime journal tail`.
+- In autopilot mode, one line is appended when the MCP server **closes** (auto recap + tool summary).
 
-## Phases (traces d’implémentation)
+## Phases (Implementation Traces)
 
-| Phase | Contenu |
+| Phase | Content |
 |-------|---------|
-| **P0** | `mem_resolve_project`, progressive disclosure (descriptions), `mem_suggest_topic`, `.ai/.runtime/` + gitignore interne, `lexical_rank` sur `mem_search` — **fait** |
-| **P1** | `mem_timeline`, `mem_conflict_candidates`, équivalents CLI : `memory timeline`, `memory conflict-candidates`, `resolve-project`, `memory suggest-topic` — **fait** |
-| **P2** | Journal runtime (**fait**) ; signal additionnel **`topic_status_pairs`** dans `mem_conflict_candidates` / CLI (même `topic`, validated × rejected), sans dupliquer `mem_conflicts_with` (**fait**). |
+| **P0** | `mem_resolve_project`, progressive disclosure (descriptions), `mem_suggest_topic`, `.ai/.runtime/` + internal gitignore, `lexical_rank` on `mem_search` - **done** |
+| **P1** | `mem_timeline`, `mem_conflict_candidates`, CLI equivalents: `memory timeline`, `memory conflict-candidates`, `resolve-project`, `memory suggest-topic` - **done** |
+| **P2** | Runtime journal (**done**); additional **`topic_status_pairs`** signal in `mem_conflict_candidates` / CLI (same `topic`, validated x rejected), without duplicating `mem_conflicts_with` (**done**). |
 
-## Cartographie des outils existants
+## Existing Tool Map
 
-- Recherche : `mem_search`, `mem_relevant_to`, embed index (`semantic`).
-- Conflits par id : `mem_conflicts_with`.
-- Briefing / onboarding : `get_briefing`, `get_recap`.
-- Hub / multi-repo : config `crossRepoSources`, sync — inchangés par cette spec.
+- Search: `mem_search`, `mem_relevant_to`, embed index (`semantic`).
+- Conflicts by id: `mem_conflicts_with`.
+- Briefing / onboarding: `get_briefing`, `get_recap`.
+- Hub / multi-repo: config `crossRepoSources`, sync; unchanged by this spec.

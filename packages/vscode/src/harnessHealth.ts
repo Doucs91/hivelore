@@ -201,7 +201,7 @@ export function runHaive(cwd: string, args: string[]): Promise<string> {
     const cfg = vscode.workspace.getConfiguration("haive");
     const binary = cfg.get<string>("cliPath") || "haive";
 
-    cp.execFile(binary, args, { cwd, maxBuffer: 1024 * 512 }, (err, stdout, stderr) => {
+    cp.execFile(binary, args, { cwd, maxBuffer: 1024 * 1024 * 4 }, (err, stdout, stderr) => {
       if (err && !stdout) {
         reject(new Error(stderr || err.message));
         return;

@@ -56,7 +56,7 @@ export function registerEval(program: Command): void {
     .command("eval")
     .description(
       "Rigorous, repeatable quality eval: do the right memories surface (retrieval) and " +
-        "do the right sensors fire (catch-rate)? Emits a chiffré 0–100 score. " +
+        "do the right sensors fire (catch-rate)? Emits a numeric 0–100 score. " +
         "Uses .ai/eval cases via --spec, or auto-synthesizes cases from anchored memories.",
     )
     .option("--spec <file>", "JSON eval spec ({ retrieval: [...], sensors: [...] })")

@@ -32,9 +32,9 @@ sensor:
     - packages/mcp/src/tools/get-briefing.ts
     - packages/core/src/config.ts
 ---
-# Auto-promote inline ignore `autoPromoteMinReads` du config — utilise le default 5 en dur
+# Inline auto-promote ignores `autoPromoteMinReads` config and hardcodes default 5
 
-**Reproduit en v0.9.0** : la config `.ai/haive.config.json` (autopilot par défaut) contient `"autoPromoteMinReads": 1`. Mais l'auto-promote inline dans `get-briefing.ts` utilise `DEFAULT_AUTO_PROMOTE_RULE.minReads` (= 5) en dur sans charger la config :
+**Reproduced in v0.9.0**: `.ai/haive.config.json` (default autopilot config) contains `"autoPromoteMinReads": 1`. But inline auto-promote in `get-briefing.ts` uses hardcoded `DEFAULT_AUTO_PROMOTE_RULE.minReads` (= 5) without loading config:
 
 ```ts
 // packages/mcp/src/tools/get-briefing.ts:358-361
@@ -44,8 +44,8 @@ const rule = {
 };
 ```
 
-**Impact** : les utilisateurs autopilot s'attendent à une promotion rapide (minReads=1) mais ne l'obtiennent pas. Le verdict final "passive validation par usage" qui est promis dans la 0.9.0 ne marche qu'au seuil par défaut, pas au seuil configurable.
+**Impact**: autopilot users expect fast promotion (minReads=1) but do not get it. The "passive validation by usage" verdict promised in 0.9.0 only works at the default threshold, not the configurable threshold.
 
-**Fix** : `loadConfig(ctx.paths)` au début et utiliser `config.autoPromoteMinReads ?? DEFAULT_AUTO_PROMOTE_RULE.minReads`.
+**Fix**: call `loadConfig(ctx.paths)` at the start and use `config.autoPromoteMinReads ?? DEFAULT_AUTO_PROMOTE_RULE.minReads`.
 
-**Vérifié e2e** : 5 briefings consécutifs sur une mémoire `proposed` → status passe à `validated` à l'itération 5 (et non 1 comme attendu par config autopilot). Le mécanisme MARCHE, mais ignore la config.
+**Verified e2e**: 5 consecutive briefings on a `proposed` memory make status change to `validated` at iteration 5 (not 1 as expected from autopilot config). The mechanism works, but ignores config.

@@ -4,7 +4,7 @@ import type { LoadedMemory } from "./loader.js";
  * A rigorous, model-free, repeatable evaluation of hAIve's core promise: surfacing
  * the right knowledge and guardrails at the right moment. Unlike the agent benchmark
  * (which parses human-written reports), this is deterministic and CI-runnable — it
- * produces a chiffré quality score from labeled cases, so a regression in ranking or
+ * produces a numeric quality score from labeled cases, so a regression in ranking or
  * sensor coverage fails the build instead of silently degrading every agent session.
  *
  * Two case families:

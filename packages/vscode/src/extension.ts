@@ -6,6 +6,7 @@ import { HaiveCodeLensProvider } from "./codeLensProvider.js";
 import { HaiveTreeProvider } from "./treeProvider.js";
 import { HarnessHealthProvider, runHaive } from "./harnessHealth.js";
 import { BriefingPanel } from "./briefingPanel.js";
+import { ObservabilityProvider } from "./observabilityProvider.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -105,6 +106,19 @@ export function activate(ctx: vscode.ExtensionContext): void {
     showCollapseAll: false,
   });
   ctx.subscriptions.push(healthView);
+
+  // ── Strategic observability views ──────────────────────────────────────
+  const cockpitProvider = new ObservabilityProvider(workspaceRoot, outputChannel, "cockpit");
+  const inboxProvider = new ObservabilityProvider(workspaceRoot, outputChannel, "inbox");
+  const cockpitView = vscode.window.createTreeView("haive.cockpitView", {
+    treeDataProvider: cockpitProvider,
+    showCollapseAll: true,
+  });
+  const inboxView = vscode.window.createTreeView("haive.inboxView", {
+    treeDataProvider: inboxProvider,
+    showCollapseAll: true,
+  });
+  ctx.subscriptions.push(cockpitView, inboxView);
 
   // ── Briefing panel ──────────────────────────────────────────────────────
   const briefingPanel = new BriefingPanel();
@@ -330,6 +344,20 @@ export function activate(ctx: vscode.ExtensionContext): void {
     }),
   );
 
+  // ── Strategic observability refresh ────────────────────────────────────
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.refreshObservability", async () => {
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Window, title: "hAIve: refreshing observability…" },
+        async () => {
+          const snapshot = await cockpitProvider.refreshData();
+          if (snapshot) inboxProvider.useSnapshot(snapshot);
+        },
+      );
+      await vscode.commands.executeCommand("haive.cockpitView.focus");
+    }),
+  );
+
   // ── Sync memories ───────────────────────────────────────────────────────
   ctx.subscriptions.push(
     vscode.commands.registerCommand("haive.syncMemories", async () => {
@@ -342,6 +370,8 @@ export function activate(ctx: vscode.ExtensionContext): void {
             outputChannel.appendLine(out);
             store.load();
             treeProvider.refresh();
+            const snapshot = await cockpitProvider.refreshData();
+            if (snapshot) inboxProvider.useSnapshot(snapshot);
             updateStatusBar(statusBarItem, store);
             vscode.window.setStatusBarMessage("$(check) hAIve: sync complete", 3000);
           } catch (e) {
@@ -358,28 +388,24 @@ export function activate(ctx: vscode.ExtensionContext): void {
   // ── Approve memory ─────────────────────────────────────────────────────
   ctx.subscriptions.push(
     vscode.commands.registerCommand("haive.approveMemory", async (item?: { memory?: { id: string } }) => {
-      let id = item?.memory?.id;
+      let id = itemMemoryId(item);
       if (!id) {
         id = await vscode.window.showInputBox({ prompt: "Memory ID to approve", title: "hAIve: Approve Memory" });
       }
       if (!id) return;
-      const terminal = vscode.window.createTerminal({ name: "hAIve", cwd: workspaceRoot });
-      terminal.show();
-      terminal.sendText(`haive memory approve ${id}`);
+      await runHaiveAction(["memory", "approve", id], `approved ${id}`);
     }),
   );
 
   // ── Reject memory ──────────────────────────────────────────────────────
   ctx.subscriptions.push(
     vscode.commands.registerCommand("haive.rejectMemory", async (item?: { memory?: { id: string } }) => {
-      let id = item?.memory?.id;
+      let id = itemMemoryId(item);
       if (!id) {
         id = await vscode.window.showInputBox({ prompt: "Memory ID to reject", title: "hAIve: Reject Memory" });
       }
       if (!id) return;
-      const terminal = vscode.window.createTerminal({ name: "hAIve", cwd: workspaceRoot });
-      terminal.show();
-      terminal.sendText(`haive memory reject ${id}`);
+      await runHaiveAction(["memory", "reject", id], `rejected ${id}`);
     }),
   );
 
@@ -392,6 +418,8 @@ export function activate(ctx: vscode.ExtensionContext): void {
       store.load();
       treeProvider.refresh();
       codeLensProvider.refresh();
+      const snapshot = await cockpitProvider.refreshData();
+      if (snapshot) inboxProvider.useSnapshot(snapshot);
       updateStatusBar(statusBarItem, store);
       vscode.window.setStatusBarMessage(`$(check) ${successMsg}`, 3000);
       return true;
@@ -402,6 +430,16 @@ export function activate(ctx: vscode.ExtensionContext): void {
       vscode.window.showErrorMessage(`hAIve: ${msg}`);
       return false;
     }
+  }
+
+  async function openMemoryById(id: string | undefined): Promise<void> {
+    if (!id) return;
+    const memory = store.getAll().find((m) => m.id === id);
+    if (!memory) {
+      vscode.window.showWarningMessage(`hAIve: no local memory found for ${id}. Refresh memories and try again.`);
+      return;
+    }
+    await vscode.commands.executeCommand("haive.openMemory", memory.filePath);
   }
 
   /** Resolve a memory id from a tree item, or let the user pick one. */
@@ -426,6 +464,103 @@ export function activate(ctx: vscode.ExtensionContext): void {
     );
     return picked?.id;
   }
+
+  function itemMemoryId(item: unknown): string | undefined {
+    if (!item || typeof item !== "object") return undefined;
+    const record = item as { memoryId?: string; sensorId?: string; memory?: { id?: string } };
+    return record.memoryId ?? record.sensorId ?? record.memory?.id;
+  }
+
+  function itemActionArgs(item: unknown): string[] | undefined {
+    if (!item || typeof item !== "object") return undefined;
+    const record = item as { actionArgs?: string[] };
+    return record.actionArgs;
+  }
+
+  // ── Observability routines and item actions ────────────────────────────
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.openMemoryById", async (itemOrId?: unknown) => {
+      const id = typeof itemOrId === "string" ? itemOrId : itemMemoryId(itemOrId);
+      await openMemoryById(id);
+    }),
+  );
+
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.runEval", async () => {
+      await runHaiveAction(["eval"], "eval complete");
+    }),
+  );
+
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.saveEvalBaseline", async () => {
+      await runHaiveAction(["eval", "--baseline"], "eval baseline saved");
+    }),
+  );
+
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.compareEval", async () => {
+      await runHaiveAction(["eval", "--compare"], "eval comparison complete");
+    }),
+  );
+
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.runSensorsCheck", async () => {
+      await runHaiveAction(["sensors", "check"], "sensors check complete");
+    }),
+  );
+
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.runMemoryLint", async () => {
+      await runHaiveAction(["memory", "lint", "--fix"], "memory lint complete");
+    }),
+  );
+
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.runFixAction", async (item?: unknown) => {
+      const args = itemActionArgs(item);
+      if (!args || args.length === 0) {
+        vscode.window.showInformationMessage("hAIve: this item has no automatic fix.");
+        return;
+      }
+      await runHaiveAction(args, `ran haive ${args.join(" ")}`);
+    }),
+  );
+
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.markMemoryApplied", async (item?: unknown) => {
+      const id = itemMemoryId(item);
+      if (!id) return;
+      await runHaiveAction(["memory", "feedback", id, "--applied"], `marked ${id} as applied`);
+    }),
+  );
+
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.markMemoryRejected", async (item?: unknown) => {
+      const id = itemMemoryId(item);
+      if (!id) return;
+      const reason = await vscode.window.showInputBox({
+        title: "hAIve: Reject Memory Signal",
+        prompt: "Why was this memory wrong, noisy, or unhelpful?",
+        placeHolder: "Too generic / outdated / did not apply to this task",
+      });
+      if (reason === undefined) return;
+      await runHaiveAction(["memory", "feedback", id, "--rejected", "--reason", reason], `marked ${id} as rejected`);
+    }),
+  );
+
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("haive.promoteSensor", async (item?: unknown) => {
+      const id = itemMemoryId(item);
+      if (!id) return;
+      const choice = await vscode.window.showWarningMessage(
+        `Promote sensor ${id} to block? This can hard-fail commits when it fires.`,
+        { modal: true },
+        "Promote",
+      );
+      if (choice !== "Promote") return;
+      await runHaiveAction(["sensors", "promote", id, "--yes"], `promoted sensor ${id} to block`);
+    }),
+  );
 
   // ── Seed a stack pack ──────────────────────────────────────────────────
   ctx.subscriptions.push(

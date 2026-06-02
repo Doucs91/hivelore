@@ -20,51 +20,51 @@ topic: skill/save-decision-or-gotcha
 revision_count: 0
 requires_human_approval: false
 ---
-# Skill: Sauvegarder une décision ou un gotcha en cours de tâche
+# Skill: Save a decision or gotcha mid-task
 
-**Règle** : si tu fais un choix non-évident ou découvres un comportement surprenant, `mem_save` DANS LA MÊME RÉPONSE — pas à la fin de session.
+**Rule**: if you make a non-obvious choice or discover surprising behavior, call `mem_save` IN THE SAME RESPONSE, not at session end.
 
-## Quand déclencher
+## When to trigger
 
-| Situation | Type de mémoire |
+| Situation | Memory type |
 |-----------|----------------|
-| Tu choisis A plutôt que B pour une raison non-évidente | `decision` |
-| Tu découvres un comportement inattendu d'une lib/outil | `gotcha` |
-| Tu inventes un pattern réutilisé > 1 fois dans la session | `convention` |
-| Tu comprends POURQUOI une partie du code est faite ainsi | `decision` ou `architecture` |
-| Tu trouves une contrainte cachée (perf, sécurité, compatibilité) | `gotcha` |
+| You choose A instead of B for a non-obvious reason | `decision` |
+| You discover unexpected behavior in a library/tool | `gotcha` |
+| You create a pattern reused more than once in the session | `convention` |
+| You understand WHY part of the code is structured that way | `decision` or `architecture` |
+| You find a hidden constraint (performance, security, compatibility) | `gotcha` |
 
-## Seuil minimal pour sauvegarder
+## Minimum threshold for saving
 
-La question test : *"Si je reviens dans 3 semaines, est-ce que je referais la même erreur sans cette mémoire ?"*  
-Si oui → sauvegarder maintenant.
+Test question: *"If I come back in 3 weeks, would I repeat the same mistake without this memory?"*
+If yes, save it now.
 
-## Template décision
+## Decision Template
 
 ```
 mem_save(
   type: "decision",
-  slug: "pourquoi-X-plutot-que-Y",
-  body: "## Décision\nUtiliser X.\n\n## Pourquoi\nY cause [problème précis].\n\n## Alternatives rejetées\n- Y: [raison]\n",
-  paths: ["fichier où la décision s'applique"],
+  slug: "why-X-instead-of-Y",
+  body: "## Decision\nUse X.\n\n## Why\nY causes [specific problem].\n\n## Rejected alternatives\n- Y: [reason]\n",
+  paths: ["file where the decision applies"],
   scope: "team"
 )
 ```
 
-## Template gotcha
+## Gotcha Template
 
 ```
 mem_save(
   type: "gotcha",
-  slug: "comportement-surprenant-de-X",
-  body: "## Piège\nX se comporte de façon Y quand Z.\n\n## Impact\n...\n\n## Fix\n...",
-  paths: ["fichier concerné"],
+  slug: "surprising-behavior-of-X",
+  body: "## Trap\nX behaves like Y when Z.\n\n## Impact\n...\n\n## Fix\n...",
+  paths: ["affected file"],
   scope: "team"
 )
 ```
 
-## Ce qui NE mérite PAS une mémoire
+## What does NOT deserve a memory
 
-- Comportement évident documenté dans la doc officielle
-- Choix stylistique sans impact sur la logique
-- Correction d'une typo ou d'un bug trivial
+- Obvious behavior documented in the official docs
+- Style choice with no logic impact
+- Fixing a typo or trivial bug

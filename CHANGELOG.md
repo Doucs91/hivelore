@@ -6,6 +6,22 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.13.6] — strategic VS Code cockpit and English tool surface
+
+### Added
+- **VS Code Strategic Cockpit and Discipline Inbox** for observability, eval status, sensor hygiene,
+  memory impact, and suggested context-discipline actions.
+
+### Changed
+- **Tool-authored copy is now consistently English** across CLI/MCP generated action-required memories,
+  GitHub Action examples, VS Code docs/media, benchmark fixtures, Sonar examples, and project docs.
+- **Team memory records were translated to English** while keeping IDs and anchors stable, so future
+  briefings stay coherent without breaking references.
+
+### Fixed
+- GitHub Action action-required body stripping now recognizes both the new English heading and the
+  legacy French heading for older auto-generated memories.
+
 ## [0.13.5] — surface coherence Phases C/D/E (disambiguation + grouping)
 
 ### Changed

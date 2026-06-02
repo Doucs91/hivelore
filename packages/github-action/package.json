@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/github-action",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "GitHub Action for hAIve context policy and decision enforcement on pull requests",
   "license": "Apache-2.0",
   "repository": {

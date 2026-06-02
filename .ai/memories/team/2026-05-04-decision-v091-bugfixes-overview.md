@@ -18,21 +18,21 @@ last_read_at: null
 revision_count: 0
 requires_human_approval: false
 ---
-# v0.9.1 — Corrections des 4 bugs identifiés lors de l'audit v0.9.0
+# v0.9.1 - Fixes for the 4 bugs identified during the v0.9.0 audit
 
-## Bugs corrigés
+## Fixed Bugs
 
-### Bug #1 — haive-mcp désynchronisé (CRITIQUE)
-Fix : flag --version ajouté sur haive-mcp ; haive doctor détecte le mismatch CLI/MCP et suggère npm i -g @hiveai/cli@X @hiveai/mcp@X.
+### Bug #1 - haive-mcp out of sync (CRITICAL)
+Fix: added `--version` flag on `haive-mcp`; `haive doctor` detects CLI/MCP mismatch and suggests `npm i -g @hiveai/cli@X @hiveai/mcp@X`.
 
-### Bug #2 — pattern_detect slug collision
-Fix : slug CONFIG_CHANGE inclut parentDir-baseName. Fin des collisions pour fichiers homonymes dans dossiers différents.
+### Bug #2 - pattern_detect slug collision
+Fix: CONFIG_CHANGE slug includes `parentDir-baseName`. This ends collisions for same-name files in different directories.
 
-### Bug #3 — mem_save ignore scope explicite
-Fix : scope Zod rendu .optional() ; resolvedScope = input.scope ?? config.defaultScope ?? 'personal' calculé tôt ; utilisé pour dedup, topic-upsert et création.
+### Bug #3 - mem_save ignores explicit scope
+Fix: made Zod scope `.optional()`; computes `resolvedScope = input.scope ?? config.defaultScope ?? 'personal'` early; uses it for dedup, topic-upsert, and creation.
 
-### Bug #4 — auto-promote ignore autoPromoteMinReads
-Fix : loadConfig() juste avant le bloc inline auto-promote ; rule.minReads = cfg.autoPromoteMinReads ?? DEFAULT.
+### Bug #4 - auto-promote ignores autoPromoteMinReads
+Fix: `loadConfig()` immediately before the inline auto-promote block; `rule.minReads = cfg.autoPromoteMinReads ?? DEFAULT`.
 
 ## Tests
-+4 régression tests (140 total). Build propre.
++4 regression tests (140 total). Clean build.

@@ -27,13 +27,13 @@ Automatically surfaces relevant team memories, gotchas, and conventions in every
 ### `src/models/db.ts`
 
 <details>
-<summary>🏗️ DB — toujours appeler migrate() au démarrage  `team/convention`</summary>
-src/models/db.ts expose migrate(). Doit être await-ée avant app.listen()…
+<summary>🏗️ DB - always call migrate() at startup  `team/convention`</summary>
+src/models/db.ts exposes migrate(). It must be awaited before app.listen()...
 </details>
 
 <details>
-<summary>🎯 UUID comme PK — jamais d'entiers séquentiels  `team/decision`</summary>
-gen_random_uuid() pour toutes les tables…
+<summary>🎯 UUID as PK - never use sequential integers  `team/decision`</summary>
+Use gen_random_uuid() for all tables...
 </details>
 ```
 

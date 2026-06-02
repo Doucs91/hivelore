@@ -614,8 +614,8 @@ export async function getBriefing(
       id,
       summary,
       developer_message: quoteBlock ||
-        `Une modification externe potentiellement incompatible a été détectée (${id}). ` +
-        `Veux-tu que j'analyse l'impact et que je propose des mises à jour ?`,
+        `A potentially incompatible external change was detected (${id}). ` +
+        `Do you want me to analyze the impact and propose updates?`,
     };
   };
 

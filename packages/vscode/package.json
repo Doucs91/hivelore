@@ -2,7 +2,7 @@
   "name": "haive-vscode",
   "displayName": "hAIve — Agent Harness & Context Enforcement",
   "description": "Repo-native context policy for coding-agent harnesses: surface decisions, gotchas, skills, and harness health inline.",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "publisher": "hiveai",
   "icon": "media/icon.png",
   "license": "Apache-2.0",
@@ -39,6 +39,18 @@
           "contextualTitle": "Context records"
         },
         {
+          "id": "haive.cockpitView",
+          "name": "Strategic Cockpit",
+          "icon": "$(dashboard)",
+          "contextualTitle": "hAIve observability cockpit"
+        },
+        {
+          "id": "haive.inboxView",
+          "name": "Discipline Inbox",
+          "icon": "$(checklist)",
+          "contextualTitle": "Context hygiene actions"
+        },
+        {
           "id": "haive.harnessView",
           "name": "Harness Health",
           "icon": "$(pulse)",
@@ -50,6 +62,14 @@
       {
         "view": "haive.memoriesView",
         "contents": "No hAIve context records found in this workspace.\n\nRun `haive init` to initialize hAIve in your project.\n[Learn more](https://github.com/Doucs91/hAIve)\n\n[Initialize hAIve](command:haive.init)"
+      },
+      {
+        "view": "haive.cockpitView",
+        "contents": "Run a strategic hAIve check to see corpus health, eval quality, sensors, impact, usage, and risks.\n\n[Refresh Observability](command:haive.refreshObservability)"
+      },
+      {
+        "view": "haive.inboxView",
+        "contents": "Build the discipline inbox to review stale, pending, noisy, low-value, and sensor-related context work.\n\n[Refresh Observability](command:haive.refreshObservability)"
       },
       {
         "view": "haive.harnessView",
@@ -104,6 +124,60 @@
         "command": "haive.runDoctor",
         "title": "hAIve: Run Health Check",
         "icon": "$(pulse)"
+      },
+      {
+        "command": "haive.refreshObservability",
+        "title": "hAIve: Refresh Observability",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "haive.runEval",
+        "title": "hAIve: Run Eval",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "haive.saveEvalBaseline",
+        "title": "hAIve: Save Eval Baseline",
+        "icon": "$(bookmark)"
+      },
+      {
+        "command": "haive.compareEval",
+        "title": "hAIve: Compare Eval to Baseline",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "haive.runSensorsCheck",
+        "title": "hAIve: Run Sensors Check",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "haive.runMemoryLint",
+        "title": "hAIve: Run Memory Lint",
+        "icon": "$(wand)"
+      },
+      {
+        "command": "haive.openMemoryById",
+        "title": "hAIve: Open Memory by ID"
+      },
+      {
+        "command": "haive.runFixAction",
+        "title": "hAIve: Run Suggested Fix",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "haive.markMemoryApplied",
+        "title": "hAIve: Mark Memory Applied",
+        "icon": "$(check)"
+      },
+      {
+        "command": "haive.markMemoryRejected",
+        "title": "hAIve: Mark Memory Rejected",
+        "icon": "$(close)"
+      },
+      {
+        "command": "haive.promoteSensor",
+        "title": "hAIve: Promote Sensor to Block",
+        "icon": "$(shield)"
       },
       {
         "command": "haive.syncMemories",
@@ -172,6 +246,36 @@
           "group": "navigation@1"
         },
         {
+          "command": "haive.refreshObservability",
+          "when": "view == haive.cockpitView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "haive.runEval",
+          "when": "view == haive.cockpitView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "haive.compareEval",
+          "when": "view == haive.cockpitView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "haive.refreshObservability",
+          "when": "view == haive.inboxView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "haive.runMemoryLint",
+          "when": "view == haive.inboxView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "haive.runSensorsCheck",
+          "when": "view == haive.inboxView",
+          "group": "navigation@3"
+        },
+        {
           "command": "haive.syncMemories",
           "when": "view == haive.harnessView",
           "group": "navigation@2"
@@ -212,6 +316,41 @@
           "command": "haive.rejectMemory",
           "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
           "group": "haive@4"
+        },
+        {
+          "command": "haive.openMemoryById",
+          "when": "viewItem == haiveMemoryAction || viewItem == haiveMemoryFeedbackAction || viewItem == haiveSensorAction",
+          "group": "inline@1"
+        },
+        {
+          "command": "haive.markMemoryApplied",
+          "when": "viewItem == haiveMemoryFeedbackAction || viewItem == haiveMemoryAction",
+          "group": "inline@2"
+        },
+        {
+          "command": "haive.markMemoryRejected",
+          "when": "viewItem == haiveMemoryFeedbackAction || viewItem == haiveMemoryAction",
+          "group": "inline@3"
+        },
+        {
+          "command": "haive.promoteSensor",
+          "when": "viewItem == haiveSensorAction",
+          "group": "inline@4"
+        },
+        {
+          "command": "haive.runFixAction",
+          "when": "viewItem == haiveFixAction",
+          "group": "inline@5"
+        },
+        {
+          "command": "haive.approveMemory",
+          "when": "viewItem == haiveMemoryAction",
+          "group": "haive@1"
+        },
+        {
+          "command": "haive.rejectMemory",
+          "when": "viewItem == haiveMemoryAction",
+          "group": "haive@2"
         }
       ],
       "editor/title": [

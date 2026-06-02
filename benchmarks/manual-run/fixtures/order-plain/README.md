@@ -1,5 +1,5 @@
-# Fixture plain (bras sans haive)
+# Plain Fixture (without hAIve arm)
 
-Objectif: faire passer `pnpm test` sans lire de mémoires d’équipe : il n’y a pas de dossier `.ai/`.
+Goal: make `pnpm test` pass without reading team memories; there is no `.ai/` directory.
 
-Indice minimal: la validation des entrées doit être assez stricte pour que les tests verts reflètent des règles métier raisonnables sur `qty` et `sku`.
+Minimal hint: input validation must be strict enough for green tests to reflect reasonable business rules for `qty` and `sku`.

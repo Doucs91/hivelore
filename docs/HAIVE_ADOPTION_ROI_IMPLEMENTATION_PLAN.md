@@ -1,84 +1,84 @@
-# Plan — Adoption, ROI, tokens, et surface IDE (hAIve)
+# Plan - Adoption, ROI, Tokens, and IDE Surface (hAIve)
 
-Ce document liste les chantiers dérivés des recommandations produit techniques (context enforcement, breadcrumbs repo, optimisation de contexte, adoption, friction, PR, IDE). Chaque livrable indique où il vit dans le monorepo.
+This document lists workstreams derived from technical product recommendations (context enforcement, repo breadcrumbs, context optimization, adoption, friction, PRs, IDE). Each deliverable says where it lives in the monorepo.
 
-## Objectifs utilisateur
+## User Goals
 
-| Objectif | Mécanisme |
-|----------|-----------|
-| Valeur vite | `welcome` liste les décisions/gotchas fondateurs ; hints renforcés après `get_briefing` |
-| Moins de tokens | Presets briefing (`quick` / `balanced` / `deep`) ; format breadcrumbs `actions` dans `get_briefing` |
-| Qualité du corpus | `haive memory lint` ; similarité corps dans `mem_save` (warn) |
-| Preuve ROI | `haive stats --export-report <fichier.json>` (agrégats + métriques outils) |
-| Boucle équipe | Action GitHub : chemins d’ancre absents au checkout + checklist `haive memory verify` |
-| Surface IDE | Vue hAIve déplacée vers la **barre d’activités** + doc d’installation / usage VS Code |
+| Goal | Mechanism |
+|------|-----------|
+| Fast value | `welcome` lists foundational decisions/gotchas; stronger hints after `get_briefing` |
+| Fewer tokens | Briefing presets (`quick` / `balanced` / `deep`); `actions` breadcrumb format in `get_briefing` |
+| Corpus quality | `haive memory lint`; body similarity warning in `mem_save` |
+| ROI proof | `haive stats --export-report <file.json>` (aggregates + tool metrics) |
+| Team loop | GitHub Action: missing anchor paths at checkout + `haive memory verify` checklist |
+| IDE surface | hAIve view moved to the **Activity Bar** + VS Code install / usage docs |
 
-## Ordre d’implémentation (suivi)
+## Implementation Order (Tracking)
 
-1. **Core — presets et compression de corps**
-   - Fichiers : `packages/core/src/briefing-preset.ts`, `packages/core/src/briefing-body.ts`
-   - Export : `packages/core/src/index.ts`
-   - Tests : `packages/core/test/briefing-preset.test.ts`, `briefing-body.test.ts`
+1. **Core - presets and body compression**
+   - Files: `packages/core/src/briefing-preset.ts`, `packages/core/src/briefing-body.ts`
+   - Export: `packages/core/src/index.ts`
+   - Tests: `packages/core/test/briefing-preset.test.ts`, `briefing-body.test.ts`
 
-2. **MCP — `get_briefing`**
-   - Champ `budget_preset?: quick | balanced | deep` (substitue `max_tokens` / `max_memories` selon tableau)
-   - `format`: ajout `actions` (lignes type puces « actionnable » avant application du budget mémoires)
-   - Hints additionnels orientés valeur / `welcome` ou `attempt`
-   - Fichiers : `packages/mcp/src/tools/get-briefing.ts`, `packages/mcp/src/server.ts`
+2. **MCP - `get_briefing`**
+   - Field `budget_preset?: quick | balanced | deep` (substitutes `max_tokens` / `max_memories` according to the table)
+   - `format`: add `actions` (actionable bullet-like lines before applying the memory budget)
+   - Additional value-oriented hints / `welcome` or `attempt`
+   - Files: `packages/mcp/src/tools/get-briefing.ts`, `packages/mcp/src/server.ts`
 
-3. **MCP — `mem_save`**
-   - Avertissement similarité texte (Jaccard grossier sur tokens) vs autres mémoires du même scope/type
-   - Fichier : `packages/mcp/src/tools/mem-save.ts`
+3. **MCP - `mem_save`**
+   - Text similarity warning (rough Jaccard over tokens) vs other memories in the same scope/type
+   - File: `packages/mcp/src/tools/mem-save.ts`
 
 4. **CLI**
-   - `haive briefing --budget quick|balanced|deep` — `packages/cli/src/commands/briefing.ts`
-   - `haive welcome` — nouveau `packages/cli/src/commands/welcome.ts` + registre dans `index.ts`
-   - `haive memory lint` — nouveau `packages/cli/src/commands/memory-lint.ts`
-   - `haive stats --export-report <path>` — `packages/cli/src/commands/stats.ts`
+   - `haive briefing --budget quick|balanced|deep` - `packages/cli/src/commands/briefing.ts`
+   - `haive welcome` - new `packages/cli/src/commands/welcome.ts` + registry in `index.ts`
+   - `haive memory lint` - new `packages/cli/src/commands/memory-lint.ts`
+   - `haive stats --export-report <path>` - `packages/cli/src/commands/stats.ts`
 
 5. **GitHub Action**
-   - Liste des mémoires dont un chemin d’ancre correspond au fichier modifié **et** le fichier n’existe plus dans le workspace
-   - Footer : rappel `haive memory verify`
-   - Fichier : `packages/github-action/src/run.ts`
+   - List memories whose anchor path matches a modified file **and** the file no longer exists in the workspace
+   - Footer: `haive memory verify` reminder
+   - File: `packages/github-action/src/run.ts`
 
 6. **VS Code (`packages/vscode`)**
-   - Nouveau container de vues dans la barre d’activités (icône dédiée) → la vue « hAIve Memories » n’est plus noyée dans l’Explorer
-   - Document : cette section ci-dessous + mise à jour `package.json` `contributes`
-   - Fichiers : `package.json`, éventuelle note dans `packages/vscode/README.md` si présent
+   - New view container in the Activity Bar (dedicated icon), so the "hAIve Memories" view is no longer buried in Explorer
+   - Document this section below + update `package.json` `contributes`
+   - Files: `package.json`, possible note in `packages/vscode/README.md` if present
 
-## Presets briefing (valeurs livrées)
+## Briefing Presets (Delivered Values)
 
 | Preset | `max_tokens` | `max_memories` | `include_module_contexts` |
 |--------|--------------|----------------|---------------------------|
 | `quick` | 2500 | 5 | `false` |
-| `balanced` | 8000 | 8 | `true` (défaut historique) |
+| `balanced` | 8000 | 8 | `true` (historical default) |
 | `deep` | 16000 | 14 | `true` |
 
-`balanced` reflète les défauts actuels de `get_briefing` avant personnalisation.
+`balanced` reflects the current `get_briefing` defaults before customization.
 
-## Surface visible dans VS Code — ce qui est prévu pour toi
+## Visible VS Code Surface - What Is Planned for You
 
-- **Icône hAIve** dans la barre latérale gauche (activity bar), à côté de l’explorer / Git.
-- Ouverture de la liste des mémoires (existant), filtre « fichier courant », CodeLens et status bar conservés.
-- **Installation** : ouvrir le dossier racine où `.ai/memories/` existe ; le pack se nomme **`haive-vscode`** sous `packages/vscode/` — paquet avec `pnpm --filter haive-vscode run package` puis *Install from VSIX* dans Cursor/VS Code, ou publication marketplace plus tard.
+- **hAIve icon** in the left sidebar (Activity Bar), next to Explorer / Git.
+- Open the memory list (existing), current-file filter, CodeLens, and status bar remain.
+- **Installation**: open the root folder where `.ai/memories/` exists; the pack is named **`haive-vscode`** under `packages/vscode/`; package it with `pnpm --filter haive-vscode run package`, then use *Install from VSIX* in Cursor/VS Code, or publish to the marketplace later.
 
-## Hors périmètre volontaire (trop large pour ce lot)
+## Intentionally Out of Scope (Too Broad for This Batch)
 
-- Webview tableau de bord complet (graphiques temps réel).
-- Lint LLM-as-judge des mémoires.
-- Cross-repo complet au-delà de `crossRepoSources` / `hub` déjà prévus dans la config.
-- Middleware cloud de gouvernance signée.
+- Full dashboard webview (real-time charts).
+- LLM-as-judge memory lint.
+- Full cross-repo support beyond `crossRepoSources` / `hub` already planned in config.
+- Cloud middleware for signed governance.
 
-Ces axes restent évolutifs et peuvent s’accrocher après validation du flux PR + preset + rapport stats.
+These areas remain evolvable and can attach after the PR flow + presets + stats report are validated.
 
-## Implémenté (référence code)
+## Implemented (Code Reference)
 
-| Chantier | Fichiers / commandes principales |
-|---------|----------------------------------|
-| Presets + format `actions` | `packages/mcp/src/tools/get-briefing.ts`, `packages/core/src/briefing-preset.ts`, `packages/core/src/briefing-body.ts` |
-| Parité CLI | `haive briefing --budget`, `--memory-format`; `packages/cli/src/commands/briefing.ts` |
+| Workstream | Main files / commands |
+|------------|-----------------------|
+| Presets + `actions` format | `packages/mcp/src/tools/get-briefing.ts`, `packages/core/src/briefing-preset.ts`, `packages/core/src/briefing-body.ts` |
+| CLI parity | `haive briefing --budget`, `--memory-format`; `packages/cli/src/commands/briefing.ts` |
 | Onboarding | `haive welcome` |
-| Lint corpus | `haive memory lint` |
-| Export ROI locale | `haive stats --export-report` |
-| Action GitHub | `packages/github-action/src/run.ts` (ancres YAML + ancres cassées + footer) |
-| IDE | Vue activity bar dans `packages/vscode/package.json` + README |
+| Corpus lint | `haive memory lint` |
+| Local ROI export | `haive stats --export-report` |
+| GitHub Action | `packages/github-action/src/run.ts` (YAML anchors + broken anchors + footer) |
+| IDE | Activity Bar view in `packages/vscode/package.json` + README |

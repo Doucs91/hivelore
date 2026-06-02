@@ -367,21 +367,21 @@ export function registerSync(program: Command): void {
                     .map((c) => `- 🔴 **${c.name}** : \`${c.from}\` → \`${c.to}\``)
                     .join("\n");
                   const body =
-                    `## ⚠️ Action requise — confirmation humaine obligatoire\n\n` +
-                    `Des dépendances dans \`${result.file}\` ont changé de version majeure.\n` +
-                    `Une version majeure peut contenir des **breaking changes** qui impactent ce projet.\n\n` +
+                    `## ⚠️ Action required — human confirmation required\n\n` +
+                    `Dependencies in \`${result.file}\` changed major version.\n` +
+                    `A major version can contain **breaking changes** that affect this project.\n\n` +
                     `${depList}\n\n` +
                     `---\n\n` +
-                    `**🚫 Ne modifie aucun code de façon autonome.**\n\n` +
-                    `Informe le développeur avec ce message :\n\n` +
-                    `> *« J'ai détecté que ${majorBumps.map((c) => `\`${c.name}\``).join(", ")} ` +
-                    `a changé de version majeure (${majorBumps.map((c) => `${c.from} → ${c.to}`).join(", ")}). ` +
-                    `Cela peut introduire des incompatibilités dans ce projet. ` +
-                    `Veux-tu que j'analyse l'impact et que je propose des mises à jour ? »*\n\n` +
-                    `Attends une **confirmation explicite** avant d'agir.\n\n` +
-                    `**Prochaines étapes (si confirmé) :**\n` +
-                    `- Consulter le CHANGELOG : \`haive memory import-changelog --from node_modules/<pkg>/CHANGELOG.md\`\n` +
-                    `- Vérifier les mémoires ancrées : \`haive memory verify\``;
+                    `**🚫 Do not modify code autonomously.**\n\n` +
+                    `Inform the developer with this message:\n\n` +
+                    `> *"I detected that ${majorBumps.map((c) => `\`${c.name}\``).join(", ")} ` +
+                    `changed major version (${majorBumps.map((c) => `${c.from} → ${c.to}`).join(", ")}). ` +
+                    `This can introduce incompatibilities in this project. ` +
+                    `Do you want me to analyze the impact and propose updates?"*\n\n` +
+                    `Wait for **explicit confirmation** before acting.\n\n` +
+                    `**Next steps (if confirmed):**\n` +
+                    `- Check the CHANGELOG: \`haive memory import-changelog --from node_modules/<pkg>/CHANGELOG.md\`\n` +
+                    `- Verify anchored memories: \`haive memory verify\``;
                   const fm = buildFrontmatter({
                     type: "gotcha",
                     slug,
@@ -431,25 +431,25 @@ export function registerSync(program: Command): void {
               const slug = `contract-breaking-${diff.contract.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-${Date.now().toString(36)}`;
               const breakingList = breaking.map((c) => `- 🔴 **${c.kind}** : ${c.description}`).join("\n");
               const addList = additive.length > 0
-                ? `\n\n### Changements non-breaking (additifs)\n` +
+                ? `\n\n### Non-breaking changes (additive)\n` +
                   additive.map((c) => `- 🟢 ${c.description}`).join("\n")
                 : "";
               const body =
-                `## ⚠️ Action requise — confirmation humaine obligatoire\n\n` +
-                `Le contrat **\`${diff.contract}\`** (\`${diff.file}\`) a été modifié.\n` +
-                `Des **breaking changes** ont été détectés — ce projet consomme peut-être ce contrat.\n\n` +
+                `## ⚠️ Action required — human confirmation required\n\n` +
+                `Contract **\`${diff.contract}\`** (\`${diff.file}\`) was modified.\n` +
+                `**Breaking changes** were detected — this project may consume that contract.\n\n` +
                 `${breakingList}${addList}\n\n` +
                 `---\n\n` +
-                `**🚫 Ne modifie aucun code de façon autonome.**\n\n` +
-                `Informe le développeur avec ce message :\n\n` +
-                `> *« J'ai détecté que le contrat \`${diff.contract}\` a changé : ` +
-                `${breaking.length} breaking change(s) détecté(s). ` +
-                `Ce projet dépend peut-être de ce contrat. ` +
-                `Veux-tu que j'analyse l'impact et que je propose des mises à jour ? »*\n\n` +
-                `Attends une **confirmation explicite** avant d'agir.\n\n` +
-                `**Prochaines étapes (si confirmé) :**\n` +
-                `- Rechercher les usages : \`haive memory for-files <fichiers concernés>\`\n` +
-                `- Vérifier les mémoires liées : \`haive memory search ${diff.contract}\``;
+                `**🚫 Do not modify code autonomously.**\n\n` +
+                `Inform the developer with this message:\n\n` +
+                `> *"I detected that contract \`${diff.contract}\` changed: ` +
+                `${breaking.length} breaking change(s) detected. ` +
+                `This project may depend on that contract. ` +
+                `Do you want me to analyze the impact and propose updates?"*\n\n` +
+                `Wait for **explicit confirmation** before acting.\n\n` +
+                `**Next steps (if confirmed):**\n` +
+                `- Search usages: \`haive memory for-files <affected files>\`\n` +
+                `- Check related memories: \`haive memory search ${diff.contract}\``;
               const fm = buildFrontmatter({
                 type: "gotcha",
                 slug,

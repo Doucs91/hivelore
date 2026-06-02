@@ -282,10 +282,11 @@ function formatComment(
           `<summary>${icon} <strong>${m.title}</strong> ${scopeBadge}${arBadge}${statusBadge}</summary>\n`,
         );
 
-        // Body — strip the "action required" header for non-AR memories (already surfaced above)
+        // Strip the "action required" header for non-AR memories (already surfaced above).
+        // Keep the legacy French heading for old auto-generated memories.
         const bodyToShow = m.requiresHumanApproval
           ? m.body.trim()
-          : m.body.replace(/^##\s*⚠️ Action requise.*\n[\s\S]*?---\n\n/m, "").trim();
+          : m.body.replace(/^##\s*⚠️ Action (?:required|requise).*\n[\s\S]*?---\n\n/m, "").trim();
 
         lines.push(bodyToShow.slice(0, 800) + (bodyToShow.length > 800 ? "\n\n…" : ""));
         lines.push(`\n</details>\n`);

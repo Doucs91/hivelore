@@ -1,21 +1,21 @@
-# Résultats — benchmark manuel
+# Results - Manual Benchmark
 
-Modèle (Cursor) : _à compléter par l’exécutant_  
-Date : 2026-05-05  
-Branche : _local_
+Model (Cursor): _to be completed by the runner_
+Date: 2026-05-05
+Branch: _local_
 
-## T1 — Validation `CreateOrderInputSchema`
+## T1 - `CreateOrderInputSchema` Validation
 
-| Bras | Projet ouvert | Briefing haive / mémoires | Temps jusqu’au vert (wall-clock) | Erreurs terminal (nombre) | Itérations test→fix | Tokens (in/out) | Notes |
-|------|---------------|---------------------------|----------------------------------|----------------------------|---------------------|-----------------|-------|
-| A — haive | `fixtures/order-haive` | `get_briefing` MCP : 0 mémoire retournée (racine MCP ≠ fixture) ; mémoire lue sur disque `.ai/memories/team/…` | ~session agent (non chronométré strictement) ; `pnpm test` post-fix **1,35 s** | 0 après correction schéma ; phase setup : échec `zod` résolu par `pnpm install --ignore-workspace` | 1 (schéma → tests verts) | N/A | Correctif appliqué : `z.number().int().positive()` + `z.string().trim().min(1)` aligné mémoire |
-| B — sans haive | `fixtures/order-plain` | Aucun | idem ; `pnpm test` ~0,4 s | 0 après correction | 1 | N/A | Correctif possible sans mémoire : `z.number().int().min(1)` + `z.string().min(1)` — pas de `.trim()` requis par les tests |
+| Arm | Open project | hAIve briefing / memories | Time to green (wall-clock) | Terminal errors (count) | Test-to-fix iterations | Tokens (in/out) | Notes |
+|-----|--------------|---------------------------|----------------------------|-------------------------|------------------------|-----------------|-------|
+| A - hAIve | `fixtures/order-haive` | MCP `get_briefing`: 0 memories returned (MCP root != fixture); memory read from disk `.ai/memories/team/...` | ~agent session (not strictly timed); post-fix `pnpm test` **1.35 s** | 0 after schema correction; setup phase: `zod` failure fixed with `pnpm install --ignore-workspace` | 1 (schema -> green tests) | N/A | Applied fix: `z.number().int().positive()` + `z.string().trim().min(1)` aligned with memory |
+| B - without hAIve | `fixtures/order-plain` | None | same; `pnpm test` ~0.4 s | 0 after correction | 1 | N/A | Fix possible without memory: `z.number().int().min(1)` + `z.string().min(1)`; `.trim()` is not required by tests |
 
-### Pilotage infrastructure (hors protocole idéal)
+### Infrastructure Notes (outside the ideal protocol)
 
-- Les fixtures sont **sous un monorepo pnpm** : un `pnpm install` « normal » depuis le sous-dossier remonte au workspace et Vitest ne voit pas `zod`. **Recommandé dans le RUNBOOK** : `npm install` / `npm test` dans le sous-dossier, ou `pnpm install --ignore-workspace`.
+- The fixtures live **under a pnpm monorepo**: a normal `pnpm install` from the subfolder walks up to the workspace and Vitest cannot see `zod`. **Recommended in the RUNBOOK**: `npm install` / `npm test` in the subfolder, or `pnpm install --ignore-workspace`.
 
-### Suite
+### Next
 
-- Reprendre T1 avec **deux chats distincts**, même modèle, temps depuis l’envoi du prompt jusqu’au vert.
-- Répéter N≥5 par bras pour une moyenne / médiane.
+- Rerun T1 with **two distinct chats**, same model, timed from prompt send to green tests.
+- Repeat N>=5 per arm for an average / median.

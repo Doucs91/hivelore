@@ -1,60 +1,60 @@
-# Benchmark manuel Cursor — haive vs sans haive
+# Manual Cursor Benchmark - hAIve vs without hAIve
 
-Deux **fixtures identiques** (Vitest + Zod) : `fixtures/order-haive` (avec `.ai/` et mémoire équipe) et `fixtures/order-plain` (sans `.ai/`).
+Two **identical fixtures** (Vitest + Zod): `fixtures/order-haive` (with `.ai/` and team memory) and `fixtures/order-plain` (without `.ai/`).
 
-## Prérequis
+## Prerequisites
 
-- hAIve global (ex. `haive --version`) pour initialiser / vérifier le bras haive.
-- `pnpm` installé.
+- Global hAIve (for example `haive --version`) to initialize / verify the hAIve arm.
+- `pnpm` installed.
 
-## Préparation des fixtures (à chaque machine)
+## Fixture Setup (on each machine)
 
-Dans **chaque** sous-dossier `fixtures/order-plain` et `fixtures/order-haive` — utiliser **npm** évite que pnpm remonte au monorepo parent :
+In **each** subfolder, `fixtures/order-plain` and `fixtures/order-haive`, use **npm** so pnpm does not walk up to the parent monorepo:
 
 ```bash
-cd fixtures/order-plain   # ou order-haive
+cd fixtures/order-plain   # or order-haive
 rm -rf node_modules
 npm install
-npm test   # doit échouer (3 tests rouges sur la validation)
+npm test   # should fail (3 red validation tests)
 ```
 
-Si tu préfères pnpm : `pnpm install --ignore-workspace` (sinon `zod` n’est pas résolu pour Vitest).
+If you prefer pnpm: `pnpm install --ignore-workspace` (otherwise `zod` is not resolved for Vitest).
 
-## Tâche T1 (identique pour les deux bras)
+## Task T1 (same for both arms)
 
-**Objectif :** faire passer `pnpm test` en ne modifiant que `src/schemas.ts` (et seulement si besoin, imports dans ce fichier).
+**Goal:** make `pnpm test` pass by modifying only `src/schemas.ts` (and imports in that file only if needed).
 
-**Prompt canonique** (copier-coller tel quel) :
+**Canonical prompt** (copy-paste exactly):
 
 ```text
-Tu es dans un mini-projet TypeScript (Vitest + Zod). Fais passer toutes les suites :
-npm install puis npm test.
-Ne modifie que src/schemas.ts pour que CreateOrderInputSchema reflète les règles attendues par les tests.
-Ne lis pas d’autres dépôts ni le web.
+You are in a small TypeScript project (Vitest + Zod). Make all suites pass:
+npm install then npm test.
+Only modify src/schemas.ts so CreateOrderInputSchema reflects the rules expected by the tests.
+Do not read other repositories or the web.
 ```
 
-### Bras A — Avec haive
+### Arm A - With hAIve
 
-1. Ouvrir le dossier `benchmarks/manual-run/fixtures/order-haive` comme racine de la fenêtre Cursor (ou workspace dédié).
-2. Activer le MCP **haive** ; au début de la tâche : `get_briefing` + lecture des mémoires équipe (ou `haive memory list` / fichiers `.ai/memories/...`).
-3. Démarrer un chrono au premier envoi du prompt canonique.
-4. Arrêter au premier `pnpm test` entièrement vert (ou au budget temps convenu).
-5. Noter dans `RESULTS.md` : temps, erreurs terminal, estimation tokens (si l’UI/API les donne), itérations homme/agent.
+1. Open `benchmarks/manual-run/fixtures/order-haive` as the Cursor window root (or as a dedicated workspace).
+2. Enable the **hAIve** MCP; at task start, use `get_briefing` and read team memories (or `haive memory list` / `.ai/memories/...` files).
+3. Start a timer when the canonical prompt is first sent.
+4. Stop at the first fully green `pnpm test` run (or at the agreed time budget).
+5. Record in `RESULTS.md`: time, terminal errors, token estimate (if the UI/API provides it), human/agent iterations.
 
-### Bras B — Sans haive
+### Arm B - Without hAIve
 
-1. **Nouvelle** fenêtre Cursor ou chat **sans** serveur MCP haive (et sans ouvrir les fichiers `.ai/` du dépôt parent).
-2. Ouvrir uniquement `benchmarks/manual-run/fixtures/order-plain`.
-3. Même prompt canonique, même procédure de mesure.
+1. Use a **new** Cursor window or chat **without** the hAIve MCP server (and without opening `.ai/` files from the parent repo).
+2. Open only `benchmarks/manual-run/fixtures/order-plain`.
+3. Use the same canonical prompt and the same measurement procedure.
 
-### Limites (honnêteté méthodo)
+### Limits (methodology honesty)
 
-- Deux sessions différentes sont nécessaires pour limiter la **contamination** (souvenir du correctif). Le pilote ci-dessous a été fait par un seul agent en séquence : les temps « agent » sont indicatifs ; les comparaisons tirées du **même modèle** dans deux chats propres sont plus fiables.
+- Two separate sessions are required to limit **contamination** (remembering the fix). The pilot below was run by one agent sequentially: the "agent" times are indicative; comparisons from the **same model** in two clean chats are more reliable.
 
-## Fichiers utiles
+## Useful Files
 
-- Mémoire « bonne » (bras haive uniquement) :  
+- Good memory (hAIve arm only):
   `fixtures/order-haive/.ai/memories/team/2026-05-05-convention-order-input-zod.md`
-- Tests de vérité : `fixtures/*/test/order.test.ts`
+- Truth tests: `fixtures/*/test/order.test.ts`
 
-Enregistrer les métriques dans `RESULTS.md` (modèle + date + branche).
+Record metrics in `RESULTS.md` (model + date + branch).

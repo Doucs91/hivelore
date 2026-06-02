@@ -21,13 +21,13 @@ last_read_at: null
 revision_count: 1
 requires_human_approval: false
 ---
-# pattern_detect produit des slugs collidants pour des fichiers homonymes dans des dossiers différents
+# pattern_detect creates colliding slugs for same-name files in different directories
 
-> ✅ **Corrigé en v0.9.1** — le code utilise maintenant `parentDir-baseName` dans le slug CONFIG_CHANGE. Ce gotcha est conservé comme documentation historique et pour éviter toute régression.
+> ✅ **Fixed in v0.9.1** - the code now uses `parentDir-baseName` in the CONFIG_CHANGE slug. This gotcha is kept as historical documentation and to prevent regressions.
 
-**Reproduit en v0.9.0** : 3 modifications de `vitest.config.ts` (cli/, core/, embeddings/) → 3 matches `config_change` avec le **même slug** `config-change-vitest-config`. Conséquence : `id` identique (date+slug+type), seul le 1er fichier mémoire est créé, les 2 autres signaux sont silencieusement perdus.
+**Reproduced in v0.9.0**: 3 modifications to `vitest.config.ts` (cli/, core/, embeddings/) produced 3 `config_change` matches with the **same slug** `config-change-vitest-config`. Consequence: identical `id` (date+slug+type), only the first memory file was created, and the other 2 signals were silently lost.
 
-**Code en cause (v0.9.0)** : `packages/mcp/src/tools/pattern-detect.ts` ligne ~122 :
+**Code at fault (v0.9.0)**: `packages/mcp/src/tools/pattern-detect.ts` around line 122:
 ```ts
 const slug = path.basename(file)
   .replace(/\.[^.]+$/, "")
@@ -35,13 +35,13 @@ const slug = path.basename(file)
   .toLowerCase()
   .slice(0, 40);
 ```
-N'utilisait que `basename`, pas le dossier parent.
+It used only `basename`, not the parent directory.
 
-**Fix appliqué** :
+**Applied fix**:
 ```ts
 const parentDir = path.basename(path.dirname(file));
 const baseName = path.basename(file).replace(/\.[^.]+$/, "");
 const slug = `${parentDir}-${baseName}`.replace(/[^a-z0-9]/gi, "-").toLowerCase().slice(0, 40);
 ```
 
-**Si cette régression réapparaît** : vérifier que le slug CONFIG_CHANGE inclut `parentDir` — sans quoi des fichiers homonymes dans des dossiers différents produisent des IDs identiques et les signaux sont silencieusement perdus.
+**If this regression reappears**: verify that the CONFIG_CHANGE slug includes `parentDir`; otherwise same-name files in different directories produce identical IDs and signals are silently lost.

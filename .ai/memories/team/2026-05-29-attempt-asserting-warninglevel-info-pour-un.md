@@ -27,8 +27,8 @@ sensor:
   paths:
     - packages/mcp/test/anti-patterns.test.ts
 ---
-# asserting `warning.level === "info"` pour un anchor-only match sans diff littéral
+# asserting `warning.level === "info"` for an anchor-only match without literal diff overlap
 
-**Why it failed / do NOT use:** Le token "service" du diff `"+ some change to service"` matche `anchorPathTokens` de `src/service.ts` via `collectAnchorPathTokens` (qui indexe chaque segment de chemin). Résultat: anchor + literal → "review", pas "info".
+**Why it failed / do NOT use:** the token "service" from diff `"+ some change to service"` matches `anchorPathTokens` from `src/service.ts` through `collectAnchorPathTokens` (which indexes each path segment). Result: anchor + literal -> "review", not "info".
 
-**Instead, use:** Asserter `["info", "review", "blocking"].includes(level)` ou utiliser un diff dont aucun token ne correspond aux segments du chemin ancré. Pour tester "info pur", utiliser un diff sans rapport lexical avec le path (ex. diff `"+ foo = bar"` sur anchor `src/service.ts`).
+**Instead, use:** assert `["info", "review", "blocking"].includes(level)` or use a diff whose tokens do not match any anchored path segment. To test pure "info", use a diff with no lexical relation to the path (for example diff `"+ foo = bar"` on anchor `src/service.ts`).

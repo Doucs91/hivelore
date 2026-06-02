@@ -20,36 +20,36 @@ topic: skill/capture-failed-approach
 revision_count: 0
 requires_human_approval: false
 ---
-# Skill: Capturer une approche échouée immédiatement
+# Skill: Capture a failed approach immediately
 
-**Règle absolue** : appeler `mem_tried` AVANT de corriger. Pas après. Pas en fin de session. Avant.
+**Absolute rule**: call `mem_tried` BEFORE fixing. Not after. Not at session end. Before.
 
-## Quand déclencher (liste exhaustive)
+## When to trigger (exhaustive list)
 
-| Situation | Exemple concret |
+| Situation | Concrete example |
 |-----------|----------------|
-| Option CLI inexistante | `haive init --yes` → "unknown option" |
-| Import/API qui n'existe pas | `import { X } from "pkg"` → ERR_MODULE_NOT_FOUND |
-| Test qui échoue à cause d'une mauvaise hypothèse | Asserter `level === "info"` alors que la logique produit "review" |
-| Approche entièrement refaite (> 15 min perdues) | Réécrire une fonction après avoir mal compris l'interface |
-| Regex/pattern qui semble correct mais ne matche pas | `/\b(foo)\b/.test(command)` ne matche pas ce qu'on croit |
-| Comportement surprenant d'une lib qu'on ne documente PAS | Ce sera un gotcha, pas un attempt |
+| Nonexistent CLI option | `haive init --yes` -> "unknown option" |
+| Import/API that does not exist | `import { X } from "pkg"` -> ERR_MODULE_NOT_FOUND |
+| Test fails because of a wrong assumption | Assert `level === "info"` while the logic produces "review" |
+| Approach entirely redone (> 15 min lost) | Rewrite a function after misunderstanding the interface |
+| Regex/pattern that seems correct but does not match | `/\b(foo)\b/.test(command)` does not match what you think |
+| Surprising library behavior you do NOT document | This should be a gotcha, not an attempt |
 
-## Comment appeler
+## How to call
 
 ```
 mem_tried(
-  what: "description courte de ce qu'on a essayé",
-  why_failed: "l'erreur exacte ou la raison précise",
-  instead: "ce qu'il faut faire à la place",
-  paths: ["fichier concerné si pertinent"],
-  scope: "team"  // si applicable à toute l'équipe, sinon "personal"
+  what: "short description of what was tried",
+  why_failed: "the exact error or precise reason",
+  instead: "what to do instead",
+  paths: ["affected file if relevant"],
+  scope: "team"  // if applicable to the whole team, otherwise "personal"
 )
 ```
 
-## Anti-patterns à éviter
+## Anti-patterns to avoid
 
-- ❌ Corriger silencieusement sans documenter → la prochaine session refait la même erreur
-- ❌ Attendre la fin de session → le contexte est perdu, le body sera vague
-- ❌ Documenter uniquement dans un commentaire de code → invisible aux autres agents
-- ❌ "C'était une erreur évidente, pas besoin de documenter" → ce que toi tu trouves évident maintenant sera oublié demain
+- ❌ Fix silently without documenting -> the next session repeats the same mistake
+- ❌ Wait until session end -> context is lost and the body will be vague
+- ❌ Document only in a code comment -> invisible to other agents
+- ❌ "It was an obvious mistake, no need to document" -> what feels obvious now will be forgotten tomorrow

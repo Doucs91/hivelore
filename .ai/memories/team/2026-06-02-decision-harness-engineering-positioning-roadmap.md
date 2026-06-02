@@ -23,34 +23,34 @@ last_read_at: null
 revision_count: 0
 requires_human_approval: false
 ---
-## Positionnement de hAIve dans le Harness Engineering (analyse 2026-06-01)
+## hAIve Positioning in Harness Engineering (2026-06-01 analysis)
 
-Synthèse de 7 sources (Fowler, Anthropic long-running agents, Faros 5-layer, awesome-harness-engineering, NxCode, RedHat, Augment).
+Synthesis of 7 sources (Fowler, Anthropic long-running agents, Faros 5-layer, awesome-harness-engineering, NxCode, RedHat, Augment).
 
-### Cadre du domaine
-- **Fowler** : harness = tout sauf le modèle. Deux contrôles : **guides (feedforward, avant l'action)** + **sensors (feedback, après l'action)**. Computationnel (déterministe: lint/test/typecheck) vs inférentiel (IA). Steering loop : "chaque erreur → une solution durable pour qu'elle ne se reproduise jamais". 3 régulations : maintenabilité (mature), fitness archi (moyen), **comportement (non résolu)**.
-- **Faros 5 couches** : 1.tool orchestration 2.verification loops 3.**context & memory** 4.guardrails 5.observability.
-- **Anthropic** : mémoire repo-native (progress files, git comme état), travail incrémental, vérif au démarrage.
+### Domain frame
+- **Fowler**: harness = everything except the model. Two controls: **guides (feedforward, before action)** + **sensors (feedback, after action)**. Computational (deterministic: lint/test/typecheck) vs inferential (AI). Steering loop: "each error -> durable solution so it never repeats." 3 regulation layers: maintainability (mature), architecture fitness (medium), **behavior (unsolved)**.
+- **Faros 5 layers**: 1. tool orchestration 2. verification loops 3. **context & memory** 4. guardrails 5. observability.
+- **Anthropic**: repo-native memory (progress files, git as state), incremental work, startup verification.
 
-### Où est hAIve
-Couche 3 (Context & Memory) + steering policy. **Implémentation la plus propre de la boucle feedback-sur-connaissance** (mem_tried capture, get_briefing réinjecte). MAIS : 1 couche sur 5, et **uniquement feedback, pas feedforward**.
+### Where hAIve sits
+Layer 3 (Context & Memory) + steering policy. **Cleanest implementation of the feedback-on-knowledge loop** (`mem_tried` captures, `get_briefing` reinjects). BUT: 1 layer out of 5, and **feedback only, not feedforward**.
 
-### Forces
-Mémoire repo-native git-versionnée/PR-reviewable/team-shared ; taxonomie typée ; **mémoire négative (mem_tried)** ; couche enforcement ; MCP-natif ; coordination multi-agent ; embeddings locaux ; mesure d'impact ; léger zéro-infra.
+### Strengths
+Repo-native memory, git-versioned, PR-reviewable, team-shared; typed taxonomy; **negative memory (`mem_tried`)**; enforcement layer; MCP-native; multi-agent coordination; local embeddings; impact measurement; lightweight zero-infra.
 
-### Faiblesses
-1 couche/5 ; tout feedback zéro feedforward ; behaviour harness absent ; enforcement majoritairement soft (prose CLAUDE.md) ; risque pourrissement/bloat mémoire ; charge de discipline manuelle ; pas positionné comme standard portable.
+### Weaknesses
+1 layer out of 5; all feedback and no feedforward; missing behavior harness; mostly soft enforcement (`CLAUDE.md` prose); risk of memory rot/bloat; manual discipline burden; not yet positioned as a portable standard.
 
-### Roadmap (priorisée) — "rendre hAIve irrésistible"
-1. **Memory→Guardrail compiler** (KILLER) : générer depuis gotcha/convention/attempt un check exécutable (lint custom, fitness fn, pre-commit hook). Pont mémoire→feedforward. Personne ne le fait.
-2. **Auto-capture depuis CI & revues PR** : un échec CI / commentaire PR génère une mémoire automatiquement.
-3. **Harness templates par topologie** (Next.js+NestJS, Python…) : seed memories+conventions+checks.
-4. **Behaviour harness** : relier spec.json/eval aux mem_tried → evals de régression.
-5. **Cycle de vie auto mémoire** : décroissance, confiance, contradictions, dédup/merge, promotion personal→team.
-6. **Dashboard observabilité mémoire** : étendre memory-impact, drift detection.
-7. **Guardrails durs** : phase-gating / intent-level au-delà de la prose.
-8. **`.ai/` comme standard ouvert** : adapters cross-harness (Cursor, Copilot…).
-9. **Chargement progressif du contexte** : fragments à la demande (anti-bloat).
+### Roadmap (prioritized) - "make hAIve irresistible"
+1. **Memory->Guardrail compiler** (killer feature): generate an executable check from a gotcha/convention/attempt (custom lint, fitness function, pre-commit hook). Bridge memory -> feedforward. Nobody does this.
+2. **Auto-capture from CI & PR reviews**: a CI failure / PR comment generates a memory automatically.
+3. **Harness templates by topology** (Next.js+NestJS, Python...): seed memories+conventions+checks.
+4. **Behavior harness**: connect `spec.json`/eval to `mem_tried` -> regression evals.
+5. **Automatic memory lifecycle**: decay, confidence, contradictions, dedup/merge, personal->team promotion.
+6. **Memory observability dashboard**: extend memory-impact, drift detection.
+7. **Hard guardrails**: phase-gating / intent-level beyond prose.
+8. **`.ai/` as an open standard**: cross-harness adapters (Cursor, Copilot...).
+9. **Progressive context loading**: on-demand fragments (anti-bloat).
 
-### Thèse
-hAIve = meilleure mémoire repo-native + steering policy, mais 1 couche/5 et feedback-only. Pour devenir irrésistible : **convertir les mémoires en guides déterministes (feedforward)** + **auto-capture CI/PR**. Alors hAIve devient le control plane qui ferme la boucle de Fowler à la place de l'humain.
+### Thesis
+hAIve = best repo-native memory + steering policy, but 1 layer out of 5 and feedback-only. To become irresistible: **convert memories into deterministic guides (feedforward)** + **auto-capture CI/PR**. Then hAIve becomes the control plane that closes Fowler's loop instead of leaving it to the human.

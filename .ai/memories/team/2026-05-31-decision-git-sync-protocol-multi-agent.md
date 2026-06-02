@@ -25,23 +25,23 @@ requires_human_approval: false
 # Git sync protocol for multi-agent work
 
 ## Guidance
-Plusieurs agents ET l'humain (Sady) travaillent en parallèle sur ce repo avec des pull/push manuels. Sans protocole commun, on obtient des conflits (ex: marqueurs de conflit laissés dans .ai/project-context.md) et des versions désynchronisées.
+Several agents and the human (Sady) work in parallel on this repo with manual pull/push flows. Without a shared protocol, conflicts happen (for example conflict markers left in `.ai/project-context.md`) and versions drift out of sync.
 
-PROTOCOLE OBLIGATOIRE POUR TOUT AGENT:
+MANDATORY PROTOCOL FOR EVERY AGENT:
 
-AVANT de commencer une tâche (entrée):
-1. git pull (récupérer la dernière version depuis GitHub).
-2. Résoudre les conflits éventuels AVANT de toucher au code.
-3. Vérifier qu'aucun marqueur de conflit ne subsiste (<<<<<<<, =======, >>>>>>>), surtout dans .ai/.
+BEFORE starting a task (entry):
+1. `git pull` (fetch the latest version from GitHub).
+2. Resolve any conflicts BEFORE touching code.
+3. Verify that no conflict markers remain (`<<<<<<<`, `=======`, `>>>>>>>`), especially in `.ai/`.
 
-APRÈS modification du code (sortie):
-1. git commit des changements.
-2. BUMP de version UNIQUEMENT si le code livrable change (packages publiables: @hiveai/core, cli, mcp, embeddings). Les commits qui ne touchent que docs / .ai/ / config / CI → commit + push SANS bump ni tag.
-3. Si bump: patch par défaut (0.10.1 → 0.10.2). minor/major seulement si justifié (feature / breaking). Versions en lockstep sur les 4 packages publiables.
-4. Si bump: créer le tag git vX.Y.Z correspondant.
-5. git push du code ET des tags vers GitHub (git push && git push --tags).
+AFTER modifying code (exit):
+1. Commit the changes.
+2. Version bump ONLY if deliverable code changes (publishable packages: `@hiveai/core`, `cli`, `mcp`, `embeddings`). Commits that only touch docs / `.ai/` / config / CI get committed and pushed WITHOUT a bump or tag.
+3. If bumping: patch by default (`0.10.1` -> `0.10.2`). Use minor/major only when justified (feature / breaking). Keep the 4 publishable packages in lockstep.
+4. If bumping: create the matching git tag `vX.Y.Z`.
+5. Push code AND tags to GitHub (`git push && git push --tags`).
 
-FRONTIÈRE: l'agent NE publie JAMAIS sur npm. La publication npm est faite par l'humain (Sady).
+BOUNDARY: the agent NEVER publishes to npm. npm publication is done by the human (Sady).
 
 ## Why
 Because multiple agents and the human push/pull the same branch concurrently, skipping `git pull` before a task causes merge conflicts (conflict markers were left in `.ai/project-context.md`) and version drift between local work and GitHub. The rule exists to force a clean, current base before editing and a consistent commit/tag/push afterwards.

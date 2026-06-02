@@ -23,18 +23,18 @@ last_read_at: null
 revision_count: 1
 requires_human_approval: false
 ---
-# mem_save ignore le `scope` explicite quand `defaultScope` est défini en config
+# mem_save ignores explicit `scope` when `defaultScope` is set in config
 
-> ✅ **Corrigé en v0.9.1** — `mem-save.ts` utilise maintenant `input.scope ?? haiveConfig.defaultScope ?? "personal"` : le scope explicite a priorité. Ce gotcha est conservé comme documentation historique et pour éviter toute régression.
+> ✅ **Fixed in v0.9.1** - `mem-save.ts` now uses `input.scope ?? haiveConfig.defaultScope ?? "personal"`: explicit scope has priority. This gotcha is kept as historical documentation and to prevent regressions.
 
-**Reproduit en v0.9.0** : appel MCP `mem_save({ type:"convention", slug:"x", body:"...", scope:"personal" })` sur un projet où `.ai/haive.config.json` a `"defaultScope":"team"` → la mémoire était créée avec `scope: team` dans `.ai/memories/team/`, **pas** `personal`.
+**Reproduced in v0.9.0**: MCP call `mem_save({ type:"convention", slug:"x", body:"...", scope:"personal" })` on a project where `.ai/haive.config.json` has `"defaultScope":"team"` created the memory with `scope: team` in `.ai/memories/team/`, **not** `personal`.
 
-**Impact** : un agent qui veut créer explicitement une mémoire personnelle (e.g. note de debug locale) n'avait aucun moyen de bypasser le defaultScope team, et risquait de polluer la mémoire d'équipe.
+**Impact**: an agent that wanted to explicitly create a personal memory (for example a local debug note) had no way to bypass team `defaultScope`, and risked polluting team memory.
 
-**Fix appliqué** (`mem-save.ts`) :
+**Applied fix** (`mem-save.ts`):
 ```ts
 const resolvedScope = (input.scope ?? haiveConfig.defaultScope ?? "personal") as MemoryScope;
 ```
-L'argument `scope` explicite écrase toujours le `defaultScope` de config.
+The explicit `scope` argument always overrides config `defaultScope`.
 
-**Si cette régression réapparaît** : vérifier que `resolvedScope` est calculé avec `input.scope ??` en premier, avant `haiveConfig.defaultScope`.
+**If this regression reappears**: verify that `resolvedScope` is computed with `input.scope ??` first, before `haiveConfig.defaultScope`.

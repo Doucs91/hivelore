@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Intentionnellement trop permissif — les tests exigent une contrainte métier plus stricte sur qty et sku. */
+/** Intentionally too permissive; tests require stricter business constraints on qty and sku. */
 export const CreateOrderInputSchema = z.object({
   qty: z.number(),
   sku: z.string(),
