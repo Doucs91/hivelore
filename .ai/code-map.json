@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "generated_at": "2026-06-02T00:43:53.106Z",
-  "root": "/home/sd/Documents/Dev/haive/New idea",
+  "generated_at": "2026-06-02T03:15:59.144Z",
+  "root": "/home/sd/Documents/Dev/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
       "exports": [
@@ -113,7 +113,7 @@
           "line": 66
         }
       ],
-      "loc": 962
+      "loc": 1071
     },
     "packages/cli/src/commands/embeddings.ts": {
       "exports": [
@@ -135,20 +135,20 @@
         {
           "name": "runWithEnforcement",
           "kind": "function",
-          "line": 573
+          "line": 575
         }
       ],
-      "loc": 1696
+      "loc": 1839
     },
     "packages/cli/src/commands/eval.ts": {
       "exports": [
         {
           "name": "registerEval",
           "kind": "function",
-          "line": 34
+          "line": 39
         }
       ],
-      "loc": 221
+      "loc": 245
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -2594,7 +2594,7 @@
           "line": 19
         }
       ],
-      "loc": 118
+      "loc": 119
     },
     "packages/mcp/src/server.ts": {
       "exports": [
@@ -2984,25 +2984,25 @@
         {
           "name": "GetBriefingInputSchema",
           "kind": "const",
-          "line": 63
+          "line": 64
         },
         {
           "name": "GetBriefingZod",
           "kind": "const",
-          "line": 137
+          "line": 138
         },
         {
           "name": "GetBriefingInput",
           "kind": "type",
-          "line": 138
+          "line": 139
         },
         {
           "name": "getBriefing",
           "kind": "function",
-          "line": 140
+          "line": 141
         }
       ],
-      "loc": 775
+      "loc": 800
     },
     "packages/mcp/src/tools/get-project-context.ts": {
       "exports": [

@@ -63,7 +63,7 @@ This repo uses **hAIve** for shared context. The map:
 1. **Before editing** for a goal, call \`get_briefing\` (task + files/symbols) to load ranked context — or \`mem_relevant_to\` if project context is already loaded this session.
 2. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
 3. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-4. **Before final response**, run \`haive enforce finish\`. If it blocks, commit/push, bump/tag shippable releases, then rerun it.
+4. **Before final response**, run \`haive enforce finish\`. If it blocks, commit/push, bump/tag shippable releases, wait for GitHub Actions to pass when applicable, then rerun it.
 
 If the haive MCP server is not available, tell the developer rather than silently skipping it.
 
@@ -92,7 +92,7 @@ This repository uses **hAIve**. Running \`haive init\` means the team expects ag
 
 - On failure: **\`mem_tried\`** immediately.
 - Before closing a substantive session: MCP prompt **\`post_task\`** when there is something worth capturing.
-- Before final response: **\`haive enforce finish\`** must pass; it checks commit/push and release version/tag protocol.
+- Before final response: **\`haive enforce finish\`** must pass; it checks commit/push, release version/tag protocol, and GitHub Actions success for pushed HEAD when the repo has a GitHub remote.
 
 ## If haive MCP is missing
 

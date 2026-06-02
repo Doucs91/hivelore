@@ -453,6 +453,7 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
       code: "release-version-not-required",
       message: "No shippable package code changed since upstream; no version/tag required.",
     });
+    findings.push(...await verifyGithubActionsForHead(root, status));
     return finishReport(root, initialized, mode, findings, config);
   }
 
@@ -548,6 +549,7 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
     });
   }
 
+  findings.push(...await verifyGithubActionsForHead(root, status));
   return finishReport(root, initialized, mode, findings, config);
 }
 
@@ -1261,6 +1263,14 @@ interface GitSyncStatus {
   releaseChangedFiles?: string[];
 }
 
+interface GithubActionsRun {
+  conclusion?: string | null;
+  databaseId?: number;
+  name?: string;
+  status?: string;
+  workflowName?: string;
+}
+
 async function getGitSyncStatus(root: string): Promise<GitSyncStatus> {
   const dirty = (await runCommand("git", ["status", "--short", "--untracked-files=all"], root).catch(() => ""))
     .split("\n")
@@ -1419,6 +1429,127 @@ async function remoteTagExists(root: string, tag: string): Promise<boolean | nul
   } catch {
     return null;
   }
+}
+
+async function verifyGithubActionsForHead(
+  root: string,
+  status: GitSyncStatus,
+): Promise<EnforcementFinding[]> {
+  if (!status.upstream) return [];
+  if (status.ahead > 0) {
+    return [{
+      severity: "info",
+      code: "github-actions-waiting-for-push",
+      message: "GitHub Actions verification waits until HEAD is pushed.",
+    }];
+  }
+
+  const remote = await githubRemoteForCurrentBranch(root);
+  if (!remote) {
+    return [{
+      severity: "info",
+      code: "github-actions-not-applicable",
+      message: "No GitHub remote was detected; GitHub Actions pipeline verification was skipped.",
+    }];
+  }
+
+  const sha = (await runCommand("git", ["rev-parse", "HEAD"], root).catch(() => "")).trim();
+  if (!sha) {
+    return [{
+      severity: "error",
+      code: "github-actions-head-unreadable",
+      message: "Could not read HEAD SHA for GitHub Actions verification.",
+      fix: "Run `git rev-parse HEAD`, then verify GitHub Actions manually before finishing.",
+      impact: 30,
+    }];
+  }
+
+  let runs: GithubActionsRun[];
+  try {
+    const raw = await runCommand("gh", [
+      "run",
+      "list",
+      "--commit",
+      sha,
+      "--limit",
+      "50",
+      "--json",
+      "conclusion,databaseId,name,status,workflowName",
+    ], root);
+    runs = JSON.parse(raw) as GithubActionsRun[];
+  } catch {
+    return [{
+      severity: "error",
+      code: "github-actions-unverified",
+      message: "Could not verify GitHub Actions runs for HEAD.",
+      fix: "Install/authenticate GitHub CLI, then run `gh run list --commit $(git rev-parse HEAD)` and ensure every workflow is successful before finishing.",
+      reason: `Detected GitHub remote ${remote}, but hAIve could not query workflow runs.`,
+      impact: 50,
+    }];
+  }
+
+  if (runs.length === 0) {
+    return [{
+      severity: "error",
+      code: "github-actions-runs-missing",
+      message: "No GitHub Actions runs were found for HEAD.",
+      fix: "Wait for GitHub to create the workflow runs, or verify that the push was not skipped by a `[skip ci]` head commit; rerun `haive enforce finish` after the runs appear.",
+      impact: 50,
+    }];
+  }
+
+  const pending = runs.filter((run) => run.status !== "completed");
+  if (pending.length > 0) {
+    return [{
+      severity: "error",
+      code: "github-actions-pending",
+      message: `${pending.length}/${runs.length} GitHub Actions workflow run(s) for HEAD are still pending: ${formatGithubRunNames(pending)}.`,
+      fix: "Wait for the runs to finish (`gh run watch <run-id> --exit-status`), then rerun `haive enforce finish`.",
+      impact: 50,
+    }];
+  }
+
+  const failed = runs.filter((run) => run.conclusion !== "success");
+  if (failed.length > 0) {
+    return [{
+      severity: "error",
+      code: "github-actions-failed",
+      message: `${failed.length}/${runs.length} GitHub Actions workflow run(s) for HEAD did not pass: ${formatGithubRunNames(failed)}.`,
+      fix: "Inspect the failed run logs with `gh run view <run-id> --log`, fix the issue, push the fix, then rerun `haive enforce finish`.",
+      impact: 80,
+    }];
+  }
+
+  return [{
+    severity: "ok",
+    code: "github-actions-pass",
+    message: `All ${runs.length} GitHub Actions workflow run(s) for HEAD completed successfully.`,
+  }];
+}
+
+async function githubRemoteForCurrentBranch(root: string): Promise<string | null> {
+  const branch = (await runCommand("git", ["branch", "--show-current"], root).catch(() => "")).trim();
+  const branchRemote = branch
+    ? (await runCommand("git", ["config", "--get", `branch.${branch}.remote`], root).catch(() => "")).trim()
+    : "";
+  const remoteName = branchRemote || "origin";
+  const remoteUrl = (await runCommand("git", ["config", "--get", `remote.${remoteName}.url`], root).catch(() => "")).trim();
+  if (!isGithubRemoteUrl(remoteUrl)) return null;
+  return remoteUrl;
+}
+
+function isGithubRemoteUrl(url: string): boolean {
+  return /(^git@github\.com:|github\.com[/:])/.test(url);
+}
+
+function formatGithubRunNames(runs: GithubActionsRun[]): string {
+  return runs
+    .slice(0, 6)
+    .map((run) => {
+      const label = run.workflowName ?? run.name ?? "workflow";
+      return run.databaseId ? `${label}#${run.databaseId}` : label;
+    })
+    .join(", ");
 }
 
 function buildScore(findings: EnforcementFinding[], threshold = 80): EnforcementScore {

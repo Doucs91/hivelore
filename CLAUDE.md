@@ -49,10 +49,11 @@ Several agents **and** the human (Sady) work on this repo in parallel with manua
 3. If bumping: **patch by default** (`0.10.1 → 0.10.2`); minor/major only if justified (feature / breaking). Keep all 4 publishable packages in lockstep.
 4. If bumping: create the matching git tag `vX.Y.Z`.
 5. `git push` **code and tags** (`git push && git push --tags`).
+6. After push, verify the GitHub Actions runs for HEAD and wait until every workflow passes (`gh run list --commit $(git rev-parse HEAD)`, then `gh run watch <run-id> --exit-status` for pending runs).
 
 **BOUNDARY: agents NEVER run `npm publish`. npm publication is done by the human (Sady).**
 
-**Before final response:** run `haive enforce finish`. If it blocks, fix the reported commit/version/tag/push issue before saying the task is done.
+**Before final response:** run `haive enforce finish`. If it blocks, fix the reported commit/version/tag/push/pipeline issue before saying the task is done.
 
 ### Safety rules — NEVER violate these
 - If `get_briefing` returns an `action_required` list, **stop and show each item to the developer** before doing anything. Use the exact `developer_message` provided. Wait for explicit confirmation.

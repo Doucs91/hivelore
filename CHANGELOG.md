@@ -6,6 +6,16 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.12.4] — pipeline-aware finish gate
+
+### Added
+- **`haive enforce finish` now verifies GitHub Actions before agents close a task.** When the
+  pushed HEAD has a GitHub remote, the finish gate checks `gh run list --commit <sha>` and blocks
+  on missing, pending, failed, cancelled, or otherwise non-successful workflow runs.
+- Added agent-facing closeout guidance in the post-task prompt, generated hAIve bridge rules, and
+  the team close-session skill so future agents know that remote pipeline success is part of the
+  exit protocol.
+
 ## [0.12.3] — CI decision coverage runner fix
 
 ### Fixed

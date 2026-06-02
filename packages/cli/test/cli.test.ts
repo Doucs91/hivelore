@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -895,6 +895,100 @@ describe("hAIve CLI integration", () => {
     } finally {
       await rm(repo, { recursive: true, force: true });
       await rm(remote, { recursive: true, force: true });
+    }
+  });
+
+  it("finish gate blocks when pushed GitHub Actions runs did not pass", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-finish-actions-failed-"));
+    const remote = await mkdtemp(path.join(tmpdir(), "haive-finish-actions-remote-"));
+    const fakeBin = await mkdtemp(path.join(tmpdir(), "haive-finish-actions-bin-"));
+    try {
+      await exec("git", ["init", "--bare"], { cwd: remote });
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await writeLockstepPackageJsons(repo, "0.1.0");
+      await writeFile(path.join(repo, "README.md"), "Initial docs.\n", "utf8");
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await exec("git", ["remote", "add", "origin", remote], { cwd: repo });
+      await exec("git", ["push", "-u", "origin", "main"], { cwd: repo });
+
+      await writeFile(path.join(repo, "README.md"), "Initial docs.\nUpdated docs.\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "docs update"], { cwd: repo });
+      await exec("git", ["push"], { cwd: repo });
+      await exec("git", ["remote", "set-url", "origin", "https://github.com/example/haive-test.git"], { cwd: repo });
+      await writeFile(
+        path.join(fakeBin, "gh"),
+        "#!/bin/sh\nprintf '%s\\n' '[{\"databaseId\":123,\"workflowName\":\"ci\",\"status\":\"completed\",\"conclusion\":\"failure\"}]'\n",
+        "utf8",
+      );
+      await chmod(path.join(fakeBin, "gh"), 0o755);
+
+      const result = await runAllowFailure(repo, ["enforce", "finish", "--json", "--dir", repo], {
+        PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
+      });
+      const report = JSON.parse(result.stdout) as {
+        should_block: boolean;
+        findings: Array<{ code: string; severity: string }>;
+      };
+
+      expect(result.code).toBe(2);
+      expect(report.should_block).toBe(true);
+      expect(report.findings.some((f) => f.code === "github-actions-failed")).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+      await rm(remote, { recursive: true, force: true });
+      await rm(fakeBin, { recursive: true, force: true });
+    }
+  });
+
+  it("finish gate passes only after pushed GitHub Actions runs are successful", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-finish-actions-pass-"));
+    const remote = await mkdtemp(path.join(tmpdir(), "haive-finish-actions-pass-remote-"));
+    const fakeBin = await mkdtemp(path.join(tmpdir(), "haive-finish-actions-pass-bin-"));
+    try {
+      await exec("git", ["init", "--bare"], { cwd: remote });
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await writeLockstepPackageJsons(repo, "0.1.0");
+      await writeFile(path.join(repo, "README.md"), "Initial docs.\n", "utf8");
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await exec("git", ["remote", "add", "origin", remote], { cwd: repo });
+      await exec("git", ["push", "-u", "origin", "main"], { cwd: repo });
+
+      await writeFile(path.join(repo, "README.md"), "Initial docs.\nUpdated docs.\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "docs update"], { cwd: repo });
+      await exec("git", ["push"], { cwd: repo });
+      await exec("git", ["remote", "set-url", "origin", "https://github.com/example/haive-test.git"], { cwd: repo });
+      await writeFile(
+        path.join(fakeBin, "gh"),
+        "#!/bin/sh\nprintf '%s\\n' '[{\"databaseId\":123,\"workflowName\":\"ci\",\"status\":\"completed\",\"conclusion\":\"success\"}]'\n",
+        "utf8",
+      );
+      await chmod(path.join(fakeBin, "gh"), 0o755);
+
+      const result = await runAllowFailure(repo, ["enforce", "finish", "--json", "--dir", repo], {
+        PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
+      });
+      const report = JSON.parse(result.stdout) as {
+        should_block: boolean;
+        findings: Array<{ code: string; severity: string }>;
+      };
+
+      expect(result.code).toBe(0);
+      expect(report.should_block).toBe(false);
+      expect(report.findings.some((f) => f.code === "github-actions-pass")).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+      await rm(remote, { recursive: true, force: true });
+      await rm(fakeBin, { recursive: true, force: true });
     }
   });
 

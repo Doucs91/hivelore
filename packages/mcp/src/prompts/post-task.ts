@@ -89,7 +89,7 @@ This creates/updates a single rolling recap that **get_briefing automatically su
 
 Calling \`mem_session_end\` also **clears the pending-distill marker** (if any), confirming that this session's learnings have been properly captured rather than left as an auto-recap skeleton.
 
-### 7. Verify the git/release exit protocol — always
+### 7. Verify the git/release/pipeline exit protocol — always
 Run **\`haive enforce finish\`** before your final response.
 
 This executable gate checks the multi-agent git-sync decision:
@@ -97,11 +97,12 @@ This executable gate checks the multi-agent git-sync decision:
 - shippable package changes have a lockstep version bump
 - the release tag \`vX.Y.Z\` exists when a version was bumped
 - commits and tags have been pushed
+- the pushed HEAD's GitHub Actions workflow runs have completed successfully when the repo has a GitHub remote
 - agents never run \`npm publish\` (publication remains human-owned)
 
-If it blocks, fix the reported Git/version/tag/push issue before telling the developer the task is done.
+If it blocks, fix the reported Git/version/tag/push/pipeline issue before telling the developer the task is done.
 
-When done, respond with a brief summary: "Saved N memories: [list of IDs]. Session recap saved. hAIve finish gate passed."
+When done, respond with a brief summary: "Saved N memories: [list of IDs]. Session recap saved. hAIve finish gate passed; GitHub Actions passed when applicable."
 `;
 
 

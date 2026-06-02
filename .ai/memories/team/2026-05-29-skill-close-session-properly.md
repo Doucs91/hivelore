@@ -51,6 +51,10 @@ mem_session_end(
 )
 ```
 
+5. **Verifier que la pipeline passe avant de dire "termine" :**  
+   → Apres avoir pousse le travail, attendre que les workflows GitHub Actions du commit HEAD soient tous en succes.  
+   → Executer `haive enforce finish`; si la gate rapporte `github-actions-pending`, `github-actions-failed`, `github-actions-runs-missing` ou `github-actions-unverified`, ne pas cloturer. Attendre, inspecter les logs, corriger puis pousser un nouveau commit si necessaire.
+
 ## Le champ `discoveries` est le plus important
 
 C'est ce que la prochaine session ne pourra pas deviner depuis git diff. Exemples :
