@@ -25,9 +25,9 @@ interface QueryOptions {
 
 export function registerMemoryQuery(memory: Command): void {
   memory
-    .command("query <text>")
-    .alias("search")
-    .description("Search memories by id, tag, or substring (AND, OR fallback). Alias: search")
+    .command("search <text>")
+    .alias("query")
+    .description("Search memories by id, tag, or substring (AND, OR fallback). Mirrors MCP mem_search. Alias: query")
     .option("-d, --dir <dir>", "project root")
     .option("--limit <n>", "max results", "20")
     .option("--scope <scope>", "personal | team | module")

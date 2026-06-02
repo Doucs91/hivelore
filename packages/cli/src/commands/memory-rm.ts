@@ -20,8 +20,9 @@ interface RmOptions {
 
 export function registerMemoryRm(memory: Command): void {
   memory
-    .command("rm <id>")
-    .description("Delete a memory file (and its usage entry by default)")
+    .command("delete <id>")
+    .alias("rm")
+    .description("Delete a memory file (and its usage entry by default). Mirrors MCP mem_delete. Alias: rm")
     .option("-y, --yes", "skip the confirmation prompt")
     .option("--keep-usage", "do not remove the usage.json entry")
     .option("-d, --dir <dir>", "project root")

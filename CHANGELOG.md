@@ -6,6 +6,22 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.13.2] — CLI verbs aligned with MCP tool names (harness coherence, Phase A)
+
+### Changed
+- **`haive memory` verbs now mirror the MCP tool names** so an agent learns one vocabulary across
+  both façades: `add → save`, `query → search`, `show → get`, `rm → delete`. The old verbs remain
+  as **aliases** (`save|add`, `search|query`, `get|show`, `delete|rm`) — no existing script or hook
+  breaks. The core memory surface and user-facing hints (`doctor`, `welcome`, `sync`, `stats`,
+  `memory pending`) now use the canonical verbs.
+- Background: a CLI/MCP surface coherence audit found the real cohesion gap was **vocabulary drift
+  between the two façades** (not duplicate commands, and not a flat surface — the golden path and
+  MCP tool profiles already existed). See `docs/HARNESS-COHERENCE-MAP-2026-06.md`.
+
+### Notes
+- `memory digest` (a Markdown review report) is intentionally **not** aliased to MCP `mem_distill`
+  (observation clustering) — they are different operations. That parity gap is tracked, not papered over.
+
 ## [0.13.1] — regression gate wired into generated CI
 
 ### Added

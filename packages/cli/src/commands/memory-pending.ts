@@ -42,7 +42,7 @@ export function registerMemoryPending(memory: Command): void {
 
       if (pending.length === 0) {
         ui.info("No draft or proposed memories awaiting review.");
-        ui.info("Drafts are created by `haive memory add` without `--status validated`.");
+        ui.info("Drafts are created by `haive memory save` without `--status validated`.");
         return;
       }
 

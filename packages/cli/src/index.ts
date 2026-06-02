@@ -154,15 +154,18 @@ const CORE_ROOT_COMMANDS = new Set([
   "session",
 ]);
 
+// Canonical verbs mirror the MCP tool names (mem_save / mem_search / mem_get / mem_delete)
+// so an agent learns one vocabulary across both façades. Old verbs (add/query/show/rm) stay
+// as command aliases, so existing scripts keep working.
 const CORE_MEMORY_COMMANDS = new Set([
-  "add",
+  "save",
   "list",
-  "query",
-  "show",
+  "search",
+  "get",
   "verify",
   "lint",
   "tried",
-  "rm",
+  "delete",
 ]);
 
 const CORE_SESSION_COMMANDS = new Set(["end"]);

@@ -19,8 +19,9 @@ interface ShowOptions {
 
 export function registerMemoryShow(memory: Command): void {
   memory
-    .command("show <id>")
-    .description("Print a memory's frontmatter, body, and confidence/usage")
+    .command("get <id>")
+    .alias("show")
+    .description("Print a memory's frontmatter, body, and confidence/usage. Mirrors MCP mem_get. Alias: show")
     .option("--raw", "print the raw file contents instead of a summary")
     .option("-d, --dir <dir>", "project root")
     .action(async (id: string, opts: ShowOptions) => {

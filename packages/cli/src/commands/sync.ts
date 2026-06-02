@@ -449,7 +449,7 @@ export function registerSync(program: Command): void {
                 `Attends une **confirmation explicite** avant d'agir.\n\n` +
                 `**Prochaines étapes (si confirmé) :**\n` +
                 `- Rechercher les usages : \`haive memory for-files <fichiers concernés>\`\n` +
-                `- Vérifier les mémoires liées : \`haive memory query ${diff.contract}\``;
+                `- Vérifier les mémoires liées : \`haive memory search ${diff.contract}\``;
               const fm = buildFrontmatter({
                 type: "gotcha",
                 slug,

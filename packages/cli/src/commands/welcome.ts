@@ -72,7 +72,7 @@ export function registerWelcome(program: Command): void {
       console.log(ui.dim(`Next: invoke get_briefing with your task or run 'haive briefing --task "…"'`));
 
       if (pick.length === 0) {
-        ui.warn("No team memories yet — add some with 'haive memory add' or promote personal ones.");
+        ui.warn("No team memories yet — add some with 'haive memory save' or promote personal ones.");
         return;
       }
 

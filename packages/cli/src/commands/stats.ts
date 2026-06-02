@@ -204,7 +204,7 @@ async function renderMemoryHits(
   if (entries.length === 0) {
     ui.info(
       `No memory reads recorded in window. Reads are logged when ` +
-      `\`haive briefing\` or \`haive memory query\` surface a memory.`,
+      `\`haive briefing\` or \`haive memory search\` surface a memory.`,
     );
     return;
   }

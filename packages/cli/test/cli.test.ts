@@ -593,6 +593,38 @@ describe("hAIve CLI integration", () => {
     expect(stdout).toContain("Always use pnpm");
   });
 
+  // ── Phase A: CLI verbs mirror MCP tool names (mem_save/mem_search/mem_get/mem_delete) ──
+  // Canonical verbs are save/search/get/delete; the old verbs add/query/show/rm stay as aliases.
+  it("memory canonical verb 'search' works and 'query' alias still resolves", async () => {
+    const canonical = await run(workDir, ["memory", "search", "tooling", "--dir", workDir]);
+    const alias = await run(workDir, ["memory", "query", "tooling", "--dir", workDir]);
+    expect(canonical.stdout).toContain("use-pnpm");
+    // Same command behind both verbs → identical match line.
+    expect(alias.stdout).toContain("use-pnpm");
+  });
+
+  it("memory canonical verb 'get' works and 'show' alias still resolves", async () => {
+    const teamDir = path.join(workDir, ".ai/memories/team");
+    const file = (await readdir(teamDir)).find((item) => item.includes("use-pnpm"));
+    const id = file!.replace(/\.md$/, "");
+    const canonical = await run(workDir, ["memory", "get", id, "--dir", workDir]);
+    const alias = await run(workDir, ["memory", "show", id, "--dir", workDir]);
+    expect(canonical.stdout).toContain("Always use pnpm");
+    expect(alias.stdout).toContain("Always use pnpm");
+  });
+
+  it("default memory help surfaces canonical verbs and keeps old verbs as aliases", async () => {
+    const { stdout } = await run(workDir, ["memory", "--help"]);
+    // Canonical verbs visible in the core surface.
+    expect(stdout).toContain("save");
+    expect(stdout).toContain("search");
+    expect(stdout).toContain("get");
+    expect(stdout).toContain("delete");
+    // Commander renders the alias next to the canonical name (e.g. "save|add").
+    expect(stdout).toContain("add");
+    expect(stdout).toContain("query");
+  });
+
   it("memory lint --fix dry-run reports simple fixes and --apply writes headings", async () => {
     const malformed = path.join(workDir, ".ai/memories/team/2099-01-01-decision-lint-heading-fix.md");
     await writeFile(malformed, [

@@ -44,9 +44,10 @@ interface AddOptions {
 
 export function registerMemoryAdd(memory: Command): void {
   memory
-    .command("add")
+    .command("save")
+    .alias("add")
     .description(
-      "Save a piece of knowledge as a persistent memory.\n\n" +
+      "Save a piece of knowledge as a persistent memory. Mirrors MCP mem_save. Alias: add.\n\n" +
       "  Memory types:\n" +
       "    skill       — reusable procedure/playbook agents follow for a recurring task (e.g. deploy, review)\n" +
       "    convention  — how things are done here (naming, patterns, tooling)\n" +

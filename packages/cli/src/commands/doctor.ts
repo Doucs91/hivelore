@@ -191,7 +191,7 @@ export function registerDoctor(program: Command): void {
             code: "stale-draft-memories",
             message:
               `${oldDrafts.length} draft memor${oldDrafts.length === 1 ? "y has" : "ies have"} been in draft status for 30+ days: ${ids}${more}`,
-            fix: "haive memory approve <id>   # activate\nhaive memory rm <id>         # or delete if obsolete",
+            fix: "haive memory approve <id>   # activate\nhaive memory delete <id>     # or delete if obsolete",
           });
         }
 
@@ -664,7 +664,7 @@ async function collectHarnessCoverageFindings(
       `${covered}/${total} code-map files have validated memory anchors (${pct}%). ` +
       coverageDesc + uncoveredHint,
     fix: pct < 50 && total > 10
-      ? `haive memory add --type gotcha|convention|architecture --paths <key-file> --scope team`
+      ? `haive memory save --type gotcha|convention|architecture --paths <key-file> --scope team`
       : undefined,
     section: "Harness coverage",
   });
