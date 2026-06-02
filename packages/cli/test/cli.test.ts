@@ -657,7 +657,20 @@ describe("hAIve CLI integration", () => {
       await exec("git", ["add", "."], { cwd: repo });
       await exec("git", ["commit", "--no-verify", "-m", "introduce lowercase status"], { cwd: repo });
 
-      const result = await runAllowFailure(repo, ["enforce", "ci", "--json", "--dir", repo]);
+      // Isolate from the ambient GitHub Actions env: on the CI runner GITHUB_SHA /
+      // GITHUB_BASE_REF / GITHUB_EVENT_PATH point at the hAIve CI commit (absent from
+      // this temp repo), which made `enforce ci` diff an unknown SHA → empty diff →
+      // exit 0. Clearing them makes it diff this repo's own HEAD~1..HEAD as intended.
+      const result = await runAllowFailure(repo, ["enforce", "ci", "--json", "--dir", repo], {
+        GITHUB_SHA: "",
+        GITHUB_BASE_REF: "",
+        GITHUB_HEAD_REF: "",
+        GITHUB_REF: "",
+        GITHUB_EVENT_PATH: "",
+        HAIVE_BASE_SHA: "",
+        HAIVE_HEAD_SHA: "",
+        HAIVE_BASE_REF: "",
+      });
       const report = JSON.parse(result.stdout) as {
         should_block: boolean;
         findings: Array<{ code: string; severity: string }>;
