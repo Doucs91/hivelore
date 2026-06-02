@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
@@ -6,11 +6,14 @@ import {
   aggregateRetrieval,
   aggregateSensors,
   buildReport,
+  compareEvalReports,
   findProjectRoot,
   resolveHaivePaths,
   scoreRetrievalCase,
   scoreSensorCase,
   synthesizeSelfEvalCases,
+  type EvalDelta,
+  type EvalReport,
   type EvalSpec,
   type RetrievalCase,
   type RetrievalCaseResult,
@@ -28,7 +31,18 @@ interface EvalOptions {
   json?: boolean;
   out?: string;
   failUnder?: string;
+  baseline?: boolean;
+  compare?: boolean;
+  baselineFile?: string;
+  failOnRegression?: boolean;
   dir?: string;
+}
+
+interface BaselineSnapshot {
+  saved_at: string;
+  k: number;
+  spec_source: string;
+  report: EvalReport;
 }
 
 interface ResolvedEvalSpec {
@@ -50,6 +64,10 @@ export function registerEval(program: Command): void {
     .option("--json", "emit JSON", false)
     .option("--out <file>", "write a Markdown report")
     .option("--fail-under <score>", "exit non-zero if the overall score is below this (0–100) — for CI gates")
+    .option("--baseline", "save this run as the baseline (.ai/eval/baseline.json) for future --compare", false)
+    .option("--compare", "diff this run against the saved baseline and print the delta", false)
+    .option("--baseline-file <path>", "baseline file to read/write (default: .ai/eval/baseline.json)")
+    .option("--fail-on-regression", "with --compare, exit non-zero if the score dropped vs the baseline", false)
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: EvalOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -93,31 +111,95 @@ export function registerEval(program: Command): void {
 
       const report = buildReport(retrievalAgg, sensorAgg);
 
-      if (opts.json) {
-        console.log(JSON.stringify({ root, k, spec_source: resolvedSpec.source, report }, null, 2));
-      } else {
-        const md = renderMarkdown(root, k, resolvedSpec.source, report);
-        if (opts.out) {
-          const outFile = path.isAbsolute(opts.out) ? opts.out : path.join(root, opts.out);
-          await writeFile(outFile, md, "utf8");
-          ui.success(`wrote ${path.relative(process.cwd(), outFile)}`);
-        } else {
-          console.log(md);
-        }
+      const baselineFile = opts.baselineFile
+        ? (path.isAbsolute(opts.baselineFile) ? opts.baselineFile : path.join(root, opts.baselineFile))
+        : path.join(root, ".ai", "eval", "baseline.json");
+
+      // ── Save baseline ─────────────────────────────────────────────────────
+      if (opts.baseline) {
+        const snapshot: BaselineSnapshot = {
+          saved_at: new Date().toISOString(),
+          k,
+          spec_source: resolvedSpec.source,
+          report,
+        };
+        await mkdir(path.dirname(baselineFile), { recursive: true });
+        await writeFile(baselineFile, JSON.stringify(snapshot, null, 2), "utf8");
+        if (!opts.json) ui.success(`Saved baseline (score ${report.score}/100) → ${path.relative(root, baselineFile)}`);
       }
 
-      // CI gate: fail the build when quality regresses below the threshold.
-      if (opts.failUnder !== undefined) {
-        const threshold = Number(opts.failUnder);
-        if (Number.isNaN(threshold)) {
-          ui.error(`--fail-under expects a number, got "${opts.failUnder}"`);
+      // ── Compare against baseline ──────────────────────────────────────────
+      let delta: EvalDelta | null = null;
+      if (opts.compare) {
+        if (!existsSync(baselineFile)) {
+          ui.error(`No baseline at ${path.relative(root, baselineFile)}. Run \`haive eval --baseline\` first.`);
           process.exitCode = 1;
-        } else if (report.score < threshold) {
-          ui.error(`eval score ${report.score} is below --fail-under ${threshold}`);
-          process.exitCode = 1;
+          return;
         }
+        const snapshot = JSON.parse(await readFile(baselineFile, "utf8")) as BaselineSnapshot;
+        delta = compareEvalReports(snapshot.report, report);
       }
+
+      if (opts.json) {
+        console.log(JSON.stringify({ root, k, spec_source: resolvedSpec.source, report, ...(delta ? { delta } : {}) }, null, 2));
+        applyExitGates(opts, report, delta);
+        return;
+      }
+
+      if (delta) {
+        console.log(renderDelta(delta));
+      }
+
+      const md = renderMarkdown(root, k, resolvedSpec.source, report);
+      if (opts.out) {
+        const outFile = path.isAbsolute(opts.out) ? opts.out : path.join(root, opts.out);
+        await writeFile(outFile, md, "utf8");
+        ui.success(`wrote ${path.relative(process.cwd(), outFile)}`);
+      } else {
+        console.log(md);
+      }
+
+      applyExitGates(opts, report, delta);
     });
+}
+
+/** CI gates: fail the build on an absolute floor (--fail-under) or a regression (--fail-on-regression). */
+function applyExitGates(opts: EvalOptions, report: EvalReport, delta: EvalDelta | null): void {
+  if (opts.failUnder !== undefined) {
+    const threshold = Number(opts.failUnder);
+    if (Number.isNaN(threshold)) {
+      ui.error(`--fail-under expects a number, got "${opts.failUnder}"`);
+      process.exitCode = 1;
+    } else if (report.score < threshold) {
+      ui.error(`eval score ${report.score} is below --fail-under ${threshold}`);
+      process.exitCode = 1;
+    }
+  }
+  if (opts.failOnRegression && delta?.regressed) {
+    ui.error(`eval score regressed ${delta.score.baseline} → ${delta.score.current} (Δ ${delta.score.delta}) vs baseline`);
+    process.exitCode = 1;
+  }
+}
+
+function fmtDelta(label: string, m: { baseline: number; current: number; delta: number } | null): string | null {
+  if (!m) return null;
+  const sign = m.delta > 0 ? "+" : "";
+  const arrow = m.delta > 0 ? ui.green("▲") : m.delta < 0 ? ui.red("▼") : ui.dim("=");
+  return `  ${arrow} ${label.padEnd(12)} ${m.baseline} → ${m.current} ${ui.dim(`(${sign}${m.delta})`)}`;
+}
+
+function renderDelta(delta: EvalDelta): string {
+  const verdict = delta.regressed ? ui.red("REGRESSED") : delta.improved ? ui.green("IMPROVED") : ui.dim("UNCHANGED");
+  const lines = [ui.bold(`Eval vs baseline — ${verdict}`)];
+  for (const line of [
+    fmtDelta("score", delta.score),
+    fmtDelta("mean recall", delta.mean_recall),
+    fmtDelta("mrr", delta.mrr),
+    fmtDelta("catch-rate", delta.catch_rate),
+  ]) {
+    if (line) lines.push(line);
+  }
+  return lines.join("\n");
 }
 
 async function resolveSpec(opts: EvalOptions, root: string, memoriesDir: string): Promise<ResolvedEvalSpec> {

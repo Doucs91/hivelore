@@ -178,6 +178,62 @@ describe("hAIve CLI integration", () => {
     }
   });
 
+  it("eval --baseline then --compare reports a delta", async () => {
+    const evalDir = await mkdtemp(path.join(tmpdir(), "haive-eval-test-"));
+    try {
+      await run(evalDir, ["init", "--no-bootstrap", "--stack", "none", "-y", "--dir", evalDir]);
+      // A memory carrying a sensor that fires on a known-bad diff (deterministic, no embeddings).
+      const memFile = path.join(evalDir, ".ai/memories/team/2099-01-01-gotcha-evaltest.md");
+      await writeFile(
+        memFile,
+        [
+          "---",
+          "id: 2099-01-01-gotcha-evaltest",
+          "scope: team",
+          "type: gotcha",
+          "status: validated",
+          "created_at: 2099-01-01T00:00:00.000Z",
+          "anchor:",
+          "  paths: []",
+          "  symbols: []",
+          "tags: []",
+          "sensor:",
+          "  kind: regex",
+          '  pattern: "EVILPATTERN"',
+          '  message: "no evil"',
+          "  severity: warn",
+          "  autogen: false",
+          "  last_fired: null",
+          "---",
+          "# Evil pattern",
+          "Do not use EVILPATTERN.",
+        ].join("\n"),
+        "utf8",
+      );
+      const specFile = path.join(evalDir, "spec.json");
+      await writeFile(
+        specFile,
+        JSON.stringify({
+          sensors: [
+            { name: "evil", diff: "+ const x = EVILPATTERN;", expect_fire_ids: ["2099-01-01-gotcha-evaltest"] },
+          ],
+        }),
+        "utf8",
+      );
+
+      const blFile = path.join(evalDir, "bl.json");
+      await run(evalDir, ["eval", "--spec", specFile, "--baseline", "--baseline-file", blFile, "--dir", evalDir]);
+      expect(existsSync(blFile)).toBe(true);
+
+      const { stdout } = await run(evalDir, ["eval", "--spec", specFile, "--compare", "--baseline-file", blFile, "--dir", evalDir]);
+      expect(stdout).toContain("vs baseline");
+      expect(stdout).toContain("UNCHANGED");
+      expect(stdout).toContain("catch-rate");
+    } finally {
+      await rm(evalDir, { recursive: true, force: true });
+    }
+  });
+
   it("init writes project-level MCP configs with HAIVE_PROJECT_ROOT", async () => {
     // These files are written by haive init to fix the multi-project CWD bug.
     const cursorMcp = path.join(workDir, ".cursor", "mcp.json");

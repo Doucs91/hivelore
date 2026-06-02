@@ -191,6 +191,58 @@ export function buildReport(
   return { retrieval, sensors, score: overallScore(retrieval, sensors) };
 }
 
+/**
+ * Baseline / compare — makes the "hAIve improves retrieval by N%" claim reproducible.
+ *
+ * `haive eval --baseline` snapshots a report; `--compare` re-runs and diffs against it,
+ * so a ranking/sensor regression is a number, not a vibe. Pure math here; the CLI does I/O.
+ */
+export interface MetricDelta {
+  baseline: number;
+  current: number;
+  /** current − baseline (positive = improvement for all these metrics). */
+  delta: number;
+}
+
+export interface EvalDelta {
+  score: MetricDelta;
+  mean_recall: MetricDelta | null;
+  mrr: MetricDelta | null;
+  catch_rate: MetricDelta | null;
+  /** True when the overall score dropped vs the baseline. */
+  regressed: boolean;
+  /** True when the overall score rose vs the baseline. */
+  improved: boolean;
+}
+
+function metricDelta(baseline: number, current: number): MetricDelta {
+  return { baseline: round3(baseline), current: round3(current), delta: round3(current - baseline) };
+}
+
+/** Diff a current report against a baseline. Pure. */
+export function compareEvalReports(baseline: EvalReport, current: EvalReport): EvalDelta {
+  const recall =
+    baseline.retrieval && current.retrieval
+      ? metricDelta(baseline.retrieval.mean_recall, current.retrieval.mean_recall)
+      : null;
+  const mrr =
+    baseline.retrieval && current.retrieval
+      ? metricDelta(baseline.retrieval.mrr, current.retrieval.mrr)
+      : null;
+  const catchRate =
+    baseline.sensors && current.sensors
+      ? metricDelta(baseline.sensors.catch_rate, current.sensors.catch_rate)
+      : null;
+  return {
+    score: metricDelta(baseline.score, current.score),
+    mean_recall: recall,
+    mrr,
+    catch_rate: catchRate,
+    regressed: current.score < baseline.score,
+    improved: current.score > baseline.score,
+  };
+}
+
 /** Extract a short task-like title from a memory body (first heading or first line). */
 export function titleFromBody(body: string): string {
   const lines = body.split("\n");

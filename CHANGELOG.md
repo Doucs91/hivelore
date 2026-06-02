@@ -6,6 +6,17 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.12.9] — eval baseline & delta reporting
+
+### Added
+- **`haive eval --baseline`** snapshots the current report to `.ai/eval/baseline.json`, and
+  **`haive eval --compare`** re-runs and prints the per-metric delta (overall score, mean recall,
+  MRR, sensor catch-rate) with an IMPROVED / REGRESSED / UNCHANGED verdict — making the "hAIve
+  improves agent retrieval by N%" claim reproducible.
+- **`--fail-on-regression`** turns a score drop vs the baseline into a non-zero exit for CI gates;
+  **`--baseline-file <path>`** overrides the default location.
+- New pure `compareEvalReports` / `EvalDelta` in `core/eval.ts` (CLI does the I/O).
+
 ## [0.12.8] — AGENTS.md portable bridge
 
 ### Added

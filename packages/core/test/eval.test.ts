@@ -3,6 +3,7 @@ import {
   aggregateRetrieval,
   aggregateSensors,
   buildReport,
+  compareEvalReports,
   overallScore,
   scoreRetrievalCase,
   scoreSensorCase,
@@ -65,6 +66,43 @@ describe("overallScore", () => {
   it("returns 0 with nothing to score", () => {
     expect(overallScore(null, null)).toBe(0);
     expect(buildReport(null, null).score).toBe(0);
+  });
+});
+
+describe("compareEvalReports", () => {
+  const baseline = buildReport(
+    aggregateRetrieval([scoreRetrievalCase("a", ["m1"], ["x", "m1"])]), // recall 1, mrr 0.5 → 85
+    aggregateSensors([scoreSensorCase("a", ["m1"], ["m1"])]), // catch 1
+  );
+
+  it("reports improvement with positive deltas", () => {
+    const better = buildReport(
+      aggregateRetrieval([scoreRetrievalCase("a", ["m1"], ["m1"])]), // recall 1, mrr 1
+      aggregateSensors([scoreSensorCase("a", ["m1"], ["m1"])]),
+    );
+    const d = compareEvalReports(baseline, better);
+    expect(d.improved).toBe(true);
+    expect(d.regressed).toBe(false);
+    expect(d.score.delta).toBeGreaterThan(0);
+    expect(d.mrr!.delta).toBeCloseTo(0.5, 3);
+  });
+
+  it("flags a regression when score drops", () => {
+    const worse = buildReport(
+      aggregateRetrieval([scoreRetrievalCase("a", ["m1"], ["x", "y"])]), // miss → recall 0
+      aggregateSensors([scoreSensorCase("a", ["m1"], [])]), // miss
+    );
+    const d = compareEvalReports(baseline, worse);
+    expect(d.regressed).toBe(true);
+    expect(d.score.delta).toBeLessThan(0);
+    expect(d.catch_rate!.delta).toBeCloseTo(-1, 3);
+  });
+
+  it("returns null metric deltas when a family is absent on either side", () => {
+    const retrievalOnly = buildReport(aggregateRetrieval([scoreRetrievalCase("a", ["m1"], ["m1"])]), null);
+    const d = compareEvalReports(baseline, retrievalOnly);
+    expect(d.catch_rate).toBeNull();
+    expect(d.mean_recall).not.toBeNull();
   });
 });
 

@@ -62,9 +62,18 @@ seed sensors are `warn` + `autogen:false` (vetted, never auto-block).
 breadcrumbs into both CLAUDE.md and AGENTS.md by default (explicit `--bridge-file` still targets a
 single file). The `.ai/` corpus is now consumable by any AGENTS.md-aware agent (Codex, etc.).
 
-### P4 — Eval delta reporting (#4 polish)
-`haive eval --baseline` to record a score snapshot and `haive eval --compare` to print the +X%/−X%
-delta vs the recorded baseline, making the "hAIve improves agent retrieval by N%" claim reproducible.
+### P4 — Eval delta reporting (#4 polish)  ✅ DONE (v0.12.9)
+`haive eval --baseline` snapshots the report to `.ai/eval/baseline.json`; `haive eval --compare`
+re-runs and prints the per-metric delta (score / mean recall / mrr / catch-rate) with an
+IMPROVED/REGRESSED/UNCHANGED verdict. `--fail-on-regression` turns a score drop into a non-zero exit
+for CI. Pure `compareEvalReports`/`EvalDelta` in core; CLI does the I/O. The "hAIve improves
+retrieval by N%" claim is now reproducible.
+
+---
+
+## Status: roadmap complete
+All of P0–P4 are shipped (v0.12.5 → v0.12.9). The remaining wishlist items (#1/#4/#5/#7/#9) were
+already in the codebase before this effort; see the table at the top.
 
 ## Done-criteria each step
 `pnpm -r build && pnpm -r test && pnpm check:artifacts` green; CHANGELOG entry; lockstep version bump
