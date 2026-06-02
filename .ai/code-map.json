@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-06-02T00:12:50.165Z",
+  "generated_at": "2026-06-02T00:43:53.106Z",
   "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -145,10 +145,10 @@
         {
           "name": "registerEval",
           "kind": "function",
-          "line": 33
+          "line": 34
         }
       ],
-      "loc": 208
+      "loc": 221
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -279,10 +279,10 @@
         {
           "name": "registerMemoryAdd",
           "kind": "function",
-          "line": 42
+          "line": 45
         }
       ],
-      "loc": 336
+      "loc": 354
     },
     "packages/cli/src/commands/memory-approve.ts": {
       "exports": [
@@ -344,6 +344,16 @@
         }
       ],
       "loc": 70
+    },
+    "packages/cli/src/commands/memory-feedback.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryFeedback",
+          "kind": "function",
+          "line": 24
+        }
+      ],
+      "loc": 80
     },
     "packages/cli/src/commands/memory-for-files.ts": {
       "exports": [
@@ -1216,6 +1226,59 @@
         }
       ],
       "loc": 225
+    },
+    "packages/core/src/distinctive.ts": {
+      "summary": "Distinctive-token corroboration for the anti-pattern gate.",
+      "exports": [
+        {
+          "name": "CODE_STOPWORDS",
+          "kind": "const",
+          "description": "Language keywords + ubiquitous code words that would match almost any memory body and so carry no distinguishing signal.",
+          "line": 20
+        },
+        {
+          "name": "MIN_WORD_LEN",
+          "kind": "const",
+          "description": "Minimum token length kept for word-level matching (shorter tokens are too noisy).",
+          "line": 29
+        },
+        {
+          "name": "tokenizeWords",
+          "kind": "function",
+          "description": "Split text into lowercase word tokens (>= MIN_WORD_LEN, excluding code stopwords).",
+          "line": 32
+        },
+        {
+          "name": "DocFrequency",
+          "kind": "interface",
+          "line": 39
+        },
+        {
+          "name": "buildDocFrequency",
+          "kind": "function",
+          "description": "Build per-token document frequency across a corpus of memory bodies.",
+          "line": 47
+        },
+        {
+          "name": "distinctiveCap",
+          "kind": "function",
+          "description": "Document-frequency cap at/below which a token counts as distinctive.",
+          "line": 63
+        },
+        {
+          "name": "isDistinctiveToken",
+          "kind": "function",
+          "description": "True when `token` is distinctive (rare) within the corpus.",
+          "line": 68
+        },
+        {
+          "name": "diffHasDistinctiveOverlap",
+          "kind": "function",
+          "description": "True when the added diff text shares at least one *distinctive* word token with the memory body.",
+          "line": 82
+        }
+      ],
+      "loc": 94
     },
     "packages/core/src/enforcement.ts": {
       "exports": [
@@ -2730,31 +2793,31 @@
         {
           "name": "AntiPatternsCheckInputSchema",
           "kind": "const",
-          "line": 18
+          "line": 22
         },
         {
           "name": "AntiPatternsCheckInput",
           "kind": "interface",
-          "line": 56
+          "line": 60
         },
         {
           "name": "AntiPatternsWarning",
           "kind": "interface",
-          "line": 64
+          "line": 68
         },
         {
           "name": "AntiPatternsCheckOutput",
           "kind": "interface",
-          "line": 87
+          "line": 98
         },
         {
           "name": "antiPatternsCheck",
           "kind": "function",
           "description": "Scan a diff (or set of paths) against documented attempt/gotcha memories.",
-          "line": 144
+          "line": 143
         }
       ],
-      "loc": 294
+      "loc": 304
     },
     "packages/mcp/src/tools/bootstrap-project-save.ts": {
       "exports": [
@@ -3663,10 +3726,10 @@
         {
           "name": "classifyAntiPatternWarningForTest",
           "kind": "function",
-          "line": 350
+          "line": 355
         }
       ],
-      "loc": 503
+      "loc": 508
     },
     "packages/mcp/src/tools/runtime-journal-append.ts": {
       "exports": [

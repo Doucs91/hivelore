@@ -123,3 +123,4 @@
 {"tool":"mem_session_end","at":"2026-06-02T00:04:17.012Z","summary":"Implement roadmap points 1–3 successively: impact as get_briefing ranking weight"}
 {"tool":"get_briefing","at":"2026-06-02T00:15:15.761Z","summary":"Reduce false positives in the pre-commit anti-pattern gate (version-bump/config-only diffs, incidental token overlap on generic words) so agents are not blocked for nothing; plus add CLI haive memory feedback + memory add --activation, wire haive eval into CI, improve semantic-only retrieval."}
 {"tool":"mem_session_end","at":"2026-06-02T00:35:24.918Z","summary":"Implement the noted next-steps and, above all, eliminate pre-commit false positi"}
+{"tool":"get_briefing","at":"2026-06-02T00:45:24.478Z","summary":"Improve semantic-only briefing retrieval recall (currently ~19% in haive eval --semantic-only): diagnose misses and add a hybrid lexical/BM25 rerank or query expansion to get_briefing ranking without regressing anchored retrieval."}
