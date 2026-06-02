@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import {
   addedLinesFromDiff,
+  appendPreventionEvent,
   buildDocFrequency,
   CODE_STOPWORDS,
   deriveConfidence,
@@ -11,7 +12,9 @@ import {
   loadUsageIndex,
   literalMatchesAnyToken,
   memoryMatchesAnchorPaths,
+  recordPrevention,
   runSensors,
+  saveUsageIndex,
   sensorTargetsFromDiff,
   tokenizeQuery,
   type DocFrequency,
@@ -295,6 +298,28 @@ export async function antiPatternsCheck(
       return score(b) - score(a);
     })
     .slice(0, input.limit);
+
+  // OUTCOME measurement: record the strong, diff-corroborated catches as prevention events — the
+  // semantic anti-pattern path's contribution to "a known mistake was intercepted before it landed".
+  // Weak semantic-only matches are advisory (review noise), NOT catches, so they are excluded.
+  // Debounced via recordPrevention so re-running the gate on the same diff doesn't inflate counts.
+  const strongCatches = warnings.filter(
+    (w) =>
+      w.reasons.includes("sensor") ||
+      w.distinctive_literal === true ||
+      (w.reasons.includes("anchor") && w.reasons.includes("literal")),
+  );
+  if (strongCatches.length > 0) {
+    const recordedIds: string[] = [];
+    for (const w of strongCatches) if (recordPrevention(usage, w.id)) recordedIds.push(w.id);
+    if (recordedIds.length > 0) {
+      await saveUsageIndex(ctx.paths, usage).catch(() => { /* best-effort telemetry */ });
+      const at = new Date().toISOString();
+      for (const id of recordedIds) {
+        await appendPreventionEvent(ctx.paths, { at, id, source: "anti-pattern" }).catch(() => { /* best-effort */ });
+      }
+    }
+  }
 
   return {
     scanned: negative.length,

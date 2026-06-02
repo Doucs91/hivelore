@@ -4,6 +4,7 @@ import {
   buildDashboard,
   findProjectRoot,
   loadMemoriesFromDir,
+  loadPreventionEvents,
   loadUsageIndex,
   resolveHaivePaths,
   type DashboardReport,
@@ -42,10 +43,12 @@ export function registerDashboard(program: Command): void {
 
       const memories = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
       const usage = await loadUsageIndex(paths);
+      const preventionEvents = await loadPreventionEvents(paths);
       const top = Math.max(1, Number.parseInt(opts.top ?? "10", 10) || 10);
       const dormantDays = opts.dormantDays ? Number.parseInt(opts.dormantDays, 10) : undefined;
       const report = buildDashboard(memories, usage, {
         top,
+        preventionEvents,
         ...(dormantDays !== undefined && Number.isFinite(dormantDays) ? { dormantDays } : {}),
       });
 
@@ -107,11 +110,24 @@ function renderDashboard(r: DashboardReport): void {
     `  ${prevention.total_events > 0 ? ui.green(`${prevention.total_events} catch event(s)`) : "0 catch events"}` +
     ` · ${prevention.memories_with_catches} memor${prevention.memories_with_catches === 1 ? "y" : "ies"} with catches`,
   );
+  console.log(
+    `  ${ui.dim("trend:")} ${prevention.trend.last_7d} in 7d · ${prevention.trend.last_30d} in 30d` +
+    `  ${ui.dim("weekly")} [${prevention.trend.weekly.join(" ")}]`,
+  );
   for (const p of prevention.top.slice(0, 5)) {
     console.log(
       `    ${ui.green("✓")} ${p.prevented_count}× ${p.id}` +
       (p.last_prevented_at ? ui.dim(`  last ${p.last_prevented_at.slice(0, 10)}`) : ""),
     );
+  }
+  if (prevention.recurrence.recurring_count > 0) {
+    console.log(
+      `  ${ui.yellow("recurrence:")} ${prevention.recurrence.recurring_count} lesson(s) re-introduced after capture ` +
+      ui.dim("(caught on ≥2 distinct days)"),
+    );
+    for (const r of prevention.recurrence.top.slice(0, 5)) {
+      console.log(`    ${ui.yellow("↻")} ${r.distinct_days} days · ${r.catches}× ${r.id}`);
+    }
   }
 
   // ── Health ──

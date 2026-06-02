@@ -3,6 +3,13 @@ import type { MemoryFrontmatter } from "./types.js";
 import { computeImpact, compareImpact, summarizeImpact, type ImpactSummary, type ImpactScore } from "./impact.js";
 import { isRetiredMemory } from "./memory-lifecycle.js";
 import { DECAY_DAYS, getUsage, isDecaying, type UsageIndex } from "./usage.js";
+import {
+  computePreventionTrend,
+  computeRecurrence,
+  type PreventionEvent,
+  type PreventionTrend,
+  type RecurrenceReport,
+} from "./prevention.js";
 
 /**
  * Observability rollup — the "is the corpus healthy and earning its keep?" view.
@@ -22,6 +29,8 @@ export interface DashboardOptions {
   /** Dormancy window for impact scoring. Defaults to impact's own default. */
   dormantDays?: number;
   now?: Date;
+  /** Prevention event log (from `loadPreventionEvents`) — powers the trend + recurrence rollups. */
+  preventionEvents?: PreventionEvent[];
 }
 
 export interface ImpactRow {
@@ -86,12 +95,16 @@ export interface DashboardReport {
     decaying: number;
     top_dormant: DormantRow[];
   };
-  /** OUTCOME measurement: prevention events = times a memory's sensor fired on a real diff,
-   *  intercepting a known mistake. Distinct from retrieval (reads) — demonstrated value. */
+  /** OUTCOME measurement: prevention events = times a memory's sensor/anti-pattern fired on a real
+   *  diff, intercepting a known mistake. Distinct from retrieval (reads) — demonstrated value. */
   prevention: {
     total_events: number;
     memories_with_catches: number;
     top: PreventionRow[];
+    /** Catch volume over time (from the prevention event log). */
+    trend: PreventionTrend;
+    /** Lessons re-introduced after capture (caught on >= 2 distinct days). */
+    recurrence: RecurrenceReport;
   };
   corpus: {
     /** Number of memory files (policy corpus, excludes session_recap). */
@@ -260,6 +273,11 @@ export function buildDashboard(
       top: preventionRows
         .sort((a, b) => b.prevented_count - a.prevented_count)
         .slice(0, top),
+      trend: computePreventionTrend(options.preventionEvents ?? [], now),
+      recurrence: {
+        ...computeRecurrence(options.preventionEvents ?? []),
+        top: computeRecurrence(options.preventionEvents ?? []).top.slice(0, top),
+      },
     },
     corpus: {
       memory_files: inventory.total,

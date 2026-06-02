@@ -6,6 +6,30 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.13.9] — prevention from the anti-pattern path + trend + recurrence
+
+Completes the outcome-measurement story started in 0.13.8.
+
+### Added
+- **Anti-pattern catches now count as prevention events.** `anti_patterns_check` (and therefore the
+  pre-commit gate) records a prevention event for its **strong, diff-corroborated** matches (a fired
+  sensor, a distinctive literal overlap, or anchor+literal) — weak semantic-only matches stay
+  advisory and are NOT counted. So the semantic feedback path contributes to the outcome metric, not
+  just regex sensors.
+- **Prevention event log + trend.** Each catch is appended to `.ai/.cache/prevention-log.jsonl`
+  (gitignored telemetry, never committed). `haive dashboard` now shows a **trend** (catches in the
+  last 7d / 30d and a weekly sparkline) computed from the log — so you can see whether the harness is
+  catching more or fewer mistakes over time.
+- **Recurrence metric.** The dashboard surfaces **lessons re-introduced after capture** — memories
+  whose guardrail fired on **≥ 2 distinct days** (a genuinely recurring mistake, not a re-scan of the
+  same diff). A high recurrence count flags a problem the team keeps reintroducing, where the root
+  cause may need a stronger fix than a memory.
+
+### Notes
+- New pure `core/prevention.ts` (`appendPreventionEvent` / `loadPreventionEvents` /
+  `computePreventionTrend` / `computeRecurrence`) — unit-tested; `buildDashboard` takes the events
+  via options and stays pure.
+
 ## [0.13.8] — skip-ci prevention hook + outcome measurement
 
 ### Added

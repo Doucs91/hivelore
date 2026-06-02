@@ -1002,10 +1002,20 @@ describe("hAIve CLI integration", () => {
 
       const dash = await run(repo, ["dashboard", "--json", "--dir", repo]);
       const report = JSON.parse(dash.stdout) as {
-        prevention: { total_events: number; memories_with_catches: number; top: Array<{ id: string; prevented_count: number }> };
+        prevention: {
+          total_events: number;
+          memories_with_catches: number;
+          top: Array<{ id: string; prevented_count: number }>;
+          trend: { last_7d: number; last_30d: number; weekly: number[] };
+          recurrence: { recurring_count: number };
+        };
       };
       expect(report.prevention.total_events).toBeGreaterThanOrEqual(1);
       expect(report.prevention.top.some((p) => p.id === "2099-01-01-gotcha-forbidden-token")).toBe(true);
+      // The event log feeds the trend: the catch we just recorded shows up in the last-7d window.
+      expect(report.prevention.trend.last_7d).toBeGreaterThanOrEqual(1);
+      // A single catch is not recurrence.
+      expect(report.prevention.recurrence.recurring_count).toBe(0);
     } finally {
       await rm(repo, { recursive: true, force: true });
     }

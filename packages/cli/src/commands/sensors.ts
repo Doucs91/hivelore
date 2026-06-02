@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { Command } from "commander";
 import {
+  appendPreventionEvent,
   findProjectRoot,
   isRetiredMemory,
   loadMemoriesFromDir,
@@ -99,9 +100,15 @@ export function registerSensors(program: Command): void {
       const firedIds = [...new Set(hits.map((hit) => hit.memory_id))];
       if (firedIds.length > 0) {
         const usage = await loadUsageIndex(paths);
-        let recorded = 0;
-        for (const id of firedIds) if (recordPrevention(usage, id)) recorded++;
-        if (recorded > 0) await saveUsageIndex(paths, usage).catch(() => { /* best-effort telemetry */ });
+        const recordedIds: string[] = [];
+        for (const id of firedIds) if (recordPrevention(usage, id)) recordedIds.push(id);
+        if (recordedIds.length > 0) {
+          await saveUsageIndex(paths, usage).catch(() => { /* best-effort telemetry */ });
+          const at = new Date().toISOString();
+          for (const id of recordedIds) {
+            await appendPreventionEvent(paths, { at, id, source: "sensor" }).catch(() => { /* best-effort */ });
+          }
+        }
       }
 
       const output = {
