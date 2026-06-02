@@ -121,3 +121,4 @@
 {"tool":"mem_save","at":"2026-06-01T23:18:50.256Z","summary":"harness-engineering-positioning-reconciliation"}
 {"tool":"mem_session_end","at":"2026-06-01T23:36:13.014Z","summary":"Research harness engineering, reconcile 8 candidate ideas against hAIve's actual"}
 {"tool":"mem_session_end","at":"2026-06-02T00:04:17.012Z","summary":"Implement roadmap points 1–3 successively: impact as get_briefing ranking weight"}
+{"tool":"get_briefing","at":"2026-06-02T00:15:15.761Z","summary":"Reduce false positives in the pre-commit anti-pattern gate (version-bump/config-only diffs, incidental token overlap on generic words) so agents are not blocked for nothing; plus add CLI haive memory feedback + memory add --activation, wire haive eval into CI, improve semantic-only retrieval."}

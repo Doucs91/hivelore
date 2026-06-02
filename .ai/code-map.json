@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-06-01T17:49:41.996Z",
+  "generated_at": "2026-06-02T00:12:50.165Z",
   "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -110,10 +110,10 @@
         {
           "name": "registerDoctor",
           "kind": "function",
-          "line": 65
+          "line": 66
         }
       ],
-      "loc": 952
+      "loc": 962
     },
     "packages/cli/src/commands/embeddings.ts": {
       "exports": [
@@ -130,15 +130,25 @@
         {
           "name": "registerEnforce",
           "kind": "function",
-          "line": 93
+          "line": 99
         },
         {
           "name": "runWithEnforcement",
           "kind": "function",
-          "line": 327
+          "line": 573
         }
       ],
-      "loc": 1177
+      "loc": 1696
+    },
+    "packages/cli/src/commands/eval.ts": {
+      "exports": [
+        {
+          "name": "registerEval",
+          "kind": "function",
+          "line": 33
+        }
+      ],
+      "loc": 208
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -239,10 +249,10 @@
         {
           "name": "registerInit",
           "kind": "function",
-          "line": 215
+          "line": 220
         }
       ],
-      "loc": 585
+      "loc": 590
     },
     "packages/cli/src/commands/install-hooks.ts": {
       "exports": [
@@ -354,6 +364,16 @@
         }
       ],
       "loc": 78
+    },
+    "packages/cli/src/commands/memory-impact.ts": {
+      "exports": [
+        {
+          "name": "registerMemoryImpact",
+          "kind": "function",
+          "line": 33
+        }
+      ],
+      "loc": 126
     },
     "packages/cli/src/commands/memory-import-changelog.ts": {
       "summary": "haive memory import --from-changelog CHANGELOG.md [--package <name>] Parses a CHANGELOG.md file (Keep-a-Changelog format or common variants), extracts breaking changes and notable gotchas from recent versions, and saves them as hAIve memories.",
@@ -1257,6 +1277,151 @@
       ],
       "loc": 129
     },
+    "packages/core/src/eval.ts": {
+      "exports": [
+        {
+          "name": "RetrievalCase",
+          "kind": "interface",
+          "description": "A rigorous, model-free, repeatable evaluation of hAIve's core promise: surfacing the right knowledge and guardrails at the right moment.",
+          "line": 21
+        },
+        {
+          "name": "SensorCase",
+          "kind": "interface",
+          "line": 30
+        },
+        {
+          "name": "EvalSpec",
+          "kind": "interface",
+          "line": 39
+        },
+        {
+          "name": "RetrievalCaseResult",
+          "kind": "interface",
+          "line": 44
+        },
+        {
+          "name": "SensorCaseResult",
+          "kind": "interface",
+          "line": 57
+        },
+        {
+          "name": "RetrievalAggregate",
+          "kind": "interface",
+          "line": 66
+        },
+        {
+          "name": "SensorAggregate",
+          "kind": "interface",
+          "line": 74
+        },
+        {
+          "name": "EvalReport",
+          "kind": "interface",
+          "line": 79
+        },
+        {
+          "name": "scoreRetrievalCase",
+          "kind": "function",
+          "description": "Score one retrieval case from the (ranked) ids the briefing surfaced.",
+          "line": 98
+        },
+        {
+          "name": "aggregateRetrieval",
+          "kind": "function",
+          "line": 129
+        },
+        {
+          "name": "scoreSensorCase",
+          "kind": "function",
+          "line": 141
+        },
+        {
+          "name": "aggregateSensors",
+          "kind": "function",
+          "line": 161
+        },
+        {
+          "name": "overallScore",
+          "kind": "function",
+          "description": "Combine retrieval + sensor aggregates into a single 0..100 quality score.",
+          "line": 171
+        },
+        {
+          "name": "buildReport",
+          "kind": "function",
+          "line": 187
+        },
+        {
+          "name": "titleFromBody",
+          "kind": "function",
+          "description": "Extract a short task-like title from a memory body (first heading or first line).",
+          "line": 195
+        },
+        {
+          "name": "SelfEvalOptions",
+          "kind": "interface",
+          "line": 208
+        },
+        {
+          "name": "synthesizeSelfEvalCases",
+          "kind": "function",
+          "description": "Synthesize retrieval cases from a repo's own anchored memories — zero-setup eval.",
+          "line": 221
+        }
+      ],
+      "loc": 244
+    },
+    "packages/core/src/impact.ts": {
+      "exports": [
+        {
+          "name": "ImpactTier",
+          "kind": "type",
+          "description": "Closed-loop memory-utility scoring — the \"did this memory actually help?\" layer.",
+          "line": 20
+        },
+        {
+          "name": "ImpactScore",
+          "kind": "interface",
+          "line": 22
+        },
+        {
+          "name": "ImpactOptions",
+          "kind": "interface",
+          "line": 37
+        },
+        {
+          "name": "DEFAULT_DORMANT_DAYS",
+          "kind": "const",
+          "description": "Default dormancy window — half the confidence hard-decay (365d), so impact reacts sooner.",
+          "line": 46
+        },
+        {
+          "name": "computeImpact",
+          "kind": "function",
+          "description": "Compute the demonstrated utility of a single memory from its frontmatter + usage.",
+          "line": 68
+        },
+        {
+          "name": "compareImpact",
+          "kind": "function",
+          "description": "Sort comparator: highest impact first, prune candidates last on ties.",
+          "line": 160
+        },
+        {
+          "name": "ImpactSummary",
+          "kind": "interface",
+          "line": 166
+        },
+        {
+          "name": "summarizeImpact",
+          "kind": "function",
+          "description": "Roll up a set of impact scores into tier counts.",
+          "line": 176
+        }
+      ],
+      "loc": 191
+    },
     "packages/core/src/lexical-rank.ts": {
       "exports": [
         {
@@ -1373,7 +1538,7 @@
           "line": 50
         }
       ],
-      "loc": 90
+      "loc": 92
     },
     "packages/core/src/paths.ts": {
       "exports": [
@@ -1541,18 +1706,24 @@
           "line": 42
         },
         {
+          "name": "ActivationSchema",
+          "kind": "const",
+          "description": "Progressive-disclosure activation triggers for a `skill` memory.",
+          "line": 72
+        },
+        {
           "name": "MemoryFrontmatterSchema",
           "kind": "const",
-          "line": 67
+          "line": 86
         },
         {
           "name": "CrossRepoProvenanceSchema",
           "kind": "const",
           "description": "Additional fields for cross-repo provenance (stored in frontmatter of imported memories)",
-          "line": 102
+          "line": 123
         }
       ],
-      "loc": 108
+      "loc": 129
     },
     "packages/core/src/search.ts": {
       "exports": [
@@ -1599,7 +1770,7 @@
           "line": 26
         }
       ],
-      "loc": 137
+      "loc": 153
     },
     "packages/core/src/sensors.ts": {
       "exports": [
@@ -1653,6 +1824,39 @@
         }
       ],
       "loc": 184
+    },
+    "packages/core/src/skill-activation.ts": {
+      "exports": [
+        {
+          "name": "ActivationContext",
+          "kind": "interface",
+          "description": "Progressive disclosure for `skill` memories.",
+          "line": 13
+        },
+        {
+          "name": "SkillActivation",
+          "kind": "interface",
+          "line": 18
+        },
+        {
+          "name": "isSkill",
+          "kind": "function",
+          "line": 24
+        },
+        {
+          "name": "evaluateSkillActivation",
+          "kind": "function",
+          "description": "Decide whether a skill should be disclosed for the given context.",
+          "line": 34
+        },
+        {
+          "name": "isSkillSuppressed",
+          "kind": "function",
+          "description": "Convenience: true when a skill defines activation triggers that the context does NOT satisfy.",
+          "line": 71
+        }
+      ],
+      "loc": 78
     },
     "packages/core/src/specificity.ts": {
       "summary": "Specificity (\"surprise\") scoring for memories.",
@@ -1742,40 +1946,45 @@
         {
           "name": "MemoryScope",
           "kind": "type",
-          "line": 11
+          "line": 12
         },
         {
           "name": "MemoryStatus",
           "kind": "type",
-          "line": 12
+          "line": 13
         },
         {
           "name": "MemoryType",
           "kind": "type",
-          "line": 13
+          "line": 14
         },
         {
           "name": "Anchor",
           "kind": "type",
-          "line": 14
+          "line": 15
         },
         {
           "name": "Sensor",
           "kind": "type",
-          "line": 15
+          "line": 16
+        },
+        {
+          "name": "Activation",
+          "kind": "type",
+          "line": 17
         },
         {
           "name": "MemoryFrontmatter",
           "kind": "type",
-          "line": 16
+          "line": 18
         },
         {
           "name": "Memory",
           "kind": "interface",
-          "line": 18
+          "line": 20
         }
       ],
-      "loc": 22
+      "loc": 24
     },
     "packages/core/src/usage-log.ts": {
       "exports": [
@@ -1846,70 +2055,76 @@
         {
           "name": "UsageIndex",
           "kind": "interface",
-          "line": 14
+          "line": 23
         },
         {
           "name": "USAGE_FILE",
           "kind": "const",
-          "line": 20
+          "line": 29
         },
         {
           "name": "emptyUsage",
           "kind": "function",
-          "line": 22
+          "line": 31
         },
         {
           "name": "emptyUsageIndex",
           "kind": "function",
-          "line": 32
+          "line": 51
         },
         {
           "name": "usagePath",
           "kind": "function",
-          "line": 40
+          "line": 59
         },
         {
           "name": "loadUsageIndex",
           "kind": "function",
-          "line": 44
+          "line": 63
         },
         {
           "name": "saveUsageIndex",
           "kind": "function",
-          "line": 57
+          "line": 76
         },
         {
           "name": "getUsage",
           "kind": "function",
-          "line": 64
+          "line": 83
         },
         {
           "name": "bumpRead",
           "kind": "function",
-          "line": 68
+          "line": 87
         },
         {
           "name": "recordRejection",
           "kind": "function",
-          "line": 82
+          "line": 101
+        },
+        {
+          "name": "recordApplied",
+          "kind": "function",
+          "description": "Record that a memory was *applied* — explicitly confirmed to have changed what the agent/human did.",
+          "line": 122
         },
         {
           "name": "DECAY_DAYS",
           "kind": "const",
-          "line": 98
+          "line": 133
         },
         {
           "name": "isDecaying",
           "kind": "function",
-          "line": 100
+          "line": 135
         },
         {
           "name": "trackReads",
           "kind": "function",
-          "line": 106
+          "line": 141
         }
       ],
-      "loc": 118
+      "loc": 153
     },
     "packages/core/src/verifier.ts": {
       "exports": [
@@ -2316,165 +2531,165 @@
           "line": 19
         }
       ],
-      "loc": 106
+      "loc": 118
     },
     "packages/mcp/src/server.ts": {
       "exports": [
         {
           "name": "SERVER_NAME",
           "kind": "const",
-          "line": 275
+          "line": 280
         },
         {
           "name": "SERVER_VERSION",
           "kind": "const",
-          "line": 276
+          "line": 281
         },
         {
           "name": "ToolProfile",
           "kind": "type",
-          "line": 277
+          "line": 282
         },
         {
           "name": "ENFORCEMENT_PROFILE_TOOLS",
           "kind": "const",
-          "line": 290
+          "line": 295
         },
         {
           "name": "MAINTENANCE_PROFILE_TOOLS",
           "kind": "const",
-          "line": 304
+          "line": 309
         },
         {
           "name": "EXPERIMENTAL_PROFILE_TOOLS",
           "kind": "const",
-          "line": 325
+          "line": 331
         },
         {
           "name": "TOOL_PROFILES",
           "kind": "const",
-          "line": 336
+          "line": 342
         },
         {
           "name": "getAllowedToolsForProfile",
           "kind": "function",
-          "line": 342
+          "line": 348
         },
         {
           "name": "createHaiveServer",
           "kind": "function",
-          "line": 363
+          "line": 370
         },
         {
           "name": "parseMcpCliArgs",
           "kind": "function",
           "description": "Parse argv for the standalone haive-mcp binary / CLI subprocess parity.",
-          "line": 1321
+          "line": 1358
         },
         {
           "name": "printHaiveMcpVersion",
           "kind": "function",
           "description": "Print MCP server version (same as haive CLI when bundled together).",
-          "line": 1344
+          "line": 1381
         },
         {
           "name": "runHaiveMcpStdio",
           "kind": "function",
           "description": "Run the MCP server over stdio.",
-          "line": 1352
+          "line": 1389
         },
         {
           "name": "getBriefing",
           "kind": "const",
-          "line": 188
+          "line": 193
         },
         {
           "name": "codeMapTool",
           "kind": "const",
-          "line": 193
+          "line": 198
         },
         {
           "name": "getRecap",
           "kind": "const",
-          "line": 198
+          "line": 203
         },
         {
           "name": "memRelevantTo",
           "kind": "const",
-          "line": 203
+          "line": 208
         },
         {
           "name": "codeSearch",
           "kind": "const",
-          "line": 208
+          "line": 213
         },
         {
           "name": "whyThisFile",
           "kind": "const",
-          "line": 213
+          "line": 218
         },
         {
           "name": "antiPatternsCheck",
           "kind": "const",
-          "line": 218
+          "line": 223
         },
         {
           "name": "memDistill",
           "kind": "const",
-          "line": 223
+          "line": 228
         },
         {
           "name": "whyThisDecision",
           "kind": "const",
-          "line": 228
+          "line": 233
         },
         {
           "name": "memConflicts",
           "kind": "const",
-          "line": 233
+          "line": 238
         },
         {
           "name": "preCommitCheck",
           "kind": "const",
-          "line": 238
+          "line": 243
         },
         {
           "name": "patternDetect",
           "kind": "const",
-          "line": 243
+          "line": 248
         },
         {
           "name": "memResolveProject",
           "kind": "const",
-          "line": 248
+          "line": 253
         },
         {
           "name": "memSuggestTopic",
           "kind": "const",
-          "line": 252
+          "line": 257
         },
         {
           "name": "memTimeline",
           "kind": "const",
-          "line": 256
+          "line": 261
         },
         {
           "name": "memConflictCandidates",
           "kind": "const",
-          "line": 260
+          "line": 265
         },
         {
           "name": "runtimeJournalAppend",
           "kind": "const",
-          "line": 264
+          "line": 269
         },
         {
           "name": "runtimeJournalTail",
           "kind": "const",
-          "line": 268
+          "line": 273
         }
       ],
-      "loc": 1359
+      "loc": 1396
     },
     "packages/mcp/src/session-tracker.ts": {
       "summary": "Auto-session tracker for autopilot mode.",
@@ -2530,16 +2745,16 @@
         {
           "name": "AntiPatternsCheckOutput",
           "kind": "interface",
-          "line": 81
+          "line": 87
         },
         {
           "name": "antiPatternsCheck",
           "kind": "function",
           "description": "Scan a diff (or set of paths) against documented attempt/gotcha memories.",
-          "line": 138
+          "line": 144
         }
       ],
-      "loc": 287
+      "loc": 294
     },
     "packages/mcp/src/tools/bootstrap-project-save.ts": {
       "exports": [
@@ -2565,6 +2780,81 @@
         }
       ],
       "loc": 58
+    },
+    "packages/mcp/src/tools/briefing-helpers.ts": {
+      "exports": [
+        {
+          "name": "compactSummary",
+          "kind": "function",
+          "line": 14
+        },
+        {
+          "name": "classifyMemoryPriority",
+          "kind": "function",
+          "line": 22
+        },
+        {
+          "name": "priorityRank",
+          "kind": "function",
+          "line": 71
+        },
+        {
+          "name": "classifyBriefingQuality",
+          "kind": "function",
+          "line": 75
+        },
+        {
+          "name": "explainWhySurfaced",
+          "kind": "function",
+          "line": 113
+        },
+        {
+          "name": "trySemanticHits",
+          "kind": "function",
+          "line": 175
+        },
+        {
+          "name": "loadModuleContexts",
+          "kind": "function",
+          "line": 191
+        }
+      ],
+      "loc": 212
+    },
+    "packages/mcp/src/tools/briefing-types.ts": {
+      "exports": [
+        {
+          "name": "BriefingMemoryPriority",
+          "kind": "type",
+          "line": 3
+        },
+        {
+          "name": "BriefingQuality",
+          "kind": "interface",
+          "line": 5
+        },
+        {
+          "name": "BriefingMemory",
+          "kind": "interface",
+          "line": 10
+        },
+        {
+          "name": "CodeMapSymbolHit",
+          "kind": "interface",
+          "line": 36
+        },
+        {
+          "name": "ActionRequiredItem",
+          "kind": "interface",
+          "line": 47
+        },
+        {
+          "name": "BriefingOutput",
+          "kind": "interface",
+          "line": 59
+        }
+      ],
+      "loc": 102
     },
     "packages/mcp/src/tools/code-map.ts": {
       "exports": [
@@ -2631,25 +2921,25 @@
         {
           "name": "GetBriefingInputSchema",
           "kind": "const",
-          "line": 61
+          "line": 63
         },
         {
           "name": "GetBriefingZod",
           "kind": "const",
-          "line": 135
+          "line": 137
         },
         {
           "name": "GetBriefingInput",
           "kind": "type",
-          "line": 136
+          "line": 138
         },
         {
           "name": "getBriefing",
           "kind": "function",
-          "line": 138
+          "line": 140
         }
       ],
-      "loc": 744
+      "loc": 775
     },
     "packages/mcp/src/tools/get-project-context.ts": {
       "exports": [
@@ -2863,6 +3153,32 @@
         }
       ],
       "loc": 215
+    },
+    "packages/mcp/src/tools/mem-feedback.ts": {
+      "exports": [
+        {
+          "name": "MemFeedbackInputSchema",
+          "kind": "const",
+          "line": 15
+        },
+        {
+          "name": "MemFeedbackInput",
+          "kind": "type",
+          "line": 29
+        },
+        {
+          "name": "MemFeedbackOutput",
+          "kind": "interface",
+          "line": 33
+        },
+        {
+          "name": "memFeedback",
+          "kind": "function",
+          "description": "Record a closed-loop utility outcome for a memory.",
+          "line": 56
+        }
+      ],
+      "loc": 93
     },
     "packages/mcp/src/tools/mem-for-files.ts": {
       "exports": [
@@ -3082,20 +3398,20 @@
         {
           "name": "MemSaveInput",
           "kind": "type",
-          "line": 67
+          "line": 79
         },
         {
           "name": "MemSaveOutput",
           "kind": "interface",
-          "line": 71
+          "line": 83
         },
         {
           "name": "memSave",
           "kind": "function",
-          "line": 123
+          "line": 135
         }
       ],
-      "loc": 331
+      "loc": 344
     },
     "packages/mcp/src/tools/mem-search.ts": {
       "exports": [
@@ -3347,10 +3663,10 @@
         {
           "name": "classifyAntiPatternWarningForTest",
           "kind": "function",
-          "line": 306
+          "line": 350
         }
       ],
-      "loc": 444
+      "loc": 503
     },
     "packages/mcp/src/tools/runtime-journal-append.ts": {
       "exports": [
