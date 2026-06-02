@@ -5,15 +5,9 @@ type: session_recap
 status: validated
 anchor:
   paths:
+    - packages/cli/src/commands/briefing.ts
     - packages/cli/src/commands/enforce.ts
-    - packages/cli/src/index.ts
-    - packages/cli/src/commands/bench.ts
-    - packages/cli/src/commands/benchmark.ts
-    - packages/cli/src/commands/memory-query.ts
-    - packages/cli/src/commands/memory-show.ts
     - packages/cli/test/cli.test.ts
-    - docs/HARNESS-COHERENCE-MAP-2026-06.md
-    - README.md
     - CHANGELOG.md
   symbols: []
 tags:
@@ -21,43 +15,37 @@ tags:
   - recap
 created_at: '2026-04-30T00:02:07.282Z'
 expires_when: null
-verified_at: '2026-06-02T17:30:18.524Z'
+verified_at: '2026-06-02T19:26:38.671Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 topic: session-recap-team
-revision_count: 21
+revision_count: 22
 requires_human_approval: false
 ---
 ## Goal
-Rendre l'existant de hAIve cohérent (carte de cohérence CLI/MCP) : exécuter Phase A (verbes), B (golden path), le fix racine skip-ci-tip, puis C/D/E — tout non-breaking, chaque release atomique et CI-vérifiée.
+Harden hAIve's release/enforcement machinery before adding new features: merge two agents' "what to fix first" analyses and implement the convergent fixes (briefing/enforcement parity, atomic-commit generalization, guided finish, external-CI transient, skip-ci guard).
 
 ## Accomplished
-- A (v0.13.2): verbes memory alignés sur MCP (save/search/get/delete canoniques, anciens en alias).
-- B (v0.13.3): golden path rendu visible (README + after-text du --help).
-- Fix racine (v0.13.4): enforce check --stage pre-commit stage maintenant .ai/project-context.md re-synchronisé → commit de release atomique, plus jamais de tip 'chore sync skip-ci'. Prouvé: HEAD reste le commit de release, git pull 'déjà à jour'.
-- C/D/E (v0.13.5): bench→selftest (alias), install-hooks/precommit étiquetés équivalents enforce, familles dans --advanced help. Regroupement d'arbre profond différé (collisions report/index = breaking).
-- 58 tests CLI verts ; 4 workflows CI verts par release ; enforce finish 100%.
+Shipped v0.13.7 (5 fixes, all CI-green, enforce finish 100%):
+- A: haive briefing CLI now writes anchored-policy memory_ids into the marker (UNIONed with the budget-limited surfaced set), so the gate's own fix command unblocks decision-coverage. CLI/MCP briefing now at parity. Dogfooded: CLI briefing took decision-coverage from 3/11 to 11/11.
+- B: generalized the atomic pre-commit staging to ALL re-synced tracked .ai files (excluding telemetry .usage/.runtime/.cache), not just project-context.
+- C: enforce finish prints a single NEXT REQUIRED ACTION when blocked.
+- D: external CI (Sonar/CodeQL/Snyk/Codecov) failures are advisory info, non-blocking for finish.
+- E: when no Actions runs exist for HEAD, the gate detects a skip-ci directive in the commit message and reports the real cause.
+- 59 CLI tests green incl. new end-to-end fix-A test.
 
 ## Discoveries & surprises
-- GOTCHA MAJEUR (capturé en mémoire): GitHub scanne TOUT le message de commit (sujet ET corps) pour [skip ci]. Mon commit du fix v0.13.4 citait la chaîne dans son corps → CI sautée pour tout le push (0 run). Ne jamais mettre la chaîne littérale skip-ci dans un message de commit qui contient du code. Fallback: ci.yml a workflow_dispatch.
-- La prémisse initiale 'hAIve = 60 commandes plates' était FAUSSE: golden path (--advanced) + profils MCP existaient déjà. Et bench/benchmark, observe/runtime ne sont PAS des doublons.
-- Cause racine skip-ci-tip: applyLightweightRepairs sync project-context APRÈS le staging → drift → workflow le commit en skip-ci. Fix = stager dans le stage pre-commit.
-- Le hook git pre-commit utilise le haive GLOBAL, pas le dist du repo: pour qu'un fix d'enforcement s'applique à mon propre commit, il faut hot-swap dist→global d'abord.
-- Le gate decision-coverage exige un get_briefing MCP (pas CLI) couvrant TOUS les fichiers changés avec max_memories élevé.
-- E non-breaking est limité par collisions de noms (report sous benchmark, index feuille): regrouper agressivement serait breaking.
+- Fix A v1 was INCOMPLETE and dogfooding caught it: the final marker write in briefing.ts (line ~443) overwrote the enriched marker with only the budget-limited surfaced ids, so --budget quick gave 3/11. Real fix = UNION surfaced ids + anchored-policy ids at the final write. Lesson: always dogfood a fix through the real gate, not just a unit test.
+- The other agent's point 4 (VS Code discipline cockpit) was already shipped by someone as v0.13.6 before I started — pulling first revealed it. Also a new convention landed: tool-authored UI copy must be English (user conversation stays any language).
+- Both agents independently hit the SAME #1: briefing/enforcement marker mismatch (the tool's suggested fix didn't unblock). Strong signal it was the right first fix.
+- enforce buildScore: info severity = 0 penalty (safe for advisory findings); warn = 8; error = 25 default. finish blocks only on error severity.
 
 ## Files touched
+- `packages/cli/src/commands/briefing.ts`
 - `packages/cli/src/commands/enforce.ts`
-- `packages/cli/src/index.ts`
-- `packages/cli/src/commands/bench.ts`
-- `packages/cli/src/commands/benchmark.ts`
-- `packages/cli/src/commands/memory-query.ts`
-- `packages/cli/src/commands/memory-show.ts`
 - `packages/cli/test/cli.test.ts`
-- `docs/HARNESS-COHERENCE-MAP-2026-06.md`
-- `README.md`
 - `CHANGELOG.md`
 
 ## Next steps
-Optionnel: regroupement d'arbre profond de E (report/index families) en mode breaking assumé avec dépréciation multi-étapes, si l'équipe l'accepte. Sinon les phases A–E de la carte de cohérence sont complètes.
+Remaining hardening not yet done: a commit-msg hook to PREVENT a skip-ci directive in code commit messages (E is currently post-hoc detection at finish); and the strategic gap from the very first analysis — measure outcome (defect-prevented), not just retrieval (impact.ts still partial). Both are improvements to existing, suitable before net-new features.
