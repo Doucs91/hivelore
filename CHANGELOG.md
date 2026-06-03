@@ -6,6 +6,13 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.16.2] — release hygiene
+
+- Version bump consolidating the 0.16.1 dogfooding fixes (env-workaround corpus re-tag, CLI/MCP
+  ranking drift, and the anti-pattern self-match fix) into a single publishable lockstep version. No
+  code change beyond the bump — the 0.16.1 work landed across two commits, so the protocol requires a
+  fresh version for the second shippable commit.
+
 ## [0.16.1] — apply the env-workaround down-rank to the existing corpus
 
 - **Re-tagged the existing dev-environment workaround memories** (`crosspackage-deps-with-xyz-ranges`,
