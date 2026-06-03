@@ -76,6 +76,19 @@ export interface DashboardReport {
     by_type: Record<string, number>;
     by_status: Record<string, number>;
   };
+  /** OUTCOME measurement: prevention events = times a memory's sensor/anti-pattern fired on a real
+   *  diff, intercepting a known mistake. Distinct from retrieval (reads) — demonstrated value. */
+  prevention: {
+    total_events: number;
+    memories_with_catches: number;
+    top: PreventionRow[];
+    /** Catch volume over time (from the prevention event log). */
+    trend: PreventionTrend;
+    /** Lessons re-introduced after capture (caught on >= 2 distinct days). */
+    recurrence: RecurrenceReport;
+  };
+  /** Inferential-gate signal quality: are catches real (useful) or noise (rejected)? + tuning hint. */
+  gate_precision: GatePrecision;
   impact: ImpactSummary & { top: ImpactRow[] };
   sensors: {
     total: number;
@@ -99,19 +112,6 @@ export interface DashboardReport {
     decaying: number;
     top_dormant: DormantRow[];
   };
-  /** OUTCOME measurement: prevention events = times a memory's sensor/anti-pattern fired on a real
-   *  diff, intercepting a known mistake. Distinct from retrieval (reads) — demonstrated value. */
-  prevention: {
-    total_events: number;
-    memories_with_catches: number;
-    top: PreventionRow[];
-    /** Catch volume over time (from the prevention event log). */
-    trend: PreventionTrend;
-    /** Lessons re-introduced after capture (caught on >= 2 distinct days). */
-    recurrence: RecurrenceReport;
-  };
-  /** Inferential-gate signal quality: are catches real (useful) or noise (rejected)? + tuning hint. */
-  gate_precision: GatePrecision;
   corpus: {
     /** Number of memory files (policy corpus, excludes session_recap). */
     memory_files: number;
@@ -248,10 +248,29 @@ export function buildDashboard(
   );
   sensorRows.sort((a, b) => b.last_fired.localeCompare(a.last_fired));
   dormantRows.sort((a, b) => b.age_days - a.age_days);
+  const eventLog = options.preventionEvents ?? [];
+  const recurrence = computeRecurrence(eventLog);
 
   return {
     generated_at: now.toISOString(),
     inventory,
+    prevention: {
+      total_events: preventionEvents,
+      memories_with_catches: preventionRows.length,
+      top: preventionRows
+        .sort((a, b) => b.prevented_count - a.prevented_count)
+        .slice(0, top),
+      trend: computePreventionTrend(eventLog, now),
+      recurrence: {
+        ...recurrence,
+        top: recurrence.top.slice(0, top),
+      },
+    },
+    gate_precision: computeGatePrecision(
+      eventLog,
+      usage,
+      options.antiPatternGate ?? "anchored",
+    ),
     impact: { ...summarizeImpact(impactScores), top: impactRows.slice(0, top) },
     sensors: {
       total: sensorTotal,
@@ -273,23 +292,6 @@ export function buildDashboard(
       decaying,
       top_dormant: dormantRows.slice(0, top),
     },
-    prevention: {
-      total_events: preventionEvents,
-      memories_with_catches: preventionRows.length,
-      top: preventionRows
-        .sort((a, b) => b.prevented_count - a.prevented_count)
-        .slice(0, top),
-      trend: computePreventionTrend(options.preventionEvents ?? [], now),
-      recurrence: {
-        ...computeRecurrence(options.preventionEvents ?? []),
-        top: computeRecurrence(options.preventionEvents ?? []).top.slice(0, top),
-      },
-    },
-    gate_precision: computeGatePrecision(
-      options.preventionEvents ?? [],
-      usage,
-      options.antiPatternGate ?? "anchored",
-    ),
     corpus: {
       memory_files: inventory.total,
       body_chars: bodyChars,

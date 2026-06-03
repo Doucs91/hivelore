@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeGatePrecision, suggestGate } from "../src/gate-precision.js";
+import { compareGatePrecision, computeGatePrecision, suggestGate } from "../src/gate-precision.js";
 import type { PreventionEvent } from "../src/prevention.js";
 import type { UsageIndex, MemoryUsage } from "../src/usage.js";
 
@@ -54,5 +54,23 @@ describe("suggestGate", () => {
   });
   it("stays silent without enough rejections", () => {
     expect(suggestGate(0.2, 1, "anchored")).toBeNull();
+  });
+});
+
+describe("compareGatePrecision", () => {
+  it("flags more rejection noise as a regression", () => {
+    const baseline = computeGatePrecision([ev("anti-pattern")], usage({}), "anchored");
+    const current = computeGatePrecision([ev("anti-pattern")], usage({ a: { rejected_count: 1 } }), "anchored");
+    const delta = compareGatePrecision(baseline, current);
+    expect(delta.false_positives_increased).toBe(true);
+    expect(delta.regressed).toBe(true);
+  });
+
+  it("flags known precision drops", () => {
+    const baseline = computeGatePrecision([ev("sensor"), ev("anti-pattern")], usage({}), "anchored");
+    const current = computeGatePrecision([ev("sensor")], usage({ a: { rejected_count: 1 } }), "anchored");
+    const delta = compareGatePrecision(baseline, current);
+    expect(delta.precision_regressed).toBe(true);
+    expect(delta.precision.delta).toBeLessThan(0);
   });
 });

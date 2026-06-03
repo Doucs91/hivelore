@@ -269,6 +269,12 @@ async function main() {
     sumBriefCalls += r.with_haive_get_briefing.tool_calls_proxy;
     sumBriefMapCalls += r.with_haive_briefing_plus_code_map.tool_calls_proxy;
   }
+  const pctBriefSaved = Number((((sumNaive - sumBrief) / sumNaive) * 100).toFixed(1));
+  const pctBriefMapSaved = Number((((sumNaive - sumBriefMap) / sumNaive) * 100).toFixed(1));
+  const callReductionBrief = Number((((sumFiles - sumBriefCalls) / sumFiles) * 100).toFixed(1));
+  const publishableClaim =
+    `hAIve reduced first-pass exploration by ${pctBriefSaved}% tokens ` +
+    `and ${callReductionBrief}% tool calls across ${results.length} reproducible scenarios.`;
 
   const report = {
     protocol_version: 1,
@@ -289,11 +295,21 @@ async function main() {
       sum_naive_proxy_tokens: sumNaive,
       sum_with_haive_briefing_only_tokens: sumBrief,
       sum_with_haive_briefing_plus_code_map_tokens: sumBriefMap,
-      pct_tokens_saved_briefing_vs_naive: Number((((sumNaive - sumBrief) / sumNaive) * 100).toFixed(1)),
-      pct_tokens_saved_briefing_map_vs_naive: Number((((sumNaive - sumBriefMap) / sumNaive) * 100).toFixed(1)),
+      pct_tokens_saved_briefing_vs_naive: pctBriefSaved,
+      pct_tokens_saved_briefing_map_vs_naive: pctBriefMapSaved,
       sum_naive_file_reads: sumFiles,
       equivalent_tool_calls_haive_briefing_only: sumBriefCalls,
       equivalent_tool_calls_haive_with_code_map: sumBriefMapCalls,
+      pct_tool_calls_saved_briefing_vs_naive: callReductionBrief,
+    },
+    publishable: {
+      claim: publishableClaim,
+      badge: {
+        schemaVersion: 1,
+        label: "hAIve ROI",
+        message: `${pctBriefSaved}% fewer tokens`,
+        color: pctBriefSaved >= 25 ? "brightgreen" : pctBriefSaved >= 10 ? "green" : "yellow",
+      },
     },
   };
 

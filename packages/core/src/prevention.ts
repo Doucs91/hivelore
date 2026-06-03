@@ -10,7 +10,9 @@
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import type { LoadedMemory } from "./loader.js";
 import type { HaivePaths } from "./paths.js";
+import { getUsage, type UsageIndex } from "./usage.js";
 
 export type PreventionSource = "sensor" | "anti-pattern";
 
@@ -125,4 +127,145 @@ export function computeRecurrence(events: PreventionEvent[]): RecurrenceReport {
   }
   rows.sort((a, b) => b.distinct_days - a.distinct_days || b.catches - a.catches);
   return { recurring_count: rows.length, top: rows };
+}
+
+export interface BriefingProofLineOptions {
+  /** End of the reporting window. Defaults to now. */
+  now?: Date;
+  /** Window size in days. Defaults to 30 ("this month" in product copy). */
+  days?: number;
+}
+
+/**
+ * Coordination point for Lot C: turn prevention events into one compact proof line
+ * suitable for get_briefing, without coupling this lot to the MCP tool.
+ */
+export function briefingProofLine(
+  events: PreventionEvent[],
+  options: BriefingProofLineOptions = {},
+): string | null {
+  const now = options.now ?? new Date();
+  const days = options.days ?? 30;
+  const since = now.getTime() - days * MS_PER_DAY;
+  let count = 0;
+  for (const e of events) {
+    const t = Date.parse(e.at);
+    if (!Number.isFinite(t)) continue;
+    if (t >= since && t <= now.getTime()) count += 1;
+  }
+  if (count === 0) return null;
+  return `This harness prevented ${count} repeated mistake${count === 1 ? "" : "s"} in the last ${days} days.`;
+}
+
+export interface CaughtForYouOptions {
+  /** Only include events at or after this instant. */
+  since?: string | Date;
+  /** Only include events at or before this instant. Defaults to now. */
+  now?: Date;
+  /** Max rows in the summary. Defaults to 5. */
+  limit?: number;
+}
+
+export interface CaughtForYouRow {
+  id: string;
+  title: string;
+  source: PreventionSource;
+  catches: number;
+  previous_count: number;
+  current_count: number;
+  last_at: string;
+}
+
+export interface CaughtForYouSummary {
+  total_catches: number;
+  since: string | null;
+  until: string;
+  rows: CaughtForYouRow[];
+}
+
+function titleFromMemory(loaded: LoadedMemory | undefined): string {
+  if (!loaded) return "";
+  for (const line of loaded.memory.body.split("\n")) {
+    const heading = /^#+\s*(.+)$/.exec(line.trim());
+    if (heading) return heading[1]!.trim().slice(0, 96);
+  }
+  for (const line of loaded.memory.body.split("\n")) {
+    const t = line.trim();
+    if (t) return t.replace(/^[-*]\s*/, "").slice(0, 96);
+  }
+  return "";
+}
+
+function sourceRank(source: PreventionSource): number {
+  return source === "anti-pattern" ? 0 : 1;
+}
+
+/** Build the end-of-session "caught for you" scene from prevention events. Pure. */
+export function summarizeCaughtForYou(
+  events: PreventionEvent[],
+  memories: LoadedMemory[],
+  usage: UsageIndex,
+  options: CaughtForYouOptions = {},
+): CaughtForYouSummary {
+  const until = options.now ?? new Date();
+  const sinceMs =
+    options.since === undefined
+      ? null
+      : options.since instanceof Date
+        ? options.since.getTime()
+        : Date.parse(options.since);
+  const untilMs = until.getTime();
+  const byIdSource = new Map<string, { id: string; source: PreventionSource; catches: number; last_at: string }>();
+
+  for (const e of events) {
+    const t = Date.parse(e.at);
+    if (!Number.isFinite(t)) continue;
+    if (sinceMs !== null && Number.isFinite(sinceMs) && t < sinceMs) continue;
+    if (t > untilMs) continue;
+    const key = `${e.id}\0${e.source}`;
+    const current = byIdSource.get(key) ?? { id: e.id, source: e.source, catches: 0, last_at: e.at };
+    current.catches += 1;
+    if (e.at > current.last_at) current.last_at = e.at;
+    byIdSource.set(key, current);
+  }
+
+  const memoryById = new Map(memories.map((m) => [m.memory.frontmatter.id, m]));
+  const rows = [...byIdSource.values()]
+    .map((row): CaughtForYouRow => {
+      const current = getUsage(usage, row.id).prevented_count;
+      const previous = Math.max(0, current - row.catches);
+      return {
+        id: row.id,
+        title: titleFromMemory(memoryById.get(row.id)) || row.id,
+        source: row.source,
+        catches: row.catches,
+        previous_count: previous,
+        current_count: current,
+        last_at: row.last_at,
+      };
+    })
+    .sort((a, b) => b.last_at.localeCompare(a.last_at) || sourceRank(a.source) - sourceRank(b.source))
+    .slice(0, options.limit ?? 5);
+
+  return {
+    total_catches: [...byIdSource.values()].reduce((sum, row) => sum + row.catches, 0),
+    since: sinceMs !== null && Number.isFinite(sinceMs) ? new Date(sinceMs).toISOString() : null,
+    until: until.toISOString(),
+    rows,
+  };
+}
+
+/** Render a compact human-readable block for CLI/session recaps. */
+export function renderCaughtForYou(summary: CaughtForYouSummary): string | null {
+  if (summary.total_catches === 0 || summary.rows.length === 0) return null;
+  const lines = [
+    `Caught for you: ${summary.total_catches} prevented repeat${summary.total_catches === 1 ? "" : "s"} this session.`,
+  ];
+  for (const row of summary.rows) {
+    const gate = row.source === "anti-pattern" ? "Blocked" : "Caught";
+    lines.push(
+      `- ${gate}: ${row.title} (${row.id}). Prevention ${row.previous_count}->${row.current_count}.`,
+    );
+  }
+  return lines.join("\n");
 }

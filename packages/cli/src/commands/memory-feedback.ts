@@ -1,14 +1,18 @@
 import { existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { Command } from "commander";
 import {
+  applyFeedbackAdjustment,
   computeImpact,
   findProjectRoot,
   getUsage,
   loadUsageIndex,
   recordApplied,
   recordRejection,
+  recommendFeedbackAdjustment,
   resolveHaivePaths,
   saveUsageIndex,
+  serializeMemory,
 } from "@hiveai/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
@@ -63,10 +67,18 @@ export function registerMemoryFeedback(memory: Command): void {
       await saveUsageIndex(paths, index);
 
       const usage = getUsage(index, id);
+      const adjustment = opts.rejected
+        ? recommendFeedbackAdjustment(target.memory.frontmatter, usage)
+        : { action: "none" as const, reason: "No automatic adjustment needed." };
+      const adjustedFrontmatter = applyFeedbackAdjustment(target.memory.frontmatter, adjustment);
+      if (adjustedFrontmatter !== target.memory.frontmatter) {
+        target.memory.frontmatter = adjustedFrontmatter;
+        await writeFile(target.filePath, serializeMemory(target.memory), "utf8");
+      }
       const impact = computeImpact(target.memory.frontmatter, usage);
 
       if (opts.json) {
-        console.log(JSON.stringify({ id, outcome, usage, impact }, null, 2));
+        console.log(JSON.stringify({ id, outcome, usage, impact, feedback_adjustment: adjustment }, null, 2));
         return;
       }
 
@@ -75,5 +87,8 @@ export function registerMemoryFeedback(memory: Command): void {
         `applied=${usage.applied_count} · rejected=${usage.rejected_count} · read=${usage.read_count} ` +
           `→ impact ${impact.score.toFixed(2)} (${impact.tier})`,
       );
+      if (adjustment.action !== "none") {
+        ui.warn(`Feedback adjustment: ${adjustment.action} — ${adjustment.reason}`);
+      }
     });
 }

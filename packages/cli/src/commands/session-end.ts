@@ -13,9 +13,13 @@ import {
   buildFrontmatter,
   findProjectRoot,
   loadMemoriesFromDir,
+  loadPreventionEvents,
+  loadUsageIndex,
   memoryFilePath,
+  renderCaughtForYou,
   resolveHaivePaths,
   serializeMemory,
+  summarizeCaughtForYou,
   type MemoryFrontmatter,
   type MemoryScope,
 } from "@hiveai/core";
@@ -239,6 +243,45 @@ function runGit(cwd: string, args: string[]): Promise<string> {
   });
 }
 
+async function observationStart(paths: ReturnType<typeof resolveHaivePaths>): Promise<string | null> {
+  const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
+  if (!existsSync(obsFile)) return null;
+  const raw = await readFile(obsFile, "utf8").catch(() => "");
+  let first: string | null = null;
+  for (const line of raw.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const obs = JSON.parse(line) as Partial<Observation>;
+      if (typeof obs.ts !== "string") continue;
+      if (!first || obs.ts < first) first = obs.ts;
+    } catch {
+      // ignore corrupt observation rows
+    }
+  }
+  return first;
+}
+
+async function printCaughtForYou(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  since: string | null,
+  quiet: boolean | undefined,
+): Promise<void> {
+  if (quiet) return;
+  const memories = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
+  const usage = await loadUsageIndex(paths);
+  const events = await loadPreventionEvents(paths);
+  const summary = summarizeCaughtForYou(events, memories, usage, {
+    ...(since ? { since } : {}),
+    now: new Date(),
+    limit: 5,
+  });
+  const block = renderCaughtForYou(summary);
+  if (block) {
+    console.log();
+    console.log(ui.bold(block));
+  }
+}
+
 function recapTopic(scope: string, module?: string): string {
   return module ? `session-recap-${scope}-${module}` : `session-recap-${scope}`;
 }
@@ -285,6 +328,7 @@ export function registerSessionEnd(session: Command): void {
       let resolvedFiles = opts.files;
       let goal = opts.goal;
       let accomplished = opts.accomplished;
+      const caughtSince = opts.auto ? await observationStart(paths) : null;
       if (opts.auto) {
         const synth = await buildAutoRecap(paths);
         if (!synth) return; // nothing observed — silently no-op
@@ -352,6 +396,7 @@ export function registerSessionEnd(session: Command): void {
           if (!opts.quiet) {
             ui.success(`Session recap updated (revision #${revisionCount})`);
             ui.info(`id=${fm.id}  file=${path.relative(root, topicMatch.filePath)}`);
+            await printCaughtForYou(paths, caughtSince, opts.quiet);
             ui.info("Tip: `haive stats --export-report` generates a usage JSON suitable for dashboards.");
           }
           return;
@@ -378,6 +423,7 @@ export function registerSessionEnd(session: Command): void {
       if (!opts.quiet) {
         ui.success(`Session recap created`);
         ui.info(`id=${frontmatter.id}  scope=${scope}  file=${path.relative(root, file)}`);
+        await printCaughtForYou(paths, caughtSince, opts.quiet);
         ui.info("Next session: call `get_briefing` — the recap will be surfaced automatically.");
         ui.info("Tip: export a local MCP usage rollup with `haive stats --export-report .ai/tool-usage-roi-report.json`.");
       }
