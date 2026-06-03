@@ -47,9 +47,9 @@ fix.
 **Why it's a false positive:** editing a memory's tags cannot reintroduce the bad pattern into real
 code — the bad string only appears because it's the very lesson the memory documents.
 
-**Workaround now:** confirm the blocking match is a memory matching its own `.ai/memories/*.md` diff,
-then `git commit --no-verify` (same documented practice as [[2026-05-07-attempt-strict-precommit-gate-on-haive]]).
-
-**Real fix (TODO):** in `anti-patterns-check.ts`, exclude a memory from matching the diff of its OWN
-backing file (a memory can't "reintroduce" itself). Also consider: never let a `.ai/memories/*.md`-only
-hunk corroborate a `literal` anti-pattern reason.
+**FIXED in v0.16.1:** `anti-patterns-check.ts` now runs `stripAiDirHunks(diff)` before literal/semantic
+matching, dropping every hunk for a file under `.ai/`. Knowledge-base edits (memory files,
+project-context) can no longer corroborate a "you reintroduced a bad pattern in code" signal, so a
+memory can't self-match its own backing file. The one-off commit that surfaced this used
+`git commit --no-verify` (per [[2026-05-07-attempt-strict-precommit-gate-on-haive]]); that's no longer
+needed.

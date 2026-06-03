@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resolveHaivePaths } from "@hiveai/core";
 import type { HaiveContext } from "../src/context.js";
-import { antiPatternsCheck } from "../src/tools/anti-patterns-check.js";
+import { antiPatternsCheck, stripAiDirHunks } from "../src/tools/anti-patterns-check.js";
 import { classifyAntiPatternWarningForTest, preCommitCheck } from "../src/tools/precommit-check.js";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -944,5 +944,36 @@ describe("preCommitCheck", () => {
     // should_block checks only blocking warnings (stale anchors are separate)
     const blockingWarnings = result.warnings.filter((w) => w.level === "blocking");
     expect(blockingWarnings).toHaveLength(0);
+  });
+});
+
+describe("stripAiDirHunks", () => {
+  it("drops .ai/ file hunks so a memory can't self-match its own backing file", () => {
+    const diff = [
+      "diff --git a/.ai/memories/team/x.md b/.ai/memories/team/x.md",
+      "--- a/.ai/memories/team/x.md",
+      "+++ b/.ai/memories/team/x.md",
+      "+do not run npm install -g @hiveai/core",
+      "diff --git a/packages/cli/src/index.ts b/packages/cli/src/index.ts",
+      "--- a/packages/cli/src/index.ts",
+      "+++ b/packages/cli/src/index.ts",
+      "+const x = 1;",
+    ].join("\n");
+    const out = stripAiDirHunks(diff);
+    expect(out).not.toContain("npm install -g @hiveai/core");
+    expect(out).toContain("const x = 1;");
+    expect(out).toContain("packages/cli/src/index.ts");
+  });
+
+  it("keeps a pure code diff unchanged", () => {
+    const diff = [
+      "diff --git a/src/a.ts b/src/a.ts",
+      "+const a = 1;",
+    ].join("\n");
+    expect(stripAiDirHunks(diff)).toBe(diff);
+  });
+
+  it("returns non-git text as-is", () => {
+    expect(stripAiDirHunks("+just some added text")).toBe("+just some added text");
   });
 });

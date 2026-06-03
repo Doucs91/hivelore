@@ -16,6 +16,11 @@ project follows semantic versioning once it ships its first stable release.
   down-rank but missed the new env-workaround one, so the two façades disagreed. The CLI now also caps
   env-workaround memories at `background` (verified live: the install/hot-swap notes now render
   `[background]`). Same dual-renderer drift class as the recap fix — a shared classifier is overdue.
+- **Fixed an anti-pattern self-match false positive:** editing a memory's own backing file (e.g.
+  re-tagging an `attempt` whose body documents `npm install -g`) re-emitted the bad pattern into the
+  diff, and the gate matched the memory against *its own file* and hard-blocked. `anti-patterns-check`
+  now strips `.ai/` hunks before literal/semantic matching — knowledge-base edits can't corroborate
+  "you reintroduced a bad pattern in code". Surfaced by dogfooding this very release.
 
 ## [0.16.0] — friction polish from real usage (dogfooding feedback)
 

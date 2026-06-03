@@ -135,6 +135,35 @@ function tokenizeDiffForLiteral(diff: string): string[] {
 }
 
 /**
+ * Drop hunks for files under `.ai/` from a unified diff. Anti-patterns are about CODE reintroducing
+ * a known mistake — editing the knowledge base itself (a memory file that *documents* a bad command,
+ * project-context, etc.) must never corroborate a literal/semantic match. Without this, re-tagging or
+ * editing a memory whose body contains the bad pattern self-matches and can hard-block the commit.
+ * See gotcha 2026-06-03-gotcha-antipattern-self-match-on-memory-file-edit.
+ */
+export function stripAiDirHunks(diff: string): string {
+  if (!diff.includes("diff --git")) return diff; // no file headers to split on — leave as-is
+  const out: string[] = [];
+  let block: string[] = [];
+  let keep = true;
+  const flush = (): void => {
+    if (keep) out.push(...block);
+    block = [];
+    keep = true;
+  };
+  for (const line of diff.split("\n")) {
+    if (line.startsWith("diff --git ")) {
+      flush();
+      const target = line.match(/ b\/(.+)$/)?.[1] ?? "";
+      keep = !target.startsWith(".ai/");
+    }
+    block.push(line);
+  }
+  flush();
+  return out.join("\n");
+}
+
+/**
  * Scan a diff (or set of paths) against documented attempt/gotcha memories.
  * Surfaces "you are about to repeat a known mistake" warnings BEFORE you commit.
  *
@@ -216,11 +245,15 @@ export async function antiPatternsCheck(
     }
   }
 
+  // Code-only view of the diff: `.ai/` knowledge-base edits never corroborate "you reintroduced a
+  // bad pattern in code" (they'd self-match the very memory that documents it).
+  const scanDiff = input.diff ? stripAiDirHunks(input.diff) : input.diff;
+
   // 2. Literal token overlap from diff
-  if (input.diff) {
-    const tokens = tokenizeDiffForLiteral(input.diff);
-    const added = addedLinesFromDiff(input.diff);
-    const addedText = added.trim().length > 0 ? added : input.diff;
+  if (scanDiff) {
+    const tokens = tokenizeDiffForLiteral(scanDiff);
+    const added = addedLinesFromDiff(scanDiff);
+    const addedText = added.trim().length > 0 ? added : scanDiff;
     if (tokens.length > 0) {
       for (const { memory } of negative) {
         if (literalMatchesAnyToken(memory, tokens)) {
@@ -262,10 +295,10 @@ export async function antiPatternsCheck(
   }
 
   // 3. Semantic search
-  if (input.semantic && input.diff) {
+  if (input.semantic && scanDiff) {
     try {
       const mod = await import("@hiveai/embeddings");
-      const result = await mod.semanticSearch(ctx.paths, input.diff, { limit: input.limit * 2 });
+      const result = await mod.semanticSearch(ctx.paths, scanDiff, { limit: input.limit * 2 });
       if (result) {
         const negativeIds = new Set(negative.map(({ memory }) => memory.frontmatter.id));
         for (const hit of result.hits) {
