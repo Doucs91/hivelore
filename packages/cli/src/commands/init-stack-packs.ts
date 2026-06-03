@@ -40,7 +40,7 @@ interface PackMemory {
   sensor?: PackSensor;
 }
 
-type StackName = "nestjs" | "nextjs" | "remix" | "react" | "express" | "fastify" | "prisma" | "drizzle"
+export type StackName = "nestjs" | "nextjs" | "remix" | "react" | "express" | "fastify" | "prisma" | "drizzle"
   | "zustand" | "redux" | "reactquery" | "trpc" | "mongoose" | "graphql"
   | "fastapi" | "django" | "go" | "flask" | "vue" | "spring";
 
@@ -940,17 +940,23 @@ export function autoDetectStacks(deps: Record<string, string>): StackName[] {
   return detected;
 }
 
-/** Seed memory pack files on disk. Returns count of memories written. */
+export interface SeedPackResult {
+  memories: number;
+  sensors: number;
+}
+
+/** Seed memory pack files on disk. Returns counts of memories and sensors written. */
 export async function seedStackPack(
   haivePaths: HaivePaths,
   stack: StackName,
-): Promise<number> {
+): Promise<SeedPackResult> {
   const memories = PACKS[stack];
-  if (!memories) return 0;
+  if (!memories) return { memories: 0, sensors: 0 };
 
   await mkdir(haivePaths.teamDir, { recursive: true });
 
-  let count = 0;
+  let memCount = 0;
+  let sensorCount = 0;
   for (const mem of memories) {
     const sensor: Sensor | undefined = mem.sensor
       ? {
@@ -979,7 +985,8 @@ export async function seedStackPack(
     const content = serializeMemory({ frontmatter: fm, body: `${mem.body}\n\n${SEED_FOOTER(stack)}` });
     await mkdir(path.dirname(filePath), { recursive: true });
     await writeFile(filePath, content, "utf8");
-    count++;
+    memCount++;
+    if (sensor) sensorCount++;
   }
-  return count;
+  return { memories: memCount, sensors: sensorCount };
 }

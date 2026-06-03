@@ -1,3 +1,24 @@
+/**
+ * CI USAGE — integrate haive ingest in your pipeline:
+ *
+ *   # ESLint / any SARIF emitter
+ *   eslint --format @microsoft/eslint-formatter-sarif --output-file eslint.sarif src/
+ *   haive ingest --from sarif eslint.sarif --scope team --min-severity major
+ *
+ *   # SonarQube file export
+ *   haive ingest --from sonar sonar-issues.json --scope team --min-severity major
+ *
+ *   # SonarQube live API (no file needed — Node 18+)
+ *   haive ingest --from sonar-api \
+ *     --sonar-url "$SONAR_HOST_URL" --sonar-token "$SONAR_TOKEN" \
+ *     --sonar-component my_project --min-severity major
+ *
+ *   # Dry-run to preview without writing
+ *   haive ingest --from sarif report.sarif --dry-run
+ *
+ * Exit codes: 0 = success (even when nothing new), 1 = bad args or unreadable report.
+ * New memories are status=proposed; a human validates them with `haive memory pending`.
+ */
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
