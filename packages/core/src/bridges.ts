@@ -143,8 +143,6 @@ function renderMemoriesBlock(topMemories: BridgeMemoryEntry[]): string {
     lines.push("_(no validated memories yet — run `haive sync` to populate)_");
   } else {
     for (const m of topMemories) {
-      const unverified = m.type !== "session_recap" && m.scope === "personal" ? "" : "";
-      void unverified;
       lines.push(`- \`${m.id}\` (${m.scope}/${m.type}) — ${m.summary}`);
     }
   }

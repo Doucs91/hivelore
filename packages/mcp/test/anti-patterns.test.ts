@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resolveHaivePaths } from "@hiveai/core";
 import type { HaiveContext } from "../src/context.js";
-import { antiPatternsCheck, stripAiDirHunks } from "../src/tools/anti-patterns-check.js";
+import { antiPatternsCheck, isHaiveOwnedPath, stripAiDirHunks } from "../src/tools/anti-patterns-check.js";
 import { classifyAntiPatternWarningForTest, preCommitCheck } from "../src/tools/precommit-check.js";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -975,5 +975,54 @@ describe("stripAiDirHunks", () => {
 
   it("returns non-git text as-is", () => {
     expect(stripAiDirHunks("+just some added text")).toBe("+just some added text");
+  });
+
+  it("drops hAIve-generated bridge/config/workflow hunks so a fresh-init commit can't self-match", () => {
+    // The first commit after `haive init` stages the seeded corpus AND every file init generated
+    // (bridges, .gitignore, MCP configs, workflows). None are application code; none may corroborate.
+    const diff = [
+      "diff --git a/AGENTS.md b/AGENTS.md",
+      "+- gotcha: never ship uvicorn reload=True to production",
+      "diff --git a/.gitignore b/.gitignore",
+      "+.ai/.cache/*",
+      "diff --git a/.github/workflows/haive-enforcement.yml b/.github/workflows/haive-enforcement.yml",
+      "+      - uses: actions/cache@v4",
+      "diff --git a/CLAUDE.md b/CLAUDE.md",
+      "+prisma client disconnect lambda guidance",
+      "diff --git a/src/main.py b/src/main.py",
+      "+uvicorn.run(app, reload=True)",
+    ].join("\n");
+    const out = stripAiDirHunks(diff);
+    // Generated files gone…
+    expect(out).not.toContain("AGENTS.md");
+    expect(out).not.toContain(".gitignore");
+    expect(out).not.toContain("haive-enforcement.yml");
+    expect(out).not.toContain("CLAUDE.md");
+    // …real code kept.
+    expect(out).toContain("src/main.py");
+    expect(out).toContain("uvicorn.run(app, reload=True)");
+  });
+});
+
+describe("isHaiveOwnedPath", () => {
+  it("flags the .ai/ knowledge base and hAIve-generated files", () => {
+    for (const p of [
+      ".ai/memories/team/x.md", ".ai/code-map.json",
+      "AGENTS.md", "CLAUDE.md", ".cursorrules", ".clinerules", ".windsurfrules",
+      ".github/copilot-instructions.md", ".sourcegraph/cody-rules.md",
+      ".gitignore", ".mcp.json", ".cursor/mcp.json", ".vscode/mcp.json",
+      ".cursor/rules/haive-mcp-required.mdc", ".github/workflows/haive-sync.yml",
+    ]) {
+      expect(isHaiveOwnedPath(p)).toBe(true);
+    }
+  });
+
+  it("does not flag application code or a user's own CI workflow", () => {
+    for (const p of [
+      "src/index.ts", "packages/cli/src/app.ts", "main.py", "README.md",
+      ".github/workflows/ci.yml", "config/settings.json",
+    ]) {
+      expect(isHaiveOwnedPath(p)).toBe(false);
+    }
   });
 });

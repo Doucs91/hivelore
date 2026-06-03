@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { loadUsageIndex, recordApplied, resolveHaivePaths, saveUsageIndex } from "@hiveai/core";
+import { appendPreventionEvent, loadUsageIndex, recordApplied, resolveHaivePaths, saveUsageIndex } from "@hiveai/core";
 import type { HaiveContext } from "../src/context.js";
 import { getBriefing } from "../src/tools/get-briefing.js";
 
@@ -78,6 +78,31 @@ describe("adaptive briefing", () => {
     const b = await getBriefing({ ...baseInput, task: "implement toPublicId", files: ["src/ids.ts"] }, ctx);
     expect(b.briefing_value).toBe("high");
     expect(b.project_context?.content ?? "").not.toMatch(/adaptive briefing/i);
+  });
+
+  it("surfaces the measured prevention proof line in hints when recent catches exist", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!, "2024-01-01-gotcha-legacyfield",
+      "# Avoid legacyField\n\nNever reintroduce legacyField; use currentField.",
+      "src/svc.ts", "gotcha",
+    );
+    // Two recent catches → briefingProofLine should report them in-context.
+    const recent = new Date().toISOString();
+    await appendPreventionEvent(ctx.paths, { at: recent, id: "2024-01-01-gotcha-legacyfield", source: "sensor" });
+    await appendPreventionEvent(ctx.paths, { at: recent, id: "2024-01-01-gotcha-legacyfield", source: "anti-pattern" });
+
+    const b = await getBriefing({ ...baseInput, task: "edit the service", files: ["src/svc.ts"] }, ctx);
+    expect((b.hints ?? []).some((h) => /prevented 2 repeated mistakes/i.test(h))).toBe(true);
+  });
+
+  it("does not show a proof line when there are no recent prevention events", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!, "2024-01-01-convention-pure",
+      "# Pure handlers\n\nKeep request handlers pure and side-effect free.",
+      "src/svc.ts",
+    );
+    const b = await getBriefing({ ...baseInput, task: "edit the service", files: ["src/svc.ts"] }, ctx);
+    expect((b.hints ?? []).some((h) => /prevented .* repeated mistake/i.test(h))).toBe(false);
   });
 
   it("ranks an applied memory above an equally-relevant never-applied one and surfaces impact_tier", async () => {

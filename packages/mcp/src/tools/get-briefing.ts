@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import {
   allocateBudget,
+  briefingProofLine,
   computeImpact,
   DEFAULT_AUTO_PROMOTE_RULE,
   deriveConfidence,
@@ -20,6 +21,7 @@ import {
   loadConfig,
   hashProjectContext,
   loadMemoriesFromDir,
+  loadPreventionEvents,
   loadUsageIndex,
   memoryMatchesAnchorPaths,
   projectContextRecentlyEmitted,
@@ -767,13 +769,14 @@ export async function getBriefing(
     );
   }
 
-  // ── C5 TODO: briefingProofLine() hook (Lot B) ─────────────────────────
-  // When Lot B exposes `briefingProofLine(events): string | null` from @hiveai/core,
-  // import it here and append the returned string to `hints` (if non-null).
-  // Expected signature (coordinate via PR):
-  //   briefingProofLine(preventionEvents: PreventionEvent[], since?: Date): string | null
-  // Example output: "hAIve prevented 3 repeated mistakes this month."
-  // Insert it as: if (!isColdStart) { const line = briefingProofLine(...); if (line) hints.push(line); }
+  // ── Proof line (Lot B × Lot C coordination point) ─────────────────────
+  // Surface the measured outcome — "this harness prevented N repeated mistakes" — directly in the
+  // briefing so the moat is visible in-context, not only in `haive dashboard`. briefingProofLine()
+  // returns null when there are no recent catches, so an empty/cold corpus never shows a hollow claim.
+  if (outputMemories.length > 0 && existsSync(ctx.paths.haiveDir)) {
+    const proof = briefingProofLine(await loadPreventionEvents(ctx.paths));
+    if (proof) hints.push(proof);
+  }
 
   // ── Briefing marker (satisfies enforcement gate for MCP-native agents) ─
   if (existsSync(ctx.paths.haiveDir)) {
