@@ -10,6 +10,8 @@ import {
   type PreventionTrend,
   type RecurrenceReport,
 } from "./prevention.js";
+import { computeGatePrecision, type GatePrecision } from "./gate-precision.js";
+import type { AntiPatternGate } from "./config.js";
 
 /**
  * Observability rollup — the "is the corpus healthy and earning its keep?" view.
@@ -31,6 +33,8 @@ export interface DashboardOptions {
   now?: Date;
   /** Prevention event log (from `loadPreventionEvents`) — powers the trend + recurrence rollups. */
   preventionEvents?: PreventionEvent[];
+  /** Configured anti-pattern gate — lets the gate-precision rollup suggest tightening/loosening. */
+  antiPatternGate?: AntiPatternGate;
 }
 
 export interface ImpactRow {
@@ -106,6 +110,8 @@ export interface DashboardReport {
     /** Lessons re-introduced after capture (caught on >= 2 distinct days). */
     recurrence: RecurrenceReport;
   };
+  /** Inferential-gate signal quality: are catches real (useful) or noise (rejected)? + tuning hint. */
+  gate_precision: GatePrecision;
   corpus: {
     /** Number of memory files (policy corpus, excludes session_recap). */
     memory_files: number;
@@ -279,6 +285,11 @@ export function buildDashboard(
         top: computeRecurrence(options.preventionEvents ?? []).top.slice(0, top),
       },
     },
+    gate_precision: computeGatePrecision(
+      options.preventionEvents ?? [],
+      usage,
+      options.antiPatternGate ?? "anchored",
+    ),
     corpus: {
       memory_files: inventory.total,
       body_chars: bodyChars,

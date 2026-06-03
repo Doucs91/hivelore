@@ -4,6 +4,7 @@ import {
   compileRegexSensor,
   runRegexSensor,
   runSensors,
+  selectCommandSensors,
   sensorAppliesToPath,
   sensorTargetsFromDiff,
 } from "../src/sensors.js";
@@ -140,5 +141,24 @@ describe("sensors", () => {
     const hits = runSensors([memory(sensor({ paths: ["src/backend/"] }))], targets);
     expect(hits).toHaveLength(1);
     expect(hits[0].file).toBe("src/backend/app.properties");
+  });
+
+  it("selectCommandSensors picks shell/test sensors applicable to changed paths", () => {
+    const shell = memory(
+      sensor({ kind: "shell", command: "npm run lint", pattern: undefined, paths: ["src/backend/"] }),
+    );
+    const test = memory(
+      sensor({ kind: "test", command: "npm test -- cycle", pattern: undefined, paths: ["src/core/"] }),
+    );
+    const regex = memory(sensor()); // regex → never selected as a command sensor
+    const noCommand = memory(sensor({ kind: "shell", command: "  ", pattern: undefined }));
+
+    const specs = selectCommandSensors([shell, test, regex, noCommand], ["src/backend/Repo.java"]);
+    expect(specs).toHaveLength(1);
+    expect(specs[0]!.command).toBe("npm run lint");
+    expect(specs[0]!.kind).toBe("shell");
+
+    // no changed paths → apply unconditionally (both command sensors selected)
+    expect(selectCommandSensors([shell, test], []).map((s) => s.kind).sort()).toEqual(["shell", "test"]);
   });
 });

@@ -8,14 +8,17 @@ import {
   appendPreventionEvent,
   findProjectRoot,
   isRetiredMemory,
+  loadConfig,
   loadMemoriesFromDir,
   loadUsageIndex,
   recordPrevention,
   resolveHaivePaths,
   runSensors,
   saveUsageIndex,
+  selectCommandSensors,
   sensorTargetsFromDiff,
   serializeMemory,
+  type CommandSensorSpec,
   type Memory,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
@@ -30,6 +33,7 @@ interface SensorsListOptions {
 interface SensorsCheckOptions {
   diffFile?: string;
   json?: boolean;
+  commands?: boolean;
   dir?: string;
 }
 
@@ -87,6 +91,7 @@ export function registerSensors(program: Command): void {
     )
     .option("--diff-file <path>", "read unified diff from a file instead of staged changes")
     .option("--json", "emit JSON", false)
+    .option("--commands", "ALSO execute shell/test sensors (runs repo-authored commands)", false)
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: SensorsCheckOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -98,10 +103,36 @@ export function registerSensors(program: Command): void {
       const targets = sensorTargetsFromDiff(diff);
       const hits = runSensors(memories, targets.length > 0 ? targets : [{ path: "", content: diff }]);
 
+      // ── Command (shell/test) sensors — the deterministic check a regex can't express ──
+      // OFF by default: they execute arbitrary repo-authored commands. Opt in per-run with
+      // `--commands` or per-repo with `enforcement.runCommandSensors: true`.
+      const config = await loadConfig(paths);
+      const runCommands = opts.commands || config.enforcement?.runCommandSensors === true;
+      const changedPaths = targets.map((t) => t.path).filter(Boolean);
+      const allSensorMemories = await runnableSensorMemories(paths, false);
+      const commandSpecs = selectCommandSensors(allSensorMemories, changedPaths);
+      const commandHits: Array<{ memory_id: string; severity: "warn" | "block"; message: string; matched_line: string }> = [];
+      const commandSkipped: string[] = [];
+      if (commandSpecs.length > 0 && runCommands) {
+        for (const spec of commandSpecs) {
+          const failed = await runCommandSensor(spec, root);
+          if (failed) {
+            commandHits.push({
+              memory_id: spec.memory_id,
+              severity: spec.severity,
+              message: spec.message,
+              matched_line: `command failed: ${spec.command}`,
+            });
+          }
+        }
+      } else if (commandSpecs.length > 0) {
+        for (const spec of commandSpecs) commandSkipped.push(spec.memory_id);
+      }
+
       // Outcome measurement: a sensor firing on a real diff is a *prevention* event — the encoded
       // lesson intercepted a known mistake before it landed. Record it (debounced) so impact and
       // the dashboard can show demonstrated value, not just retrieval.
-      const firedIds = [...new Set(hits.map((hit) => hit.memory_id))];
+      const firedIds = [...new Set([...hits, ...commandHits].map((hit) => hit.memory_id))];
       if (firedIds.length > 0) {
         const usage = await loadUsageIndex(paths);
         const recordedIds: string[] = [];
@@ -124,11 +155,14 @@ export function registerSensors(program: Command): void {
           message: hit.message,
           matched_line: hit.matched_line,
         })),
+        command_hits: commandHits,
+        command_skipped: commandSkipped,
       };
       if (opts.json) {
         console.log(JSON.stringify(output, null, 2));
       } else {
-        console.log(ui.bold(`hAIve sensors check — ${hits.length} hit(s), ${memories.length} sensor(s)`));
+        const total = hits.length + commandHits.length;
+        console.log(ui.bold(`hAIve sensors check — ${total} hit(s), ${memories.length} regex + ${commandSpecs.length} command sensor(s)`));
         for (const hit of hits) {
           const marker = hit.severity === "block" ? ui.red("✗") : ui.yellow("⚠");
           console.log(`  ${marker} ${hit.memory_id} ${ui.dim(`(${hit.severity})`)}`);
@@ -136,8 +170,17 @@ export function registerSensors(program: Command): void {
           console.log(`     ${hit.message}`);
           if (hit.matched_line) console.log(`     ${ui.dim(hit.matched_line)}`);
         }
+        for (const hit of commandHits) {
+          const marker = hit.severity === "block" ? ui.red("✗") : ui.yellow("⚠");
+          console.log(`  ${marker} ${hit.memory_id} ${ui.dim(`(${hit.severity}, command)`)}`);
+          console.log(`     ${hit.message}`);
+          console.log(`     ${ui.dim(hit.matched_line)}`);
+        }
+        if (commandSkipped.length > 0) {
+          console.log(ui.dim(`  ${commandSkipped.length} command sensor(s) not run — pass --commands or set enforcement.runCommandSensors.`));
+        }
       }
-      if (hits.some((hit) => hit.severity === "block")) process.exitCode = 1;
+      if ([...hits, ...commandHits].some((hit) => hit.severity === "block")) process.exitCode = 1;
     });
 
   sensors
@@ -247,6 +290,20 @@ async function runnableSensorMemories(
       if (regexOnly && sensor.kind !== "regex") return false;
       return !isRetiredMemory(memory.frontmatter, memory.body);
     });
+}
+
+/**
+ * Run one shell/test sensor command. Returns true when the command FAILS (non-zero exit) — that is
+ * the "the bad state is present" signal. A timeout or spawn error counts as a failure too (the check
+ * couldn't confirm the good state). Never throws.
+ */
+async function runCommandSensor(spec: CommandSensorSpec, root: string): Promise<boolean> {
+  try {
+    await exec("bash", ["-c", spec.command], { cwd: root, timeout: 120_000, maxBuffer: 8 * 1024 * 1024 });
+    return false; // exit 0 → good state, no hit
+  } catch {
+    return true; // non-zero exit / timeout / spawn error → hit
+  }
 }
 
 async function stagedDiff(root: string): Promise<string> {

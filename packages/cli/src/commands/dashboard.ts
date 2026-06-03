@@ -3,6 +3,7 @@ import { Command } from "commander";
 import {
   buildDashboard,
   findProjectRoot,
+  loadConfig,
   loadMemoriesFromDir,
   loadPreventionEvents,
   loadUsageIndex,
@@ -44,11 +45,13 @@ export function registerDashboard(program: Command): void {
       const memories = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
       const usage = await loadUsageIndex(paths);
       const preventionEvents = await loadPreventionEvents(paths);
+      const config = await loadConfig(paths);
       const top = Math.max(1, Number.parseInt(opts.top ?? "10", 10) || 10);
       const dormantDays = opts.dormantDays ? Number.parseInt(opts.dormantDays, 10) : undefined;
       const report = buildDashboard(memories, usage, {
         top,
         preventionEvents,
+        antiPatternGate: config.enforcement?.antiPatternGate ?? "anchored",
         ...(dormantDays !== undefined && Number.isFinite(dormantDays) ? { dormantDays } : {}),
       });
 
@@ -62,7 +65,7 @@ export function registerDashboard(program: Command): void {
 }
 
 function renderDashboard(r: DashboardReport): void {
-  const { inventory: inv, impact, sensors, health, decay, corpus, prevention } = r;
+  const { inventory: inv, impact, sensors, health, decay, corpus, prevention, gate_precision: gate } = r;
 
   console.log(ui.bold("hAIve dashboard"));
   console.log(
@@ -128,6 +131,23 @@ function renderDashboard(r: DashboardReport): void {
     for (const r of prevention.recurrence.top.slice(0, 5)) {
       console.log(`    ${ui.yellow("↻")} ${r.distinct_days} days · ${r.catches}× ${r.id}`);
     }
+  }
+
+  // ── Gate precision (inferential signal quality) ──
+  console.log();
+  console.log(ui.bold("Gate precision") + ui.dim("  (is the anti-pattern gate real or noisy?)"));
+  const precisionLabel =
+    gate.precision === null
+      ? ui.dim("no signal yet")
+      : gate.precision >= 0.7
+        ? ui.green(`${Math.round(gate.precision * 100)}%`)
+        : ui.yellow(`${Math.round(gate.precision * 100)}%`);
+  console.log(
+    `  ${precisionLabel} precision · ${gate.useful} useful (sensor ${gate.sensor_catches} · anti-pattern ${gate.anti_pattern_catches}) · ` +
+    `${gate.rejections > 0 ? ui.yellow(`${gate.rejections} rejected`) : "0 rejected"}`,
+  );
+  if (gate.suggestion) {
+    ui.info(`Tuning: set enforcement.antiPatternGate="${gate.suggestion.recommended}" — ${gate.suggestion.reason}`);
   }
 
   // ── Health ──

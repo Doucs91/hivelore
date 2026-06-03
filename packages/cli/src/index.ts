@@ -57,6 +57,10 @@ import { registerSensors } from "./commands/sensors.js";
 import { registerIngest } from "./commands/ingest.js";
 import { registerDashboard } from "./commands/dashboard.js";
 import { registerDevLink } from "./commands/dev-link.js";
+import { registerCoverage } from "./commands/coverage.js";
+import { registerMergeDriver } from "./commands/merge-driver.js";
+import { registerMemoryResolveConflict } from "./commands/memory-resolve-conflict.js";
+import { registerMemorySeedGit } from "./commands/memory-seed-git.js";
 
 const program = new Command();
 
@@ -78,6 +82,8 @@ registerAgent(program);
 registerSensors(program);
 registerIngest(program);
 registerDashboard(program);
+registerCoverage(program);
+registerMergeDriver(program);
 registerDevLink(program);
 
 registerMcp(program);
@@ -110,6 +116,8 @@ registerMemoryUpdate(memory);
 registerMemoryHot(memory);
 registerMemoryTried(memory);
 registerMemorySeed(memory);
+registerMemorySeedGit(memory);
+registerMemoryResolveConflict(memory);
 registerMemoryImport(memory);
 registerMemoryImportChangelog(memory);
 registerMemoryDigest(memory);

@@ -5,9 +5,12 @@ import { Command } from "commander";
 import {
   aggregateRetrieval,
   aggregateSensors,
+  appendEvalHistory,
   buildReport,
   compareEvalReports,
+  computeEvalTrend,
   findProjectRoot,
+  loadEvalHistory,
   resolveHaivePaths,
   scoreRetrievalCase,
   scoreSensorCase,
@@ -36,6 +39,9 @@ interface EvalOptions {
   baselineFile?: string;
   failOnRegression?: boolean;
   regressionGate?: boolean;
+  record?: boolean;
+  trend?: boolean;
+  ref?: string;
   dir?: string;
 }
 
@@ -70,6 +76,9 @@ export function registerEval(program: Command): void {
     .option("--baseline-file <path>", "baseline file to read/write (default: .ai/eval/baseline.json)")
     .option("--fail-on-regression", "with --compare, exit non-zero if the score dropped vs the baseline", false)
     .option("--regression-gate", "CI-safe gate: compare against the baseline IF one exists (fail on regression), else no-op", false)
+    .option("--record", "append this run's score to .ai/.cache/eval-history.jsonl (trend the harness over time)", false)
+    .option("--trend", "print the recorded score trend (sparkline + latest/best/delta) and exit", false)
+    .option("--ref <ref>", "version/commit label stored with a --record run")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: EvalOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -77,6 +86,24 @@ export function registerEval(program: Command): void {
       if (!existsSync(paths.memoriesDir)) {
         ui.error(`No .ai/memories at ${root}. Run \`haive init\` first.`);
         process.exitCode = 1;
+        return;
+      }
+
+      // ── Trend view: read-only, no scoring run needed ─────────────────────
+      if (opts.trend) {
+        const trend = computeEvalTrend(await loadEvalHistory(paths));
+        if (opts.json) {
+          console.log(JSON.stringify(trend, null, 2));
+          return;
+        }
+        if (trend.runs === 0) {
+          ui.info("No eval history yet. Run `haive eval --record` to start trending the harness.");
+          return;
+        }
+        const spark = trend.recent.map((s) => "▁▂▃▄▅▆▇█"[Math.min(7, Math.round((s / 100) * 7))]).join("");
+        const arrow = trend.regressed ? ui.red("▼") : (trend.delta ?? 0) > 0 ? ui.green("▲") : ui.dim("=");
+        console.log(ui.bold("hAIve eval trend"));
+        console.log(`  ${spark}  latest ${arrow} ${trend.latest}/100  ${ui.dim(`(best ${trend.best}, ${trend.runs} run${trend.runs === 1 ? "" : "s"})`)}`);
         return;
       }
       const k = Math.max(1, parseInt(opts.top ?? "8", 10) || 8);
@@ -112,6 +139,18 @@ export function registerEval(program: Command): void {
       }
 
       const report = buildReport(retrievalAgg, sensorAgg);
+
+      // ── Record to history (trend the harness over releases) ───────────────
+      if (opts.record) {
+        await appendEvalHistory(paths, {
+          at: new Date().toISOString(),
+          score: report.score,
+          ...(report.retrieval ? { mean_recall: report.retrieval.mean_recall, mrr: report.retrieval.mrr } : {}),
+          ...(report.sensors ? { catch_rate: report.sensors.catch_rate } : {}),
+          ...(opts.ref ? { ref: opts.ref } : {}),
+        }).catch(() => { /* best-effort telemetry */ });
+        if (!opts.json) ui.success(`Recorded eval score ${report.score}/100 to history.`);
+      }
 
       const baselineFile = opts.baselineFile
         ? (path.isAbsolute(opts.baselineFile) ? opts.baselineFile : path.join(root, opts.baselineFile))

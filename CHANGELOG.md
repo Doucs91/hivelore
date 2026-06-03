@@ -6,6 +6,45 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.15.0] — perfect the existing harness (harness-engineering gap closure P0–P3)
+
+A grounded analysis of hAIve against the harness-engineering literature (Fowler/Böckeler, LangChain,
+Addy Osmani, awesome-harness-engineering) surfaced eight *real* gaps — verified in code, not on the
+surface. This release closes all eight, finishing features the schema/UX already promised rather than
+adding new scope.
+
+### Added
+- **P0-1 — executable shell/test sensors.** The schema reserved `kind: "shell" | "test"` but never ran
+  them. `haive sensors check --commands` (or `enforcement.runCommandSensors: true`) now executes a
+  memory's sensor command and treats a non-zero exit as a hit — turning lessons a regex can't express
+  into real deterministic guardrails. Off by default (runs repo-authored commands).
+- **P0-2 — failure-capture gate.** `haive enforce finish` now reads the session's `failure_hint`
+  observations and flags hard failures that were never written down as a lesson. Advisory by default
+  (`enforcement.failureCaptureGate: off | warn | block`) — the ratchet that stops silent re-introductions.
+- **P1-3 — `haive coverage`.** Crosses the repo's hottest files (git churn) with the memory corpus to
+  surface frequently-edited files with no covering memory — the harness blind spots. The inverse of
+  `haive eval` (which checks the memories that exist surface correctly).
+- **P1-4 — eval score trend + CI record.** `haive eval --record` appends each run's score to a history
+  log; `haive eval --trend` renders a sparkline (latest/best/Δ). The generated CI gate now records and
+  trends the score, so a harness-quality regression is a number, not a vibe.
+- **P2-5 — `haive memory resolve-conflict`.** Turns a detected contradiction into a resolution:
+  deterministically keeps the stronger memory (status → revision_count → recency) and deprecates the
+  other. Detection existed; this applies the fix.
+- **P2-6 — gate precision in the dashboard.** A new rollup shows whether the inferential anti-pattern
+  gate's catches are real (useful) or noise (rejected), and suggests tightening/loosening
+  `enforcement.antiPatternGate` accordingly.
+- **P3-7 — `haive memory seed-git`.** Cold-starts the corpus by proposing draft `attempt` seeds from
+  revert/hotfix commits in git history — zero manual authoring on a fresh/legacy repo.
+- **P3-8 — `haive merge-driver`.** A deterministic git merge driver for memory files: collisions under
+  `.ai/memories/` resolve by `revision_count → created_at` instead of leaving `<<<<<<<` markers.
+  `haive merge-driver install` wires git config + `.gitattributes`.
+
+### Notes
+- All new computational layers are pure functions in `@hiveai/core` (`coverage`, `failure-coverage`,
+  `eval-history`, `conflict-resolve`, `gate-precision`, `seed-git`, `merge-memory`) with unit tests;
+  the CLI orchestrates I/O around them. Out of scope (deliberately): the behaviour harness (test
+  generation/verification) — hAIve complements tests, it does not replace them.
+
 ## [0.14.0] — make the harness helpful, not a burden (friction P0–P3)
 
 The exit machinery and outcome metrics are solid; the *entry* friction was the thing that would make

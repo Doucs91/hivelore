@@ -6,6 +6,7 @@ import { Command } from "commander";
 import {
   antiPatternGateParams,
   findProjectRoot,
+  findUncapturedFailures,
   hasRecentBriefingMarker,
   isFreshIsoDate,
   loadConfig,
@@ -449,6 +450,8 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
     });
   }
 
+  findings.push(...await checkFailureCapture(paths, config));
+
   const status = await getGitSyncStatus(root);
   if (!status.available) {
     findings.push({
@@ -630,6 +633,64 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
 
   findings.push(...await verifyGithubActionsForHead(root, status));
   return finishReport(root, initialized, mode, findings, config);
+}
+
+/**
+ * Failure-capture gate: hard failures observed this session (`haive observe` tagged them
+ * `failure_hint`) that were never written down as a lesson are a silent-repeat risk. Surface them
+ * (gate=warn, default) or block finish (gate=block). A failure is "captured" once an attempt/gotcha
+ * lesson was recorded after it. Off by config opt-out — the signal has false positives (a `grep`
+ * that finds nothing exits non-zero), so the default is advisory, not blocking.
+ */
+async function checkFailureCapture(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  config: HaiveConfig,
+): Promise<EnforcementFinding[]> {
+  const gate = config.enforcement?.failureCaptureGate ?? "warn";
+  if (gate === "off") return [];
+
+  const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
+  if (!existsSync(obsFile)) return [];
+
+  const failures: { ts: string; tool: string; summary: string }[] = [];
+  try {
+    const raw = await readFile(obsFile, "utf8");
+    for (const line of raw.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const o = JSON.parse(trimmed) as { ts?: string; tool?: string; summary?: string; failure_hint?: boolean };
+        if (o.failure_hint && o.ts) failures.push({ ts: o.ts, tool: o.tool ?? "?", summary: o.summary ?? "" });
+      } catch { /* skip corrupt line */ }
+    }
+  } catch {
+    return [];
+  }
+  if (failures.length === 0) return [];
+
+  const memories = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
+  const captureTimes = memories
+    .filter(({ memory }) => ["attempt", "gotcha"].includes(memory.frontmatter.type))
+    .map(({ memory }) => memory.frontmatter.created_at);
+
+  const uncaptured = findUncapturedFailures(failures, captureTimes);
+  if (uncaptured.length === 0) {
+    return [{
+      severity: "ok",
+      code: "failure-capture-clean",
+      message: "No uncaptured hard failures from this session.",
+    }];
+  }
+
+  return [{
+    severity: gate === "block" ? "error" : "info",
+    code: "uncaptured-failures",
+    message: `${uncaptured.length} hard failure(s) this session were never captured as a lesson (mem_tried).`,
+    fix: "Call `mem_tried` (or `haive memory tried`) for each real failure so the next session doesn't repeat it. False positives (e.g. a grep that found nothing) can be ignored.",
+    reason: "Harness ratchet: a mistake that isn't written down gets re-introduced. Set enforcement.failureCaptureGate to 'off' to disable, or 'block' to hard-fail.",
+    affected_files: uncaptured.slice(0, 8).map((f) => `${f.tool}: ${f.summary}`.slice(0, 100)),
+    ...(gate === "block" ? { impact: 30 } : {}),
+  }];
 }
 
 function finishReport(

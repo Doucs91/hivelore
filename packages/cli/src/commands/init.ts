@@ -214,7 +214,11 @@ jobs:
         run: npm install -g @hiveai/cli
 
       - name: harness quality regression gate
-        run: haive eval --regression-gate
+        run: haive eval --regression-gate --record --ref "\${{ github.sha }}"
+
+      - name: harness quality trend
+        if: always()
+        run: haive eval --trend || true
 
   # On push to main: push shared memories to the hub (if hubPath is configured)
   # Uncomment and configure hubPath in .ai/haive.config.json to enable.

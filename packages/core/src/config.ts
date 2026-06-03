@@ -178,6 +178,29 @@ export interface HaiveConfig {
      */
     antiPatternGate?: "off" | "review" | "anchored" | "strict";
     /**
+     * Execute `kind: "shell" | "test"` memory sensors during `haive sensors check`.
+     * These run arbitrary repo-authored commands, so they are OFF by default; turn on per repo
+     * (or pass `--commands`) once the team trusts the sensors. Regex sensors always run. Default false.
+     */
+    runCommandSensors?: boolean;
+    /**
+     * How `haive enforce finish` reacts to hard failures observed this session that were never
+     * captured as a lesson (`mem_tried`):
+     *   - off:   ignore
+     *   - warn:  surface them as an info finding (default — failure detection has false positives)
+     *   - block: hard-block finish until each is captured
+     * Default: "warn".
+     */
+    failureCaptureGate?: "off" | "warn" | "block";
+    /**
+     * How `haive eval --ci` reacts to a harness-quality regression vs the recorded baseline:
+     *   - off:   never block
+     *   - warn:  report the drop (default)
+     *   - block: exit non-zero on any score drop
+     * Default: "warn".
+     */
+    evalRegressionGate?: "off" | "warn" | "block";
+    /**
      * Default unread-age window (in days) for `haive memory archive` corpus decay.
      * A noisy or stale corpus is actively harmful — it makes the agent follow outdated policy.
      * Default: 180.

@@ -156,3 +156,5 @@
 {"tool":"mem_session_end","at":"2026-06-02T21:06:40.598Z","summary":"Complete the outcome-measurement story: record prevention from the anti-pattern "}
 {"tool":"get_briefing","at":"2026-06-02T21:24:41.326Z","summary":"P0 friction reduction: add enforcement.preEditGate config; make pre-tool-use hook advise (inject context + record marker + allow) instead of block; exclude generated .ai artifacts from decision-coverage."}
 {"tool":"mem_session_end","at":"2026-06-02T21:47:18.580Z","summary":"Make hAIve helpful, not a burden: implement P0-P3 friction fixes — advise-mode p"}
+{"tool":"mem_save","at":"2026-06-02T22:52:09.757Z","summary":"harness-engineering-positioning-gaps"}
+{"tool":"get_briefing","at":"2026-06-02T22:52:12.214Z","summary":"Implement 8 harness-engineering improvements: execute shell/test sensors in CLI, harden enforce finish to block on uncaptured runtime failures, coverage-gap detection from usage hot files, trend eval score in CI, contradiction resolution flow, inferential gate precision metric, cold-start seeding, .ai merge safety"}

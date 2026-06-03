@@ -132,6 +132,56 @@ export function runSensors(
   return hits;
 }
 
+/**
+ * A shell/test sensor selected for execution — the feedback *computational* layer that a regex
+ * can't express. The schema reserves `kind: "shell" | "test"`; this picks the ones whose memory
+ * applies to the changed paths so the CLI can run `command` (core stays pure — it never executes).
+ */
+export interface CommandSensorSpec {
+  memory_id: string;
+  /** Command to execute (shell or test runner invocation). */
+  command: string;
+  kind: "shell" | "test";
+  severity: Sensor["severity"];
+  /** LLM-facing self-correction message carried from the sensor. */
+  message: string;
+  /** Anchor/scoped paths this sensor cares about (for reporting). */
+  paths: string[];
+}
+
+/**
+ * Select the shell/test sensors that apply to `changedPaths`. With no changed paths (or a sensor
+ * scoped to everywhere) the sensor is selected unconditionally. Pure: the caller executes commands.
+ */
+export function selectCommandSensors(
+  memories: Memory[],
+  changedPaths: string[],
+): CommandSensorSpec[] {
+  const specs: CommandSensorSpec[] = [];
+  for (const memory of memories) {
+    const sensor = memory.frontmatter.sensor;
+    if (!sensor) continue;
+    if (sensor.kind !== "shell" && sensor.kind !== "test") continue;
+    const command = sensor.command?.trim();
+    if (!command) continue;
+    const anchorPaths = memory.frontmatter.anchor.paths;
+    const applies =
+      changedPaths.length === 0
+        ? true
+        : changedPaths.some((p) => sensorAppliesToPath(sensor, anchorPaths, p));
+    if (!applies) continue;
+    specs.push({
+      memory_id: memory.frontmatter.id,
+      command,
+      kind: sensor.kind,
+      severity: sensor.severity,
+      message: sensor.message,
+      paths: sensor.paths.length > 0 ? sensor.paths : anchorPaths,
+    });
+  }
+  return specs;
+}
+
 /** Split a unified diff into per-file targets containing only added lines. */
 export function sensorTargetsFromDiff(diff: string): SensorTarget[] {
   const targets: SensorTarget[] = [];
