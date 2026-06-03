@@ -5,47 +5,45 @@ type: session_recap
 status: validated
 anchor:
   paths:
-    - packages/core/src/enforcement.ts
-    - packages/core/src/relevance.ts
-    - packages/core/src/recap.ts
+    - packages/core/src/priority.ts
     - packages/core/src/index.ts
-    - packages/cli/src/commands/observe.ts
-    - packages/cli/src/commands/briefing.ts
-    - packages/cli/src/commands/enforce.ts
+    - packages/core/test/priority.test.ts
     - packages/mcp/src/tools/briefing-helpers.ts
-    - packages/mcp/src/tools/get-briefing.ts
-    - CLAUDE.md
+    - packages/cli/src/commands/briefing.ts
   symbols: []
 tags:
   - session
   - recap
 created_at: '2026-04-30T00:02:07.282Z'
 expires_when: null
-verified_at: '2026-06-03T02:37:01.608Z'
+verified_at: '2026-06-03T04:16:24.880Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 topic: session-recap-team
-revision_count: 29
+revision_count: 30
 requires_human_approval: false
 ---
 ## Goal
-Re-tag the old dev-environment workaround memories so the v0.16.0 background down-rank applies to them.
+Implement the strong recommendation: a single shared briefing-priority classifier so the CLI (haive briefing) and MCP (get_briefing) can never drift again.
 
 ## Accomplished
-Done + fixed two issues it surfaced (shipped v0.16.1 → v0.16.2):
-- Re-tagged 3 dev-env workaround memories (crosspackage-deps, installing-hiveaicore, npm-install-g) with tooling-debt/dev-workflow. Verified live: install/hot-swap notes now render [background].
-- Fixed CLI/MCP ranking drift: haive briefing's own classifier missed isEnvWorkaroundMemory (only had isStackPackSeed) — added it so CLI and MCP agree.
-- Fixed an anti-pattern self-match false positive (root cause): editing a memory's own .ai/ file re-emits its documented bad command into the diff and the gate self-matched + hard-blocked. anti-patterns-check now stripAiDirHunks() before literal/semantic matching. +3 unit tests. Proven: the follow-up commit (editing a memory mentioning npm install) passed the gate without --no-verify.
-- v0.16.2 version-hygiene bump (two shippable commits in 0.16.1 → protocol needs a fresh version).
-All tests pass (core 233 / mcp 115 / cli 67 / embeddings 17). Tagged v0.16.1 + v0.16.2, pushed. All core CI green; sonarqube external-transient. enforce finish 100%.
+Shipped v0.17.0. Extracted the must_read/useful/background classifier into a new pure @hiveai/core `priority` module (classifyMemoryPriority(signals) + priorityRank + PrioritySignals). Both call sites now map their evidence into the normalized signals and call the same function:
+- MCP briefing-helpers.classifyMemoryPriority → builds signals from BriefingMemory (semantic scores), delegates. Behavior byte-for-byte preserved (the get_briefing priority tests pass unchanged).
+- CLI briefing.classifyCliPriority → builds signals from lexical evidence, delegates. Gains the consistency wins it lacked (requires_human_approval, direct symbol, skill-exact now → must_read).
+8 unit tests in core/test/priority.test.ts. Verified live: all 3 env-workaround memories render [background] in the CLI via the shared classifier. All tests pass (core 240 / mcp 115 / cli 67 / embeddings 17). Committed de85edc, tagged v0.17.0, pushed. All 4 CI workflows green (sonarqube recovered). enforce finish 100%.
 
 ## Discoveries & surprises
-- `haive memory update --tags` REPLACES tags (not append) — must pass the full set.
-- The anti-pattern gate self-matched when editing a memory's own backing file — a real defect, now fixed via stripAiDirHunks. Captured as gotcha 2026-06-03-gotcha-antipattern-self-match-on-memory-file-edit (marked FIXED).
-- The CLI/MCP ranking drift recurred AGAIN (after the recap-renderer one) — `haive briefing` has its own priority classifier separate from briefing-helpers.classifyMemoryPriority. A SHARED classifier is overdue; every ranking change must touch both until then.
-- The release gate correctly rejects a second shippable commit at the same version — splitting one logical release across two commits forces a version bump for the second.
-- Two of the three target memories were already tagged dev-workflow/hotswap (already demoted); only crosspackage-deps (read 136x) was genuinely untagged.
+- The down-rank (stack-pack / env-workaround) correctly applies ONLY to soft (semantic/tag) matches: an exact task hit or a direct anchor on such a memory still ranks must_read/useful, because the must_read branch runs before the down-rank. My first test got this wrong and caught it.
+- Preserving MCP behavior exactly required mapping match_quality==="exact" → exactTaskMatch, semantic≥0.65 → strongSemantic, semantic≥0.35 → usefulSemantic, reasons module/domain → moduleOrDomainMatch, and tagTaskMatch=false (MCP never had a separate tag-token signal).
+- This closes the drift that bit three times now (recap renderer, env-workaround rank, and the original stack-pack rank): the dual-implementation pattern is the root cause class.
+
+## Files touched
+- `packages/core/src/priority.ts`
+- `packages/core/src/index.ts`
+- `packages/core/test/priority.test.ts`
+- `packages/mcp/src/tools/briefing-helpers.ts`
+- `packages/cli/src/commands/briefing.ts`
 
 ## Next steps
-Human runs `npm publish` for 0.16.2. Strongly recommended next: extract a SINGLE shared memory-priority classifier used by both get_briefing (briefing-helpers) and haive briefing (briefing.ts) — the drift has now bitten twice (recap renderer, env-workaround rank). Re-run sonarqube when the server is reachable.
+Human runs `npm publish` for 0.17.0. Remaining dual-renderer to consider unifying: the recap presentation still lives in both get_briefing and haive briefing (only the compaction is shared via core) — a shared recap renderer would close the last known drift surface.
