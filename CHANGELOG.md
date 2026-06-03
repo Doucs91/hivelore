@@ -6,6 +6,17 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.16.1] — apply the env-workaround down-rank to the existing corpus
+
+- **Re-tagged the existing dev-environment workaround memories** (`crosspackage-deps-with-xyz-ranges`,
+  `installing-hiveaicore-via-npm-install`, `npm-install-g-...`) with `tooling-debt`/`dev-workflow` so
+  the 0.16.0 background down-rank actually applies to them — they were high-read-count notes crowding
+  the briefing.
+- **Fixed a CLI/MCP ranking drift:** `haive briefing`'s own priority classifier mirrored the stack-pack
+  down-rank but missed the new env-workaround one, so the two façades disagreed. The CLI now also caps
+  env-workaround memories at `background` (verified live: the install/hot-swap notes now render
+  `[background]`). Same dual-renderer drift class as the recap fix — a shared classifier is overdue.
+
 ## [0.16.0] — friction polish from real usage (dogfooding feedback)
 
 After driving hAIve end-to-end to ship 0.15.0, six concrete friction/noise points surfaced from

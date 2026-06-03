@@ -9,7 +9,25 @@ anchor:
     - packages/mcp/package.json
     - packages/cli/package.json
   symbols: []
-tags: []
+sensor:
+  kind: regex
+  pattern: '"@hiveai\/[^"]+"\s*:\s*"\^[0-9]+\.[0-9]+\.[0-9]+"'
+  paths:
+    - packages/embeddings/package.json
+    - packages/mcp/package.json
+    - packages/cli/package.json
+  message: >-
+    Use `workspace:*` for cross-package @hiveai deps, not `^X.Y.Z` ranges. pnpm
+    resolved semver ranges to the npm store instead of the local workspace,
+    causing TS build failures.
+  severity: warn
+  autogen: false
+  last_fired: null
+tags:
+  - dev-workflow
+  - tooling-debt
+  - npm
+  - monorepo
 created_at: '2026-05-02T06:02:50.683Z'
 expires_when: null
 verified_at: null
@@ -18,17 +36,6 @@ related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
-sensor:
-  kind: regex
-  pattern: "\"@hiveai\\/[^\"]+\"\\s*:\\s*\"\\^[0-9]+\\.[0-9]+\\.[0-9]+\""
-  message: "Use `workspace:*` for cross-package @hiveai deps, not `^X.Y.Z` ranges. pnpm resolved semver ranges to the npm store instead of the local workspace, causing TS build failures."
-  severity: warn
-  autogen: false
-  last_fired: null
-  paths:
-    - packages/embeddings/package.json
-    - packages/mcp/package.json
-    - packages/cli/package.json
 ---
 # Cross-package deps with `^X.Y.Z` ranges relying on pnpm to auto-link the workspace version
 

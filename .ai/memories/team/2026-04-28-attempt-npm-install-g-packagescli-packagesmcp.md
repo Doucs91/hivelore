@@ -11,10 +11,15 @@ tags:
   - publish
   - install
   - dev-workflow
+  - tooling-debt
 created_at: '2026-04-28T04:17:56.967Z'
 expires_when: null
 verified_at: null
 stale_reason: null
+related_ids: []
+last_read_at: null
+revision_count: 0
+requires_human_approval: false
 ---
 # npm install -g packages/cli packages/mcp (install local monorepo packages globally)
 
