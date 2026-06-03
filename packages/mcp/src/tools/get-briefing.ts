@@ -767,6 +767,14 @@ export async function getBriefing(
     );
   }
 
+  // ── C5 TODO: briefingProofLine() hook (Lot B) ─────────────────────────
+  // When Lot B exposes `briefingProofLine(events): string | null` from @hiveai/core,
+  // import it here and append the returned string to `hints` (if non-null).
+  // Expected signature (coordinate via PR):
+  //   briefingProofLine(preventionEvents: PreventionEvent[], since?: Date): string | null
+  // Example output: "hAIve prevented 3 repeated mistakes this month."
+  // Insert it as: if (!isColdStart) { const line = briefingProofLine(...); if (line) hints.push(line); }
+
   // ── Briefing marker (satisfies enforcement gate for MCP-native agents) ─
   if (existsSync(ctx.paths.haiveDir)) {
     await writeBriefingMarker(ctx.paths, {

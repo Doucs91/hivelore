@@ -6,6 +6,23 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+### [Unreleased] — Lot C: Reach & feedforward
+
+#### Added
+- **`core/bridges.ts`** — pure bridge generator (`generateBridges`, `prepareBridgeData`,
+  `bridgeMemorySummary`). Formats native config files for 7 harnesses: Cline (`.clinerules`),
+  Windsurf (`.windsurfrules`), Continue (`.continuerules`), Cody (`.sourcegraph/cody-rules.md`),
+  Zed (`.rules`), Codex/AGENTS.md, GitHub Copilot. Each bridge includes validated memories AND
+  block sensors — the enforcement differentiator vs memories.sh.
+- **`cli/commands/bridges.ts`** — `haive bridges sync` command. Idempotent (marker-based),
+  supports `--all`, `--only <targets>`, `--max-memories`, `--dry-run`.
+  Also exposes `haive bridges list` to show target status.
+- **`BRIDGE_TARGETS`, `BRIDGE_TARGET_PATH`, `BRIDGE_MARKERS`** exported from `@hiveai/core`
+  for use by Lot A (`init.ts` can call `generateBridges()` at init time — C6 interface).
+- **C5 hook point**: `get-briefing.ts` now has a documented insertion comment for
+  `briefingProofLine()` from Lot B (when that function is ready, import and wire it there).
+- Tests: `packages/core/test/bridges.test.ts` — unit + per-target snapshot tests.
+
 ## [0.17.0] — one shared briefing-priority classifier (kill the CLI/MCP drift)
 
 The must_read / useful / background tier was implemented **twice** — in the MCP `get_briefing` tool and

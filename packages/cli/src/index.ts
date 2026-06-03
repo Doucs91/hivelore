@@ -61,6 +61,8 @@ import { registerCoverage } from "./commands/coverage.js";
 import { registerMergeDriver } from "./commands/merge-driver.js";
 import { registerMemoryResolveConflict } from "./commands/memory-resolve-conflict.js";
 import { registerMemorySeedGit } from "./commands/memory-seed-git.js";
+// --- Lot C ---
+import { registerBridges } from "./commands/bridges.js";
 
 const program = new Command();
 
@@ -91,6 +93,7 @@ registerBriefing(program);
 registerTui(program);
 registerEmbeddings(program);
 registerSync(program);
+registerBridges(program); // --- Lot C ---
 registerInstallHooks(program);
 registerObserve(program);
 registerIndexCode(program);
@@ -155,6 +158,7 @@ const CORE_ROOT_COMMANDS = new Set([
   "doctor",
   "agent",
   "briefing",
+  "bridges", // --- Lot C ---
   "enforce",
   "run",
   "sensors",
