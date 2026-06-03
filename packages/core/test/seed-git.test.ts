@@ -26,6 +26,23 @@ describe("proposeSeedsFromCommits", () => {
     expect(out).toHaveLength(0);
   });
 
+  it("detects workaround/hack commits as a workaround signal", () => {
+    const out = proposeSeedsFromCommits([
+      c("w1", "add temporary workaround for flaky payment webhook", ["src/pay.ts"]),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.kind).toBe("workaround");
+    expect(out[0]!.why_failed).toContain("workaround");
+  });
+
+  it("matches hack / band-aid stop-gap wording", () => {
+    const out = proposeSeedsFromCommits([
+      c("h1", "hacky fix to unblock release"),
+      c("h2", "band-aid for race condition"),
+    ]);
+    expect(out.map((o) => o.kind)).toEqual(["workaround", "workaround"]);
+  });
+
   it("dedupes by slug and respects the limit", () => {
     const commits = [
       c("1", 'Revert "same change"'),

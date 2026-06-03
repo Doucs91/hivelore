@@ -15,15 +15,29 @@ export interface DetectStacksInput {
   goMod?: string;
   /** Raw text of pom.xml. */
   pomXml?: string;
+  /** Raw text of composer.json (PHP). */
+  composerJson?: string;
+  /** Raw text of Gemfile (Ruby). */
+  gemfile?: string;
+  /** True when at least one .csproj/.sln file is present (.NET). */
+  hasCsproj?: boolean;
+  /** True when a Dockerfile is present. */
+  hasDockerfile?: boolean;
+  /** True when turbo.json is present (Turborepo). */
+  hasTurboJson?: boolean;
+  /** True when nx.json is present (Nx). */
+  hasNxJson?: boolean;
 }
 
 export type DetectableStack =
   | "nestjs" | "nextjs" | "remix" | "react" | "express" | "fastify"
   | "prisma" | "drizzle" | "zustand" | "redux" | "reactquery" | "trpc"
   | "mongoose" | "graphql" | "vue"
+  | "tailwind" | "vite" | "sveltekit" | "astro" | "typescript" | "monorepo"
   | "fastapi" | "django" | "flask"
   | "go"
-  | "spring";
+  | "spring"
+  | "laravel" | "rails" | "dotnet" | "docker";
 
 const JS_DETECTORS: [DetectableStack, string[]][] = [
   ["nestjs",     ["@nestjs/core"]],
@@ -41,6 +55,12 @@ const JS_DETECTORS: [DetectableStack, string[]][] = [
   ["mongoose",   ["mongoose"]],
   ["graphql",    ["@apollo/client", "@apollo/server", "apollo-server", "graphql"]],
   ["vue",        ["vue", "@vue/core"]],
+  ["tailwind",   ["tailwindcss"]],
+  ["vite",       ["vite"]],
+  ["sveltekit",  ["@sveltejs/kit"]],
+  ["astro",      ["astro"]],
+  ["typescript", ["typescript"]],
+  ["monorepo",   ["turbo", "nx", "@nrwl/workspace", "@nx/workspace"]],
 ];
 
 const PYTHON_DETECTORS: [DetectableStack, RegExp][] = [
@@ -74,6 +94,14 @@ function detectFromPomXml(content: string): DetectableStack[] {
   return /org\.springframework|spring-boot/.test(content) ? ["spring"] : [];
 }
 
+function detectFromComposerJson(content: string): DetectableStack[] {
+  return /laravel\/framework|illuminate\//.test(content) ? ["laravel"] : [];
+}
+
+function detectFromGemfile(content: string): DetectableStack[] {
+  return /^\s*gem\s+["']rails["']/m.test(content) || /\brails\b/.test(content) ? ["rails"] : [];
+}
+
 /**
  * Detect stacks present in a project from the raw contents of its manifest files.
  * Pure — no I/O. Pass what you have; omit what you don't.
@@ -86,6 +114,11 @@ export function detectStacksFromManifests(input: DetectStacksInput): DetectableS
   if (input.requirementsTxt) add(detectFromRequirementsTxt(input.requirementsTxt));
   if (input.goMod) add(detectFromGoMod(input.goMod));
   if (input.pomXml) add(detectFromPomXml(input.pomXml));
+  if (input.composerJson) add(detectFromComposerJson(input.composerJson));
+  if (input.gemfile) add(detectFromGemfile(input.gemfile));
+  if (input.hasCsproj) add(["dotnet"]);
+  if (input.hasDockerfile) add(["docker"]);
+  if (input.hasTurboJson || input.hasNxJson) add(["monorepo"]);
 
   return Array.from(seen);
 }

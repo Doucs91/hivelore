@@ -23,8 +23,10 @@ import {
   verifyAnchor,
   watchContracts,
 } from "@hiveai/core";
+import { BRIDGE_TARGETS, type BridgeTarget } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
+import { writeBridgeFiles } from "../utils/bridge-files.js";
 
 const BRIDGE_START = "<!-- haive:memories-start -->";
 const BRIDGE_END = "<!-- haive:memories-end -->";
@@ -42,6 +44,7 @@ interface SyncOptions {
   noCrossRepo?: boolean;
   noDeps?: boolean;
   noContracts?: boolean;
+  noBridges?: boolean;
   dryRun?: boolean;
 }
 
@@ -81,6 +84,7 @@ export function registerSync(program: Command): void {
     .option("--no-cross-repo", "skip cross-repo memory pull even if crossRepoSources is configured")
     .option("--no-deps", "skip dependency version tracking")
     .option("--no-contracts", "skip contract file diff checking")
+    .option("--no-bridges", "skip auto-refresh of existing native agent bridge files (.cursor/rules, .clinerules, …)")
     .option("--dry-run", "report what would change without writing any files")
     .action(async (opts: SyncOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -281,6 +285,34 @@ export function registerSync(program: Command): void {
         }
         for (const bridgeFile of bridgeTargets) {
           await injectBridge(bridgeFile, paths.memoriesDir, maxInject, root, opts.quiet);
+        }
+      }
+
+      // ── Auto-refresh existing native bridges (keep reach configs fresh) ─────
+      // CLAUDE.md / AGENTS.md stay under --inject-bridge above; here we refresh the
+      // native agent configs (cursor, cline, windsurf, …) that already exist on disk,
+      // so a pull/merge never leaves a stale .cursor/rules or .clinerules behind.
+      if (opts.noBridges !== true) {
+        const nativeTargets = BRIDGE_TARGETS.filter(
+          (t): t is BridgeTarget => t !== "claude" && t !== "agents",
+        );
+        try {
+          const res = await writeBridgeFiles(root, paths, {
+            targets: nativeTargets,
+            onlyExisting: true,
+            dryRun,
+          });
+          const touched = res.created.length + res.updated.length;
+          if (touched > 0) {
+            log(
+              ui.dim(
+                `bridges: ${dryRun ? "would refresh" : "refreshed"} ${touched} native bridge file(s)` +
+                (res.unchanged.length > 0 ? ` · ${res.unchanged.length} unchanged` : ""),
+              ),
+            );
+          }
+        } catch (err) {
+          if (!opts.quiet) ui.warn(`bridge refresh failed: ${String(err)}`);
         }
       }
 

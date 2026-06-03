@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -646,7 +646,40 @@ async function autoDetectStacksFromRoot(root: string): Promise<StackName[]> {
     try { pomXml = await readFile(pomPath, "utf8"); } catch { /* ignore */ }
   }
 
-  const detected = detectStacksFromManifests({ packageJsonDeps, requirementsTxt, goMod, pomXml });
+  let composerJson: string | undefined;
+  const composerPath = path.join(root, "composer.json");
+  if (existsSync(composerPath)) {
+    try { composerJson = await readFile(composerPath, "utf8"); } catch { /* ignore */ }
+  }
+
+  let gemfile: string | undefined;
+  const gemfilePath = path.join(root, "Gemfile");
+  if (existsSync(gemfilePath)) {
+    try { gemfile = await readFile(gemfilePath, "utf8"); } catch { /* ignore */ }
+  }
+
+  // .NET / Docker / monorepo are detected by file presence (no content needed).
+  const hasDockerfile = existsSync(path.join(root, "Dockerfile"));
+  const hasTurboJson = existsSync(path.join(root, "turbo.json"));
+  const hasNxJson = existsSync(path.join(root, "nx.json"));
+  let hasCsproj = false;
+  try {
+    const entries = await readdir(root);
+    hasCsproj = entries.some((e) => e.endsWith(".csproj") || e.endsWith(".sln"));
+  } catch { /* ignore */ }
+
+  const detected = detectStacksFromManifests({
+    packageJsonDeps,
+    requirementsTxt,
+    goMod,
+    pomXml,
+    composerJson,
+    gemfile,
+    hasCsproj,
+    hasDockerfile,
+    hasTurboJson,
+    hasNxJson,
+  });
   return detected.filter((s): s is StackName => isValidStack(s));
 }
 
@@ -767,6 +800,9 @@ function printInitReport(r: InitReport): void {
   if (r.gitSeedsWritten > 0) {
     console.log(ui.dim("  Review draft seeds: haive memory pending   (validate or delete each one)"));
   }
+  console.log(
+    ui.dim("  Reach: every agent gets this corpus — run `haive bridges sync --all` (Cursor, Cline, Windsurf, Roo, Gemini, Copilot, …)"),
+  );
 }
 
 async function writeCursorHaiveRule(root: string): Promise<void> {

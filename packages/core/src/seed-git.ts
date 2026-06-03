@@ -27,12 +27,14 @@ export interface SeedProposal {
   /** The source commit, for provenance. */
   source_sha: string;
   /** Detected signal kind. */
-  kind: "revert" | "fixup";
+  kind: "revert" | "fixup" | "workaround";
 }
 
 const REVERT_RE = /^Revert\s+"(.+)"\s*$/i;
 const FIXUP_RE = /^(?:fixup!|hotfix[:!]|fix[:!]\s*revert|revert\s+revert)/i;
 const URGENT_FIX_RE = /\b(hotfix|urgent fix|emergency fix|critical fix|broke production|broken build)\b/i;
+// A commit that admits a stop-gap encodes a known trap: the "right" fix is still owed.
+const WORKAROUND_RE = /\b(workaround|work around|hack(?:y|ish)?|band[- ]?aid|temporary fix|temp fix|quick fix|kludge|monkey[- ]?patch|stop[- ]?gap|FIXME|XXX)\b/i;
 
 function slugify(text: string): string {
   return (
@@ -67,6 +69,9 @@ export function proposeSeedsFromCommits(
     } else if (FIXUP_RE.test(subject) || URGENT_FIX_RE.test(subject)) {
       what = subject.replace(FIXUP_RE, "").trim() || subject;
       kind = "fixup";
+    } else if (WORKAROUND_RE.test(subject)) {
+      what = subject;
+      kind = "workaround";
     }
 
     if (!what || !kind) continue;
@@ -80,6 +85,8 @@ export function proposeSeedsFromCommits(
       why_failed:
         kind === "revert"
           ? `This change was reverted in commit ${commit.sha} — it caused a regression and was backed out. Verify the root cause before re-attempting.`
+          : kind === "workaround"
+          ? `This area carries a known workaround/stop-gap (commit ${commit.sha}: "${subject}") — the proper fix is still owed. Understand why the workaround exists before changing it.`
           : `This area required an urgent fix (commit ${commit.sha}: "${subject}") — it shipped broken once. Treat changes here with extra care.`,
       paths: (commit.files ?? []).slice(0, 8),
       source_sha: commit.sha,

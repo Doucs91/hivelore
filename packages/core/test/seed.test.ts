@@ -46,6 +46,34 @@ describe("detectStacksFromManifests", () => {
       const result = detectStacksFromManifests({ packageJsonDeps: { lodash: "^4.0.0" } });
       expect(result).toHaveLength(0);
     });
+
+    it("detects new JS stacks (tailwind, vite, sveltekit, astro, typescript, monorepo)", () => {
+      expect(detectStacksFromManifests({ packageJsonDeps: { tailwindcss: "^3" } })).toContain("tailwind");
+      expect(detectStacksFromManifests({ packageJsonDeps: { vite: "^5" } })).toContain("vite");
+      expect(detectStacksFromManifests({ packageJsonDeps: { "@sveltejs/kit": "^2" } })).toContain("sveltekit");
+      expect(detectStacksFromManifests({ packageJsonDeps: { astro: "^4" } })).toContain("astro");
+      expect(detectStacksFromManifests({ packageJsonDeps: { typescript: "^5" } })).toContain("typescript");
+      expect(detectStacksFromManifests({ packageJsonDeps: { turbo: "^2" } })).toContain("monorepo");
+    });
+  });
+
+  describe("new manifest detection (PHP / Ruby / .NET / Docker / monorepo)", () => {
+    it("detects laravel from composer.json", () => {
+      expect(detectStacksFromManifests({ composerJson: '{"require":{"laravel/framework":"^11"}}' })).toContain("laravel");
+    });
+    it("detects rails from a Gemfile", () => {
+      expect(detectStacksFromManifests({ gemfile: 'gem "rails", "~> 7.1"\n' })).toContain("rails");
+    });
+    it("detects dotnet from a .csproj presence flag", () => {
+      expect(detectStacksFromManifests({ hasCsproj: true })).toContain("dotnet");
+    });
+    it("detects docker from a Dockerfile presence flag", () => {
+      expect(detectStacksFromManifests({ hasDockerfile: true })).toContain("docker");
+    });
+    it("detects monorepo from turbo.json or nx.json", () => {
+      expect(detectStacksFromManifests({ hasTurboJson: true })).toContain("monorepo");
+      expect(detectStacksFromManifests({ hasNxJson: true })).toContain("monorepo");
+    });
   });
 
   describe("requirements.txt detection", () => {

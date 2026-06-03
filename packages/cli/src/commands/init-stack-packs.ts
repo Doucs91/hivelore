@@ -42,7 +42,9 @@ interface PackMemory {
 
 export type StackName = "nestjs" | "nextjs" | "remix" | "react" | "express" | "fastify" | "prisma" | "drizzle"
   | "zustand" | "redux" | "reactquery" | "trpc" | "mongoose" | "graphql"
-  | "fastapi" | "django" | "go" | "flask" | "vue" | "spring";
+  | "fastapi" | "django" | "go" | "flask" | "vue" | "spring"
+  | "tailwind" | "vite" | "sveltekit" | "astro" | "typescript" | "monorepo"
+  | "laravel" | "rails" | "dotnet" | "docker";
 
 const PACKS: Record<StackName, PackMemory[]> = {
   nestjs: [
@@ -894,6 +896,217 @@ Pass it explicitly down the call chain so cancellation and deadlines propagate.`
     },
   ],
 
+  tailwind: [
+    {
+      slug: "tailwind-content-paths-required",
+      type: "gotcha",
+      tags: ["tailwind", "css", "build"],
+      body: `Classes only ship if their files are listed in \`content\` (tailwind.config). Miss a path and the styles silently vanish in production.
+
+\`\`\`js
+content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"]
+\`\`\`
+Never build class names dynamically by string concatenation (\`\`text-\${color}-500\`\`) — Tailwind's scanner can't see them and they get purged. Use full literal class names or a safelist.`,
+    },
+    {
+      slug: "tailwind-no-apply-everywhere",
+      type: "convention",
+      tags: ["tailwind", "css", "maintainability"],
+      body: `Don't recreate component CSS with \`@apply\` for everything — it defeats the utility-first model and grows the bundle.
+
+Prefer utility classes in markup; reach for \`@apply\` only for small, truly repeated primitives (e.g. \`.btn\`). For real components, extract a React/Vue component, not a CSS class.`,
+    },
+  ],
+
+  vite: [
+    {
+      slug: "vite-env-prefix-client-exposure",
+      type: "gotcha",
+      tags: ["vite", "security", "env"],
+      body: `Only \`import.meta.env.VITE_*\` variables are exposed to client code — and they are bundled into the shipped JS.
+
+Never give a secret a \`VITE_\` prefix: it ends up readable in the browser. Keep server secrets unprefixed and read them server-side only.`,
+      sensor: {
+        pattern: "VITE_[A-Z0-9_]*(SECRET|PRIVATE|TOKEN|PASSWORD|API_?KEY)",
+        message: "A VITE_ env var with a secret-looking name is bundled into client JS — drop the VITE_ prefix and read it server-side.",
+      },
+    },
+    {
+      slug: "vite-no-process-env",
+      type: "gotcha",
+      tags: ["vite", "env"],
+      body: `\`process.env\` is not available in Vite client code — use \`import.meta.env\`.
+
+Referencing \`process.env.FOO\` in browser code throws \`process is not defined\` at runtime (or is statically undefined). Vite only replaces \`import.meta.env.*\`.`,
+    },
+  ],
+
+  sveltekit: [
+    {
+      slug: "sveltekit-env-static-private-vs-public",
+      type: "gotcha",
+      tags: ["sveltekit", "security", "env"],
+      body: `Import secrets from \`$env/static/private\` (or \`$env/dynamic/private\`) — never \`$env/static/public\`.
+
+\`$env/*/public\` (and any \`PUBLIC_\`-prefixed var) is shipped to the browser. SvelteKit refuses to import a private module into client code, but a value moved to a PUBLIC_ name is silently exposed.`,
+    },
+    {
+      slug: "sveltekit-load-runs-on-server-and-client",
+      type: "gotcha",
+      tags: ["sveltekit", "load", "ssr"],
+      body: `A universal \`load\` (in \`+page.js\`) runs on BOTH server and client. Only \`+page.server.js\` / \`+layout.server.js\` loads are server-only.
+
+Put DB access, secrets, and private fetches in \`.server\` load functions. Universal loads must be safe to run in the browser.`,
+    },
+  ],
+
+  astro: [
+    {
+      slug: "astro-islands-need-client-directive",
+      type: "gotcha",
+      tags: ["astro", "hydration", "islands"],
+      body: `Components are server-rendered to static HTML by default — interactivity requires a \`client:*\` directive.
+
+\`\`\`astro
+<Counter client:load />
+<Counter client:visible />
+\`\`\`
+Without a \`client:\` directive, event handlers and hooks simply don't run in the browser.`,
+    },
+    {
+      slug: "astro-frontmatter-runs-on-server",
+      type: "convention",
+      tags: ["astro", "ssr"],
+      body: `The component frontmatter (the code fence \`---\`) runs on the server at build/request time, not in the browser.
+
+Fetch data and read secrets there freely — it never ships to the client. Don't expect \`window\`/\`document\` in the frontmatter; guard browser APIs inside \`client:\`-hydrated components or \`<script>\` tags.`,
+    },
+  ],
+
+  typescript: [
+    {
+      slug: "typescript-no-any-prefer-unknown",
+      type: "convention",
+      tags: ["typescript", "types"],
+      body: `Avoid \`any\` — it disables type-checking for everything it touches and spreads silently. Use \`unknown\` and narrow, or a precise type.
+
+Enable \`"strict": true\` (and \`noImplicitAny\`) in tsconfig. \`unknown\` forces a check before use; \`any\` forces nothing.`,
+      sensor: {
+        pattern: ":\\s*any\\b",
+        message: "Explicit `any` disables type-checking — use `unknown` + narrowing or a precise type.",
+      },
+    },
+    {
+      slug: "typescript-no-non-null-assertion-on-untrusted",
+      type: "gotcha",
+      tags: ["typescript", "types", "safety"],
+      body: `The non-null assertion (\`value!\`) silences the compiler but does NOT check at runtime — it just crashes later if the value is actually null/undefined.
+
+Prefer a real guard (\`if (!value) throw…\`) or optional chaining. Reserve \`!\` for cases the compiler can't see but you can prove (e.g. just-initialized fields).`,
+    },
+  ],
+
+  monorepo: [
+    {
+      slug: "monorepo-pin-internal-deps-workspace-protocol",
+      type: "convention",
+      tags: ["monorepo", "turborepo", "nx", "pnpm"],
+      body: `Reference internal packages with the workspace protocol (\`"@scope/pkg": "workspace:*"\`), not a version range.
+
+A real version range makes the package manager fetch the published version from the registry instead of linking the local source — you end up testing stale code.`,
+    },
+    {
+      slug: "monorepo-declare-task-inputs-outputs",
+      type: "gotcha",
+      tags: ["monorepo", "turborepo", "nx", "caching"],
+      body: `Task caching is only correct if inputs/outputs are declared. An undeclared output (e.g. a \`dist/\` folder) means a cache hit restores nothing and downstream tasks break.
+
+In Turborepo declare \`outputs\` per task in \`turbo.json\`; in Nx declare \`outputs\` in target options. Missing/incorrect \`outputs\` is the #1 cause of "works locally, broken in CI" cache bugs.`,
+    },
+  ],
+
+  laravel: [
+    {
+      slug: "laravel-eloquent-n-plus-one",
+      type: "gotcha",
+      tags: ["laravel", "php", "eloquent", "performance"],
+      body: `Accessing a relationship in a loop triggers one query per row (N+1). Eager-load with \`with()\`.
+
+\`\`\`php
+foreach (Post::with('author')->get() as $post) { echo $post->author->name; }
+\`\`\`
+Enable \`Model::preventLazyLoading()\` in dev to catch these.`,
+    },
+    {
+      slug: "laravel-mass-assignment-fillable",
+      type: "gotcha",
+      tags: ["laravel", "php", "security"],
+      body: `\`Model::create($request->all())\` is a mass-assignment hole unless \`$fillable\` is set — a user can set columns you never intended (e.g. \`is_admin\`).
+
+Define \`$fillable\` (allow-list) on every model and validate the request before creating.`,
+    },
+  ],
+
+  rails: [
+    {
+      slug: "rails-n-plus-one-includes",
+      type: "gotcha",
+      tags: ["rails", "ruby", "activerecord", "performance"],
+      body: `Calling an association inside a loop triggers N+1 queries. Use \`includes\` to eager-load.
+
+\`\`\`ruby
+Post.includes(:author).each { |p| puts p.author.name }
+\`\`\`
+Add the \`bullet\` gem in development to detect them automatically.`,
+    },
+    {
+      slug: "rails-strong-parameters",
+      type: "convention",
+      tags: ["rails", "ruby", "security"],
+      body: `Never pass \`params\` straight to \`update\`/\`create\` — always go through strong parameters (\`params.require(:user).permit(:name, :email)\`).
+
+Permitting everything (or skipping it) lets a request set protected attributes like \`admin\`/\`role\`.`,
+    },
+  ],
+
+  dotnet: [
+    {
+      slug: "dotnet-async-no-blocking-result-wait",
+      type: "gotcha",
+      tags: ["dotnet", "csharp", "async", "deadlock"],
+      body: `Never block on async with \`.Result\` or \`.Wait()\` — it deadlocks under a synchronization context (ASP.NET classic, UI).
+
+Make the call chain async all the way up; use \`ConfigureAwait(false)\` in library code.`,
+    },
+    {
+      slug: "dotnet-httpclient-reuse",
+      type: "convention",
+      tags: ["dotnet", "csharp", "resources"],
+      body: `Don't create a new \`HttpClient\` per request — reuse one (or use \`IHttpClientFactory\`). Creating + disposing per call exhausts sockets (\`SocketException\` under load).
+
+Wrap other \`IDisposable\` resources (DbConnection, streams) in \`using\` so they're released deterministically.`,
+    },
+  ],
+
+  docker: [
+    {
+      slug: "docker-no-secrets-in-image-layers",
+      type: "gotcha",
+      tags: ["docker", "security", "secrets"],
+      body: `\`ENV\`/\`ARG\` secrets and \`COPY .env\` are baked into image layers — anyone with the image can read them via \`docker history\`, even if a later layer deletes the file.
+
+Use build secrets (\`RUN --mount=type=secret\`) or inject at runtime. Add \`.env\` to \`.dockerignore\`.`,
+    },
+    {
+      slug: "docker-pin-base-image-and-nonroot",
+      type: "convention",
+      tags: ["docker", "kubernetes", "security"],
+      body: `Pin a specific base image tag (not \`:latest\`) for reproducible builds, and run as a non-root user (\`USER app\`).
+
+Containers default to root; a container escape then runs as host root. In Kubernetes set \`securityContext.runAsNonRoot: true\`. Use multi-stage builds to keep build tooling out of the runtime image.`,
+    },
+  ],
+
 };
 
 /**
@@ -929,6 +1142,12 @@ export function autoDetectStacks(deps: Record<string, string>): StackName[] {
     ["trpc",       ["@trpc/server", "@trpc/client"]],
     ["mongoose",   ["mongoose"]],
     ["graphql",    ["@apollo/client", "@apollo/server", "apollo-server", "graphql"]],
+    ["tailwind",   ["tailwindcss"]],
+    ["vite",       ["vite"]],
+    ["sveltekit",  ["@sveltejs/kit"]],
+    ["astro",      ["astro"]],
+    ["typescript", ["typescript"]],
+    ["monorepo",   ["turbo", "nx", "@nrwl/workspace", "@nx/workspace"]],
   ];
   for (const [stack, signals] of stackDetectors) {
     if (signals.some((s) => s in deps)) detected.push(stack);

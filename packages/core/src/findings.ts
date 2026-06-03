@@ -210,9 +210,99 @@ export function parseSonar(input: string | unknown): Finding[] {
   return findings;
 }
 
+/**
+ * Parse the ESLint JSON formatter output (`eslint --format json`): an array of
+ * `{ filePath, messages: [{ ruleId, severity, message, line }] }`. No SARIF formatter
+ * package needed — this is ESLint's built-in format. `severity` is 2=error, 1=warning.
+ * `opts.cwd`, when given, makes absolute `filePath`s project-relative so anchoring works.
+ */
+export function parseEslintJson(input: string | unknown, opts: { cwd?: string } = {}): Finding[] {
+  const docs = asArray(coerceJson(input));
+  const findings: Finding[] = [];
+  const cwd = opts.cwd ? opts.cwd.replace(/\/+$/, "") + "/" : "";
+  for (const fileRaw of docs) {
+    const file = asRecord(fileRaw);
+    const rawPath = typeof file.filePath === "string" ? file.filePath : "";
+    if (!rawPath) continue;
+    const path = cwd && rawPath.startsWith(cwd) ? rawPath.slice(cwd.length) : rawPath;
+    for (const msgRaw of asArray(file.messages)) {
+      const msg = asRecord(msgRaw);
+      const ruleId = typeof msg.ruleId === "string" && msg.ruleId ? msg.ruleId : "parse-error";
+      const message = typeof msg.message === "string" ? msg.message.trim() : ruleId;
+      const severity = normalizeFindingSeverity(msg.severity === 2 ? "error" : "warning");
+      const line = typeof msg.line === "number" ? msg.line : undefined;
+      findings.push({
+        tool: "eslint",
+        ruleId,
+        message,
+        severity,
+        path,
+        ...(line !== undefined ? { line } : {}),
+        key: findingKey("eslint", ruleId, path),
+      });
+    }
+  }
+  return findings;
+}
+
+const NPM_AUDIT_SEVERITY: Record<string, FindingSeverity> = {
+  critical: "blocker",
+  high: "critical",
+  moderate: "major",
+  low: "minor",
+  info: "info",
+};
+
+/**
+ * Parse `npm audit --json` output (`vulnerabilities` map). Each vulnerable package becomes one
+ * finding anchored to `package.json` (vulnerabilities are dependency-level, not file-level), so
+ * the next agent is warned before re-introducing or ignoring the advisory.
+ */
+export function parseNpmAudit(input: string | unknown): Finding[] {
+  const doc = asRecord(coerceJson(input));
+  const vulns = asRecord(doc.vulnerabilities);
+  const findings: Finding[] = [];
+  for (const [name, vulnRaw] of Object.entries(vulns)) {
+    const vuln = asRecord(vulnRaw);
+    const sev = typeof vuln.severity === "string" ? vuln.severity.toLowerCase() : "info";
+    const severity = NPM_AUDIT_SEVERITY[sev] ?? "info";
+    const via = asArray(vuln.via);
+    const firstAdvisory = via.map(asRecord).find((v) => typeof v.title === "string");
+    const title =
+      firstAdvisory && typeof firstAdvisory.title === "string"
+        ? (firstAdvisory.title as string)
+        : `Vulnerable dependency: ${name}`;
+    const range = typeof vuln.range === "string" ? ` (affected range: ${vuln.range})` : "";
+    findings.push({
+      tool: "npm-audit",
+      ruleId: name,
+      message: `${title}${range}`,
+      severity,
+      path: "package.json",
+      key: findingKey("npm-audit", name, "package.json"),
+    });
+  }
+  return findings;
+}
+
+export type FindingFormat = "sarif" | "sonar" | "eslint" | "npm-audit";
+
 /** Dispatch to the right parser by declared format. */
-export function parseFindings(format: "sarif" | "sonar", input: string | unknown): Finding[] {
-  return format === "sonar" ? parseSonar(input) : parseSarif(input);
+export function parseFindings(
+  format: FindingFormat,
+  input: string | unknown,
+  opts: { cwd?: string } = {},
+): Finding[] {
+  switch (format) {
+    case "sonar":
+      return parseSonar(input);
+    case "eslint":
+      return parseEslintJson(input, opts);
+    case "npm-audit":
+      return parseNpmAudit(input);
+    default:
+      return parseSarif(input);
+  }
 }
 
 function normalizeUri(uri: string): string {

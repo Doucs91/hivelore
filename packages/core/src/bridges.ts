@@ -15,21 +15,31 @@ import type { Memory } from "./types.js";
 // ── Target registry ────────────────────────────────────────────────────────
 
 export type BridgeTarget =
+  | "claude"    // CLAUDE.md
+  | "cursor"    // .cursor/rules/haive-memories.mdc
   | "cline"     // .clinerules
   | "windsurf"  // .windsurfrules
   | "continue"  // .continuerules
   | "cody"      // .sourcegraph/cody-rules.md
   | "zed"       // .rules
+  | "roo"       // .roo/rules/haive.md
+  | "gemini"    // GEMINI.md
+  | "aider"     // CONVENTIONS.md
   | "agents"    // AGENTS.md
   | "copilot";  // .github/copilot-instructions.md
 
 /** Canonical relative path from project root for each target. */
 export const BRIDGE_TARGET_PATH: Record<BridgeTarget, string> = {
+  claude:   "CLAUDE.md",
+  cursor:   ".cursor/rules/haive-memories.mdc",
   cline:    ".clinerules",
   windsurf: ".windsurfrules",
   continue: ".continuerules",
   cody:     ".sourcegraph/cody-rules.md",
   zed:      ".rules",
+  roo:      ".roo/rules/haive.md",
+  gemini:   "GEMINI.md",
+  aider:    "CONVENTIONS.md",
   agents:   "AGENTS.md",
   copilot:  ".github/copilot-instructions.md",
 };
@@ -57,6 +67,8 @@ export interface BridgeMemoryEntry {
   scope: string;
   type: string;
   summary: string;
+  /** Anchor paths the memory applies to (for path-scoped display / Cursor globs). */
+  paths: string[];
 }
 
 export interface GenerateBridgesOptions {
@@ -123,6 +135,7 @@ export function prepareBridgeData(
       scope: m.frontmatter.scope,
       type: m.frontmatter.type,
       summary: bridgeMemorySummary(m.body),
+      paths: m.frontmatter.anchor?.paths ?? [],
     }));
 
   const blockSensors = sensors.filter((s) => s.severity === "block");
@@ -143,7 +156,13 @@ function renderMemoriesBlock(topMemories: BridgeMemoryEntry[]): string {
     lines.push("_(no validated memories yet — run `haive sync` to populate)_");
   } else {
     for (const m of topMemories) {
-      lines.push(`- \`${m.id}\` (${m.scope}/${m.type}) — ${m.summary}`);
+      // Path-scoping: surface the files a lesson applies to so the agent knows
+      // *when* it is relevant — the same data Cursor would express via .mdc globs.
+      const scopeNote =
+        m.paths.length > 0
+          ? ` _(applies to: ${m.paths.slice(0, 4).join(", ")}${m.paths.length > 4 ? ", …" : ""})_`
+          : "";
+      lines.push(`- \`${m.id}\` (${m.scope}/${m.type}) — ${m.summary}${scopeNote}`);
     }
   }
   lines.push("", BRIDGE_MARKERS.memoriesEnd);
@@ -205,16 +224,45 @@ function renderMarkdownBridge(
   return parts.join("\n") + "\n";
 }
 
+/**
+ * Cursor reads `.cursor/rules/*.mdc` files, each carrying a small YAML
+ * frontmatter (`description`, `globs`, `alwaysApply`). We emit an always-applied
+ * rule so the shared corpus is loaded on every Cursor task — the equivalent of
+ * memories.sh's "always-on" lane, but carrying our block sensors too.
+ *
+ * The frontmatter sits OUTSIDE the haive markers, so the CLI's idempotent
+ * marker-based update never rewrites it — only the memories/sensors blocks
+ * refresh on `haive bridges sync`.
+ */
+function renderCursorBridge(
+  topMemories: BridgeMemoryEntry[],
+  blockSensors: BridgeSensor[],
+): string {
+  const frontmatter = [
+    "---",
+    "description: hAIve shared memories & block sensors (auto-generated)",
+    "alwaysApply: true",
+    "---",
+    "",
+  ].join("\n");
+  return frontmatter + renderMarkdownBridge(topMemories, blockSensors, "hAIve rules (Cursor)");
+}
+
 // ── Per-target formatters (pure functions) ─────────────────────────────────
 
 type Formatter = (memories: BridgeMemoryEntry[], sensors: BridgeSensor[]) => string;
 
 const FORMATTERS: Record<BridgeTarget, Formatter> = {
+  claude:   (m, s) => renderMarkdownBridge(m, s, "CLAUDE.md — hAIve context"),
+  cursor:   (m, s) => renderCursorBridge(m, s),
   cline:    (m, s) => renderMarkdownBridge(m, s, "hAIve rules (Cline)"),
   windsurf: (m, s) => renderMarkdownBridge(m, s, "hAIve rules (Windsurf)"),
   continue: (m, s) => renderMarkdownBridge(m, s, "hAIve rules (Continue)"),
   cody:     (m, s) => renderMarkdownBridge(m, s, "hAIve rules (Cody / Sourcegraph)"),
   zed:      (m, s) => renderMarkdownBridge(m, s, "hAIve rules (Zed)"),
+  roo:      (m, s) => renderMarkdownBridge(m, s, "hAIve rules (Roo Code)"),
+  gemini:   (m, s) => renderMarkdownBridge(m, s, "GEMINI.md — hAIve context"),
+  aider:    (m, s) => renderMarkdownBridge(m, s, "CONVENTIONS.md — hAIve context (Aider)"),
   agents:   (m, s) => renderMarkdownBridge(m, s, "AGENTS.md — hAIve context"),
   copilot:  (m, s) => renderMarkdownBridge(m, s, "hAIve rules (GitHub Copilot)"),
 };

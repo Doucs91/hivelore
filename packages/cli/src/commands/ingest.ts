@@ -38,7 +38,7 @@ import {
 import { ui } from "../utils/ui.js";
 
 interface IngestOptions {
-  from?: "sarif" | "sonar" | "sonar-api";
+  from?: "sarif" | "sonar" | "sonar-api" | "eslint" | "npm-audit";
   dryRun?: boolean;
   scope?: "personal" | "team" | "module";
   module?: string;
@@ -68,12 +68,17 @@ export function registerIngest(program: Command): void {
       "  no MCP or special setup required, just a URL + token you provide (or SONAR_HOST_URL /\n" +
       "  SONAR_TOKEN env). If you don't use it, file-based ingest works exactly the same.\n\n" +
       "  Example:\n" +
-      "    haive ingest --from sarif eslint.sarif --dry-run\n" +
+      "    haive ingest --from eslint eslint-report.json --min-severity major\n" +
+      "    haive ingest --from npm-audit audit.json --scope team\n" +
+      "    haive ingest --from sarif report.sarif --dry-run\n" +
       "    haive ingest --from sonar sonar-issues.json --scope team --min-severity major\n" +
-      "    haive ingest --from sonar-api --sonar-component my_project --min-severity major\n",
+      "    haive ingest --from sonar-api --sonar-component my_project --min-severity major\n\n" +
+      "  Generate the input reports:\n" +
+      "    eslint -f json -o eslint-report.json .      # --from eslint\n" +
+      "    npm audit --json > audit.json               # --from npm-audit\n",
     )
-    .argument("[file]", "path to the findings report JSON (required for --from sarif|sonar)")
-    .requiredOption("--from <format>", "report format: sarif | sonar | sonar-api")
+    .argument("[file]", "path to the findings report JSON (required for --from sarif|sonar|eslint|npm-audit)")
+    .requiredOption("--from <format>", "report format: sarif | sonar | sonar-api | eslint | npm-audit")
     .option("--dry-run", "show what would be created without writing", false)
     .option("--scope <scope>", "memory scope: personal | team | module", "team")
     .option("--module <name>", "module name (required when scope=module)")
@@ -89,8 +94,9 @@ export function registerIngest(program: Command): void {
     .option("-d, --dir <dir>", "project root")
     .action(async (file: string | undefined, opts: IngestOptions) => {
       const format = opts.from;
-      if (format !== "sarif" && format !== "sonar" && format !== "sonar-api") {
-        ui.error("--from must be sarif, sonar, or sonar-api");
+      const VALID_FORMATS = ["sarif", "sonar", "sonar-api", "eslint", "npm-audit"] as const;
+      if (!format || !(VALID_FORMATS as readonly string[]).includes(format)) {
+        ui.error(`--from must be one of: ${VALID_FORMATS.join(", ")}`);
         process.exitCode = 1;
         return;
       }
@@ -114,7 +120,8 @@ export function registerIngest(program: Command): void {
       }
 
       // `sonar-api` parses with the same Sonar reader; only the source differs (HTTP vs file).
-      const parseFormat: "sarif" | "sonar" = format === "sarif" ? "sarif" : "sonar";
+      const parseFormat: "sarif" | "sonar" | "eslint" | "npm-audit" =
+        format === "sonar-api" ? "sonar" : format;
 
       let raw: string;
       if (format === "sonar-api") {
@@ -148,7 +155,7 @@ export function registerIngest(program: Command): void {
 
       let drafts: MemoryDraft[];
       try {
-        const findings = parseFindings(parseFormat, raw);
+        const findings = parseFindings(parseFormat, raw, { cwd: root });
         drafts = draftsFromFindings(findings, {
           type: opts.type ?? "gotcha",
           scope: opts.scope ?? "team",

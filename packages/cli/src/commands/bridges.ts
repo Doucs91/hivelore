@@ -1,20 +1,15 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import {
   findProjectRoot,
-  generateBridges,
-  isRetiredMemory,
-  loadMemoriesFromDir,
   resolveHaivePaths,
   BRIDGE_TARGET_PATH,
   BRIDGE_TARGETS,
-  BRIDGE_MARKERS,
-  type BridgeSensor,
   type BridgeTarget,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
+import { writeBridgeFiles } from "../utils/bridge-files.js";
 
 interface BridgesSyncOptions {
   all?: boolean;
@@ -30,8 +25,9 @@ export function registerBridges(program: Command): void {
     .description(
       "Generate native agent bridge files from the hAIve corpus.\n" +
       "  Bridges inject top validated memories and block sensors into agent-harness-specific\n" +
-      "  config files (.clinerules, .windsurfrules, .continuerules, .sourcegraph/cody-rules.md,\n" +
-      "  .rules, AGENTS.md, .github/copilot-instructions.md).\n" +
+      "  config files (.cursor/rules/haive-memories.mdc, .clinerules, .windsurfrules,\n" +
+      "  .continuerules, .sourcegraph/cody-rules.md, .rules, AGENTS.md,\n" +
+      "  .github/copilot-instructions.md).\n" +
       "  This is the reach differentiator vs memories.sh: our bridges carry enforcement, not just injection.\n\n" +
       "  Example:\n" +
       "    haive bridges sync --all\n" +
@@ -93,101 +89,23 @@ export function registerBridges(program: Command): void {
         }
       }
 
-      // ── Load memories + sensors ───────────────────────────────────────
-      const allLoaded = await loadMemoriesFromDir(paths.memoriesDir);
-      const memories = allLoaded
-        .map((l) => l.memory)
-        .filter((m) => !isRetiredMemory(m.frontmatter, m.body));
-
-      // Extract block sensors from memory frontmatter (no extra imports needed).
-      const sensors: BridgeSensor[] = [];
-      for (const m of memories) {
-        const sensor = m.frontmatter.sensor;
-        if (!sensor || sensor.severity !== "block") continue;
-        sensors.push({
-          id: m.frontmatter.id,
-          severity: "block",
-          message: sensor.message,
-          ...(sensor.pattern ? { pattern: sensor.pattern } : {}),
-          paths: sensor.paths.length > 0
-            ? sensor.paths
-            : m.frontmatter.anchor.paths,
-        });
-      }
-
+      // ── Generate + write (delegated to the shared writer) ─────────────
       const maxMemories = Math.max(1, Number(opts.maxMemories ?? 8));
+      const res = await writeBridgeFiles(root, paths, { targets, maxMemories, dryRun });
 
-      // ── Generate content ──────────────────────────────────────────────
-      const outputs = generateBridges(memories, sensors, { maxMemories, targets });
-
-      // ── Write or update (idempotent) ──────────────────────────────────
-      let created = 0;
-      let updated = 0;
-      let unchanged = 0;
-
-      for (const output of outputs) {
-        const targetFile = path.join(root, output.path);
-
-        if (dryRun) {
-          const exists = existsSync(targetFile);
-          console.log(
-            ui.dim(`[dry-run] ${output.target}: ${exists ? "would update" : "would create"} ${output.path}`),
-          );
-          continue;
-        }
-
-        await mkdir(path.dirname(targetFile), { recursive: true });
-
-        if (!existsSync(targetFile)) {
-          await writeFile(targetFile, output.content, "utf8");
-          console.log(ui.dim(`bridges: created ${output.path}`));
-          created++;
-          continue;
-        }
-
-        // File exists — update the markers blocks only.
-        let existing = await readFile(targetFile, "utf8");
-        existing = existing.replace(/\r\n/g, "\n");
-
-        const withMemories = replaceMarkerBlock(
-          existing,
-          BRIDGE_MARKERS.memoriesStart,
-          BRIDGE_MARKERS.memoriesEnd,
-          extractMarkerBlock(output.content, BRIDGE_MARKERS.memoriesStart, BRIDGE_MARKERS.memoriesEnd),
-        );
-
-        const sensorsBlockContent = extractMarkerBlock(
-          output.content,
-          BRIDGE_MARKERS.sensorsStart,
-          BRIDGE_MARKERS.sensorsEnd,
-        );
-
-        const withSensors = sensorsBlockContent
-          ? replaceOrAppendMarkerBlock(
-              withMemories,
-              BRIDGE_MARKERS.sensorsStart,
-              BRIDGE_MARKERS.sensorsEnd,
-              sensorsBlockContent,
-            )
-          : withMemories;
-
-        if (withSensors === existing) {
-          unchanged++;
-          continue;
-        }
-
-        await writeFile(targetFile, withSensors, "utf8");
-        console.log(ui.dim(`bridges: updated ${output.path}`));
-        updated++;
+      if (dryRun) {
+        for (const p of res.created) console.log(ui.dim(`[dry-run] would create ${p}`));
+        for (const p of res.updated) console.log(ui.dim(`[dry-run] would update ${p}`));
+        return;
       }
+      for (const p of res.created) console.log(ui.dim(`bridges: created ${p}`));
+      for (const p of res.updated) console.log(ui.dim(`bridges: updated ${p}`));
 
-      if (!dryRun) {
-        const parts: string[] = [];
-        if (created > 0) parts.push(`${created} created`);
-        if (updated > 0) parts.push(`${updated} updated`);
-        if (unchanged > 0) parts.push(`${unchanged} unchanged`);
-        console.log(ui.dim(`bridges: ${parts.join(" · ") || "nothing to do"}`));
-      }
+      const parts: string[] = [];
+      if (res.created.length > 0) parts.push(`${res.created.length} created`);
+      if (res.updated.length > 0) parts.push(`${res.updated.length} updated`);
+      if (res.unchanged.length > 0) parts.push(`${res.unchanged.length} unchanged`);
+      console.log(ui.dim(`bridges: ${parts.join(" · ") || "nothing to do"}`));
     });
 
   // ── List subcommand ───────────────────────────────────────────────────
@@ -207,38 +125,4 @@ export function registerBridges(program: Command): void {
       console.log("");
       console.log(ui.dim("Run `haive bridges sync --all` to generate all targets."));
     });
-}
-
-// ── Marker helpers ─────────────────────────────────────────────────────────
-
-function extractMarkerBlock(text: string, startMarker: string, endMarker: string): string | null {
-  const startIdx = text.indexOf(startMarker);
-  const endIdx = text.indexOf(endMarker);
-  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return null;
-  return text.slice(startIdx, endIdx + endMarker.length);
-}
-
-function replaceMarkerBlock(
-  existing: string,
-  startMarker: string,
-  endMarker: string,
-  replacement: string | null,
-): string {
-  if (!replacement) return existing;
-  const startIdx = existing.indexOf(startMarker);
-  const endIdx = existing.indexOf(endMarker);
-  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
-    // No existing block — append.
-    return existing + (existing.endsWith("\n") ? "" : "\n") + "\n" + replacement + "\n";
-  }
-  return existing.slice(0, startIdx) + replacement + existing.slice(endIdx + endMarker.length);
-}
-
-function replaceOrAppendMarkerBlock(
-  existing: string,
-  startMarker: string,
-  endMarker: string,
-  replacement: string,
-): string {
-  return replaceMarkerBlock(existing, startMarker, endMarker, replacement);
 }

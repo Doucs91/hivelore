@@ -4,7 +4,9 @@ import {
   filterNewDrafts,
   findingToDraft,
   normalizeFindingSeverity,
+  parseEslintJson,
   parseFindings,
+  parseNpmAudit,
   parseSarif,
   parseSonar,
   type Finding,
@@ -173,5 +175,64 @@ describe("filterNewDrafts", () => {
     const fresh = filterNewDrafts(drafts, existing);
     expect(fresh).toHaveLength(drafts.length - 1);
     expect(fresh.some((d) => d.topic === drafts[0]!.topic)).toBe(false);
+  });
+});
+
+describe("parseEslintJson", () => {
+  const ESLINT = JSON.stringify([
+    {
+      filePath: "/repo/src/a.ts",
+      messages: [
+        { ruleId: "no-eval", severity: 2, message: "eval is harmful", line: 3 },
+        { ruleId: "no-unused-vars", severity: 1, message: "x is unused", line: 9 },
+      ],
+    },
+    { filePath: "/repo/src/clean.ts", messages: [] },
+  ]);
+
+  it("parses messages into findings with mapped severities", () => {
+    const findings = parseEslintJson(ESLINT);
+    expect(findings).toHaveLength(2);
+    expect(findings[0]).toMatchObject({ tool: "eslint", ruleId: "no-eval", severity: "critical", line: 3 });
+    expect(findings[1]!.severity).toBe("major"); // severity 1 (warning) → major
+  });
+
+  it("strips the cwd prefix so paths are project-relative", () => {
+    const findings = parseEslintJson(ESLINT, { cwd: "/repo" });
+    expect(findings[0]!.path).toBe("src/a.ts");
+  });
+
+  it("falls back to parse-error rule when ruleId is null", () => {
+    const input = JSON.stringify([{ filePath: "/r/x.ts", messages: [{ ruleId: null, severity: 2, message: "syntax" }] }]);
+    expect(parseEslintJson(input)[0]!.ruleId).toBe("parse-error");
+  });
+});
+
+describe("parseNpmAudit", () => {
+  const AUDIT = JSON.stringify({
+    vulnerabilities: {
+      lodash: { name: "lodash", severity: "high", via: [{ title: "Prototype Pollution" }], range: "<4.17.21" },
+      minimist: { name: "minimist", severity: "low", via: ["lodash"] },
+    },
+  });
+
+  it("anchors each vulnerable package to package.json with mapped severity", () => {
+    const findings = parseNpmAudit(AUDIT);
+    expect(findings).toHaveLength(2);
+    const lodash = findings.find((f) => f.ruleId === "lodash")!;
+    expect(lodash).toMatchObject({ tool: "npm-audit", path: "package.json", severity: "critical" });
+    expect(lodash.message).toContain("Prototype Pollution");
+    expect(findings.find((f) => f.ruleId === "minimist")!.severity).toBe("minor");
+  });
+
+  it("returns [] for an empty audit", () => {
+    expect(parseNpmAudit(JSON.stringify({ vulnerabilities: {} }))).toEqual([]);
+  });
+});
+
+describe("parseFindings dispatch", () => {
+  it("routes eslint and npm-audit formats", () => {
+    expect(parseFindings("eslint", JSON.stringify([{ filePath: "a.ts", messages: [{ ruleId: "r", severity: 2, message: "m" }] }]))[0]!.tool).toBe("eslint");
+    expect(parseFindings("npm-audit", JSON.stringify({ vulnerabilities: { p: { name: "p", severity: "info", via: [] } } }))[0]!.tool).toBe("npm-audit");
   });
 });

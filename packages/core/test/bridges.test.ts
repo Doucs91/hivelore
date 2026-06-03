@@ -154,6 +154,32 @@ describe("generateBridges", () => {
     expect(outputs.map((o) => o.target)).toEqual(["cline", "windsurf"]);
   });
 
+  it("supports the reach targets (cursor, claude, roo, gemini, aider)", () => {
+    for (const target of ["cursor", "claude", "roo", "gemini", "aider"] as const) {
+      const [out] = generateBridges(memories, sensors, { targets: [target] });
+      expect(out?.target).toBe(target);
+      expect(out?.content).toContain(BRIDGE_MARKERS.memoriesStart);
+    }
+  });
+
+  it("emits Cursor .mdc frontmatter (alwaysApply) outside the markers", () => {
+    const [out] = generateBridges(memories, sensors, { targets: ["cursor"] });
+    expect(out?.path).toBe(BRIDGE_TARGET_PATH.cursor);
+    expect(out?.content.startsWith("---\n")).toBe(true);
+    expect(out?.content).toContain("alwaysApply: true");
+  });
+
+  it("surfaces anchor paths inline (path-scoping awareness)", () => {
+    const scoped = makeMemory({
+      id: "2026-01-01-gotcha-scoped",
+      type: "gotcha",
+      anchor: { paths: ["src/pay.ts"], symbols: [] },
+      body: "## Scoped lesson\nDo the thing.",
+    });
+    const [out] = generateBridges([scoped], [], { targets: ["agents"] });
+    expect(out?.content).toContain("applies to: src/pay.ts");
+  });
+
   it("uses correct path for each target", () => {
     const outputs = generateBridges(memories, sensors, { targets: ["cline"] });
     expect(outputs[0]?.path).toBe(BRIDGE_TARGET_PATH.cline);
