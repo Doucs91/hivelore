@@ -89,10 +89,16 @@ describe("hAIve CLI integration", () => {
     expect(existsSync(path.join(workDir, ".ai/memories/team"))).toBe(true);
     expect(existsSync(path.join(workDir, ".ai/memories/module"))).toBe(true);
     expect(existsSync(path.join(workDir, ".ai", ".runtime", "README.md"))).toBe(true);
+    // Native agent bridges are generated for every supported target (reach).
     expect(existsSync(path.join(workDir, "CLAUDE.md"))).toBe(true);
     expect(existsSync(path.join(workDir, "AGENTS.md"))).toBe(true);
-    expect(existsSync(path.join(workDir, ".cursorrules"))).toBe(true);
     expect(existsSync(path.join(workDir, ".github/copilot-instructions.md"))).toBe(true);
+    expect(existsSync(path.join(workDir, ".cursor/rules/haive-memories.mdc"))).toBe(true);
+    expect(existsSync(path.join(workDir, ".roo/rules/haive.md"))).toBe(true);
+    expect(existsSync(path.join(workDir, "GEMINI.md"))).toBe(true);
+    expect(existsSync(path.join(workDir, "CONVENTIONS.md"))).toBe(true);
+    expect(existsSync(path.join(workDir, ".clinerules"))).toBe(true);
+    // The complementary "always use the MCP" Cursor nudge is still written.
     expect(
       existsSync(path.join(workDir, ".cursor/rules/haive-mcp-required.mdc")),
     ).toBe(true);
@@ -1045,7 +1051,8 @@ describe("hAIve CLI integration", () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-auto-session-end-"));
     try {
       await exec("git", ["init"], { cwd: repo });
-      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
+      // --no-bridges keeps the recap focused on the user's change, not the 12 generated bridges.
+      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none", "--no-bridges"]);
       await mkdir(path.join(repo, "src"), { recursive: true });
       await writeFile(path.join(repo, "src", "changed.ts"), "export const changed = true;\n", "utf8");
 

@@ -194,14 +194,30 @@ function renderSensorsBlock(blockSensors: BridgeSensor[]): string {
 // ── Shared preamble & formatter skeleton ──────────────────────────────────
 
 const HAIVE_PREAMBLE =
-  "This repo uses **[hAIve](https://github.com/Doucs91/hAIve)** for shared context and enforcement.\n" +
+  "<!-- Managed by hAIve. Edit OUTSIDE the haive markers only; the marked blocks are regenerated. -->\n" +
   "\n" +
-  "**Before editing** for a goal: call `get_briefing` (task + files/symbols) to load ranked context.\n" +
-  "**When an approach fails**: call `mem_tried` right away.\n" +
-  "**Before closing**: run `haive enforce finish` and capture learnings via the `post_task` prompt.\n" +
+  "This repo uses **[hAIve](https://github.com/Doucs91/hAIve)** for shared, enforced team context.\n" +
+  "The corpus lives in `.ai/` and is the source of truth — these files are a generated mirror.\n" +
   "\n" +
-  "If `get_briefing` returns `action_required`, surface each item to the developer and wait for\n" +
-  "explicit confirmation before modifying any code.";
+  "- `.ai/project-context.md` — project overview, architecture, conventions.\n" +
+  "- `.ai/memories/` — decisions, gotchas, conventions, failed attempts (personal/team/module).\n" +
+  "- The blocks below are the top current memories + the hard rules enforced on commit.\n" +
+  "\n" +
+  "## Working through hAIve\n" +
+  "\n" +
+  "1. **Before editing** for a goal, call `get_briefing` (task + files/symbols) to load ranked context\n" +
+  "   — or `mem_relevant_to` if project context is already loaded this session.\n" +
+  "2. **When an approach fails**, call `mem_tried` right away so the next agent skips the dead end.\n" +
+  "3. **Before closing** a substantive session, run the `post_task` prompt to capture what was learned.\n" +
+  "4. **Before final response**, run `haive enforce finish`; fix anything it blocks before reporting done.\n" +
+  "\n" +
+  "If the haive MCP server is not available, tell the developer rather than silently skipping it.\n" +
+  "\n" +
+  "## Safety\n" +
+  "\n" +
+  "- If `get_briefing` returns `action_required`, surface each item to the developer (use its\n" +
+  "  `developer_message`) and wait for explicit confirmation before changing any code.\n" +
+  "- Never act autonomously on a cross-repo breaking change (dep bump, contract/API diff) — ask first.";
 
 function renderMarkdownBridge(
   topMemories: BridgeMemoryEntry[],

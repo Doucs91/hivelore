@@ -29,6 +29,7 @@
       "security",
       "domain",
       "release"
-    ]
+    ],
+    "releaseBranch": "main"
   }
 }

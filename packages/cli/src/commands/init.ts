@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import { Command } from "commander";
 import {
   AUTOPILOT_DEFAULTS,
+  BRIDGE_TARGETS,
   buildCodeMap,
   buildFrontmatter,
   detectStacksFromManifests,
@@ -17,9 +18,11 @@ import {
   saveCodeMap,
   saveConfig,
   serializeMemory,
+  type BridgeTarget,
   type GitCommit,
 } from "@hiveai/core";
 import { setUiJsonMode, ui } from "../utils/ui.js";
+import { writeBridgeFiles } from "../utils/bridge-files.js";
 import { setupAgentMode } from "./agent.js";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
 import { generateBootstrapContext } from "./init-bootstrap.js";
@@ -60,29 +63,6 @@ TODO — known traps, surprising behavior, things newcomers stub their toes on.
 // Bridge files are a table of contents, not a manual: a short, stable entry
 // point that tells the agent where the real context lives. Kept deliberately
 // under ~30 lines so it never crowds out the task in the agent's context window.
-const BRIDGE_BODY = `<!-- hAIve bridge file — do not edit by hand. -->
-
-This repo uses **hAIve** for shared context. The map:
-
-- \`.ai/project-context.md\` — project overview, architecture, conventions.
-- \`.ai/memories/\` — decisions, gotchas, conventions, failed attempts (personal/team/module).
-- The breadcrumbs injected below (if any) are the top current memories.
-
-## Working through hAIve
-
-1. **Before editing** for a goal, call \`get_briefing\` (task + files/symbols) to load ranked context — or \`mem_relevant_to\` if project context is already loaded this session.
-2. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
-3. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-4. **Before final response**, run \`haive enforce finish\`. If it blocks, commit/push, bump/tag shippable releases, wait for GitHub Actions to pass when applicable, then rerun it.
-
-If the haive MCP server is not available, tell the developer rather than silently skipping it.
-
-## Safety
-
-- If \`get_briefing\` returns \`action_required\`, surface each item to the developer (use its \`developer_message\`) and wait for confirmation before changing code.
-- Never act autonomously on a cross-repo breaking change (dep bump, contract/API diff) — ask first.
-`;
-
 /** Cursor \`.cursor/rules/*.mdc\` — alwaysApply so agents see it even if bridge files are thin. */
 const CURSOR_HAIVE_RULE_MDC = `---
 description: Require hAIve MCP (get_briefing / mem_relevant_to) before substantive repo edits
@@ -263,7 +243,13 @@ export function registerInit(program: Command): void {
       "  Add --no-bootstrap and --stack none to disable the auto-features.",
     )
     .option("-d, --dir <dir>", "project root", process.cwd())
-    .option("--no-bridges", "do not generate CLAUDE.md / AGENTS.md / .cursorrules / copilot-instructions.md / .cursor/rules/haive-mcp-required.mdc")
+    .option("--no-bridges", "do not generate any native agent bridge files")
+    .option(
+      "--bridge-targets <list>",
+      `which agent bridges to generate: 'all' (default) | comma-list.\n` +
+      `  Available: ${BRIDGE_TARGETS.join(", ")}. Each carries top memories + block sensors.`,
+      "all",
+    )
     .option("--with-ci", "write a GitHub Actions workflow (.github/workflows/haive-sync.yml) — included automatically in autopilot mode")
     .option(
       "--manual",
@@ -309,6 +295,7 @@ export function registerInit(program: Command): void {
     .action(async (opts: {
       dir: string;
       bridges: boolean;
+      bridgeTargets?: string;
       withCi?: boolean;
       manual?: boolean;
       bootstrap?: boolean;
@@ -346,6 +333,7 @@ export function registerInit(program: Command): void {
         gitCommitsScanned: 0,
         gitRevertsFound: 0,
         gitRecurring: 0,
+        bridgesWritten: 0,
       };
 
       if (existsSync(paths.haiveDir)) {
@@ -388,15 +376,8 @@ export function registerInit(program: Command): void {
         );
       }
 
-      if (opts.bridges) {
-        await writeBridge(root, "CLAUDE.md");
-        // AGENTS.md is the emerging cross-harness convention (Codex et al.) — emit it
-        // so the .ai/ corpus is consumable by any AGENTS.md-aware agent, not just Claude.
-        await writeBridge(root, "AGENTS.md");
-        await writeBridge(root, ".cursorrules");
-        await writeBridge(root, path.join(".github", "copilot-instructions.md"));
-        await writeCursorHaiveRule(root);
-      }
+      // Native agent bridges are generated AFTER seeding (below) so they carry the
+      // seeded memories + sensors, not an empty template.
 
       // ── Stack memory packs ───────────────────────────────────────────────
       const stacksToSeed = await resolveStacksToSeed(root, wantStack);
@@ -441,6 +422,28 @@ export function registerInit(program: Command): void {
           );
         } else {
           ui.info("Git seeding: no revert/hotfix signals found — run `haive memory seed-git` later.");
+        }
+      }
+
+      // ── Native agent bridges (reach) ─────────────────────────────────────
+      // Generated here, after seeding, so each bridge carries the freshly-seeded
+      // memories + block sensors — not an empty template. Idempotent: existing
+      // files keep their manual content, only the haive marker blocks refresh.
+      if (opts.bridges) {
+        const targets = resolveBridgeTargets(opts.bridgeTargets);
+        const res = await writeBridgeFiles(root, paths, { targets });
+        // The "always use the MCP" Cursor nudge is complementary to the memories bridge.
+        await writeCursorHaiveRule(root);
+        const made = res.created.length + res.updated.length;
+        report.bridgesWritten = made;
+        if (res.created.length > 0) {
+          ui.success(`Generated ${res.created.length} agent bridge(s): ${res.created.join(", ")}`);
+        }
+        if (res.updated.length > 0) {
+          ui.info(`Refreshed ${res.updated.length} existing bridge(s): ${res.updated.join(", ")}`);
+        }
+        if (made === 0) {
+          ui.info("Bridges already up to date.");
         }
       }
 
@@ -541,6 +544,7 @@ export function registerInit(program: Command): void {
           git_seeds_written: report.gitSeedsWritten,
           git_recurring: report.gitRecurring,
           bridges: opts.bridges !== false,
+          bridges_written: report.bridgesWritten,
           ci: opts.withCi || autopilot,
         }, null, 2));
         return;
@@ -769,6 +773,7 @@ interface InitReport {
   gitCommitsScanned: number;
   gitRevertsFound: number;
   gitRecurring: number;
+  bridgesWritten: number;
 }
 
 function printInitReport(r: InitReport): void {
@@ -784,6 +789,9 @@ function printInitReport(r: InitReport): void {
   }
   if (r.totalMemories > 0) {
     lines.push(`  Total ready : ${r.totalMemories} lesson(s), ${r.totalSensors} sensor(s) — 0 written by hand`);
+  }
+  if (r.bridgesWritten > 0) {
+    lines.push(`  Reach       : ${r.bridgesWritten} agent bridge(s) generated (Cursor, Cline, Copilot, Roo, Gemini, …)`);
   }
 
   if (lines.length === 0) return;
@@ -801,7 +809,7 @@ function printInitReport(r: InitReport): void {
     console.log(ui.dim("  Review draft seeds: haive memory pending   (validate or delete each one)"));
   }
   console.log(
-    ui.dim("  Reach: every agent gets this corpus — run `haive bridges sync --all` (Cursor, Cline, Windsurf, Roo, Gemini, Copilot, …)"),
+    ui.dim("  Reach: bridges auto-refresh on `haive sync`; regenerate any time with `haive bridges sync --all`."),
   );
 }
 
@@ -817,15 +825,17 @@ async function writeCursorHaiveRule(root: string): Promise<void> {
   ui.success(`Created Cursor rule ${relPath}`);
 }
 
-async function writeBridge(root: string, relPath: string): Promise<void> {
-  const target = path.join(root, relPath);
-  if (existsSync(target)) {
-    ui.info(`Bridge ${relPath} already exists — skipped`);
-    return;
+/** Resolve the `--bridge-targets` option ('all' | comma-list) into concrete targets. */
+function resolveBridgeTargets(opt: string | undefined): BridgeTarget[] {
+  const raw = (opt ?? "all").trim().toLowerCase();
+  if (raw === "" || raw === "all") return [...BRIDGE_TARGETS];
+  const requested = raw.split(",").map((t) => t.trim()).filter(Boolean);
+  const valid = requested.filter((t): t is BridgeTarget => (BRIDGE_TARGETS as string[]).includes(t));
+  const invalid = requested.filter((t) => !(BRIDGE_TARGETS as string[]).includes(t));
+  if (invalid.length > 0) {
+    ui.warn(`Ignoring unknown bridge target(s): ${invalid.join(", ")}. Valid: ${BRIDGE_TARGETS.join(", ")}`);
   }
-  await mkdir(path.dirname(target), { recursive: true });
-  await writeFile(target, BRIDGE_BODY, "utf8");
-  ui.success(`Created bridge ${relPath}`);
+  return valid.length > 0 ? valid : [...BRIDGE_TARGETS];
 }
 
 const RUNTIME_README_BODY = `# .ai/.runtime — disposable local layer

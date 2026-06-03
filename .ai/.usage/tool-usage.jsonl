@@ -164,3 +164,7 @@
 {"tool":"mem_session_end","at":"2026-06-03T02:37:01.593Z","summary":"Re-tag the old dev-environment workaround memories so the v0.16.0 background dow"}
 {"tool":"mem_session_end","at":"2026-06-03T04:16:24.866Z","summary":"Implement the strong recommendation: a single shared briefing-priority classifie"}
 {"tool":"mem_save","at":"2026-06-03T05:00:19.137Z","summary":"competitive-positioning-battle-plan"}
+{"tool":"get_briefing","at":"2026-06-03T22:07:32.498Z","summary":"Improve hAIve's reach (native bridge configs like memories.sh for AGENTS.md/.cursorrules/Copilot/Cline) and cold-start (auto-seed from git history, lint/CI/Sonar findings, starter packs). Analyze the best competitor (memory banks, esp. memories.sh)."}
+{"tool":"mem_save","at":"2026-06-03T22:13:56.422Z","summary":"reach-coldstart-2agent-plan-vs-memories-sh"}
+{"tool":"get_briefing","at":"2026-06-03T23:03:35.632Z","summary":"Wire haive init to generate ALL native bridges (via the bridges generator) after seeding so they carry seeded memories+sensors; replace legacy .cursorrules with .cursor/rules/*.mdc; improve bridge generation quality to be best-in-class reach."}
+{"tool":"mem_save","at":"2026-06-03T23:18:30.284Z","summary":"init-generates-all-bridges-reach-onboarding"}

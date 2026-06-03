@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-06-02T20:14:47.213Z",
+  "generated_at": "2026-06-03T22:53:20.639Z",
   "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -95,25 +95,57 @@
       ],
       "loc": 196
     },
+    "packages/cli/src/commands/bridges.ts": {
+      "exports": [
+        {
+          "name": "registerBridges",
+          "kind": "function",
+          "line": 22
+        }
+      ],
+      "loc": 129
+    },
     "packages/cli/src/commands/briefing.ts": {
       "exports": [
         {
           "name": "registerBriefing",
           "kind": "function",
-          "line": 109
+          "line": 110
         }
       ],
-      "loc": 532
+      "loc": 543
+    },
+    "packages/cli/src/commands/coverage.ts": {
+      "summary": "`haive coverage` — harness coverage-gap report.",
+      "exports": [
+        {
+          "name": "registerCoverage",
+          "kind": "function",
+          "line": 33
+        }
+      ],
+      "loc": 88
     },
     "packages/cli/src/commands/dashboard.ts": {
       "exports": [
         {
           "name": "registerDashboard",
           "kind": "function",
-          "line": 20
+          "line": 22
         }
       ],
-      "loc": 144
+      "loc": 192
+    },
+    "packages/cli/src/commands/dev-link.ts": {
+      "exports": [
+        {
+          "name": "registerDevLink",
+          "kind": "function",
+          "description": "Copy the repo's freshly-built `dist/` into the globally-installed `@hiveai/*` so the `haive` binary (and the MCP server / git hooks that shell out to it) run your LOCAL code — without an npm publish cycle.",
+          "line": 23
+        }
+      ],
+      "loc": 89
     },
     "packages/cli/src/commands/doctor.ts": {
       "exports": [
@@ -140,25 +172,25 @@
         {
           "name": "registerEnforce",
           "kind": "function",
-          "line": 99
+          "line": 100
         },
         {
           "name": "runWithEnforcement",
           "kind": "function",
-          "line": 578
+          "line": 725
         }
       ],
-      "loc": 1928
+      "loc": 2134
     },
     "packages/cli/src/commands/eval.ts": {
       "exports": [
         {
           "name": "registerEval",
           "kind": "function",
-          "line": 54
+          "line": 70
         }
       ],
-      "loc": 336
+      "loc": 479
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -182,14 +214,15 @@
       "loc": 184
     },
     "packages/cli/src/commands/ingest.ts": {
+      "summary": "CI USAGE — integrate haive ingest in your pipeline: # ESLint / any SARIF emitter eslint --format @microsoft/eslint-formatter-sarif --output-file eslint.sarif src/ haive ingest --from sarif eslint.sarif --scope team --min-severity major # SonarQube file export haive ingest --from sonar sonar-issues.json --scope team --min-severity major # SonarQube live API (no file needed — Node 18+) haive ingest --from sonar-api \\ --sonar-url \"$SONAR_HOST_URL\" --sonar-token \"$SONAR_TOKEN\" \\ --sonar-component my_project --min-severity major # Dry-run to preview without writing haive ingest --from sarif report.sarif --dry-run Exit codes: 0 = success (even when nothing new), 1 = bad args or unreadable report.",
       "exports": [
         {
           "name": "registerIngest",
           "kind": "function",
-          "line": 38
+          "line": 59
         }
       ],
-      "loc": 271
+      "loc": 299
     },
     "packages/cli/src/commands/init-bootstrap.ts": {
       "summary": "Bootstrap: auto-generate .ai/project-context.md from local filesystem signals.",
@@ -229,50 +262,60 @@
       "summary": "Stack memory packs — pre-seeded validated memories for common stacks.",
       "exports": [
         {
+          "name": "StackName",
+          "kind": "type",
+          "line": 43
+        },
+        {
           "name": "createContext",
           "kind": "function",
           "description": "createContext(): resolve session once, share across all procedures",
-          "line": 506
+          "line": 508
         },
         {
           "name": "dbConnect",
           "kind": "function",
-          "line": 532
+          "line": 534
         },
         {
           "name": "SUPPORTED_STACKS",
           "kind": "const",
-          "line": 908
+          "line": 1121
         },
         {
           "name": "isValidStack",
           "kind": "function",
-          "line": 910
+          "line": 1123
         },
         {
           "name": "autoDetectStacks",
           "kind": "function",
           "description": "Auto-detect which stacks are present from a package.json dep map.",
-          "line": 915
+          "line": 1128
+        },
+        {
+          "name": "SeedPackResult",
+          "kind": "interface",
+          "line": 1162
         },
         {
           "name": "seedStackPack",
           "kind": "function",
           "description": "Seed memory pack files on disk.",
-          "line": 944
+          "line": 1168
         }
       ],
-      "loc": 986
+      "loc": 1212
     },
     "packages/cli/src/commands/init.ts": {
       "exports": [
         {
           "name": "registerInit",
           "kind": "function",
-          "line": 241
+          "line": 255
         }
       ],
-      "loc": 614
+      "loc": 888
     },
     "packages/cli/src/commands/install-hooks.ts": {
       "exports": [
@@ -370,10 +413,10 @@
         {
           "name": "registerMemoryFeedback",
           "kind": "function",
-          "line": 24
+          "line": 28
         }
       ],
-      "loc": 80
+      "loc": 95
     },
     "packages/cli/src/commands/memory-for-files.ts": {
       "exports": [
@@ -513,6 +556,17 @@
       ],
       "loc": 66
     },
+    "packages/cli/src/commands/memory-resolve-conflict.ts": {
+      "summary": "`haive memory resolve-conflict <id_a> <id_b>` — turn a detected contradiction into a resolution.",
+      "exports": [
+        {
+          "name": "registerMemoryResolveConflict",
+          "kind": "function",
+          "line": 27
+        }
+      ],
+      "loc": 85
+    },
     "packages/cli/src/commands/memory-rm.ts": {
       "exports": [
         {
@@ -522,6 +576,17 @@
         }
       ],
       "loc": 70
+    },
+    "packages/cli/src/commands/memory-seed-git.ts": {
+      "summary": "`haive memory seed-git` — cold-start the corpus from git history.",
+      "exports": [
+        {
+          "name": "registerMemorySeedGit",
+          "kind": "function",
+          "line": 39
+        }
+      ],
+      "loc": 128
     },
     "packages/cli/src/commands/memory-seed.ts": {
       "exports": [
@@ -618,16 +683,39 @@
       ],
       "loc": 193
     },
+    "packages/cli/src/commands/merge-driver.ts": {
+      "summary": "`haive merge-driver` — deterministic git merge driver for hAIve memory files.",
+      "exports": [
+        {
+          "name": "registerMergeDriver",
+          "kind": "function",
+          "line": 26
+        }
+      ],
+      "loc": 78
+    },
     "packages/cli/src/commands/observe.ts": {
       "summary": "`haive observe` — passive-capture endpoint for Claude Code's PostToolUse hook.",
       "exports": [
         {
+          "name": "isExpectedNonzeroExit",
+          "kind": "function",
+          "description": "Commands that routinely exit non-zero WITHOUT a real failure, so a bare exit code is not a failure signal for them: `grep`/`rg` (exit 1 = no match), `find`, `test`/`[`/`[[`, `diff` (exit 1 = differs), and ANY pipeline (the last stage — often `head` — sets the exit code, and SIGPIPE/`head` closing a pipe makes earlier stages \"fail\").",
+          "line": 105
+        },
+        {
+          "name": "detectFailure",
+          "kind": "function",
+          "description": "Detect whether the tool response signals a failure worth capturing as mem_tried.",
+          "line": 118
+        },
+        {
           "name": "registerObserve",
           "kind": "function",
-          "line": 136
+          "line": 156
         }
       ],
-      "loc": 189
+      "loc": 209
     },
     "packages/cli/src/commands/playback.ts": {
       "exports": [
@@ -684,10 +772,10 @@
         {
           "name": "registerSensors",
           "kind": "function",
-          "line": 44
+          "line": 52
         }
       ],
-      "loc": 259
+      "loc": 342
     },
     "packages/cli/src/commands/session-end.ts": {
       "summary": "haive session end — save a structured end-of-session recap.",
@@ -695,16 +783,16 @@
         {
           "name": "registerSessionEnd",
           "kind": "function",
-          "line": 246
+          "line": 289
         },
         {
           "name": "normalizeAnchorPath",
           "kind": "function",
           "description": "Convert an absolute or home-relative path to a project-relative path.",
-          "line": 397
+          "line": 443
         }
       ],
-      "loc": 406
+      "loc": 452
     },
     "packages/cli/src/commands/snapshot.ts": {
       "summary": "haive snapshot — take or compare an API contract snapshot.",
@@ -732,10 +820,10 @@
         {
           "name": "registerSync",
           "kind": "function",
-          "line": 48
+          "line": 51
         }
       ],
-      "loc": 671
+      "loc": 703
     },
     "packages/cli/src/commands/tui.ts": {
       "exports": [
@@ -753,10 +841,10 @@
         {
           "name": "registerWelcome",
           "kind": "function",
-          "line": 28
+          "line": 29
         }
       ],
-      "loc": 91
+      "loc": 115
     },
     "packages/cli/src/tui/Dashboard.tsx": {
       "exports": [
@@ -807,6 +895,39 @@
         }
       ],
       "loc": 275
+    },
+    "packages/cli/src/utils/bridge-files.ts": {
+      "summary": "Shared bridge-file writer — used by both `haive bridges sync` (explicit) and `haive sync` (auto-refresh of bridges that already exist on disk, so native agent configs never go stale after a pull/merge).",
+      "exports": [
+        {
+          "name": "WriteBridgesResult",
+          "kind": "interface",
+          "line": 24
+        },
+        {
+          "name": "WriteBridgesOptions",
+          "kind": "interface",
+          "line": 30
+        },
+        {
+          "name": "writeBridgeFiles",
+          "kind": "function",
+          "description": "Load corpus + sensors and write/refresh the requested bridge files idempotently.",
+          "line": 39
+        },
+        {
+          "name": "extractMarkerBlock",
+          "kind": "function",
+          "description": "── Marker helpers ───────────────────────────────────────────────────────────",
+          "line": 119
+        },
+        {
+          "name": "replaceMarkerBlock",
+          "kind": "function",
+          "line": 126
+        }
+      ],
+      "loc": 140
     },
     "packages/cli/src/utils/briefing-radar.ts": {
       "exports": [
@@ -897,12 +1018,85 @@
     "packages/cli/src/utils/ui.ts": {
       "exports": [
         {
+          "name": "setUiJsonMode",
+          "kind": "function",
+          "line": 6
+        },
+        {
           "name": "ui",
           "kind": "const",
-          "line": 3
+          "line": 14
         }
       ],
-      "loc": 24
+      "loc": 35
+    },
+    "packages/core/src/bridges.ts": {
+      "summary": "Native bridge generator — produces agent-harness-specific config files from the hAIve corpus (validated memories + block sensors).",
+      "exports": [
+        {
+          "name": "BridgeTarget",
+          "kind": "type",
+          "description": "── Target registry ────────────────────────────────────────────────────────",
+          "line": 17
+        },
+        {
+          "name": "BRIDGE_TARGET_PATH",
+          "kind": "const",
+          "description": "Canonical relative path from project root for each target.",
+          "line": 32
+        },
+        {
+          "name": "BRIDGE_TARGETS",
+          "kind": "const",
+          "line": 47
+        },
+        {
+          "name": "BridgeSensor",
+          "kind": "interface",
+          "description": "Condensed sensor shape for bridge injection.",
+          "line": 55
+        },
+        {
+          "name": "BridgeMemoryEntry",
+          "kind": "interface",
+          "line": 65
+        },
+        {
+          "name": "GenerateBridgesOptions",
+          "kind": "interface",
+          "line": 74
+        },
+        {
+          "name": "BridgeFileOutput",
+          "kind": "interface",
+          "line": 81
+        },
+        {
+          "name": "BRIDGE_MARKERS",
+          "kind": "const",
+          "description": "── Idempotency markers ────────────────────────────────────────────────────",
+          "line": 90
+        },
+        {
+          "name": "bridgeMemorySummary",
+          "kind": "function",
+          "description": "First meaningful line of a memory body, condensed for bridge display.",
+          "line": 100
+        },
+        {
+          "name": "prepareBridgeData",
+          "kind": "function",
+          "description": "Filter and rank memories + sensors for bridge injection.",
+          "line": 113
+        },
+        {
+          "name": "generateBridges",
+          "kind": "function",
+          "description": "Generate bridge file content for the requested targets.",
+          "line": 282
+        }
+      ],
+      "loc": 296
     },
     "packages/core/src/briefing-body.ts": {
       "summary": "Strip memory markdown down to actionable bullet lines — cheaper for briefing payloads.",
@@ -1078,47 +1272,47 @@
         {
           "name": "DEFAULT_CONFIG",
           "kind": "const",
-          "line": 195
+          "line": 233
         },
         {
           "name": "AUTOPILOT_DEFAULTS",
           "kind": "const",
-          "line": 224
+          "line": 263
         },
         {
           "name": "AntiPatternGate",
           "kind": "type",
           "description": "The pre-commit anti-pattern gate hardness levels.",
-          "line": 254
+          "line": 294
         },
         {
           "name": "antiPatternGateParams",
           "kind": "function",
           "description": "Single source of truth mapping a configured `antiPatternGate` to the `pre_commit_check` parameters that implement it.",
-          "line": 262
+          "line": 302
         },
         {
           "name": "configPath",
           "kind": "function",
-          "line": 278
+          "line": 318
         },
         {
           "name": "loadConfig",
           "kind": "function",
-          "line": 282
+          "line": 322
         },
         {
           "name": "loadConfigSync",
           "kind": "function",
-          "line": 299
+          "line": 339
         },
         {
           "name": "saveConfig",
           "kind": "function",
-          "line": 313
+          "line": 353
         }
       ],
-      "loc": 331
+      "loc": 371
     },
     "packages/core/src/conflict-candidates.ts": {
       "exports": [
@@ -1151,6 +1345,52 @@
         }
       ],
       "loc": 131
+    },
+    "packages/core/src/conflict-resolve.ts": {
+      "summary": "Contradiction resolution planning — turns \"two memories conflict\" into \"do THIS\".",
+      "exports": [
+        {
+          "name": "ConflictResolution",
+          "kind": "interface",
+          "line": 18
+        },
+        {
+          "name": "planConflictResolution",
+          "kind": "function",
+          "description": "Compare two memories; returns the one that should WIN plus the reason.",
+          "line": 43
+        }
+      ],
+      "loc": 77
+    },
+    "packages/core/src/context-throttle.ts": {
+      "summary": "Project-context emission throttle — a token saver for long sessions.",
+      "exports": [
+        {
+          "name": "PROJECT_CONTEXT_THROTTLE_MS",
+          "kind": "const",
+          "description": "How long an emitted project context is considered \"still fresh in the agent's context\".",
+          "line": 16
+        },
+        {
+          "name": "hashProjectContext",
+          "kind": "function",
+          "line": 22
+        },
+        {
+          "name": "projectContextRecentlyEmitted",
+          "kind": "function",
+          "description": "True if an identical project-context body was already emitted within the throttle window.",
+          "line": 27
+        },
+        {
+          "name": "recordProjectContextEmission",
+          "kind": "function",
+          "description": "Record that this exact project-context body was just emitted.",
+          "line": 44
+        }
+      ],
+      "loc": 53
     },
     "packages/core/src/contract-watcher.ts": {
       "summary": "Contract snapshot and diff watcher.",
@@ -1197,6 +1437,45 @@
       ],
       "loc": 378
     },
+    "packages/core/src/coverage.ts": {
+      "summary": "Harness coverage-gap detection — \"which churny files have NO team knowledge on them?\".",
+      "exports": [
+        {
+          "name": "HotFile",
+          "kind": "interface",
+          "line": 14
+        },
+        {
+          "name": "CoverageGap",
+          "kind": "interface",
+          "line": 20
+        },
+        {
+          "name": "CoverageOptions",
+          "kind": "interface",
+          "line": 25
+        },
+        {
+          "name": "buildCoverageIndex",
+          "kind": "function",
+          "description": "Build the set of path prefixes the corpus covers: every anchor path of a non-dead, non-recap covering memory.",
+          "line": 44
+        },
+        {
+          "name": "isCovered",
+          "kind": "function",
+          "description": "True when `file` equals or is nested under any covered path prefix.",
+          "line": 63
+        },
+        {
+          "name": "findCoverageGaps",
+          "kind": "function",
+          "description": "Cross hot files with the coverage index → the uncovered, frequently-edited files.",
+          "line": 76
+        }
+      ],
+      "loc": 94
+    },
     "packages/core/src/cross-repo.ts": {
       "summary": "Cross-repo memory import — pulls `shared`-scoped memories from other projects.",
       "exports": [
@@ -1219,36 +1498,41 @@
         {
           "name": "DashboardOptions",
           "kind": "interface",
-          "line": 19
+          "line": 28
         },
         {
           "name": "ImpactRow",
           "kind": "interface",
-          "line": 27
+          "line": 40
         },
         {
           "name": "SensorRow",
           "kind": "interface",
-          "line": 35
+          "line": 48
         },
         {
           "name": "DormantRow",
           "kind": "interface",
-          "line": 41
+          "line": 54
+        },
+        {
+          "name": "PreventionRow",
+          "kind": "interface",
+          "line": 60
         },
         {
           "name": "DashboardReport",
           "kind": "interface",
-          "line": 47
+          "line": 67
         },
         {
           "name": "buildDashboard",
           "kind": "function",
           "description": "Build the full observability rollup from the loaded corpus + usage index.",
-          "line": 102
+          "line": 135
         }
       ],
-      "loc": 237
+      "loc": 302
     },
     "packages/core/src/dep-tracker.ts": {
       "summary": "Dependency version tracker.",
@@ -1381,20 +1665,59 @@
         {
           "name": "hasRecentBriefingMarker",
           "kind": "function",
-          "line": 57
+          "line": 106
         },
         {
           "name": "readRecentBriefingMarker",
           "kind": "function",
-          "line": 88
+          "line": 137
         },
         {
           "name": "isFreshIsoDate",
           "kind": "function",
-          "line": 125
+          "line": 174
         }
       ],
-      "loc": 129
+      "loc": 178
+    },
+    "packages/core/src/eval-history.ts": {
+      "summary": "Eval-score history — makes harness QUALITY a trended number, not a one-off.",
+      "exports": [
+        {
+          "name": "EvalHistoryEntry",
+          "kind": "interface",
+          "line": 15
+        },
+        {
+          "name": "evalHistoryPath",
+          "kind": "function",
+          "line": 28
+        },
+        {
+          "name": "appendEvalHistory",
+          "kind": "function",
+          "description": "Append one eval run to the history.",
+          "line": 33
+        },
+        {
+          "name": "loadEvalHistory",
+          "kind": "function",
+          "description": "Read all eval runs (skips malformed lines).",
+          "line": 40
+        },
+        {
+          "name": "EvalTrend",
+          "kind": "interface",
+          "line": 58
+        },
+        {
+          "name": "computeEvalTrend",
+          "kind": "function",
+          "description": "Pure trend over the history (chronological order is enforced internally).",
+          "line": 76
+        }
+      ],
+      "loc": 93
     },
     "packages/core/src/eval.ts": {
       "exports": [
@@ -1432,81 +1755,109 @@
         {
           "name": "SensorAggregate",
           "kind": "interface",
-          "line": 74
+          "line": 80
         },
         {
           "name": "EvalReport",
           "kind": "interface",
-          "line": 79
+          "line": 85
         },
         {
           "name": "scoreRetrievalCase",
           "kind": "function",
           "description": "Score one retrieval case from the (ranked) ids the briefing surfaced.",
-          "line": 98
+          "line": 104
         },
         {
           "name": "aggregateRetrieval",
           "kind": "function",
-          "line": 129
+          "line": 135
         },
         {
           "name": "scoreSensorCase",
           "kind": "function",
-          "line": 141
+          "line": 147
         },
         {
           "name": "aggregateSensors",
           "kind": "function",
-          "line": 161
+          "line": 167
         },
         {
           "name": "overallScore",
           "kind": "function",
           "description": "Combine retrieval + sensor aggregates into a single 0..100 quality score.",
-          "line": 171
+          "line": 177
         },
         {
           "name": "buildReport",
           "kind": "function",
-          "line": 187
+          "line": 193
         },
         {
           "name": "MetricDelta",
           "kind": "interface",
           "description": "Baseline / compare — makes the \"hAIve improves retrieval by N%\" claim reproducible.",
-          "line": 200
+          "line": 206
         },
         {
           "name": "EvalDelta",
           "kind": "interface",
-          "line": 207
+          "line": 213
         },
         {
           "name": "compareEvalReports",
           "kind": "function",
           "description": "Diff a current report against a baseline.",
-          "line": 223
+          "line": 229
         },
         {
           "name": "titleFromBody",
           "kind": "function",
           "description": "Extract a short task-like title from a memory body (first heading or first line).",
-          "line": 247
+          "line": 253
         },
         {
           "name": "SelfEvalOptions",
           "kind": "interface",
-          "line": 260
+          "line": 266
         },
         {
           "name": "synthesizeSelfEvalCases",
           "kind": "function",
           "description": "Synthesize retrieval cases from a repo's own anchored memories — zero-setup eval.",
-          "line": 273
+          "line": 279
         }
       ],
-      "loc": 296
+      "loc": 302
+    },
+    "packages/core/src/failure-coverage.ts": {
+      "summary": "Failure-capture coverage — the gate behind hAIve's \"never silently fix the same mistake\" loop.",
+      "exports": [
+        {
+          "name": "FailureObservation",
+          "kind": "interface",
+          "description": "Failure-capture coverage — the gate behind hAIve's \"never silently fix the same mistake\" loop.",
+          "line": 14
+        },
+        {
+          "name": "UncapturedFailure",
+          "kind": "interface",
+          "line": 23
+        },
+        {
+          "name": "FailureCoverageOptions",
+          "kind": "interface",
+          "line": 29
+        },
+        {
+          "name": "findUncapturedFailures",
+          "kind": "function",
+          "description": "A failure is CAPTURED when an `attempt`/`gotcha` lesson was recorded at or after it (within the window) — the agent stopped and wrote the lesson down.",
+          "line": 51
+        }
+      ],
+      "loc": 84
     },
     "packages/core/src/findings.ts": {
       "exports": [
@@ -1555,37 +1906,98 @@
           "line": 180
         },
         {
+          "name": "parseEslintJson",
+          "kind": "function",
+          "description": "Parse the ESLint JSON formatter output (`eslint --format json`): an array of `{ filePath, messages: [{ ruleId, severity, message, line }] }`.",
+          "line": 219
+        },
+        {
+          "name": "parseNpmAudit",
+          "kind": "function",
+          "description": "Parse `npm audit --json` output (`vulnerabilities` map).",
+          "line": 261
+        },
+        {
+          "name": "FindingFormat",
+          "kind": "type",
+          "line": 288
+        },
+        {
           "name": "parseFindings",
           "kind": "function",
           "description": "Dispatch to the right parser by declared format.",
-          "line": 214
+          "line": 291
         },
         {
           "name": "findingBody",
           "kind": "function",
           "description": "Build the markdown body for a finding-derived memory.",
-          "line": 241
+          "line": 331
         },
         {
           "name": "findingToDraft",
           "kind": "function",
           "description": "Convert one finding into a proposed memory draft (with a conservative sensor when derivable).",
-          "line": 259
+          "line": 349
         },
         {
           "name": "draftsFromFindings",
           "kind": "function",
           "description": "Convert a batch of findings into drafts, deduped within the batch and capped/filtered.",
-          "line": 285
+          "line": 375
         },
         {
           "name": "filterNewDrafts",
           "kind": "function",
           "description": "Drop drafts whose topic already exists in the corpus (cross-run dedup).",
-          "line": 300
+          "line": 390
         }
       ],
-      "loc": 304
+      "loc": 394
+    },
+    "packages/core/src/gate-precision.ts": {
+      "summary": "Gate signal-quality — is the inferential (anti-pattern) gate earning trust or crying wolf? hAIve's anti-pattern gate is probabilistic and warmup-sensitive, so it is deliberately calibrated NOT to hard-block on weak matches.",
+      "exports": [
+        {
+          "name": "GatePrecision",
+          "kind": "interface",
+          "line": 15
+        },
+        {
+          "name": "GateTuningSuggestion",
+          "kind": "interface",
+          "line": 30
+        },
+        {
+          "name": "GatePrecisionMetricDelta",
+          "kind": "interface",
+          "line": 35
+        },
+        {
+          "name": "GatePrecisionDelta",
+          "kind": "interface",
+          "line": 41
+        },
+        {
+          "name": "computeGatePrecision",
+          "kind": "function",
+          "description": "Compute the gate's signal quality from prevention events + usage.",
+          "line": 60
+        },
+        {
+          "name": "suggestGate",
+          "kind": "function",
+          "description": "Suggest loosening the gate when it is noisy (low precision with real rejection volume), or tightening it when it is precise but currently soft.",
+          "line": 98
+        },
+        {
+          "name": "compareGatePrecision",
+          "kind": "function",
+          "description": "Compare gate signal quality against a baseline for CI regression gates.",
+          "line": 127
+        }
+      ],
+      "loc": 143
     },
     "packages/core/src/impact.ts": {
       "exports": [
@@ -1621,21 +2033,47 @@
           "name": "compareImpact",
           "kind": "function",
           "description": "Sort comparator: highest impact first, prune candidates last on ties.",
-          "line": 160
+          "line": 165
         },
         {
           "name": "ImpactSummary",
           "kind": "interface",
-          "line": 166
+          "line": 171
         },
         {
           "name": "summarizeImpact",
           "kind": "function",
           "description": "Roll up a set of impact scores into tier counts.",
-          "line": 176
+          "line": 181
+        },
+        {
+          "name": "FeedbackAdjustmentAction",
+          "kind": "type",
+          "line": 197
+        },
+        {
+          "name": "FeedbackAdjustment",
+          "kind": "interface",
+          "line": 199
+        },
+        {
+          "name": "FeedbackAdjustmentOptions",
+          "kind": "interface",
+          "line": 204
+        },
+        {
+          "name": "recommendFeedbackAdjustment",
+          "kind": "function",
+          "description": "Turn explicit human rejection (`mem_feedback outcome=rejected`) into a deterministic noise-reduction action.",
+          "line": 213
+        },
+        {
+          "name": "applyFeedbackAdjustment",
+          "kind": "function",
+          "line": 238
         }
       ],
-      "loc": 191
+      "loc": 264
     },
     "packages/core/src/lexical-rank.ts": {
       "exports": [
@@ -1725,6 +2163,23 @@
       ],
       "loc": 128
     },
+    "packages/core/src/merge-memory.ts": {
+      "summary": "Deterministic 3-way merge for hAIve memory files — kills the `.ai/` conflict-marker pain.",
+      "exports": [
+        {
+          "name": "MergeResult",
+          "kind": "interface",
+          "line": 18
+        },
+        {
+          "name": "mergeMemoryVersions",
+          "kind": "function",
+          "description": "Resolve two versions of the same memory file.",
+          "line": 39
+        }
+      ],
+      "loc": 67
+    },
     "packages/core/src/parser.ts": {
       "exports": [
         {
@@ -1795,6 +2250,160 @@
       ],
       "loc": 70
     },
+    "packages/core/src/prevention.ts": {
+      "summary": "Prevention event log — the time-series behind hAIve's OUTCOME metric.",
+      "exports": [
+        {
+          "name": "PreventionSource",
+          "kind": "type",
+          "line": 17
+        },
+        {
+          "name": "PreventionEvent",
+          "kind": "interface",
+          "line": 19
+        },
+        {
+          "name": "preventionLogPath",
+          "kind": "function",
+          "line": 28
+        },
+        {
+          "name": "appendPreventionEvent",
+          "kind": "function",
+          "description": "Append one catch to the log.",
+          "line": 33
+        },
+        {
+          "name": "loadPreventionEvents",
+          "kind": "function",
+          "description": "Read all catch events (skips malformed lines).",
+          "line": 40
+        },
+        {
+          "name": "PreventionTrend",
+          "kind": "interface",
+          "description": "── Pure analytics over the event log ───────────────────────────────────────",
+          "line": 60
+        },
+        {
+          "name": "computePreventionTrend",
+          "kind": "function",
+          "line": 71
+        },
+        {
+          "name": "RecurrenceRow",
+          "kind": "interface",
+          "line": 93
+        },
+        {
+          "name": "RecurrenceReport",
+          "kind": "interface",
+          "line": 102
+        },
+        {
+          "name": "computeRecurrence",
+          "kind": "function",
+          "line": 113
+        },
+        {
+          "name": "BriefingProofLineOptions",
+          "kind": "interface",
+          "line": 132
+        },
+        {
+          "name": "briefingProofLine",
+          "kind": "function",
+          "description": "Coordination point for Lot C: turn prevention events into one compact proof line suitable for get_briefing, without coupling this lot to the MCP tool.",
+          "line": 143
+        },
+        {
+          "name": "CaughtForYouOptions",
+          "kind": "interface",
+          "line": 160
+        },
+        {
+          "name": "CaughtForYouRow",
+          "kind": "interface",
+          "line": 169
+        },
+        {
+          "name": "CaughtForYouSummary",
+          "kind": "interface",
+          "line": 179
+        },
+        {
+          "name": "summarizeCaughtForYou",
+          "kind": "function",
+          "description": "Build the end-of-session \"caught for you\" scene from prevention events.",
+          "line": 204
+        },
+        {
+          "name": "renderCaughtForYou",
+          "kind": "function",
+          "description": "Render a compact human-readable block for CLI/session recaps.",
+          "line": 259
+        }
+      ],
+      "loc": 272
+    },
+    "packages/core/src/priority.ts": {
+      "summary": "THE single source of truth for briefing memory priority — must_read / useful / background.",
+      "exports": [
+        {
+          "name": "MemoryPriority",
+          "kind": "type",
+          "line": 13
+        },
+        {
+          "name": "PrioritySignals",
+          "kind": "interface",
+          "description": "Normalized priority evidence.",
+          "line": 20
+        },
+        {
+          "name": "DEFAULT_PRIORITY_SIGNALS",
+          "kind": "const",
+          "line": 43
+        },
+        {
+          "name": "prioritySignals",
+          "kind": "function",
+          "description": "Convenience: build a full signal set from a partial one.",
+          "line": 57
+        },
+        {
+          "name": "classifyMemoryPriority",
+          "kind": "function",
+          "description": "Classify a memory's briefing priority from its signals.",
+          "line": 71
+        },
+        {
+          "name": "priorityRank",
+          "kind": "function",
+          "line": 102
+        }
+      ],
+      "loc": 105
+    },
+    "packages/core/src/recap.ts": {
+      "summary": "Recap compaction — keep the auto-generated session recap from dominating the briefing head.",
+      "exports": [
+        {
+          "name": "isAutoRecap",
+          "kind": "function",
+          "description": "True when a recap body looks auto-generated (vs.",
+          "line": 16
+        },
+        {
+          "name": "compactAutoRecapBody",
+          "kind": "function",
+          "description": "Return a compact version of an auto recap body: a one-line header (the Goal line) plus the Discoveries section when it carries real content (e.g.",
+          "line": 29
+        }
+      ],
+      "loc": 55
+    },
     "packages/core/src/relevance.ts": {
       "exports": [
         {
@@ -1810,39 +2419,51 @@
           "line": 14
         },
         {
+          "name": "ENV_WORKAROUND_TAGS",
+          "kind": "const",
+          "description": "Tags that mark a memory as a *local dev-environment workaround* (hot-swap, nested node_modules, global-install quirks) rather than repo-specific team policy.",
+          "line": 26
+        },
+        {
+          "name": "isEnvWorkaroundMemory",
+          "kind": "function",
+          "description": "True when a memory is tagged as a local dev-environment workaround (see {@link ENV_WORKAROUND_TAGS}).",
+          "line": 35
+        },
+        {
           "name": "inferModulesFromPaths",
           "kind": "function",
           "description": "Best-effort inference: given a list of file paths, infer module names from conventional layouts (packages/X/, apps/X/, modules/X/, src/X/).",
-          "line": 34
+          "line": 55
         },
         {
           "name": "pathsOverlap",
           "kind": "function",
           "description": "Path overlap: returns true if `a` and `b` refer to the same path or one is a parent of the other.",
-          "line": 50
+          "line": 71
         },
         {
           "name": "memoryMatchesAnchorPaths",
           "kind": "function",
-          "line": 59
+          "line": 80
         },
         {
           "name": "isGlobPath",
           "kind": "function",
-          "line": 78
+          "line": 99
         },
         {
           "name": "globToRegExp",
           "kind": "function",
-          "line": 82
+          "line": 103
         },
         {
           "name": "relPathFrom",
           "kind": "function",
-          "line": 125
+          "line": 146
         }
       ],
-      "loc": 128
+      "loc": 149
     },
     "packages/core/src/resolve-project.ts": {
       "exports": [
@@ -1971,6 +2592,52 @@
       ],
       "loc": 100
     },
+    "packages/core/src/seed-git.ts": {
+      "summary": "Cold-start seeding from git history — the harness has value only once the corpus is populated, and a fresh repo starts empty (Fowler's \"harnessability\": greenfield is easy, legacy is hard).",
+      "exports": [
+        {
+          "name": "GitCommit",
+          "kind": "interface",
+          "description": "Cold-start seeding from git history — the harness has value only once the corpus is populated, and a fresh repo starts empty (Fowler's \"harnessability\": greenfield is easy, legacy is hard).",
+          "line": 11
+        },
+        {
+          "name": "SeedProposal",
+          "kind": "interface",
+          "line": 18
+        },
+        {
+          "name": "proposeSeedsFromCommits",
+          "kind": "function",
+          "description": "Turn commits into seed proposals.",
+          "line": 53
+        }
+      ],
+      "loc": 100
+    },
+    "packages/core/src/seed.ts": {
+      "summary": "Pure stack-detection helpers for cold-start seeding.",
+      "exports": [
+        {
+          "name": "DetectStacksInput",
+          "kind": "interface",
+          "description": "Pure stack-detection helpers for cold-start seeding.",
+          "line": 9
+        },
+        {
+          "name": "DetectableStack",
+          "kind": "type",
+          "line": 32
+        },
+        {
+          "name": "detectStacksFromManifests",
+          "kind": "function",
+          "description": "Detect stacks present in a project from the raw contents of its manifest files.",
+          "line": 109
+        }
+      ],
+      "loc": 125
+    },
     "packages/core/src/sensor-suggest.ts": {
       "exports": [
         {
@@ -2026,19 +2693,31 @@
           "line": 117
         },
         {
+          "name": "CommandSensorSpec",
+          "kind": "interface",
+          "description": "A shell/test sensor selected for execution — the feedback *computational* layer that a regex can't express.",
+          "line": 140
+        },
+        {
+          "name": "selectCommandSensors",
+          "kind": "function",
+          "description": "Select the shell/test sensors that apply to `changedPaths`.",
+          "line": 156
+        },
+        {
           "name": "sensorTargetsFromDiff",
           "kind": "function",
           "description": "Split a unified diff into per-file targets containing only added lines.",
-          "line": 136
+          "line": 186
         },
         {
           "name": "addedLinesFromDiff",
           "kind": "function",
           "description": "Extract the added lines from a unified diff (lines starting with a single `+`, excluding the `+++` file header).",
-          "line": 175
+          "line": 225
         }
       ],
-      "loc": 184
+      "loc": 234
     },
     "packages/core/src/skill-activation.ts": {
       "exports": [
@@ -2270,76 +2949,88 @@
         {
           "name": "UsageIndex",
           "kind": "interface",
-          "line": 23
+          "line": 31
         },
         {
           "name": "USAGE_FILE",
           "kind": "const",
-          "line": 29
+          "line": 37
         },
         {
           "name": "emptyUsage",
           "kind": "function",
-          "line": 31
+          "line": 39
         },
         {
           "name": "emptyUsageIndex",
           "kind": "function",
-          "line": 51
+          "line": 61
         },
         {
           "name": "usagePath",
           "kind": "function",
-          "line": 59
+          "line": 69
         },
         {
           "name": "loadUsageIndex",
           "kind": "function",
-          "line": 63
+          "line": 73
         },
         {
           "name": "saveUsageIndex",
           "kind": "function",
-          "line": 76
+          "line": 86
         },
         {
           "name": "getUsage",
           "kind": "function",
-          "line": 83
+          "line": 93
         },
         {
           "name": "bumpRead",
           "kind": "function",
-          "line": 87
+          "line": 97
         },
         {
           "name": "recordRejection",
           "kind": "function",
-          "line": 101
+          "line": 111
         },
         {
           "name": "recordApplied",
           "kind": "function",
           "description": "Record that a memory was *applied* — explicitly confirmed to have changed what the agent/human did.",
-          "line": 122
+          "line": 132
+        },
+        {
+          "name": "PREVENTION_DEBOUNCE_MS",
+          "kind": "const",
+          "description": "Debounce window so re-scanning the same diff within a few minutes doesn't inflate prevention counts (a pre-commit hook can run the check several times for one commit).",
+          "line": 145
+        },
+        {
+          "name": "recordPrevention",
+          "kind": "function",
+          "description": "Record a *prevention* event: a memory's sensor fired on a scanned diff, intercepting a known mistake before it landed.",
+          "line": 152
         },
         {
           "name": "DECAY_DAYS",
           "kind": "const",
-          "line": 133
+          "line": 167
         },
         {
           "name": "isDecaying",
           "kind": "function",
-          "line": 135
+          "line": 169
         },
         {
           "name": "trackReads",
           "kind": "function",
-          "line": 141
+          "line": 175
         }
       ],
-      "loc": 153
+      "loc": 187
     },
     "packages/core/src/verifier.ts": {
       "exports": [
@@ -2799,19 +3490,19 @@
           "name": "parseMcpCliArgs",
           "kind": "function",
           "description": "Parse argv for the standalone haive-mcp binary / CLI subprocess parity.",
-          "line": 1396
+          "line": 1398
         },
         {
           "name": "printHaiveMcpVersion",
           "kind": "function",
           "description": "Print MCP server version (same as haive CLI when bundled together).",
-          "line": 1419
+          "line": 1421
         },
         {
           "name": "runHaiveMcpStdio",
           "kind": "function",
           "description": "Run the MCP server over stdio.",
-          "line": 1427
+          "line": 1429
         },
         {
           "name": "getBriefing",
@@ -2904,7 +3595,7 @@
           "line": 278
         }
       ],
-      "loc": 1434
+      "loc": 1436
     },
     "packages/mcp/src/session-tracker.ts": {
       "summary": "Auto-session tracker for autopilot mode.",
@@ -2945,31 +3636,43 @@
         {
           "name": "AntiPatternsCheckInputSchema",
           "kind": "const",
-          "line": 22
+          "line": 26
         },
         {
           "name": "AntiPatternsCheckInput",
           "kind": "interface",
-          "line": 60
+          "line": 64
         },
         {
           "name": "AntiPatternsWarning",
           "kind": "interface",
-          "line": 68
+          "line": 72
         },
         {
           "name": "AntiPatternsCheckOutput",
           "kind": "interface",
-          "line": 98
+          "line": 102
+        },
+        {
+          "name": "isHaiveOwnedPath",
+          "kind": "function",
+          "description": "True for files hAIve itself owns/generates: the `.ai/` knowledge base, plus the agent-bridge, config, and workflow files it writes from that same corpus.",
+          "line": 160
+        },
+        {
+          "name": "stripAiDirHunks",
+          "kind": "function",
+          "description": "Drop hunks for hAIve-owned files (see {@link isHaiveOwnedPath}) from a unified diff.",
+          "line": 176
         },
         {
           "name": "antiPatternsCheck",
           "kind": "function",
           "description": "Scan a diff (or set of paths) against documented attempt/gotcha memories.",
-          "line": 143
+          "line": 207
         }
       ],
-      "loc": 304
+      "loc": 402
     },
     "packages/mcp/src/tools/bootstrap-project-save.ts": {
       "exports": [
@@ -3001,40 +3704,41 @@
         {
           "name": "compactSummary",
           "kind": "function",
-          "line": 14
+          "line": 19
         },
         {
           "name": "classifyMemoryPriority",
           "kind": "function",
-          "line": 22
+          "description": "Map the MCP briefing's evidence into the shared core classifier.",
+          "line": 31
         },
         {
           "name": "priorityRank",
           "kind": "function",
-          "line": 71
+          "line": 64
         },
         {
           "name": "classifyBriefingQuality",
           "kind": "function",
-          "line": 75
+          "line": 68
         },
         {
           "name": "explainWhySurfaced",
           "kind": "function",
-          "line": 113
+          "line": 106
         },
         {
           "name": "trySemanticHits",
           "kind": "function",
-          "line": 175
+          "line": 168
         },
         {
           "name": "loadModuleContexts",
           "kind": "function",
-          "line": 191
+          "line": 184
         }
       ],
-      "loc": 212
+      "loc": 205
     },
     "packages/mcp/src/tools/briefing-types.ts": {
       "exports": [
@@ -3136,25 +3840,25 @@
         {
           "name": "GetBriefingInputSchema",
           "kind": "const",
-          "line": 64
+          "line": 70
         },
         {
           "name": "GetBriefingZod",
           "kind": "const",
-          "line": 138
+          "line": 151
         },
         {
           "name": "GetBriefingInput",
           "kind": "type",
-          "line": 139
+          "line": 152
         },
         {
           "name": "getBriefing",
           "kind": "function",
-          "line": 141
+          "line": 154
         }
       ],
-      "loc": 800
+      "loc": 844
     },
     "packages/mcp/src/tools/get-project-context.ts": {
       "exports": [
@@ -3399,26 +4103,26 @@
         {
           "name": "MemFeedbackInputSchema",
           "kind": "const",
-          "line": 15
+          "line": 20
         },
         {
           "name": "MemFeedbackInput",
           "kind": "type",
-          "line": 29
+          "line": 34
         },
         {
           "name": "MemFeedbackOutput",
           "kind": "interface",
-          "line": 33
+          "line": 38
         },
         {
           "name": "memFeedback",
           "kind": "function",
           "description": "Record a closed-loop utility outcome for a memory.",
-          "line": 56
+          "line": 62
         }
       ],
-      "loc": 93
+      "loc": 108
     },
     "packages/mcp/src/tools/mem-for-files.ts": {
       "exports": [
@@ -3903,10 +4607,10 @@
         {
           "name": "classifyAntiPatternWarningForTest",
           "kind": "function",
-          "line": 355
+          "line": 361
         }
       ],
-      "loc": 508
+      "loc": 514
     },
     "packages/mcp/src/tools/runtime-journal-append.ts": {
       "exports": [
