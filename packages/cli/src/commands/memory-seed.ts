@@ -107,10 +107,10 @@ export function registerMemorySeed(memory: Command): void {
       let total = 0;
       const seededStacks: string[] = [];
       for (const s of stacksToSeed) {
-        const count = await seedStackPack(paths, s as (typeof SUPPORTED_STACKS)[number]);
-        if (count > 0) {
-          total += count;
-          seededStacks.push(`${s} (${count})`);
+        const result = await seedStackPack(paths, s as (typeof SUPPORTED_STACKS)[number]);
+        if (result.memories > 0) {
+          total += result.memories;
+          seededStacks.push(`${s} (${result.memories})`);
         } else {
           ui.info(`Stack pack '${s}': all memories already exist — skipped.`);
         }

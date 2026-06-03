@@ -1,5 +1,6 @@
 /**
  * Curated onboarding: print high-signal team memories in read order — no MCP required.
+ * Also prints a corpus-summary block so returning devs can see the current harness state at a glance.
  */
 import { existsSync } from "node:fs";
 import { Command } from "commander";
@@ -67,6 +68,29 @@ export function registerWelcome(program: Command): void {
 
       const cap = Math.max(1, Math.min(500, Number(opts.limit) || 20));
       const pick = team.slice(0, cap);
+
+      // ── Corpus summary ───────────────────────────────────────────────────
+      const totalAll = all.length;
+      const validated = all.filter(({ memory }) => memory.frontmatter.status === "validated").length;
+      const withSensor = all.filter(({ memory }) => memory.frontmatter.sensor != null).length;
+      const drafts = all.filter(({ memory }) => memory.frontmatter.status === "draft").length;
+      const proposed = all.filter(({ memory }) => memory.frontmatter.status === "proposed").length;
+
+      const summaryLines: string[] = [
+        `  Corpus  : ${totalAll} memories (${validated} validated, ${drafts + proposed} pending review)`,
+        `  Sensors : ${withSensor} active`,
+      ];
+      const summaryWidth = Math.max(...summaryLines.map((l) => l.length), 44);
+      const bar = "─".repeat(summaryWidth + 2);
+      console.log(ui.bold(`┌${bar}┐`));
+      console.log(ui.bold(`│`) + `  hAIve corpus`.padEnd(summaryWidth + 1) + ui.bold(`│`));
+      console.log(ui.bold(`├${bar}┤`));
+      for (const line of summaryLines) {
+        console.log(ui.bold(`│`) + line.padEnd(summaryWidth + 2) + ui.bold(`│`));
+      }
+      console.log(ui.bold(`└${bar}┘`));
+      console.log();
+      // ────────────────────────────────────────────────────────────────────
 
       console.log(ui.bold(`hAIve welcome — ${pick.length} team memories (${root})`));
       console.log(ui.dim(`Next: invoke get_briefing with your task or run 'haive briefing --task "…"'`));
