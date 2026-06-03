@@ -7,10 +7,15 @@ import {
   aggregateSensors,
   appendEvalHistory,
   buildReport,
+  compareGatePrecision,
   compareEvalReports,
+  computeGatePrecision,
   computeEvalTrend,
   findProjectRoot,
+  loadConfig,
   loadEvalHistory,
+  loadPreventionEvents,
+  loadUsageIndex,
   resolveHaivePaths,
   scoreRetrievalCase,
   scoreSensorCase,
@@ -18,6 +23,8 @@ import {
   type EvalDelta,
   type EvalReport,
   type EvalSpec,
+  type GatePrecision,
+  type GatePrecisionDelta,
   type RetrievalCase,
   type RetrievalCaseResult,
   type SensorCase,
@@ -34,6 +41,8 @@ interface EvalOptions {
   json?: boolean;
   out?: string;
   failUnder?: string;
+  failUnderCatchRate?: string;
+  failUnderGatePrecision?: string;
   baseline?: boolean;
   compare?: boolean;
   baselineFile?: string;
@@ -50,6 +59,7 @@ interface BaselineSnapshot {
   k: number;
   spec_source: string;
   report: EvalReport;
+  gate_precision?: GatePrecision;
 }
 
 interface ResolvedEvalSpec {
@@ -71,6 +81,8 @@ export function registerEval(program: Command): void {
     .option("--json", "emit JSON", false)
     .option("--out <file>", "write a Markdown report")
     .option("--fail-under <score>", "exit non-zero if the overall score is below this (0–100) — for CI gates")
+    .option("--fail-under-catch-rate <pct>", "exit non-zero if sensor catch-rate is below this percentage")
+    .option("--fail-under-gate-precision <pct>", "exit non-zero if gate precision is below this percentage")
     .option("--baseline", "save this run as the baseline (.ai/eval/baseline.json) for future --compare", false)
     .option("--compare", "diff this run against the saved baseline and print the delta", false)
     .option("--baseline-file <path>", "baseline file to read/write (default: .ai/eval/baseline.json)")
@@ -139,6 +151,16 @@ export function registerEval(program: Command): void {
       }
 
       const report = buildReport(retrievalAgg, sensorAgg);
+      const [usage, preventionEvents, config] = await Promise.all([
+        loadUsageIndex(paths),
+        loadPreventionEvents(paths),
+        loadConfig(paths),
+      ]);
+      const gatePrecision = computeGatePrecision(
+        preventionEvents,
+        usage,
+        config.enforcement?.antiPatternGate ?? "anchored",
+      );
 
       // ── Record to history (trend the harness over releases) ───────────────
       if (opts.record) {
@@ -163,6 +185,7 @@ export function registerEval(program: Command): void {
           k,
           spec_source: resolvedSpec.source,
           report,
+          gate_precision: gatePrecision,
         };
         await mkdir(path.dirname(baselineFile), { recursive: true });
         await writeFile(baselineFile, JSON.stringify(snapshot, null, 2), "utf8");
@@ -173,6 +196,7 @@ export function registerEval(program: Command): void {
       // `--regression-gate` is the CI-safe variant: it compares only when a baseline
       // exists and otherwise no-ops, so it can be dropped into any pipeline unconditionally.
       let delta: EvalDelta | null = null;
+      let gateDelta: GatePrecisionDelta | null = null;
       if (opts.compare || opts.regressionGate) {
         if (!existsSync(baselineFile)) {
           if (opts.regressionGate) {
@@ -185,20 +209,34 @@ export function registerEval(program: Command): void {
         } else {
           const snapshot = JSON.parse(await readFile(baselineFile, "utf8")) as BaselineSnapshot;
           delta = compareEvalReports(snapshot.report, report);
+          if (snapshot.gate_precision) {
+            gateDelta = compareGatePrecision(snapshot.gate_precision, gatePrecision);
+          }
         }
       }
 
       if (opts.json) {
-        console.log(JSON.stringify({ root, k, spec_source: resolvedSpec.source, report, ...(delta ? { delta } : {}) }, null, 2));
-        applyExitGates(opts, report, delta);
+        console.log(JSON.stringify({
+          root,
+          k,
+          spec_source: resolvedSpec.source,
+          report,
+          gate_precision: gatePrecision,
+          ...(delta ? { delta } : {}),
+          ...(gateDelta ? { gate_delta: gateDelta } : {}),
+        }, null, 2));
+        applyExitGates(opts, report, delta, gatePrecision, gateDelta);
         return;
       }
 
       if (delta) {
         console.log(renderDelta(delta));
       }
+      if (gateDelta) {
+        console.log(renderGateDelta(gateDelta));
+      }
 
-      const md = renderMarkdown(root, k, resolvedSpec.source, report);
+      const md = renderMarkdown(root, k, resolvedSpec.source, report, gatePrecision);
       if (opts.out) {
         const outFile = path.isAbsolute(opts.out) ? opts.out : path.join(root, opts.out);
         await writeFile(outFile, md, "utf8");
@@ -207,12 +245,29 @@ export function registerEval(program: Command): void {
         console.log(md);
       }
 
-      applyExitGates(opts, report, delta);
+      applyExitGates(opts, report, delta, gatePrecision, gateDelta);
     });
 }
 
-/** CI gates: fail the build on an absolute floor (--fail-under) or a regression (--fail-on-regression). */
-function applyExitGates(opts: EvalOptions, report: EvalReport, delta: EvalDelta | null): void {
+function parsePctThreshold(label: string, raw: string | undefined): number | null {
+  if (raw === undefined) return null;
+  const n = Number(raw);
+  if (Number.isNaN(n)) {
+    ui.error(`${label} expects a number, got "${raw}"`);
+    process.exitCode = 1;
+    return null;
+  }
+  return n > 1 ? n / 100 : n;
+}
+
+/** CI gates: fail the build on absolute floors or metric regressions. */
+function applyExitGates(
+  opts: EvalOptions,
+  report: EvalReport,
+  delta: EvalDelta | null,
+  gatePrecision: GatePrecision,
+  gateDelta: GatePrecisionDelta | null,
+): void {
   if (opts.failUnder !== undefined) {
     const threshold = Number(opts.failUnder);
     if (Number.isNaN(threshold)) {
@@ -223,8 +278,30 @@ function applyExitGates(opts: EvalOptions, report: EvalReport, delta: EvalDelta 
       process.exitCode = 1;
     }
   }
+  const catchRateFloor = parsePctThreshold("--fail-under-catch-rate", opts.failUnderCatchRate);
+  if (catchRateFloor !== null && report.sensors && report.sensors.catch_rate < catchRateFloor) {
+    ui.error(`sensor catch-rate ${Math.round(report.sensors.catch_rate * 100)}% is below --fail-under-catch-rate ${Math.round(catchRateFloor * 100)}%`);
+    process.exitCode = 1;
+  }
+  const gatePrecisionFloor = parsePctThreshold("--fail-under-gate-precision", opts.failUnderGatePrecision);
+  if (
+    gatePrecisionFloor !== null &&
+    gatePrecision.precision !== null &&
+    gatePrecision.precision < gatePrecisionFloor
+  ) {
+    ui.error(`gate precision ${Math.round(gatePrecision.precision * 100)}% is below --fail-under-gate-precision ${Math.round(gatePrecisionFloor * 100)}%`);
+    process.exitCode = 1;
+  }
   if ((opts.failOnRegression || opts.regressionGate) && delta?.regressed) {
     ui.error(`eval score regressed ${delta.score.baseline} → ${delta.score.current} (Δ ${delta.score.delta}) vs baseline`);
+    process.exitCode = 1;
+  }
+  if ((opts.failOnRegression || opts.regressionGate) && delta?.catch_rate?.delta !== undefined && delta.catch_rate.delta < 0) {
+    ui.error(`sensor catch-rate regressed ${delta.catch_rate.baseline} → ${delta.catch_rate.current} (Δ ${delta.catch_rate.delta}) vs baseline`);
+    process.exitCode = 1;
+  }
+  if ((opts.failOnRegression || opts.regressionGate) && gateDelta?.regressed) {
+    ui.error("gate precision regressed vs baseline (more false-positive rejections or lower precision)");
     process.exitCode = 1;
   }
 }
@@ -247,6 +324,18 @@ function renderDelta(delta: EvalDelta): string {
   ]) {
     if (line) lines.push(line);
   }
+  return lines.join("\n");
+}
+
+function renderGateDelta(delta: GatePrecisionDelta): string {
+  const verdict = delta.regressed ? ui.red("REGRESSED") : ui.dim("UNCHANGED");
+  const lines = [ui.bold(`Gate precision vs baseline — ${verdict}`)];
+  const precisionDelta =
+    delta.precision.delta === null ? "n/a" : `${delta.precision.delta > 0 ? "+" : ""}${delta.precision.delta}`;
+  const rejectionDelta =
+    delta.rejections.delta === null ? "n/a" : `${delta.rejections.delta > 0 ? "+" : ""}${delta.rejections.delta}`;
+  lines.push(`  precision ${delta.precision.baseline ?? "n/a"} → ${delta.precision.current ?? "n/a"} ${ui.dim(`(${precisionDelta})`)}`);
+  lines.push(`  rejections ${delta.rejections.baseline ?? "n/a"} → ${delta.rejections.current ?? "n/a"} ${ui.dim(`(${rejectionDelta})`)}`);
   return lines.join("\n");
 }
 
@@ -317,7 +406,13 @@ function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
 }
 
-function renderMarkdown(root: string, k: number, source: string, report: ReturnType<typeof buildReport>): string {
+function renderMarkdown(
+  root: string,
+  k: number,
+  source: string,
+  report: ReturnType<typeof buildReport>,
+  gatePrecision: GatePrecision,
+): string {
   const lines = [
     "# hAIve eval report",
     "",
@@ -361,6 +456,15 @@ function renderMarkdown(root: string, k: number, source: string, report: ReturnT
       lines.push("");
     }
   }
+
+  lines.push(
+    "## Gate precision",
+    "",
+    `- precision: ${gatePrecision.precision === null ? "n/a" : pct(gatePrecision.precision)}`,
+    `- useful outcomes: ${gatePrecision.useful}`,
+    `- rejected as false-positive/noise: ${gatePrecision.rejections}`,
+    "",
+  );
 
   lines.push(
     "## Reading",

@@ -32,6 +32,23 @@ export interface GateTuningSuggestion {
   reason: string;
 }
 
+export interface GatePrecisionMetricDelta {
+  baseline: number | null;
+  current: number | null;
+  delta: number | null;
+}
+
+export interface GatePrecisionDelta {
+  precision: GatePrecisionMetricDelta;
+  rejections: GatePrecisionMetricDelta;
+  /** True when humans rejected more gate output than the baseline run. */
+  false_positives_increased: boolean;
+  /** True when precision is known on both sides and dropped. */
+  precision_regressed: boolean;
+  /** CI-friendly rollup: either more false positives or lower known precision. */
+  regressed: boolean;
+}
+
 function round3(n: number): number {
   return Math.round(n * 1000) / 1000;
 }
@@ -99,4 +116,27 @@ export function suggestGate(
     };
   }
   return null;
+}
+
+function nullableMetricDelta(baseline: number | null, current: number | null): GatePrecisionMetricDelta {
+  if (baseline === null || current === null) return { baseline, current, delta: null };
+  return { baseline: round3(baseline), current: round3(current), delta: round3(current - baseline) };
+}
+
+/** Compare gate signal quality against a baseline for CI regression gates. Pure. */
+export function compareGatePrecision(
+  baseline: GatePrecision,
+  current: GatePrecision,
+): GatePrecisionDelta {
+  const precision = nullableMetricDelta(baseline.precision, current.precision);
+  const rejections = nullableMetricDelta(baseline.rejections, current.rejections);
+  const falsePositivesIncreased = current.rejections > baseline.rejections;
+  const precisionRegressed = precision.delta !== null && precision.delta < 0;
+  return {
+    precision,
+    rejections,
+    false_positives_increased: falsePositivesIncreased,
+    precision_regressed: precisionRegressed,
+    regressed: falsePositivesIncreased || precisionRegressed,
+  };
 }
