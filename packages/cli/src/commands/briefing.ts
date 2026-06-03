@@ -3,11 +3,10 @@ import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import {
+  classifyMemoryPriority,
   compactAutoRecapBody,
   extractActionsBriefBody,
   findProjectRoot,
-  isEnvWorkaroundMemory,
-  isStackPackSeed,
   literalMatchesAllTokens,
   literalMatchesAnyToken,
   loadCodeMap,
@@ -499,6 +498,11 @@ export function registerBriefing(program: Command): void {
 
 type CliMemoryPriority = "must_read" | "useful" | "background";
 
+/**
+ * Map the CLI briefing's lexical evidence into the SHARED core classifier, so `haive briefing` and
+ * the MCP `get_briefing` can never disagree on priority (the drift that bit us twice). The CLI has no
+ * embeddings, so `strongSemantic` is false and `usefulSemantic` is derived from the lexical score.
+ */
 function classifyCliPriority(
   item: { memory: Awaited<ReturnType<typeof loadMemoriesFromDir>>[number]["memory"]; score: number },
   filePaths: string[],
@@ -508,14 +512,18 @@ function classifyCliPriority(
 ): CliMemoryPriority {
   const fm = item.memory.frontmatter;
   const anchored = filePaths.length > 0 && memoryMatchesAnchorPaths(item.memory, filePaths);
-  if (anchored || (fm.type === "attempt" && exactTaskHit)) return "must_read";
-  // Generic stack-pack seeds AND local dev-environment workarounds stay at `background` unless
-  // anchored to an edited file — mirrors the MCP get_briefing ranking so the CLI and MCP agree.
-  if (isStackPackSeed(fm) || isEnvWorkaroundMemory(fm)) return "background";
-  if (exactTaskHit || partialTaskHit || item.score >= 4 || (tokens && fm.tags.some((tag) => tokens.includes(tag)))) {
-    return "useful";
-  }
-  return "background";
+  return classifyMemoryPriority({
+    type: fm.type,
+    tags: fm.tags,
+    requiresHumanApproval: Boolean(fm.requires_human_approval),
+    directAnchor: anchored,
+    directSymbol: false, // symbol lookup is rendered separately in the CLI, not via anchor priority
+    exactTaskMatch: exactTaskHit,
+    strongSemantic: false,
+    usefulSemantic: partialTaskHit || item.score >= 4,
+    moduleOrDomainMatch: false,
+    tagTaskMatch: Boolean(tokens && fm.tags.some((tag) => tokens.includes(tag))),
+  });
 }
 
 function priorityBadge(priority: CliMemoryPriority): string {

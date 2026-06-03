@@ -6,6 +6,24 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.17.0] — one shared briefing-priority classifier (kill the CLI/MCP drift)
+
+The must_read / useful / background tier was implemented **twice** — in the MCP `get_briefing` tool and
+in the `haive briefing` CLI command — each on its own data shape. They drifted: the stack-pack
+down-rank and then the env-workaround down-rank each had to be added in two places, and one was missed.
+This extracts the single source of truth.
+
+### Changed
+- **New `@hiveai/core` `priority` module** owns `classifyMemoryPriority(signals)` + `priorityRank`.
+  Both call sites now map their evidence (MCP: semantic scores; CLI: lexical scores) into a normalized
+  `PrioritySignals` and call the same classifier, so the CLI and MCP can never disagree again.
+- **MCP behavior is byte-for-byte preserved** (the `get_briefing` priority tests pass unchanged). The
+  CLI gains the consistency wins it was missing: `requires_human_approval`, direct **symbol** matches,
+  and exact **skill** hits now rank `must_read` in `haive briefing` too, matching the MCP path.
+- Unit-tested in `packages/core/test/priority.test.ts`; the down-rank still only applies to *soft*
+  (semantic/tag) matches — an exact hit or a direct anchor on a stack-pack/env-workaround memory still
+  ranks normally.
+
 ## [0.16.2] — release hygiene
 
 - Version bump consolidating the 0.16.1 dogfooding fixes (env-workaround corpus re-tag, CLI/MCP

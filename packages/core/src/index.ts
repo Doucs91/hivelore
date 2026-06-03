@@ -44,3 +44,4 @@ export * from "./gate-precision.js";
 export * from "./seed-git.js";
 export * from "./merge-memory.js";
 export * from "./recap.js";
+export * from "./priority.js";

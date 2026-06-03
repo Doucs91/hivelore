@@ -1,7 +1,12 @@
 import { readdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { isEnvWorkaroundMemory, isGlobPath, isStackPackSeed, pathsOverlap } from "@hiveai/core";
+import {
+  classifyMemoryPriority as coreClassifyPriority,
+  isGlobPath,
+  pathsOverlap,
+  priorityRank as corePriorityRank,
+} from "@hiveai/core";
 import type { LoadedMemory } from "@hiveai/core";
 import type { HaiveContext } from "../context.js";
 import type {
@@ -19,6 +24,10 @@ export function compactSummary(body: string): string {
   return body.slice(0, 120);
 }
 
+/**
+ * Map the MCP briefing's evidence into the shared core classifier. Behavior is identical to the old
+ * inline logic — the single source of truth now lives in `@hiveai/core` so the CLI cannot drift.
+ */
 export function classifyMemoryPriority(
   memory: BriefingMemory,
   loaded: LoadedMemory | undefined,
@@ -36,48 +45,24 @@ export function classifyMemoryPriority(
       inputSymbols.some((wanted) => wanted.toLowerCase() === sym.toLowerCase()),
     ),
   );
-  const strongSemantic = (memory.semantic_score ?? 0) >= 0.65;
-  const usefulSemantic = (memory.semantic_score ?? 0) >= 0.35;
+  const semantic = memory.semantic_score ?? 0;
 
-  if (
-    fm?.requires_human_approval ||
-    directAnchor ||
-    directSymbol ||
-    (memory.type === "attempt" && (memory.match_quality === "exact" || strongSemantic)) ||
-    (memory.type === "skill" && (memory.match_quality === "exact" || strongSemantic))
-  ) {
-    return "must_read";
-  }
-
-  // Generic stack-pack seeds never claim `useful` rank on a semantic/tag match alone —
-  // they would otherwise crowd out repo-specific memories.
-  if (isStackPackSeed(fm)) {
-    return "background";
-  }
-
-  // Local dev-environment workarounds (hot-swap, nested node_modules, …) are tooling debt, not
-  // team policy. They get read constantly so their read_count inflates the corpus and crowds the
-  // briefing. Cap them at `background` unless they directly anchor a file being edited (handled by
-  // the must_read branch above) — so real policy keeps the top slots.
-  if (isEnvWorkaroundMemory(fm)) {
-    return "background";
-  }
-
-  if (
-    memory.type === "skill" ||
-    memory.reasons.includes("module") ||
-    memory.reasons.includes("domain") ||
-    memory.match_quality === "exact" ||
-    usefulSemantic
-  ) {
-    return "useful";
-  }
-
-  return "background";
+  return coreClassifyPriority({
+    type: memory.type,
+    tags: fm?.tags ?? memory.tags ?? [],
+    requiresHumanApproval: Boolean(fm?.requires_human_approval),
+    directAnchor,
+    directSymbol,
+    exactTaskMatch: memory.match_quality === "exact",
+    strongSemantic: semantic >= 0.65,
+    usefulSemantic: semantic >= 0.35,
+    moduleOrDomainMatch: memory.reasons.includes("module") || memory.reasons.includes("domain"),
+    tagTaskMatch: false, // MCP ranking doesn't use a separate tag-token signal
+  });
 }
 
 export function priorityRank(priority: BriefingMemoryPriority): number {
-  return priority === "must_read" ? 3 : priority === "useful" ? 2 : 1;
+  return corePriorityRank(priority);
 }
 
 export function classifyBriefingQuality(
