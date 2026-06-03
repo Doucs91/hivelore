@@ -220,6 +220,13 @@ export interface HaiveConfig {
     toolProfile?: "enforcement" | "maintenance" | "experimental" | "full";
     /** Named memory/policy families enabled for this project. */
     policyPacks?: string[];
+    /**
+     * Branch on which `enforce finish` enforces the release discipline (lockstep version bump +
+     * matching pushed tag) as a HARD gate. On any other branch — feature/* or an integration branch
+     * like `develop` — those same checks are advisory (warn), since the version/tag are produced when
+     * releasing from this branch, not on every integration commit. Default: "main".
+     */
+    releaseBranch?: string;
   };
 }
 
@@ -249,6 +256,7 @@ export const DEFAULT_CONFIG: HaiveConfig = {
     cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",
     policyPacks: ["architecture", "gotchas", "security", "domain", "release"],
+    releaseBranch: "main",
   },
 };
 
@@ -278,6 +286,7 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
     cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",
     policyPacks: ["architecture", "gotchas", "security", "domain", "release"],
+    releaseBranch: "main",
   },
 };
 

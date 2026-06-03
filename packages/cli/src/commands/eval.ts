@@ -429,9 +429,9 @@ function renderMarkdown(
       "## Retrieval",
       "",
       `- cases: ${r.cases.length}`,
-      `- mean recall: ${pct(r.mean_recall)}`,
-      `- mean precision: ${pct(r.mean_precision)}`,
-      `- MRR: ${r.mrr.toFixed(3)}`,
+      `- mean recall: ${pct(r.mean_recall)} ${"— did the expected memory make the top-k? (the metric that matters)"}`,
+      `- mean precision: ${pct(r.mean_precision)} ${"— top-k precision (expected ÷ k surfaced); low by design when ~1 is expected per case, NOT a quality defect; excluded from the headline score"}`,
+      `- MRR: ${r.mrr.toFixed(3)} — how high the expected memory was ranked`,
       "",
     );
     const misses = r.cases.filter((c) => c.misses.length > 0);

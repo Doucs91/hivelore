@@ -19,7 +19,7 @@ import {
   serializeMemory,
   type GitCommit,
 } from "@hiveai/core";
-import { ui } from "../utils/ui.js";
+import { setUiJsonMode, ui } from "../utils/ui.js";
 import { setupAgentMode } from "./agent.js";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
 import { generateBootstrapContext } from "./init-bootstrap.js";
@@ -305,6 +305,7 @@ export function registerInit(program: Command): void {
       "approve user-level AI client configuration prompts during agent setup",
       false,
     )
+    .option("--json", "emit a machine-readable summary on stdout (human logs go to stderr)", false)
     .action(async (opts: {
       dir: string;
       bridges: boolean;
@@ -316,10 +317,13 @@ export function registerInit(program: Command): void {
       seedLimit?: string;
       mcpSetup: boolean;
       yes?: boolean;
+      json?: boolean;
     }) => {
       const root = path.resolve(opts.dir);
       const paths = resolveHaivePaths(root);
       const autopilot = opts.manual !== true; // autopilot is ON by default
+      const json = opts.json === true;
+      if (json) setUiJsonMode(true); // keep stdout a clean JSON channel
 
       // In autopilot mode, default-on the value-from-day-zero auto-features
       // unless the user explicitly opted out. opts.bootstrap is `false` only
@@ -524,6 +528,24 @@ export function registerInit(program: Command): void {
       ]);
 
       ui.success(`hAIve initialized at ${root}${autopilot ? " (autopilot mode)" : ""}`);
+
+      if (json) {
+        console.log(JSON.stringify({
+          root,
+          mode: autopilot ? "autopilot" : "manual",
+          stacks_loaded: report.stacksLoaded,
+          memories_seeded: report.totalMemories,
+          sensors_active: report.totalSensors,
+          git_commits_scanned: report.gitCommitsScanned,
+          git_signals_found: report.gitRevertsFound,
+          git_seeds_written: report.gitSeedsWritten,
+          git_recurring: report.gitRecurring,
+          bridges: opts.bridges !== false,
+          ci: opts.withCi || autopilot,
+        }, null, 2));
+        return;
+      }
+
       console.log();
 
       // ── First-session report ─────────────────────────────────────────────

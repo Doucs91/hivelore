@@ -368,14 +368,18 @@ export async function antiPatternsCheck(
     })
     .slice(0, input.limit);
 
-  // OUTCOME measurement: record the strong, diff-corroborated catches as prevention events — the
-  // semantic anti-pattern path's contribution to "a known mistake was intercepted before it landed".
-  // Weak semantic-only matches are advisory (review noise), NOT catches, so they are excluded.
-  // Debounced via recordPrevention so re-running the gate on the same diff doesn't inflate counts.
+  // OUTCOME measurement: record only HIGH-CONFIDENCE catches as prevention events. A prevention
+  // event is a measured claim ("a known mistake was intercepted before it landed") and must not be
+  // cheap to trigger, or the dashboard/gate-precision/proof-line inflate on noise. We require one of:
+  //   • a deterministic SENSOR fired (computational, same result every time), or
+  //   • the change is in a file the lesson is ANCHORED to AND shares its vocabulary (anchor + literal).
+  // Deliberately excluded: semantic-only (advisory), and a bare distinctive-literal in an UNRELATED
+  // file — on a small/cold corpus a single moderately-rare shared word ("cache", "client") otherwise
+  // self-records a phantom catch. Such matches still SURFACE as review warnings; they just aren't
+  // counted as outcomes. Debounced via recordPrevention so re-running on the same diff can't inflate.
   const strongCatches = warnings.filter(
     (w) =>
       w.reasons.includes("sensor") ||
-      w.distinctive_literal === true ||
       (w.reasons.includes("anchor") && w.reasons.includes("literal")),
   );
   if (strongCatches.length > 0) {

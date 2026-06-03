@@ -546,6 +546,16 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
     affected_files: shippableChanged.slice(0, 12),
   });
 
+  // Release discipline (version bump + tag) is a HARD gate only on the configured release branch.
+  // On feature/* or an integration branch like `develop`, the bump/tag happen when releasing from
+  // that branch — so here the same findings are advisory (warn), never blocking the agent's exit.
+  const releaseBranch = config.enforcement?.releaseBranch ?? "main";
+  const onReleaseBranch = !status.branch || status.branch === releaseBranch;
+  const releaseSeverity: EnforcementFinding["severity"] = onReleaseBranch ? "error" : "warn";
+  const offBranchNote = onReleaseBranch
+    ? ""
+    : ` (advisory on '${status.branch}'; enforced when releasing from '${releaseBranch}')`;
+
   const versionState = await inspectReleaseVersionState(root, releaseBaseRef);
   if (!versionState.lockstep) {
     findings.push({
@@ -572,11 +582,11 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
 
   if (versionState.baseVersion && compareSemver(version, versionState.baseVersion) <= 0) {
     findings.push({
-      severity: "error",
+      severity: releaseSeverity,
       code: "release-version-missing",
-      message: `Shippable code changed, but version stayed at ${version} (base: ${versionState.baseVersion}).`,
+      message: `Shippable code changed, but version stayed at ${version} (base: ${versionState.baseVersion})${offBranchNote}.`,
       fix: "Bump the lockstep package version (patch by default), commit the bump, tag it, then push code and tags.",
-      impact: 70,
+      impact: onReleaseBranch ? 70 : 0,
     });
   } else {
     findings.push({
@@ -592,11 +602,11 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
   const localTagAtHead = await tagPointsAtHead(root, tag);
   if (!localTagAtHead) {
     findings.push({
-      severity: "error",
+      severity: releaseSeverity,
       code: "release-tag-missing",
-      message: `Expected git tag ${tag} to point at HEAD.`,
+      message: `Expected git tag ${tag} to point at HEAD${offBranchNote}.`,
       fix: `Run \`git tag ${tag}\` after committing the version bump.`,
-      impact: 50,
+      impact: onReleaseBranch ? 50 : 0,
     });
   } else {
     findings.push({
@@ -609,11 +619,11 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
   const remoteTag = await remoteTagExists(root, tag);
   if (remoteTag === false) {
     findings.push({
-      severity: "error",
+      severity: releaseSeverity,
       code: "release-tag-unpushed",
-      message: `Tag ${tag} is not present on the remote.`,
+      message: `Tag ${tag} is not present on the remote${offBranchNote}.`,
       fix: `Run \`git push origin ${tag}\` (avoid \`git push --tags\` — it fails on pre-existing divergent tags).`,
-      impact: 50,
+      impact: onReleaseBranch ? 50 : 0,
     });
   } else if (remoteTag === true) {
     findings.push({

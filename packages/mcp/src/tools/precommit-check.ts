@@ -313,8 +313,14 @@ function classifyWarning(
     };
   }
 
+  // A bare semantic match (not anchored to a touched file, no distinctive token) needs a stronger
+  // score to be worth a human's attention. At 0.45–0.6 against generic text it is mostly noise — and
+  // review noise trains agents to ignore the gate. Corroborated matches (anchored or distinctive
+  // literal) keep the lower 0.45 bar; everything weaker falls through to "info" (hidden by default).
+  const corroborated = warning.reasons.includes("anchor") || warning.distinctive_literal === true;
+  const semanticReviewFloor = corroborated ? 0.45 : 0.6;
   if (
-    (hasSemantic && semanticScore >= 0.45) ||
+    (hasSemantic && semanticScore >= semanticReviewFloor) ||
     (highConfidence && warning.reasons.includes("anchor") && warning.reasons.includes("literal"))
   ) {
     return {

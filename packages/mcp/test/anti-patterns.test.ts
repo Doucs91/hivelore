@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveHaivePaths } from "@hiveai/core";
+import { loadPreventionEvents, resolveHaivePaths } from "@hiveai/core";
 import type { HaiveContext } from "../src/context.js";
 import { antiPatternsCheck, isHaiveOwnedPath, stripAiDirHunks } from "../src/tools/anti-patterns-check.js";
 import { classifyAntiPatternWarningForTest, preCommitCheck } from "../src/tools/precommit-check.js";
@@ -120,6 +120,39 @@ describe("antiPatternsCheck", () => {
     expect(warning!.reasons).toContain("sensor");
     expect(warning!.sensor_message).toContain("do not set it true");
     expect(warning!.sensor_severity).toBe("warn");
+  });
+
+  // ── prevention-event recording: only HIGH-CONFIDENCE catches count as outcomes ──
+
+  it("records a prevention event when a deterministic sensor fires", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!, "2024-01-01-gotcha-reload", "gotcha",
+      "# uvicorn reload\n\nNever ship reload=True.",
+      { paths: ["src/main.py"], sensor: { pattern: "reload\\s*=\\s*True", message: "no reload=True", severity: "warn" } },
+    );
+    await antiPatternsCheck({ diff: "+uvicorn.run(app, reload=True)", paths: ["src/main.py"], limit: 8, semantic: false }, ctx);
+    const events = await loadPreventionEvents(ctx.paths);
+    expect(events.map((e) => e.id)).toContain("2024-01-01-gotcha-reload");
+  });
+
+  it("does NOT record a prevention event for a bare distinctive-literal match in an unrelated file", async () => {
+    // No sensor, no anchor overlap with the changed file: a single rare shared word ("frobnicate")
+    // makes this distinctive-literal, which is enough to SURFACE a review warning but must NOT be
+    // counted as a measured catch — this is the cold-start phantom-metric guard.
+    await writeMemory(
+      ctx.paths.teamDir!, "2024-01-01-attempt-frobnicate", "attempt",
+      "# frobnicate\n\nThe frobnicate helper corrupts state — never call frobnicate.",
+      { paths: ["src/legacy/frob.ts"] }, // anchored elsewhere, not to the changed file
+    );
+    const result = await antiPatternsCheck(
+      { diff: "+const y = frobnicate();", paths: ["src/unrelated/widget.ts"], limit: 8, semantic: false },
+      ctx,
+    );
+    // It still surfaces as advisory…
+    expect(result.warnings.some((w) => w.id === "2024-01-01-attempt-frobnicate")).toBe(true);
+    // …but is not recorded as an outcome.
+    const events = await loadPreventionEvents(ctx.paths);
+    expect(events).toHaveLength(0);
   });
 
   it("does NOT fire the sensor when the bad pattern is only on a removed line", async () => {
