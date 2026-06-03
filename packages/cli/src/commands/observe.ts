@@ -96,22 +96,42 @@ async function readStdin(maxBytes: number): Promise<string> {
 }
 
 /**
+ * Commands that routinely exit non-zero WITHOUT a real failure, so a bare exit code is not a
+ * failure signal for them: `grep`/`rg` (exit 1 = no match), `find`, `test`/`[`/`[[`, `diff`
+ * (exit 1 = differs), and ANY pipeline (the last stage — often `head` — sets the exit code, and
+ * SIGPIPE/`head` closing a pipe makes earlier stages "fail"). These were the false positives that
+ * trained agents to ignore the "N failures detected" nudge — don't flag them on exit code alone.
+ */
+export function isExpectedNonzeroExit(command: string): boolean {
+  if (!command) return false;
+  if (command.includes("|")) return true; // pipeline — exit code is the last stage's, not meaningful
+  if (/\|\|\s*true\b/.test(command)) return true; // explicitly tolerated
+  return /(^|\s|;|&&)(grep|egrep|fgrep|rg|ag|find|test|diff|\[\[?)\b/.test(command);
+}
+
+/**
  * Detect whether the tool response signals a failure worth capturing as mem_tried.
  * Checks exit codes for Bash and error patterns in all tool responses.
- * Best-effort — false negatives are acceptable; false positives create noise.
+ * Best-effort — false negatives are acceptable; false positives create noise (and noise that gets
+ * ignored is worse than silence), so bare non-zero exits from grep/pipes/etc. are NOT flagged.
  */
-function detectFailure(payload: HookPayload): boolean {
+export function detectFailure(payload: HookPayload): boolean {
   const response = payload.tool_response;
   if (!response) return false;
 
   const responseText = typeof response === "string" ? response : JSON.stringify(response);
 
-  // Bash: non-zero exit code is the clearest failure signal
+  // Bash: a non-zero exit is a failure signal ONLY when the command isn't one that routinely
+  // exits non-zero (grep no-match, a pipeline's last stage, etc.). Real build/test/runtime errors
+  // still get caught by the reliable text signatures below regardless of the command shape.
   if (payload.tool_name === "Bash") {
+    const command = typeof payload.tool_input?.["command"] === "string"
+      ? (payload.tool_input["command"] as string)
+      : "";
     if (typeof response === "object") {
       const code = (response as Record<string, unknown>)["exit_code"] ??
                    (response as Record<string, unknown>)["exitCode"];
-      if (typeof code === "number" && code !== 0) return true;
+      if (typeof code === "number" && code !== 0 && !isExpectedNonzeroExit(command)) return true;
     }
     // Text patterns that reliably indicate a hard failure in Bash output
     if (/\b(command not found|No such file or directory|ERR_MODULE_NOT_FOUND|ENOENT|EACCES)\b/.test(responseText)) return true;

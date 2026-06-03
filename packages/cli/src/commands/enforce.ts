@@ -473,7 +473,7 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
         ? `${shippableDirty.length} shippable file(s) are modified but not committed.`
         : `${status.dirtyFiles.length} file(s) are modified but not committed.`,
       fix: shippableDirty.length > 0
-        ? "Bump the lockstep package version if needed, then `git add`, `git commit`, `git tag vX.Y.Z`, `git push && git push --tags`."
+        ? "Bump the lockstep package version if needed, then `git add`, `git commit`, `git tag vX.Y.Z`, `git push && git push origin vX.Y.Z` (not `--tags`)."
         : "Commit and push these changes before reporting the task done.",
       reason: "The multi-agent git-sync decision requires agents to leave completed work committed and pushed, not as a local diff.",
       affected_files: status.dirtyFiles.slice(0, 12),
@@ -612,7 +612,7 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
       severity: "error",
       code: "release-tag-unpushed",
       message: `Tag ${tag} is not present on the remote.`,
-      fix: "Run `git push --tags`.",
+      fix: `Run \`git push origin ${tag}\` (avoid \`git push --tags\` — it fails on pre-existing divergent tags).`,
       impact: 50,
     });
   } else if (remoteTag === true) {
@@ -626,7 +626,7 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
       severity: "warn",
       code: "release-tag-remote-unverified",
       message: `Could not verify whether tag ${tag} exists on the remote.`,
-      fix: "Run `git push --tags` if you have not already.",
+      fix: `Run \`git push origin ${tag}\` if you have not already (avoid \`git push --tags\`).`,
       impact: 10,
     });
   }
@@ -1069,7 +1069,7 @@ async function verifyDecisionCoverage(
     severity: stage === "local" ? "warn" : "error",
     code: "decision-coverage-missing",
     message: `${missing.length}/${relevant.length} relevant anchored decisions/policies were not present in the latest briefing: ${missing.slice(0, 6).map((m) => m.frontmatter.id).join(", ")}`,
-    fix: `Run \`haive briefing --files "${changedFiles.slice(0, 10).join(",")}" --task "..."\` before committing.`,
+    fix: `Run \`haive briefing --files "${changedFiles.slice(0, 12).join(",")}" --max-memories 60 --task "..."\` before committing (briefings now accumulate, so several smaller briefings also work).`,
     reason: "Changed files overlap validated anchored policy memories that were not recorded in the latest briefing marker.",
     affected_files: changedFiles.slice(0, 10),
     memory_ids: missing.slice(0, 10).map((m) => m.frontmatter.id),

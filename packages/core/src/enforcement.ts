@@ -34,13 +34,44 @@ export function briefingMarkerPath(paths: HaivePaths, sessionId?: string): strin
 
 export async function writeBriefingMarker(
   paths: HaivePaths,
-  input: { sessionId?: string; task?: string; source: string; memoryIds?: string[]; files?: string[] },
+  input: {
+    sessionId?: string;
+    task?: string;
+    source: string;
+    memoryIds?: string[];
+    files?: string[];
+    /**
+     * Accumulate memory_ids/files with the existing fresh marker for THIS session instead of
+     * overwriting (default true). This is what lets decision-coverage build up as the agent works:
+     * every get_briefing call, every pre-edit injection, every `haive briefing` ADDS to the
+     * session's consulted set — so a broad commit no longer requires one giant briefing covering
+     * every relevant decision at once. Pass false to replace (e.g. starting a brand-new session).
+     */
+    accumulate?: boolean;
+  },
 ): Promise<BriefingMarker> {
+  const sessionId = normalizeSessionId(input.sessionId);
+  const accumulate = input.accumulate ?? true;
+
+  // Union with the existing fresh marker for the same session, so consulted memories accrue.
+  let priorIds: string[] = [];
+  let priorFiles: string[] = [];
+  if (accumulate) {
+    const existing = await readSessionBriefingMarker(paths, sessionId);
+    if (existing) {
+      priorIds = existing.memory_ids ?? [];
+      priorFiles = existing.files ?? [];
+    }
+  }
+
+  const mergedIds = [...new Set([...priorIds, ...(input.memoryIds ?? [])])];
+  const mergedFiles = [...new Set([...priorFiles, ...(input.files ?? [])])];
+
   const marker: BriefingMarker = {
-    session_id: normalizeSessionId(input.sessionId),
+    session_id: sessionId,
     ...(input.task?.trim() ? { task: input.task.trim() } : {}),
-    ...(input.memoryIds && input.memoryIds.length > 0 ? { memory_ids: [...new Set(input.memoryIds)] } : {}),
-    ...(input.files && input.files.length > 0 ? { files: [...new Set(input.files)] } : {}),
+    ...(mergedIds.length > 0 ? { memory_ids: mergedIds } : {}),
+    ...(mergedFiles.length > 0 ? { files: mergedFiles } : {}),
     source: input.source,
     created_at: new Date().toISOString(),
     root: paths.root,
@@ -52,6 +83,24 @@ export async function writeBriefingMarker(
     "utf8",
   );
   return marker;
+}
+
+/** Read THIS session's marker if it exists and is still fresh (within TTL). Null otherwise. */
+async function readSessionBriefingMarker(
+  paths: HaivePaths,
+  sessionId: string,
+  ttlMs = BRIEFING_MARKER_TTL_MS,
+): Promise<BriefingMarker | null> {
+  const file = briefingMarkerPath(paths, sessionId);
+  if (!existsSync(file)) return null;
+  try {
+    const marker = JSON.parse(await readFile(file, "utf8")) as BriefingMarker;
+    const created = Date.parse(marker.created_at);
+    if (!Number.isFinite(created) || Date.now() - created > ttlMs) return null;
+    return marker;
+  } catch {
+    return null;
+  }
 }
 
 export async function hasRecentBriefingMarker(

@@ -7,6 +7,7 @@ import {
   deriveConfidence,
   estimateTokens,
   evaluateSkillActivation,
+  compactAutoRecapBody,
   extractActionsBriefBody,
   getUsage,
   inferModulesFromPaths,
@@ -186,7 +187,9 @@ export async function getBriefing(
         id: fm.id,
         scope: fm.scope,
         revision_count: fm.revision_count ?? 0,
-        body: r.memory.body,
+        // Auto-generated recaps are low-signal tool dumps — compact them so they inform without
+        // dominating the briefing head. Human/post_task recaps pass through unchanged.
+        body: compactAutoRecapBody(r.memory.body),
       };
     }
 

@@ -48,7 +48,7 @@ Several agents **and** the human (Sady) work on this repo in parallel with manua
 2. **Bump the version ONLY if shippable code changed** (publishable packages: `@hiveai/core`, `cli`, `mcp`, `embeddings`). Docs-only / `.ai/`-only / config / CI commits → commit + push **without** bump or tag.
 3. If bumping: **patch by default** (`0.10.1 → 0.10.2`); minor/major only if justified (feature / breaking). Keep all 4 publishable packages in lockstep.
 4. If bumping: create the matching git tag `vX.Y.Z`.
-5. `git push` **code and tags** (`git push && git push --tags`).
+5. `git push` **code and the new tag** (`git push && git push origin vX.Y.Z`). Do **not** use `git push --tags` — it tries to push every local tag and fails if an old one (e.g. `v0.4.0`) already differs on the remote; push only the tag you just created.
 6. After push, verify the GitHub Actions runs for HEAD and wait until every workflow passes (`gh run list --commit $(git rev-parse HEAD)`, then `gh run watch <run-id> --exit-status` for pending runs).
 
 **BOUNDARY: agents NEVER run `npm publish`. npm publication is done by the human (Sady).**

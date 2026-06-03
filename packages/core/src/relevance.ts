@@ -15,6 +15,27 @@ export function isStackPackSeed(fm: { tags?: string[] } | null | undefined): boo
   return Boolean(fm?.tags?.includes(STACK_PACK_TAG));
 }
 
+/**
+ * Tags that mark a memory as a *local dev-environment workaround* (hot-swap, nested node_modules,
+ * global-install quirks) rather than repo-specific team policy. These are real, but they describe
+ * tooling debt, not unguessable team knowledge — and because they get read on almost every session
+ * their read_count inflates and they crowd the briefing. Ranking caps them at `background` UNLESS
+ * they directly anchor a file being edited, so they stop displacing actual policy. The fix for a
+ * recurring one is to repair the environment, not to keep surfacing the note.
+ */
+export const ENV_WORKAROUND_TAGS = new Set([
+  "dev-workflow",
+  "dev-env",
+  "hotswap",
+  "local-setup",
+  "tooling-debt",
+]);
+
+/** True when a memory is tagged as a local dev-environment workaround (see {@link ENV_WORKAROUND_TAGS}). */
+export function isEnvWorkaroundMemory(fm: { tags?: string[] } | null | undefined): boolean {
+  return Boolean(fm?.tags?.some((t) => ENV_WORKAROUND_TAGS.has(t)));
+}
+
 const MODULE_PATTERNS = [
   /^packages\/([^/]+)\//,
   /^apps\/([^/]+)\//,

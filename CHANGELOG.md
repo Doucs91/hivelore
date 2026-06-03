@@ -6,6 +6,39 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.16.0] — friction polish from real usage (dogfooding feedback)
+
+After driving hAIve end-to-end to ship 0.15.0, six concrete friction/noise points surfaced from
+*actual use*. This release fixes the things that wasted time or trained the user to ignore the
+harness — finishing the existing, not adding scope.
+
+### Changed
+- **Decision-coverage now accumulates across briefings.** `writeBriefingMarker` unions `memory_ids`
+  and `files` with the session's existing fresh marker instead of overwriting. Every `get_briefing`,
+  every pre-edit injection, and every `haive briefing` now ADDS to the consulted set — so a broad
+  commit no longer demands one giant briefing covering every relevant decision at once. This was the
+  #1 friction (a documented recurring gotcha). Pass `accumulate: false` to reset for a new session.
+- **Failure detection no longer cries wolf.** `haive observe` no longer flags a bare non-zero exit
+  from commands that routinely exit non-zero without failing — `grep`/`rg` (no match), pipelines
+  (the last stage / SIGPIPE sets the code), `find`, `test`, `diff`. Real build/test/runtime errors
+  are still caught by reliable text signatures (`error TSxxxx`, `ENOENT`, …). Stops the
+  "N failures detected" nudge from being noise an agent learns to ignore.
+- **Dev-environment workarounds no longer crowd the briefing.** Memories tagged as local tooling
+  debt (`dev-workflow`, `hotswap`, `dev-env`, `local-setup`, `tooling-debt`) are capped at
+  `background` priority unless they directly anchor a file being edited — so repo-specific team
+  policy keeps the top slots instead of being displaced by high-read-count tooling notes.
+- **Auto-generated session recaps are compacted at the top of the briefing.** A recap that is just a
+  tool-call/file dump ("Auto-captured session…", "Edited N files across M tool calls") is reduced to
+  its Goal line + Discoveries; human/`post_task` recaps pass through in full. Applied in both
+  `get_briefing` (MCP) and `haive briefing` (CLI).
+- **Correct git-tag push advice.** `CLAUDE.md` and the release findings now recommend
+  `git push origin vX.Y.Z` instead of `git push --tags` (which fails on pre-existing divergent tags).
+
+### Notes
+- New pure core helpers with unit tests: `recap` (`isAutoRecap`/`compactAutoRecapBody`),
+  `isEnvWorkaroundMemory`, and `writeBriefingMarker` accumulation. CLI `detectFailure`/
+  `isExpectedNonzeroExit` are now exported and tested.
+
 ## [0.15.0] — perfect the existing harness (harness-engineering gap closure P0–P3)
 
 A grounded analysis of hAIve against the harness-engineering literature (Fowler/Böckeler, LangChain,

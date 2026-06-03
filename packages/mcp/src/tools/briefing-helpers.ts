@@ -1,7 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { isGlobPath, isStackPackSeed, pathsOverlap } from "@hiveai/core";
+import { isEnvWorkaroundMemory, isGlobPath, isStackPackSeed, pathsOverlap } from "@hiveai/core";
 import type { LoadedMemory } from "@hiveai/core";
 import type { HaiveContext } from "../context.js";
 import type {
@@ -52,6 +52,14 @@ export function classifyMemoryPriority(
   // Generic stack-pack seeds never claim `useful` rank on a semantic/tag match alone —
   // they would otherwise crowd out repo-specific memories.
   if (isStackPackSeed(fm)) {
+    return "background";
+  }
+
+  // Local dev-environment workarounds (hot-swap, nested node_modules, …) are tooling debt, not
+  // team policy. They get read constantly so their read_count inflates the corpus and crowds the
+  // briefing. Cap them at `background` unless they directly anchor a file being edited (handled by
+  // the must_read branch above) — so real policy keeps the top slots.
+  if (isEnvWorkaroundMemory(fm)) {
     return "background";
   }
 

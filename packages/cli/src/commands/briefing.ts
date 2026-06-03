@@ -3,6 +3,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import {
+  compactAutoRecapBody,
   extractActionsBriefBody,
   findProjectRoot,
   isStackPackSeed,
@@ -296,7 +297,8 @@ export function registerBriefing(program: Command): void {
         const rev = fm.revision_count ? ` · revision #${fm.revision_count}` : "";
         out(`${ui.bold("=== Last Session Recap ===")}\n`);
         out(ui.dim(`${fm.id} (${fm.scope}${rev})`));
-        out(recap.memory.body.trim());
+        // Auto-generated recaps are low-signal tool dumps — compact them so they don't dominate.
+        out(compactAutoRecapBody(recap.memory.body).trim());
         out("");
       }
 
