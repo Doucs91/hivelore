@@ -185,3 +185,4 @@
 {"tool":"mem_session_end","at":"2026-06-04T20:27:14.951Z","summary":"Test the cold-start seed quality in real conditions (installed v0.24.0) and rais"}
 {"tool":"get_briefing","at":"2026-06-04T20:45:07.428Z","summary":"Extend the seed quality floor (meetsSeedQualityFloor) to ingested findings (haive ingest / ingest_findings) and seed-git drafts so low-value proposals are filtered; harden the flaky embeddings CLI test."}
 {"tool":"mem_session_end","at":"2026-06-04T21:01:47.008Z","summary":"Extend the cold-start seed quality floor to ingested findings and git-seed draft"}
+{"tool":"mem_session_end","at":"2026-06-04T21:22:33.912Z","summary":"Close the Sonar gap in the ingest quality floor: numeric Sonar rule keys (typesc"}

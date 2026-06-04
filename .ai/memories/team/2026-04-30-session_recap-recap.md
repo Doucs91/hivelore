@@ -6,49 +6,37 @@ status: validated
 anchor:
   paths:
     - packages/core/src/findings.ts
-    - packages/core/src/seed-git.ts
-    - packages/cli/src/commands/ingest.ts
-    - packages/mcp/src/tools/ingest-findings.ts
-    - packages/cli/test/cli.test.ts
     - packages/core/test/findings.test.ts
-    - packages/core/test/seed-git.test.ts
   symbols: []
 tags:
   - session
   - recap
 created_at: '2026-04-30T00:02:07.282Z'
 expires_when: null
-verified_at: '2026-06-04T21:01:47.023Z'
+verified_at: '2026-06-04T21:22:33.935Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 topic: session-recap-team
-revision_count: 37
+revision_count: 38
 requires_human_approval: false
 ---
 ## Goal
-Extend the cold-start seed quality floor to ingested findings and git-seed drafts, and harden the flaky embeddings CI test.
+Close the Sonar gap in the ingest quality floor: numeric Sonar rule keys (typescript:Sxxxx) weren't caught by the name-based stylistic denylist.
 
 ## Accomplished
-- Shipped v0.26.0 (CI+sonar green FIRST try — flake gone; enforce finish 100%).
-- ingest (core/findings.ts): drop auto-fixable stylistic rules (semi/quotes/indent/prefer-const/prettier…, matched on the rule's last segment); isStylisticRule + includeStylistic opt-in; meetsSeedQualityFloor backstop; CLI --include-stylistic + 'N low-value/stylistic filtered' report; MCP ingest_findings.include_stylistic.
-- seed-git (core/seed-git.ts): isNoiseSubject drops merge/bump/release/deps/wip/format/typo reverts/fixes.
-- test: cli.test.ts embeddings-index assertion now best-effort (assert when model produced an index, never flake when unavailable).
-- Verified end-to-end: ingest 3→1 (2 stylistic filtered); seed-git 4 commits→1 real revert. core 339 / mcp 126 / cli 69.
+- Shipped v0.26.1 (CI+sonar green; enforce finish 100%).
+- core/findings.ts: isStylisticRule now also matches a curated set of Sonar formatting/naming/trivial keys (S100/S101/S103/S105/S113/S114-S122/S125/S1110/S1116/S1131/S1542) via sonarRuleKey() which normalizes leading zeros (S00117 -> S117). Real security/quality rules (S2068, S5852, S1234) untouched.
+- Tests: Sonar key detection + draftsFromFindings drops Sonar stylistic, keeps security. core 341 / cli 69 green.
+- LIVE-verified (user request): haive ingest --from sonar on 5 findings -> 3 stylistic filtered (S103/S00117/S1131), 2 kept (S2068 creds, S5852 ReDoS).
 
 ## Discoveries & surprises
-- CRITICAL calibration: specificityScore/meetsSeedQualityFloor is the WRONG quality gate for these two sources. A finding body is ALWAYS concrete (file path + line) so it passes even for trivial rules ('Missing semicolon' scored 0.52); a git-seed body is mostly boilerplate prose so even a good revert scored 0.13 and would be wrongly dropped. The right gate is source-specific: a stylistic-rule denylist for ingest, a noise-subject denylist for seed-git. Don't blanket-apply the specificity floor to templated drafts.
-- The flaky CI was the embeddings-index assertion (Transformers.js model download); now tolerant — CI passed first try.
-- Smoke gotcha: a test repo created with `haive init` installs git hooks that BLOCK plain `git commit` (gate <85%) — use `git commit --no-verify` when scripting commits into a hAIve-initialized fixture, or the commits silently never land.
+- Sonar rule ids are language-prefixed numeric (typescript:S103) with two historical forms (S00117 legacy vs S117 modern) — normalize by stripping leading zeros before matching a denylist. Severity filter alone was the prior lever; a curated key set is more precise (keeps a BLOCKER security rule, drops a MINOR formatting rule, regardless of severity).
+- Finding.tool/type/tags are not on the core Finding type, so tag-based ("convention"/"style") filtering wasn't available — a curated rule-key set was the pragmatic, dependency-free path.
 
 ## Files touched
 - `packages/core/src/findings.ts`
-- `packages/core/src/seed-git.ts`
-- `packages/cli/src/commands/ingest.ts`
-- `packages/mcp/src/tools/ingest-findings.ts`
-- `packages/cli/test/cli.test.ts`
 - `packages/core/test/findings.test.ts`
-- `packages/core/test/seed-git.test.ts`
 
 ## Next steps
-Consider a Sonar-rule triviality denylist (Sonar rule ids are numeric like typescript:Sxxxx, so name-based stylistic matching doesn't catch them — severity filter is the current lever). Optionally extend isNoiseSubject with more team-specific noise patterns as they surface.
+If Finding ever carries Sonar tags/cleanCodeAttribute, prefer tag-based filtering (tags includes 'convention'/'style') over the hardcoded key set. Keep the Sonar key set conservative — only add a key when it's unambiguously formatting/naming.
