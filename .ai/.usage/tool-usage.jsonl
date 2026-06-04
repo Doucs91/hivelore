@@ -175,3 +175,5 @@
 {"tool":"get_briefing","at":"2026-06-04T03:57:32.690Z","summary":"Fix stack-pack dedup to upsert by stable topic (not filename) to stop re-seed duplicates; fix briefing --json empty stdout; smooth the decision-coverage pre-commit friction; polish generated memory titles."}
 {"tool":"mem_save","at":"2026-06-04T04:06:24.535Z","summary":"stack-pack-dedup-by-signature-and-coverage-self-exempt"}
 {"tool":"mem_save","at":"2026-06-04T04:45:02.616Z","summary":"precommit-autobrief-and-briefing-json"}
+{"tool":"mem_save","at":"2026-06-04T14:25:25.068Z","summary":"prevention-not-recorded-in-precommit-gate"}
+{"tool":"get_briefing","at":"2026-06-04T14:55:57.850Z","summary":"Centralize prevention-event recording into the shared pre-commit gate path (regex + command sensors + anti-pattern), execute shell/test sensors in the gate, add e2e regression test for the loop, warn on ratchet capture without paths, support independent eval ground-truth cases, surface gate precision in dashboard, reconcile positioning memory."}

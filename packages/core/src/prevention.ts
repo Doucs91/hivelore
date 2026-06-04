@@ -12,7 +12,13 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import type { LoadedMemory } from "./loader.js";
 import type { HaivePaths } from "./paths.js";
-import { getUsage, type UsageIndex } from "./usage.js";
+import {
+  getUsage,
+  loadUsageIndex,
+  recordPrevention,
+  saveUsageIndex,
+  type UsageIndex,
+} from "./usage.js";
 
 export type PreventionSource = "sensor" | "anti-pattern";
 
@@ -34,6 +40,41 @@ export async function appendPreventionEvent(paths: HaivePaths, event: Prevention
   const file = preventionLogPath(paths);
   await mkdir(path.dirname(file), { recursive: true });
   await appendFile(file, JSON.stringify(event) + "\n", "utf8");
+}
+
+/**
+ * THE single recorder for "a documented lesson intercepted a real mistake". Every gate path —
+ * the installed git-hook gate (`enforce check`), the standalone `haive sensors check`, and the
+ * `anti_patterns_check` MCP tool — funnels its fired memory ids through here so prevention is
+ * recorded once and identically, not bolted onto each entry point (it used to leak: the git-hook
+ * gate blocked but never recorded — see the harness-positioning gotcha).
+ *
+ * Bumps `prevented_count` in usage.json (debounced per memory via {@link recordPrevention}) AND
+ * appends one timestamped event per NEW catch to the prevention log. Best-effort: a telemetry
+ * write must never break a commit, so failures are swallowed. Returns the ids actually recorded
+ * (i.e. not debounced), so callers can report "caught for you" without re-counting.
+ */
+export async function recordPreventionHits(
+  paths: HaivePaths,
+  firedIds: string[],
+  source: PreventionSource,
+  now: Date = new Date(),
+): Promise<string[]> {
+  const unique = [...new Set(firedIds)].filter(Boolean);
+  if (unique.length === 0) return [];
+  const usage = await loadUsageIndex(paths).catch(() => null);
+  if (!usage) return [];
+  const recordedIds: string[] = [];
+  for (const id of unique) {
+    if (recordPrevention(usage, id, now.getTime())) recordedIds.push(id);
+  }
+  if (recordedIds.length === 0) return [];
+  await saveUsageIndex(paths, usage).catch(() => { /* best-effort telemetry */ });
+  const at = now.toISOString();
+  for (const id of recordedIds) {
+    await appendPreventionEvent(paths, { at, id, source }).catch(() => { /* best-effort */ });
+  }
+  return recordedIds;
 }
 
 /** Read all catch events (skips malformed lines). */

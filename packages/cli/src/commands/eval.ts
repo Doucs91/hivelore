@@ -65,6 +65,10 @@ interface BaselineSnapshot {
 interface ResolvedEvalSpec {
   spec: EvalSpec;
   source: string;
+  /** Cases synthesized from the repo's own anchored memories — self-referential (a sanity floor, not ground truth). */
+  synthesized: number;
+  /** Hand-labeled cases from a spec file — independent ground truth. */
+  authored: number;
 }
 
 export function registerEval(program: Command): void {
@@ -220,6 +224,7 @@ export function registerEval(program: Command): void {
           root,
           k,
           spec_source: resolvedSpec.source,
+          provenance: { synthesized: resolvedSpec.synthesized, authored: resolvedSpec.authored },
           report,
           gate_precision: gatePrecision,
           ...(delta ? { delta } : {}),
@@ -229,6 +234,16 @@ export function registerEval(program: Command): void {
         return;
       }
 
+      // Honesty: a score built only from self-synthesized cases is a sanity floor, not proof the
+      // harness helps on real, independently-labeled tasks. Say so out loud rather than letting the
+      // number read as ground truth.
+      if (resolvedSpec.authored === 0 && resolvedSpec.synthesized > 0) {
+        ui.warn(
+          `All ${resolvedSpec.synthesized} case(s) are self-synthesized from your own memories (self-referential). ` +
+          "Add hand-labeled cases in .ai/eval/spec.json, or run `haive eval --spec <file>`, for an independent score.",
+        );
+      }
+
       if (delta) {
         console.log(renderDelta(delta));
       }
@@ -236,7 +251,7 @@ export function registerEval(program: Command): void {
         console.log(renderGateDelta(gateDelta));
       }
 
-      const md = renderMarkdown(root, k, resolvedSpec.source, report, gatePrecision);
+      const md = renderMarkdown(root, k, resolvedSpec, report, gatePrecision);
       if (opts.out) {
         const outFile = path.isAbsolute(opts.out) ? opts.out : path.join(root, opts.out);
         await writeFile(outFile, md, "utf8");
@@ -339,11 +354,17 @@ function renderGateDelta(delta: GatePrecisionDelta): string {
   return lines.join("\n");
 }
 
+function countCases(spec: EvalSpec): number {
+  return (spec.retrieval?.length ?? 0) + (spec.sensors?.length ?? 0);
+}
+
 async function resolveSpec(opts: EvalOptions, root: string, memoriesDir: string): Promise<ResolvedEvalSpec> {
   if (opts.spec) {
     const file = path.resolve(opts.spec);
     const raw = await readFile(file, "utf8");
-    return { spec: JSON.parse(raw) as EvalSpec, source: file };
+    const spec = JSON.parse(raw) as EvalSpec;
+    // --spec uses ONLY the hand-labeled cases: a true independent-ground-truth run, no self-referential synthesis.
+    return { spec, source: file, synthesized: 0, authored: countCases(spec) };
   }
   const defaultSpec = path.join(root, ".ai", "eval", "spec.json");
   if (existsSync(defaultSpec)) {
@@ -357,12 +378,17 @@ async function resolveSpec(opts: EvalOptions, root: string, memoriesDir: string)
         sensors: explicit.sensors ?? [],
       },
       source: ".ai/eval/spec.json + synthesized anchored retrieval",
+      synthesized: synthesized.length,
+      authored: countCases(explicit),
     };
   }
   const memories = await loadMemoriesFromDir(memoriesDir);
+  const synthesized = synthesizeSelfEvalCases(memories, { includeFiles: !opts.semanticOnly });
   return {
-    spec: { retrieval: synthesizeSelfEvalCases(memories, { includeFiles: !opts.semanticOnly }) },
+    spec: { retrieval: synthesized },
     source: "synthesized anchored retrieval",
+    synthesized: synthesized.length,
+    authored: 0,
   };
 }
 
@@ -409,15 +435,22 @@ function pct(n: number): string {
 function renderMarkdown(
   root: string,
   k: number,
-  source: string,
+  resolved: ResolvedEvalSpec,
   report: ReturnType<typeof buildReport>,
   gatePrecision: GatePrecision,
 ): string {
+  const provenance =
+    resolved.authored === 0
+      ? `${resolved.synthesized} synthesized (self-referential — sanity floor, not ground truth)`
+      : resolved.synthesized === 0
+        ? `${resolved.authored} authored (independent ground truth)`
+        : `${resolved.authored} authored (independent) + ${resolved.synthesized} synthesized (self-referential)`;
   const lines = [
     "# hAIve eval report",
     "",
     `Project: \`${root}\` · top-k: ${k}`,
-    `Spec: ${source}`,
+    `Spec: ${resolved.source}`,
+    `Cases: ${provenance}`,
     "",
     `## Overall score: ${report.score}/100`,
     "",

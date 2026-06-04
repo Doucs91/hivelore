@@ -1,7 +1,8 @@
-import { execFileSync, spawn } from "node:child_process";
+import { execFile, execFileSync, spawn } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { Command } from "commander";
 import {
   antiPatternGateParams,
@@ -15,15 +16,18 @@ import {
   loadMemoriesFromDir,
   memoryMatchesAnchorPaths,
   readRecentBriefingMarker,
+  recordPreventionHits,
   resolveBriefingBudget,
   resolveHaivePaths,
   runSensors,
   saveConfig,
+  selectCommandSensors,
   sensorTargetsFromDiff,
   SESSION_RECAP_TTL_MS,
   verifyAnchor,
   writeBriefingMarker,
   type AntiPatternGate,
+  type CommandSensorSpec,
   type LoadedMemory,
   type HaiveConfig,
 } from "@hiveai/core";
@@ -33,6 +37,8 @@ import { installClaudeHooksAtPath, defaultClaudeSettingsPath } from "../utils/cl
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
 
 declare const __HAIVE_VERSION__: string;
+
+const execFileAsync = promisify(execFile);
 
 const MAX_STDIN_BYTES = 256 * 1024;
 const ENFORCE_HOOK_MARKER = "# hAIve enforcement hook";
@@ -1219,24 +1225,26 @@ async function runSensorGate(
   if (!diff || !existsSync(paths.memoriesDir)) return [];
   try {
     const loaded = await loadMemoriesFromDir(paths.memoriesDir);
-    const sensorMemories = loaded
+    const scannable = loaded
       .map((l) => l.memory)
-      .filter((m) => {
-        const s = m.frontmatter.sensor;
-        return Boolean(s) && s!.kind === "regex" && !isRetiredMemory(m.frontmatter, m.body);
-      });
-    if (sensorMemories.length === 0) return [];
+      .filter((m) => Boolean(m.frontmatter.sensor) && !isRetiredMemory(m.frontmatter, m.body));
+    if (scannable.length === 0) return [];
 
     // Only scan real code targets — never hAIve-owned/`.ai/` files (self-match guard).
     const targets = sensorTargetsFromDiff(diff).filter((t) => isSensorScannablePath(t.path));
     if (targets.length === 0) return [];
 
-    const hits = runSensors(sensorMemories, targets);
     const findings: EnforcementFinding[] = [];
     const seen = new Set<string>();
+    const firedIds = new Set<string>();
+
+    // ── Computational layer 1: deterministic regex sensors ──
+    const regexSensorMemories = scannable.filter((m) => m.frontmatter.sensor!.kind === "regex");
+    const hits = regexSensorMemories.length > 0 ? runSensors(regexSensorMemories, targets) : [];
     for (const hit of hits) {
       if (seen.has(hit.memory_id)) continue;
       seen.add(hit.memory_id);
+      firedIds.add(hit.memory_id);
       const where = hit.file ? ` (${hit.file})` : "";
       if (hit.severity === "block") {
         findings.push({
@@ -1256,9 +1264,64 @@ async function runSensorGate(
         });
       }
     }
+
+    // ── Computational layer 2: shell/test command sensors (a regex can't express) ──
+    // OFF by default — they execute arbitrary repo-authored commands. Opt in per-repo with
+    // enforcement.runCommandSensors=true (mirrors `haive sensors check --commands`).
+    const config = await loadConfig(paths).catch(() => null);
+    if (config?.enforcement?.runCommandSensors === true) {
+      const changedPaths = targets.map((t) => t.path).filter(Boolean);
+      for (const spec of selectCommandSensors(scannable, changedPaths)) {
+        if (seen.has(spec.memory_id)) continue;
+        const failed = await runGateCommandSensor(spec, paths.root);
+        if (!failed) continue;
+        seen.add(spec.memory_id);
+        firedIds.add(spec.memory_id);
+        if (spec.severity === "block") {
+          findings.push({
+            severity: "error",
+            code: "sensor-block",
+            message: `Block command sensor fired — ${spec.memory_id}: ${spec.message} (command: ${spec.command})`,
+            fix: "Fix the condition the command checks, or run `haive sensors check --commands` to inspect it.",
+            impact: 45,
+          });
+        } else {
+          findings.push({
+            severity: "warn",
+            code: "sensor-warn",
+            message: `Command sensor flagged ${spec.memory_id}: ${spec.message}`,
+            fix: "Review the failing command; `haive sensors check --commands` re-runs it.",
+            impact: 5,
+          });
+        }
+      }
+    }
+
+    // OUTCOME measurement — the formerly-missing leg of the loop. A sensor firing in the gate is a
+    // prevention event (a documented mistake intercepted before it landed). Funnel through THE shared
+    // recorder so the installed git-hook gate finally records what it blocks — debounced, so it can't
+    // double-count with a prior `sensors check` / `anti_patterns_check` on the same diff.
+    if (firedIds.size > 0) {
+      await recordPreventionHits(paths, [...firedIds], "sensor").catch(() => { /* best-effort telemetry */ });
+    }
+
     return findings;
   } catch {
     return []; // best-effort: never break the gate on a sensor error
+  }
+}
+
+/**
+ * Run one shell/test sensor command in the gate. Returns true when the command FAILS (non-zero exit) —
+ * the "bad state is present" signal. Timeout/spawn errors also count as a hit. Never throws; mirrors
+ * `runCommandSensor` in `sensors.ts`.
+ */
+async function runGateCommandSensor(spec: CommandSensorSpec, root: string): Promise<boolean> {
+  try {
+    await execFileAsync("bash", ["-c", spec.command], { cwd: root, timeout: 120_000, maxBuffer: 8 * 1024 * 1024 });
+    return false;
+  } catch {
+    return true;
   }
 }
 

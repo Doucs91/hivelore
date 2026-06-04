@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
 import {
   addedLinesFromDiff,
-  appendPreventionEvent,
   BRIDGE_TARGET_PATH,
   buildDocFrequency,
   CODE_STOPWORDS,
@@ -13,9 +12,8 @@ import {
   loadUsageIndex,
   literalMatchesAnyToken,
   memoryMatchesAnchorPaths,
-  recordPrevention,
+  recordPreventionHits,
   runSensors,
-  saveUsageIndex,
   sensorTargetsFromDiff,
   tokenizeQuery,
   type DocFrequency,
@@ -382,17 +380,8 @@ export async function antiPatternsCheck(
       w.reasons.includes("sensor") ||
       (w.reasons.includes("anchor") && w.reasons.includes("literal")),
   );
-  if (strongCatches.length > 0) {
-    const recordedIds: string[] = [];
-    for (const w of strongCatches) if (recordPrevention(usage, w.id)) recordedIds.push(w.id);
-    if (recordedIds.length > 0) {
-      await saveUsageIndex(ctx.paths, usage).catch(() => { /* best-effort telemetry */ });
-      const at = new Date().toISOString();
-      for (const id of recordedIds) {
-        await appendPreventionEvent(ctx.paths, { at, id, source: "anti-pattern" }).catch(() => { /* best-effort */ });
-      }
-    }
-  }
+  // THE shared recorder — same path the git-hook gate and `haive sensors check` use (debounced).
+  await recordPreventionHits(ctx.paths, strongCatches.map((w) => w.id), "anti-pattern");
 
   return {
     scanned: negative.length,
