@@ -3,9 +3,40 @@ import {
   findLexicalConflictPairs,
   findTopicStatusConflictPairs,
   loadMemoriesFromDir,
+  planConflictResolution,
+  type LoadedMemory,
 } from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
+
+interface SuggestedResolution {
+  keep_id: string;
+  supersede_id: string;
+  reason: string;
+  /** Copy-paste command that APPLIES the guided supersede (promotes winner, deprecates loser). */
+  command: string;
+}
+
+/**
+ * Turn a detected pair into a guided action: which memory wins, which is superseded, and the exact
+ * command to apply it. Detection without a recommended next step is just noise the team ignores.
+ */
+function suggestResolution(
+  byId: Map<string, LoadedMemory>,
+  idA: string,
+  idB: string,
+): SuggestedResolution | null {
+  const a = byId.get(idA);
+  const b = byId.get(idB);
+  if (!a || !b) return null;
+  const plan = planConflictResolution(a, b);
+  return {
+    keep_id: plan.keep_id,
+    supersede_id: plan.supersede_id,
+    reason: plan.reason,
+    command: `haive memory resolve-conflict ${plan.keep_id} ${plan.supersede_id} --yes`,
+  };
+}
 
 export const MemConflictCandidatesInputSchema = {
   since_days: z
@@ -71,6 +102,7 @@ export async function memConflictCandidates(
   }
 
   const all = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+  const byId = new Map<string, LoadedMemory>(all.map((m) => [m.memory.frontmatter.id, m]));
   const { pairs, scanned, truncated } = findLexicalConflictPairs(all, {
     sinceDays: input.since_days,
     types: input.types,
@@ -80,10 +112,26 @@ export async function memConflictCandidates(
   });
   const topicStatusPairs = findTopicStatusConflictPairs(all, input.max_topic_pairs);
 
+  // Guided supersede: attach the deterministic winner/loser + apply command to every pair.
+  const enrichedPairs = pairs.map((p) => ({
+    ...p,
+    suggested_resolution: suggestResolution(byId, p.id_a, p.id_b),
+  }));
+  const enrichedTopicStatusPairs = topicStatusPairs.map((p) => ({
+    ...p,
+    suggested_resolution: suggestResolution(byId, p.id_a, p.id_b),
+  }));
+
   const notice =
     pairs.length === 0 && topicStatusPairs.length === 0
       ? "No lexical or topic-status candidates — widen since_days/types or lower min_jaccard."
       : undefined;
 
-  return { pairs, topic_status_pairs: topicStatusPairs, scanned, truncated, notice };
+  return {
+    pairs: enrichedPairs,
+    topic_status_pairs: enrichedTopicStatusPairs,
+    scanned,
+    truncated,
+    notice,
+  };
 }

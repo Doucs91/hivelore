@@ -1,25 +1,33 @@
-import { execFileSync, spawn } from "node:child_process";
+import { execFile, execFileSync, spawn } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { Command } from "commander";
 import {
   antiPatternGateParams,
+  BRIDGE_TARGET_PATH,
   findProjectRoot,
   findUncapturedFailures,
   hasRecentBriefingMarker,
   isFreshIsoDate,
+  isRetiredMemory,
   loadConfig,
   loadMemoriesFromDir,
   memoryMatchesAnchorPaths,
   readRecentBriefingMarker,
+  recordPreventionHits,
   resolveBriefingBudget,
   resolveHaivePaths,
+  runSensors,
   saveConfig,
+  selectCommandSensors,
+  sensorTargetsFromDiff,
   SESSION_RECAP_TTL_MS,
   verifyAnchor,
   writeBriefingMarker,
   type AntiPatternGate,
+  type CommandSensorSpec,
   type LoadedMemory,
   type HaiveConfig,
 } from "@hiveai/core";
@@ -29,6 +37,8 @@ import { installClaudeHooksAtPath, defaultClaudeSettingsPath } from "../utils/cl
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
 
 declare const __HAIVE_VERSION__: string;
+
+const execFileAsync = promisify(execFile);
 
 const MAX_STDIN_BYTES = 256 * 1024;
 const ENFORCE_HOOK_MARKER = "# hAIve enforcement hook";
@@ -546,6 +556,16 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
     affected_files: shippableChanged.slice(0, 12),
   });
 
+  // Release discipline (version bump + tag) is a HARD gate only on the configured release branch.
+  // On feature/* or an integration branch like `develop`, the bump/tag happen when releasing from
+  // that branch — so here the same findings are advisory (warn), never blocking the agent's exit.
+  const releaseBranch = config.enforcement?.releaseBranch ?? "main";
+  const onReleaseBranch = !status.branch || status.branch === releaseBranch;
+  const releaseSeverity: EnforcementFinding["severity"] = onReleaseBranch ? "error" : "warn";
+  const offBranchNote = onReleaseBranch
+    ? ""
+    : ` (advisory on '${status.branch}'; enforced when releasing from '${releaseBranch}')`;
+
   const versionState = await inspectReleaseVersionState(root, releaseBaseRef);
   if (!versionState.lockstep) {
     findings.push({
@@ -572,11 +592,11 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
 
   if (versionState.baseVersion && compareSemver(version, versionState.baseVersion) <= 0) {
     findings.push({
-      severity: "error",
+      severity: releaseSeverity,
       code: "release-version-missing",
-      message: `Shippable code changed, but version stayed at ${version} (base: ${versionState.baseVersion}).`,
+      message: `Shippable code changed, but version stayed at ${version} (base: ${versionState.baseVersion})${offBranchNote}.`,
       fix: "Bump the lockstep package version (patch by default), commit the bump, tag it, then push code and tags.",
-      impact: 70,
+      impact: onReleaseBranch ? 70 : 0,
     });
   } else {
     findings.push({
@@ -592,11 +612,11 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
   const localTagAtHead = await tagPointsAtHead(root, tag);
   if (!localTagAtHead) {
     findings.push({
-      severity: "error",
+      severity: releaseSeverity,
       code: "release-tag-missing",
-      message: `Expected git tag ${tag} to point at HEAD.`,
+      message: `Expected git tag ${tag} to point at HEAD${offBranchNote}.`,
       fix: `Run \`git tag ${tag}\` after committing the version bump.`,
-      impact: 50,
+      impact: onReleaseBranch ? 50 : 0,
     });
   } else {
     findings.push({
@@ -609,11 +629,11 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
   const remoteTag = await remoteTagExists(root, tag);
   if (remoteTag === false) {
     findings.push({
-      severity: "error",
+      severity: releaseSeverity,
       code: "release-tag-unpushed",
-      message: `Tag ${tag} is not present on the remote.`,
+      message: `Tag ${tag} is not present on the remote${offBranchNote}.`,
       fix: `Run \`git push origin ${tag}\` (avoid \`git push --tags\` — it fails on pre-existing divergent tags).`,
-      impact: 50,
+      impact: onReleaseBranch ? 50 : 0,
     });
   } else if (remoteTag === true) {
     findings.push({
@@ -1024,10 +1044,10 @@ async function verifyDecisionCoverage(
   }
 
   const all = await loadMemoriesFromDir(paths.memoriesDir);
+  const changedSet = new Set(changedFiles);
   const policyTypes = new Set(["decision", "gotcha", "architecture", "convention"]);
   const relevant = all
-    .map(({ memory }) => memory)
-    .filter((memory) => {
+    .filter(({ memory }) => {
       const fm = memory.frontmatter;
       if (!policyTypes.has(fm.type)) return false;
       if (fm.status !== "validated") return false;
@@ -1050,19 +1070,56 @@ async function verifyDecisionCoverage(
       message:
         `CI surfaced ${relevant.length} relevant anchored decision/polic${relevant.length === 1 ? "y" : "ies"} ` +
         `for ${changedFiles.length} changed file(s). Runtime briefing markers are local-only and are not expected on GitHub Actions.`,
-      memory_ids: relevant.slice(0, 20).map((memory) => memory.frontmatter.id),
+      memory_ids: relevant.slice(0, 20).map(({ memory }) => memory.frontmatter.id),
       affected_files: changedFiles.slice(0, 10),
     }];
   }
 
   const consulted = new Set(marker?.memory_ids ?? []);
-  const missing = relevant.filter((memory) => !consulted.has(memory.frontmatter.id));
+  // Self-authored exemption: a policy memory whose OWN backing file is in this changeset is being
+  // written/edited by the committer — requiring it to be pre-surfaced in a briefing is pure friction
+  // (you cannot brief a memory you are creating in the same commit). Treat it as covered.
+  const missing = relevant
+    .filter(({ memory, filePath }) => {
+      if (consulted.has(memory.frontmatter.id)) return false;
+      if (changedSet.has(path.relative(paths.root, filePath))) return false;
+      return true;
+    })
+    .map(({ memory }) => memory);
   if (missing.length === 0) {
     return [{
       severity: "ok",
       code: "decision-coverage-pass",
       message: `Relevant decisions/policies were surfaced for ${changedFiles.length} changed file(s): ${relevant.length}/${relevant.length}.`,
     }];
+  }
+
+  // Auto-brief (default on): instead of blocking with "run a briefing first", the gate surfaces the
+  // relevant policies itself and records them in the session marker — feedforward at commit time with
+  // zero manual step (the harness iterates the loop, not the human). Strict teams set
+  // enforcement.autoBrief=false to keep the legacy "must brief before commit" hard gate.
+  if (stage === "pre-commit" || stage === "pre-push") {
+    const cfg = await loadConfig(paths).catch(() => ({}) as HaiveConfig);
+    if (cfg.enforcement?.autoBrief !== false) {
+      await writeBriefingMarker(paths, {
+        sessionId,
+        source: "haive-autobrief",
+        task: "decision-coverage auto-surfaced at commit",
+        memoryIds: relevant.map(({ memory }) => memory.frontmatter.id),
+        files: changedFiles,
+      }).catch(() => { /* best-effort: marker is runtime-local */ });
+      return [{
+        severity: "ok",
+        code: "decision-coverage-autosurfaced",
+        message:
+          `Surfaced ${relevant.length} relevant decision/policy memor${relevant.length === 1 ? "y" : "ies"} ` +
+          `for ${changedFiles.length} changed file(s) at commit time` +
+          (missing.length > 0 ? ` (${missing.length} not previously briefed — now recorded)` : "") +
+          ". Set enforcement.autoBrief=false to require a manual briefing first.",
+        memory_ids: relevant.slice(0, 12).map(({ memory }) => memory.frontmatter.id),
+        affected_files: changedFiles.slice(0, 10),
+      }];
+    }
   }
 
   return [{
@@ -1104,20 +1161,168 @@ async function runPrecommitPolicy(
     anchored_blocks,
     semantic: true,
   }, { paths });
+
+  // Deterministic regex sensors — the precise/computational layer. Previously these
+  // only ran via the standalone `haive sensors check` and never on a real commit
+  // (see 2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate). Run them here
+  // so a promoted block sensor actually blocks and warn sensors surface in the gate,
+  // covering convention/architecture sensors the fuzzy anti-pattern matcher skips.
+  const sensorFindings = await runSensorGate(paths, snapshot.diff);
+
   if (!result.should_block) {
-    return [{
-      severity: "ok",
-      code: "precommit-policy-pass",
-      message: `${stage === "ci" ? "CI" : "Pre-commit"} policy passed for ${touchedPaths.length} changed file(s).`,
-    }];
+    return [
+      {
+        severity: "ok",
+        code: "precommit-policy-pass",
+        message: `${stage === "ci" ? "CI" : "Pre-commit"} policy passed for ${touchedPaths.length} changed file(s).`,
+      },
+      ...sensorFindings,
+    ];
   }
-  return [{
-    severity: "error",
-    code: "precommit-policy-block",
-    message: `Pre-commit policy matched ${result.summary.blocking_warnings ?? result.summary.anti_patterns} blocking anti-pattern(s), ${result.summary.stale_anchors} stale anchor(s).`,
-    fix: "Review the hAIve warnings, then update the code or the relevant memories.",
-    impact: 45,
-  }];
+  return [
+    {
+      severity: "error",
+      code: "precommit-policy-block",
+      message: `Pre-commit policy matched ${result.summary.blocking_warnings ?? result.summary.anti_patterns} blocking anti-pattern(s), ${result.summary.stale_anchors} stale anchor(s).`,
+      fix: "Review the hAIve warnings, then update the code or the relevant memories.",
+      impact: 45,
+    },
+    ...sensorFindings,
+  ];
+}
+
+/**
+ * Files hAIve itself owns/generates — scanning them with sensors self-matches the very
+ * memories they mirror (a memory body documenting a bad pattern contains that pattern).
+ * Mirrors `isHaiveOwnedPath` in the MCP anti-pattern check, kept local to avoid a new export.
+ */
+const SENSOR_OWNED_FILES = new Set<string>([
+  ...Object.values(BRIDGE_TARGET_PATH),
+  "CLAUDE.md",
+  ".cursorrules",
+  ".gitignore",
+  ".mcp.json",
+  ".cursor/mcp.json",
+  ".vscode/mcp.json",
+  ".cursor/rules/haive-mcp-required.mdc",
+]);
+
+function isSensorScannablePath(p: string): boolean {
+  if (!p) return false;
+  if (p.startsWith(".ai/")) return false;
+  return !SENSOR_OWNED_FILES.has(p);
+}
+
+/**
+ * Run the repo's regex sensors against the staged diff and turn hits into findings:
+ * a `block`-severity sensor → error (fails the gate); a `warn` sensor → warn (visible,
+ * non-blocking). Read-only and best-effort: a sensor bug must never break a commit.
+ */
+async function runSensorGate(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  diff: string,
+): Promise<EnforcementFinding[]> {
+  if (!diff || !existsSync(paths.memoriesDir)) return [];
+  try {
+    const loaded = await loadMemoriesFromDir(paths.memoriesDir);
+    const scannable = loaded
+      .map((l) => l.memory)
+      .filter((m) => Boolean(m.frontmatter.sensor) && !isRetiredMemory(m.frontmatter, m.body));
+    if (scannable.length === 0) return [];
+
+    // Only scan real code targets — never hAIve-owned/`.ai/` files (self-match guard).
+    const targets = sensorTargetsFromDiff(diff).filter((t) => isSensorScannablePath(t.path));
+    if (targets.length === 0) return [];
+
+    const findings: EnforcementFinding[] = [];
+    const seen = new Set<string>();
+    const firedIds = new Set<string>();
+
+    // ── Computational layer 1: deterministic regex sensors ──
+    const regexSensorMemories = scannable.filter((m) => m.frontmatter.sensor!.kind === "regex");
+    const hits = regexSensorMemories.length > 0 ? runSensors(regexSensorMemories, targets) : [];
+    for (const hit of hits) {
+      if (seen.has(hit.memory_id)) continue;
+      seen.add(hit.memory_id);
+      firedIds.add(hit.memory_id);
+      const where = hit.file ? ` (${hit.file})` : "";
+      if (hit.severity === "block") {
+        findings.push({
+          severity: "error",
+          code: "sensor-block",
+          message: `Block sensor fired — ${hit.memory_id}: ${hit.message}${where}`,
+          fix: "Remove the flagged pattern, or run `haive sensors check` to inspect the match.",
+          impact: 45,
+        });
+      } else {
+        findings.push({
+          severity: "warn",
+          code: "sensor-warn",
+          message: `Sensor flagged ${hit.memory_id}: ${hit.message}${where}`,
+          fix: "Review the flagged line; `haive sensors check` shows the matched code.",
+          impact: 5,
+        });
+      }
+    }
+
+    // ── Computational layer 2: shell/test command sensors (a regex can't express) ──
+    // OFF by default — they execute arbitrary repo-authored commands. Opt in per-repo with
+    // enforcement.runCommandSensors=true (mirrors `haive sensors check --commands`).
+    const config = await loadConfig(paths).catch(() => null);
+    if (config?.enforcement?.runCommandSensors === true) {
+      const changedPaths = targets.map((t) => t.path).filter(Boolean);
+      for (const spec of selectCommandSensors(scannable, changedPaths)) {
+        if (seen.has(spec.memory_id)) continue;
+        const failed = await runGateCommandSensor(spec, paths.root);
+        if (!failed) continue;
+        seen.add(spec.memory_id);
+        firedIds.add(spec.memory_id);
+        if (spec.severity === "block") {
+          findings.push({
+            severity: "error",
+            code: "sensor-block",
+            message: `Block command sensor fired — ${spec.memory_id}: ${spec.message} (command: ${spec.command})`,
+            fix: "Fix the condition the command checks, or run `haive sensors check --commands` to inspect it.",
+            impact: 45,
+          });
+        } else {
+          findings.push({
+            severity: "warn",
+            code: "sensor-warn",
+            message: `Command sensor flagged ${spec.memory_id}: ${spec.message}`,
+            fix: "Review the failing command; `haive sensors check --commands` re-runs it.",
+            impact: 5,
+          });
+        }
+      }
+    }
+
+    // OUTCOME measurement — the formerly-missing leg of the loop. A sensor firing in the gate is a
+    // prevention event (a documented mistake intercepted before it landed). Funnel through THE shared
+    // recorder so the installed git-hook gate finally records what it blocks — debounced, so it can't
+    // double-count with a prior `sensors check` / `anti_patterns_check` on the same diff.
+    if (firedIds.size > 0) {
+      await recordPreventionHits(paths, [...firedIds], "sensor").catch(() => { /* best-effort telemetry */ });
+    }
+
+    return findings;
+  } catch {
+    return []; // best-effort: never break the gate on a sensor error
+  }
+}
+
+/**
+ * Run one shell/test sensor command in the gate. Returns true when the command FAILS (non-zero exit) —
+ * the "bad state is present" signal. Timeout/spawn errors also count as a hit. Never throws; mirrors
+ * `runCommandSensor` in `sensors.ts`.
+ */
+async function runGateCommandSensor(spec: CommandSensorSpec, root: string): Promise<boolean> {
+  try {
+    await execFileAsync("bash", ["-c", spec.command], { cwd: root, timeout: 120_000, maxBuffer: 8 * 1024 * 1024 });
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 async function findGeneratedArtifacts(paths: ReturnType<typeof resolveHaivePaths>): Promise<EnforcementFinding[]> {

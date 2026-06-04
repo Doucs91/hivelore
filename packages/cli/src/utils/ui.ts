@@ -1,9 +1,20 @@
 import pc from "picocolors";
 
+// When a command emits machine-readable JSON on stdout, human log lines must not pollute it.
+// `setUiJsonMode(true)` routes info/success/warn to stderr so stdout stays a clean JSON channel.
+let jsonMode = false;
+export function setUiJsonMode(on: boolean): void {
+  jsonMode = on;
+}
+const logHuman = (icon: string, msg: string): void => {
+  if (jsonMode) console.error(icon, msg);
+  else console.log(icon, msg);
+};
+
 export const ui = {
-  info: (msg: string) => console.log(pc.cyan("ℹ"), msg),
-  success: (msg: string) => console.log(pc.green("✓"), msg),
-  warn: (msg: string) => console.log(pc.yellow("⚠"), msg),
+  info: (msg: string) => logHuman(pc.cyan("ℹ"), msg),
+  success: (msg: string) => logHuman(pc.green("✓"), msg),
+  warn: (msg: string) => logHuman(pc.yellow("⚠"), msg),
   error: (msg: string) => console.error(pc.red("✗"), msg),
   dim: (msg: string) => pc.dim(msg),
   bold: (msg: string) => pc.bold(msg),

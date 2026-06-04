@@ -1,26 +1,39 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { promisify } from "node:util";
 import { Command } from "commander";
 import {
   AUTOPILOT_DEFAULTS,
+  BRIDGE_TARGETS,
   buildCodeMap,
+  buildFrontmatter,
+  detectStacksFromManifests,
   findProjectRoot,
+  memoryFilePath,
+  proposeSeedsFromCommits,
   resolveHaivePaths,
   saveCodeMap,
   saveConfig,
+  serializeMemory,
+  type BridgeTarget,
+  type GitCommit,
 } from "@hiveai/core";
-import { ui } from "../utils/ui.js";
+import { setUiJsonMode, ui } from "../utils/ui.js";
+import { writeBridgeFiles } from "../utils/bridge-files.js";
 import { setupAgentMode } from "./agent.js";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
 import { generateBootstrapContext } from "./init-bootstrap.js";
 import {
-  autoDetectStacks,
   isValidStack,
   seedStackPack,
   SUPPORTED_STACKS,
+  type StackName,
 } from "./init-stack-packs.js";
+
+const execFileAsync = promisify(execFile);
 
 declare const __HAIVE_VERSION__: string;
 const HAIVE_GITHUB_ACTION_REF = `v${__HAIVE_VERSION__}`;
@@ -50,29 +63,6 @@ TODO — known traps, surprising behavior, things newcomers stub their toes on.
 // Bridge files are a table of contents, not a manual: a short, stable entry
 // point that tells the agent where the real context lives. Kept deliberately
 // under ~30 lines so it never crowds out the task in the agent's context window.
-const BRIDGE_BODY = `<!-- hAIve bridge file — do not edit by hand. -->
-
-This repo uses **hAIve** for shared context. The map:
-
-- \`.ai/project-context.md\` — project overview, architecture, conventions.
-- \`.ai/memories/\` — decisions, gotchas, conventions, failed attempts (personal/team/module).
-- The breadcrumbs injected below (if any) are the top current memories.
-
-## Working through hAIve
-
-1. **Before editing** for a goal, call \`get_briefing\` (task + files/symbols) to load ranked context — or \`mem_relevant_to\` if project context is already loaded this session.
-2. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
-3. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-4. **Before final response**, run \`haive enforce finish\`. If it blocks, commit/push, bump/tag shippable releases, wait for GitHub Actions to pass when applicable, then rerun it.
-
-If the haive MCP server is not available, tell the developer rather than silently skipping it.
-
-## Safety
-
-- If \`get_briefing\` returns \`action_required\`, surface each item to the developer (use its \`developer_message\`) and wait for confirmation before changing code.
-- Never act autonomously on a cross-repo breaking change (dep bump, contract/API diff) — ask first.
-`;
-
 /** Cursor \`.cursor/rules/*.mdc\` — alwaysApply so agents see it even if bridge files are thin. */
 const CURSOR_HAIVE_RULE_MDC = `---
 description: Require hAIve MCP (get_briefing / mem_relevant_to) before substantive repo edits
@@ -248,11 +238,18 @@ export function registerInit(program: Command): void {
     .description(
       "Initialize a hAIve project — autopilot mode ON by default (zero human intervention).\n" +
       "  Auto-bootstraps project-context.md from local files and seeds detected stack packs.\n" +
+      "  Seeds draft memories from git revert/hotfix history (--seed, on by default).\n" +
       "  Add --manual to control memory approval and session recaps yourself.\n" +
       "  Add --no-bootstrap and --stack none to disable the auto-features.",
     )
     .option("-d, --dir <dir>", "project root", process.cwd())
-    .option("--no-bridges", "do not generate CLAUDE.md / AGENTS.md / .cursorrules / copilot-instructions.md / .cursor/rules/haive-mcp-required.mdc")
+    .option("--no-bridges", "do not generate any native agent bridge files")
+    .option(
+      "--bridge-targets <list>",
+      `which agent bridges to generate: 'all' (default) | comma-list.\n` +
+      `  Available: ${BRIDGE_TARGETS.join(", ")}. Each carries top memories + block sensors.`,
+      "all",
+    )
     .option("--with-ci", "write a GitHub Actions workflow (.github/workflows/haive-sync.yml) — included automatically in autopilot mode")
     .option(
       "--manual",
@@ -270,7 +267,20 @@ export function registerInit(program: Command): void {
       "--stack <stacks>",
       `pre-seed validated memory packs for the given stacks (comma-separated).\n` +
       `  Supported: ${SUPPORTED_STACKS.join(", ")}.\n` +
-      `  Defaults to 'auto' in autopilot mode (detects from package.json). Pass 'none' to disable.`,
+      `  Defaults to 'auto' in autopilot mode (detects from package.json/requirements.txt/go.mod/pom.xml). Pass 'none' to disable.`,
+    )
+    .option(
+      "--seed",
+      "seed draft memories from git revert/hotfix history (ON by default in autopilot)",
+    )
+    .option(
+      "--no-seed",
+      "skip git-history seeding",
+    )
+    .option(
+      "--seed-limit <n>",
+      "max git seeds to propose",
+      "20",
     )
     .option(
       "--no-mcp-setup",
@@ -281,19 +291,26 @@ export function registerInit(program: Command): void {
       "approve user-level AI client configuration prompts during agent setup",
       false,
     )
+    .option("--json", "emit a machine-readable summary on stdout (human logs go to stderr)", false)
     .action(async (opts: {
       dir: string;
       bridges: boolean;
+      bridgeTargets?: string;
       withCi?: boolean;
       manual?: boolean;
       bootstrap?: boolean;
       stack?: string;
+      seed?: boolean;
+      seedLimit?: string;
       mcpSetup: boolean;
       yes?: boolean;
+      json?: boolean;
     }) => {
       const root = path.resolve(opts.dir);
       const paths = resolveHaivePaths(root);
       const autopilot = opts.manual !== true; // autopilot is ON by default
+      const json = opts.json === true;
+      if (json) setUiJsonMode(true); // keep stdout a clean JSON channel
 
       // In autopilot mode, default-on the value-from-day-zero auto-features
       // unless the user explicitly opted out. opts.bootstrap is `false` only
@@ -304,6 +321,20 @@ export function registerInit(program: Command): void {
         opts.stack === undefined
           ? autopilot ? "auto" : undefined
           : opts.stack === "none" ? undefined : opts.stack;
+      const wantSeed = opts.seed === undefined ? autopilot : opts.seed;
+      const seedLimit = Math.max(1, parseInt(opts.seedLimit ?? "20", 10) || 20);
+
+      // Accumulate stats for the first-session report
+      const report = {
+        stacksLoaded: [] as string[],
+        totalMemories: 0,
+        totalSensors: 0,
+        gitSeedsWritten: 0,
+        gitCommitsScanned: 0,
+        gitRevertsFound: 0,
+        gitRecurring: 0,
+        bridgesWritten: 0,
+      };
 
       if (existsSync(paths.haiveDir)) {
         ui.warn(`.ai/ already exists at ${paths.haiveDir} — leaving existing files in place.`);
@@ -345,29 +376,27 @@ export function registerInit(program: Command): void {
         );
       }
 
-      if (opts.bridges) {
-        await writeBridge(root, "CLAUDE.md");
-        // AGENTS.md is the emerging cross-harness convention (Codex et al.) — emit it
-        // so the .ai/ corpus is consumable by any AGENTS.md-aware agent, not just Claude.
-        await writeBridge(root, "AGENTS.md");
-        await writeBridge(root, ".cursorrules");
-        await writeBridge(root, path.join(".github", "copilot-instructions.md"));
-        await writeCursorHaiveRule(root);
-      }
+      // Native agent bridges are generated AFTER seeding (below) so they carry the
+      // seeded memories + sensors, not an empty template.
 
       // ── Stack memory packs ───────────────────────────────────────────────
       const stacksToSeed = await resolveStacksToSeed(root, wantStack);
       if (stacksToSeed.length > 0) {
         let totalSeeded = 0;
+        let totalSensors = 0;
         for (const stack of stacksToSeed) {
-          const count = await seedStackPack(paths, stack);
-          if (count > 0) {
-            ui.success(`Seeded ${count} memories for stack: ${stack}`);
-            totalSeeded += count;
+          const result = await seedStackPack(paths, stack);
+          if (result.memories > 0) {
+            ui.success(`Seeded ${result.memories} memories for stack: ${stack} (${result.sensors} sensors)`);
+            totalSeeded += result.memories;
+            totalSensors += result.sensors;
+            report.stacksLoaded.push(stack);
           } else {
             ui.info(`Stack pack '${stack}': all memories already exist — skipped`);
           }
         }
+        report.totalMemories += totalSeeded;
+        report.totalSensors += totalSensors;
         if (totalSeeded > 0) {
           ui.success(
             `${totalSeeded} starter memories seeded (generic stack guidance, kept at background priority)`,
@@ -375,6 +404,46 @@ export function registerInit(program: Command): void {
           ui.info(
             "Anchor them to real files or replace them with repo-specific notes to make them high-signal.",
           );
+        }
+      }
+
+      // ── Git-history seeding (cold-start) ────────────────────────────────
+      if (wantSeed) {
+        const gitStats = await seedFromGitHistory(root, paths, seedLimit);
+        report.gitCommitsScanned = gitStats.scanned;
+        report.gitRevertsFound = gitStats.found;
+        report.gitRecurring = gitStats.recurring;
+        report.gitSeedsWritten = gitStats.written;
+        report.totalMemories += gitStats.written;
+        if (gitStats.found > 0) {
+          ui.success(
+            `Git seeding: ${gitStats.found} revert/hotfix signal(s) found → ${gitStats.written} draft(s) written` +
+            (gitStats.recurring > 0 ? ` (${gitStats.recurring} recurring theme(s))` : ""),
+          );
+        } else {
+          ui.info("Git seeding: no revert/hotfix signals found — run `haive memory seed-git` later.");
+        }
+      }
+
+      // ── Native agent bridges (reach) ─────────────────────────────────────
+      // Generated here, after seeding, so each bridge carries the freshly-seeded
+      // memories + block sensors — not an empty template. Idempotent: existing
+      // files keep their manual content, only the haive marker blocks refresh.
+      if (opts.bridges) {
+        const targets = resolveBridgeTargets(opts.bridgeTargets);
+        const res = await writeBridgeFiles(root, paths, { targets });
+        // The "always use the MCP" Cursor nudge is complementary to the memories bridge.
+        await writeCursorHaiveRule(root);
+        const made = res.created.length + res.updated.length;
+        report.bridgesWritten = made;
+        if (res.created.length > 0) {
+          ui.success(`Generated ${res.created.length} agent bridge(s): ${res.created.join(", ")}`);
+        }
+        if (res.updated.length > 0) {
+          ui.info(`Refreshed ${res.updated.length} existing bridge(s): ${res.updated.join(", ")}`);
+        }
+        if (made === 0) {
+          ui.info("Bridges already up to date.");
         }
       }
 
@@ -462,6 +531,29 @@ export function registerInit(program: Command): void {
       ]);
 
       ui.success(`hAIve initialized at ${root}${autopilot ? " (autopilot mode)" : ""}`);
+
+      if (json) {
+        console.log(JSON.stringify({
+          root,
+          mode: autopilot ? "autopilot" : "manual",
+          stacks_loaded: report.stacksLoaded,
+          memories_seeded: report.totalMemories,
+          sensors_active: report.totalSensors,
+          git_commits_scanned: report.gitCommitsScanned,
+          git_signals_found: report.gitRevertsFound,
+          git_seeds_written: report.gitSeedsWritten,
+          git_recurring: report.gitRecurring,
+          bridges: opts.bridges !== false,
+          bridges_written: report.bridgesWritten,
+          ci: opts.withCi || autopilot,
+        }, null, 2));
+        return;
+      }
+
+      console.log();
+
+      // ── First-session report ─────────────────────────────────────────────
+      printInitReport(report);
       console.log();
 
       if (autopilot) {
@@ -511,28 +603,214 @@ export function registerInit(program: Command): void {
 async function resolveStacksToSeed(
   root: string,
   stackOpt: string | undefined,
-): Promise<ReturnType<typeof autoDetectStacks>> {
+): Promise<StackName[]> {
   if (!stackOpt) return [];
   if (stackOpt === "auto") {
-    // Auto-detect from package.json
-    const pkgPath = path.join(root, "package.json");
-    if (!existsSync(pkgPath)) return [];
-    try {
-      const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as {
-        dependencies?: Record<string, string>;
-        devDependencies?: Record<string, string>;
-      };
-      const allDeps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
-      return autoDetectStacks(allDeps);
-    } catch {
-      return [];
-    }
+    return autoDetectStacksFromRoot(root);
   }
   // Comma-separated stack names
   return stackOpt
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(isValidStack);
+}
+
+/** Read all manifest files at root and return detected valid stacks. */
+async function autoDetectStacksFromRoot(root: string): Promise<StackName[]> {
+  let packageJsonDeps: Record<string, string> | undefined;
+  let requirementsTxt: string | undefined;
+  let goMod: string | undefined;
+  let pomXml: string | undefined;
+
+  const pkgPath = path.join(root, "package.json");
+  if (existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+      packageJsonDeps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
+    } catch { /* ignore parse errors */ }
+  }
+
+  for (const name of ["requirements.txt", "requirements/base.txt", "requirements/prod.txt"]) {
+    const reqPath = path.join(root, name);
+    if (existsSync(reqPath)) {
+      try { requirementsTxt = await readFile(reqPath, "utf8"); break; } catch { /* ignore */ }
+    }
+  }
+
+  const goModPath = path.join(root, "go.mod");
+  if (existsSync(goModPath)) {
+    try { goMod = await readFile(goModPath, "utf8"); } catch { /* ignore */ }
+  }
+
+  const pomPath = path.join(root, "pom.xml");
+  if (existsSync(pomPath)) {
+    try { pomXml = await readFile(pomPath, "utf8"); } catch { /* ignore */ }
+  }
+
+  let composerJson: string | undefined;
+  const composerPath = path.join(root, "composer.json");
+  if (existsSync(composerPath)) {
+    try { composerJson = await readFile(composerPath, "utf8"); } catch { /* ignore */ }
+  }
+
+  let gemfile: string | undefined;
+  const gemfilePath = path.join(root, "Gemfile");
+  if (existsSync(gemfilePath)) {
+    try { gemfile = await readFile(gemfilePath, "utf8"); } catch { /* ignore */ }
+  }
+
+  // .NET / Docker / monorepo are detected by file presence (no content needed).
+  const hasDockerfile = existsSync(path.join(root, "Dockerfile"));
+  const hasTurboJson = existsSync(path.join(root, "turbo.json"));
+  const hasNxJson = existsSync(path.join(root, "nx.json"));
+  let hasCsproj = false;
+  try {
+    const entries = await readdir(root);
+    hasCsproj = entries.some((e) => e.endsWith(".csproj") || e.endsWith(".sln"));
+  } catch { /* ignore */ }
+
+  const detected = detectStacksFromManifests({
+    packageJsonDeps,
+    requirementsTxt,
+    goMod,
+    pomXml,
+    composerJson,
+    gemfile,
+    hasCsproj,
+    hasDockerfile,
+    hasTurboJson,
+    hasNxJson,
+  });
+  return detected.filter((s): s is StackName => isValidStack(s));
+}
+
+interface GitSeedStats {
+  scanned: number;
+  found: number;
+  recurring: number;
+  written: number;
+}
+
+/** Seed draft memories from git revert/hotfix history. Returns stats. */
+async function seedFromGitHistory(
+  root: string,
+  paths: ReturnType<typeof resolveHaivePaths>,
+  limit: number,
+): Promise<GitSeedStats> {
+  const commits = await readGitCommits(root);
+  if (commits.length === 0) return { scanned: 0, found: 0, recurring: 0, written: 0 };
+
+  const proposals = proposeSeedsFromCommits(commits, limit);
+
+  // Detect recurring: same slug appearing in multiple distinct commits (re-run proposals shows them)
+  // proposeSeedsFromCommits already dedupes by slug, so "recurring" = proposals whose slug
+  // appears in more than one source commit (we re-scan to count)
+  const slugCounts = new Map<string, number>();
+  for (const c of commits) {
+    const sub = c.subject.trim();
+    const revertMatch = sub.match(/^Revert\s+"(.+)"\s*$/i);
+    const slug = revertMatch
+      ? revertMatch[1]!.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60)
+      : null;
+    if (slug) slugCounts.set(slug, (slugCounts.get(slug) ?? 0) + 1);
+  }
+  const recurring = proposals.filter((p) => (slugCounts.get(p.slug) ?? 0) > 1).length;
+
+  let written = 0;
+  for (const p of proposals) {
+    const fm = {
+      ...buildFrontmatter({
+        type: "attempt",
+        slug: p.slug,
+        scope: "team",
+        tags: ["seed", "git-history", p.kind],
+        paths: p.paths,
+      }),
+      status: "draft" as const,
+    };
+    const body = `# ${p.what}\n\n**Why it failed / do NOT use:** ${p.why_failed}\n\n_Seeded from git ${p.kind} commit ${p.source_sha}. Review and validate (or delete) — not yet authoritative._\n`;
+    const file = memoryFilePath(paths, fm.scope, fm.id, fm.module);
+    if (existsSync(file)) continue; // idempotent
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, serializeMemory({ frontmatter: fm, body }), "utf8");
+    written++;
+  }
+
+  return { scanned: commits.length, found: proposals.length, recurring, written };
+}
+
+/** Read recent git commits with touched files. Returns [] off-git or on error. */
+async function readGitCommits(root: string): Promise<GitCommit[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["log", "--since=365.days.ago", "--name-only", "--pretty=format:%x1f%h%x1f%s", "-n", "500"],
+      { cwd: root, maxBuffer: 8 * 1024 * 1024 },
+    );
+    const blocks = stdout.split("\x1f").filter((b) => b.length > 0);
+    const commits: GitCommit[] = [];
+    for (let i = 0; i + 1 < blocks.length; i += 2) {
+      const sha = blocks[i]!.trim();
+      const tail = blocks[i + 1]!;
+      const lines = tail.split("\n").map((l) => l.trim()).filter(Boolean);
+      const subject = lines.shift() ?? "";
+      commits.push({ sha, subject, files: lines });
+    }
+    return commits;
+  } catch {
+    return [];
+  }
+}
+
+interface InitReport {
+  stacksLoaded: string[];
+  totalMemories: number;
+  totalSensors: number;
+  gitSeedsWritten: number;
+  gitCommitsScanned: number;
+  gitRevertsFound: number;
+  gitRecurring: number;
+  bridgesWritten: number;
+}
+
+function printInitReport(r: InitReport): void {
+  const lines: string[] = [];
+
+  if (r.gitRevertsFound > 0) {
+    const recurring = r.gitRecurring > 0 ? ` (${r.gitRecurring} recurring)` : "";
+    lines.push(`  Git signals : ${r.gitCommitsScanned} commits → ${r.gitRevertsFound} revert/hotfix${recurring}`);
+    lines.push(`  Drafts ready: ${r.gitSeedsWritten} draft lesson(s) from real past mistakes`);
+  }
+  if (r.stacksLoaded.length > 0) {
+    lines.push(`  Stack packs : ${r.stacksLoaded.join(", ")} — ${r.totalSensors} sensor(s) active`);
+  }
+  if (r.totalMemories > 0) {
+    lines.push(`  Total ready : ${r.totalMemories} lesson(s), ${r.totalSensors} sensor(s) — 0 written by hand`);
+  }
+  if (r.bridgesWritten > 0) {
+    lines.push(`  Reach       : ${r.bridgesWritten} agent bridge(s) generated (Cursor, Cline, Copilot, Roo, Gemini, …)`);
+  }
+
+  if (lines.length === 0) return;
+
+  const width = Math.max(...lines.map((l) => l.length), 44);
+  const bar = "─".repeat(width + 2);
+  console.log(ui.bold(`┌${bar}┐`));
+  console.log(ui.bold(`│`) + `  hAIve — first-session report`.padEnd(width + 1) + ui.bold(`│`));
+  console.log(ui.bold(`├${bar}┤`));
+  for (const line of lines) {
+    console.log(ui.bold(`│`) + line.padEnd(width + 2) + ui.bold(`│`));
+  }
+  console.log(ui.bold(`└${bar}┘`));
+  if (r.gitSeedsWritten > 0) {
+    console.log(ui.dim("  Review draft seeds: haive memory pending   (validate or delete each one)"));
+  }
+  console.log(
+    ui.dim("  Reach: bridges auto-refresh on `haive sync`; regenerate any time with `haive bridges sync --all`."),
+  );
 }
 
 async function writeCursorHaiveRule(root: string): Promise<void> {
@@ -547,15 +825,17 @@ async function writeCursorHaiveRule(root: string): Promise<void> {
   ui.success(`Created Cursor rule ${relPath}`);
 }
 
-async function writeBridge(root: string, relPath: string): Promise<void> {
-  const target = path.join(root, relPath);
-  if (existsSync(target)) {
-    ui.info(`Bridge ${relPath} already exists — skipped`);
-    return;
+/** Resolve the `--bridge-targets` option ('all' | comma-list) into concrete targets. */
+function resolveBridgeTargets(opt: string | undefined): BridgeTarget[] {
+  const raw = (opt ?? "all").trim().toLowerCase();
+  if (raw === "" || raw === "all") return [...BRIDGE_TARGETS];
+  const requested = raw.split(",").map((t) => t.trim()).filter(Boolean);
+  const valid = requested.filter((t): t is BridgeTarget => (BRIDGE_TARGETS as string[]).includes(t));
+  const invalid = requested.filter((t) => !(BRIDGE_TARGETS as string[]).includes(t));
+  if (invalid.length > 0) {
+    ui.warn(`Ignoring unknown bridge target(s): ${invalid.join(", ")}. Valid: ${BRIDGE_TARGETS.join(", ")}`);
   }
-  await mkdir(path.dirname(target), { recursive: true });
-  await writeFile(target, BRIDGE_BODY, "utf8");
-  ui.success(`Created bridge ${relPath}`);
+  return valid.length > 0 ? valid : [...BRIDGE_TARGETS];
 }
 
 const RUNTIME_README_BODY = `# .ai/.runtime — disposable local layer

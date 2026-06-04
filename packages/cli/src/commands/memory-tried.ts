@@ -103,7 +103,16 @@ export function registerMemoryTried(memory: Command): void {
       await writeFile(file, serializeMemory({ frontmatter, body }), "utf8");
       ui.success(`Recorded: ${path.relative(root, file)}`);
       ui.info(`id=${frontmatter.id}  type=attempt  status=validated (auto-approved)`);
-      if (sensor) ui.info(`sensor=regex warn autogen pattern=${JSON.stringify(sensor.pattern)}`);
+      if (sensor) {
+        ui.info(`sensor=regex warn autogen pattern=${JSON.stringify(sensor.pattern)}`);
+      } else {
+        // Ratchet visibility: no sensor → the loop stays open (feedforward-only, the gate can't block the repeat).
+        ui.warn(
+          frontmatter.anchor.paths.length === 0
+            ? "No sensor generated (no --paths) — lesson is briefed but NOT enforced. Add --paths to close the loop."
+            : "No sensor could be derived from the wording — lesson is briefed but NOT enforced. Use a concrete forbidden token to enable a gate block.",
+        );
+      }
     });
 }
 

@@ -193,3 +193,71 @@ export function summarizeImpact(scores: ImpactScore[]): ImpactSummary {
   }
   return summary;
 }
+
+export type FeedbackAdjustmentAction = "none" | "downgrade-block-sensor" | "deprecate-memory";
+
+export interface FeedbackAdjustment {
+  action: FeedbackAdjustmentAction;
+  reason: string;
+}
+
+export interface FeedbackAdjustmentOptions {
+  /** Rejections needed before deprecating a memory with no positive outcomes. Defaults to 2. */
+  rejectionThreshold?: number;
+}
+
+/**
+ * Turn explicit human rejection (`mem_feedback outcome=rejected`) into a deterministic
+ * noise-reduction action. Pure: callers decide whether to persist the returned change.
+ */
+export function recommendFeedbackAdjustment(
+  fm: MemoryFrontmatter,
+  usage: MemoryUsage,
+  options: FeedbackAdjustmentOptions = {},
+): FeedbackAdjustment {
+  const rejectionThreshold = options.rejectionThreshold ?? 2;
+  const hasPositiveOutcome = usage.applied_count > 0 || usage.prevented_count > 0;
+
+  if (fm.sensor?.severity === "block" && usage.rejected_count >= 1) {
+    return {
+      action: "downgrade-block-sensor",
+      reason: "A human contested a blocking guardrail; downgrade it to warn so the gate stays helpful while the lesson is reviewed.",
+    };
+  }
+
+  if (!hasPositiveOutcome && usage.rejected_count >= rejectionThreshold) {
+    return {
+      action: "deprecate-memory",
+      reason: `${usage.rejected_count} rejection(s) and no applied/prevented outcomes; deprecate until the lesson is refined.`,
+    };
+  }
+
+  return { action: "none", reason: "No automatic adjustment needed." };
+}
+
+export function applyFeedbackAdjustment(
+  fm: MemoryFrontmatter,
+  adjustment: FeedbackAdjustment,
+  now: Date = new Date(),
+): MemoryFrontmatter {
+  if (adjustment.action === "none") return fm;
+  const tags = [...new Set([...fm.tags, "feedback-contested"])];
+  if (adjustment.action === "downgrade-block-sensor" && fm.sensor) {
+    return {
+      ...fm,
+      tags,
+      verified_at: now.toISOString(),
+      sensor: { ...fm.sensor, severity: "warn" },
+    };
+  }
+  if (adjustment.action === "deprecate-memory") {
+    return {
+      ...fm,
+      tags,
+      status: "deprecated",
+      stale_reason: adjustment.reason,
+      verified_at: now.toISOString(),
+    };
+  }
+  return fm;
+}

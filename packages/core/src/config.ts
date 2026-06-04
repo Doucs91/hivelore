@@ -178,6 +178,13 @@ export interface HaiveConfig {
      */
     antiPatternGate?: "off" | "review" | "anchored" | "strict";
     /**
+     * Pre-commit/pre-push decision-coverage behaviour. When true (default), the gate SURFACES the
+     * relevant anchored decisions/policies itself and records them in the session marker at commit
+     * time — no separate `haive briefing` step required. Set false for the strict legacy behaviour
+     * where the commit is blocked until a prior briefing covered those decisions.
+     */
+    autoBrief?: boolean;
+    /**
      * Execute `kind: "shell" | "test"` memory sensors during `haive sensors check`.
      * These run arbitrary repo-authored commands, so they are OFF by default; turn on per repo
      * (or pass `--commands`) once the team trusts the sensors. Regex sensors always run. Default false.
@@ -220,6 +227,13 @@ export interface HaiveConfig {
     toolProfile?: "enforcement" | "maintenance" | "experimental" | "full";
     /** Named memory/policy families enabled for this project. */
     policyPacks?: string[];
+    /**
+     * Branch on which `enforce finish` enforces the release discipline (lockstep version bump +
+     * matching pushed tag) as a HARD gate. On any other branch — feature/* or an integration branch
+     * like `develop` — those same checks are advisory (warn), since the version/tag are produced when
+     * releasing from this branch, not on every integration commit. Default: "main".
+     */
+    releaseBranch?: string;
   };
 }
 
@@ -249,6 +263,7 @@ export const DEFAULT_CONFIG: HaiveConfig = {
     cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",
     policyPacks: ["architecture", "gotchas", "security", "domain", "release"],
+    releaseBranch: "main",
   },
 };
 
@@ -278,6 +293,7 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
     cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",
     policyPacks: ["architecture", "gotchas", "security", "domain", "release"],
+    releaseBranch: "main",
   },
 };
 

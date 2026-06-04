@@ -13,6 +13,7 @@ import {
   loadCodeMap,
   loadMemoriesFromDir,
   loadUsageIndex,
+  looksLikeGenericAdvice,
   resolveHaivePaths,
   serializeMemory,
   specificityScore,
@@ -124,7 +125,10 @@ export async function lintMemoriesAsync(
       ["decision", "gotcha", "convention", "architecture"].includes(fm.type) &&
       fm.status !== "rejected" &&
       naked.length >= 40 &&
-      specificityScore(naked) < 0.2
+      specificityScore(naked) < 0.2 &&
+      // High-precision gate: only flag when there is positive evidence of generic advice.
+      // A low-density but arbitrary team policy (unguessable prose) must not be flagged.
+      looksLikeGenericAdvice(naked)
     ) {
       out.push({
         file: filePath,

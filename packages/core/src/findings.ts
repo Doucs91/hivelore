@@ -1,6 +1,7 @@
 import type { MemoryFrontmatter } from "./types.js";
 import { buildFrontmatter } from "./parser.js";
 import { suggestSensorFromMemory } from "./sensor-suggest.js";
+import { meetsSeedQualityFloor } from "./specificity.js";
 
 /**
  * Findings ingestion — the self-feeding half of the sensors story (feature B).
@@ -67,6 +68,43 @@ export interface DraftsOptions extends DraftOptions {
   limit?: number;
   /** Only ingest findings at or above this severity. Default: none (all). */
   minSeverity?: FindingSeverity;
+  /** Include auto-fixable stylistic rules (semi/quotes/indent/prefer-const…). Default false — they are
+   *  linter-autofix noise, not lessons worth a memory. */
+  includeStylistic?: boolean;
+}
+
+/**
+ * Auto-fixable stylistic / formatting rules. Seeding a memory for "missing semicolon" or
+ * "prefer const" is pure clutter: a linter fixes them and a capable model already follows them. We
+ * match the rule's last segment so prefixed ids (`@typescript-eslint/semi`, `prettier/prettier`) are
+ * caught. This is the ingest-side quality floor — specificity scoring can't catch it (a finding body
+ * is always concrete: it has a file path and line).
+ */
+const STYLISTIC_RULE_RE =
+  /(?:^|[/:])(?:prettier|semi|semi-spacing|no-extra-semi|quotes|jsx-quotes|quote-props|indent|comma-dangle|comma-spacing|comma-style|eol-last|linebreak-style|no-trailing-spaces|no-multiple-empty-lines|no-multi-spaces|object-curly-spacing|array-bracket-spacing|block-spacing|space-before-blocks|space-before-function-paren|space-infix-ops|space-in-parens|keyword-spacing|arrow-spacing|key-spacing|func-call-spacing|padded-blocks|padding-line-between-statements|brace-style|spaced-comment|max-len|prefer-const|no-var)(?:$|[/:])/i;
+
+/**
+ * SonarQube uses NUMERIC rule keys (`typescript:S103`, `python:S00117`), so the name-based regex above
+ * can't catch them. This is a curated set of Sonar rules that are pure formatting / naming convention /
+ * trivial maintainability — the same low-value-as-a-seed tier. Keys are normalized (leading zeros
+ * stripped: `S00117` → `S117`) so both the legacy and modern ids match.
+ */
+const SONAR_STYLISTIC_KEYS = new Set([
+  "S100", "S101", "S103", "S104", "S105", "S113", "S114", "S115", "S116", "S117", "S118", "S119",
+  "S120", "S121", "S122", "S125", "S1110", "S1116", "S1131", "S1542",
+]);
+
+/** Extract a normalized Sonar rule key (`S117`) from a rule id like `typescript:S00117`, else null. */
+function sonarRuleKey(ruleId: string): string | null {
+  const m = /(?:^|:)s0*(\d{1,5})$/i.exec(ruleId ?? "");
+  return m ? `S${m[1]}` : null;
+}
+
+/** True when a finding's rule is pure auto-fixable formatting / naming convention (no lesson value as a seed). */
+export function isStylisticRule(ruleId: string): boolean {
+  if (STYLISTIC_RULE_RE.test(ruleId ?? "")) return true;
+  const sonarKey = sonarRuleKey(ruleId);
+  return sonarKey !== null && SONAR_STYLISTIC_KEYS.has(sonarKey);
 }
 
 const SEVERITY_RANK: Record<FindingSeverity, number> = {
@@ -210,9 +248,99 @@ export function parseSonar(input: string | unknown): Finding[] {
   return findings;
 }
 
+/**
+ * Parse the ESLint JSON formatter output (`eslint --format json`): an array of
+ * `{ filePath, messages: [{ ruleId, severity, message, line }] }`. No SARIF formatter
+ * package needed — this is ESLint's built-in format. `severity` is 2=error, 1=warning.
+ * `opts.cwd`, when given, makes absolute `filePath`s project-relative so anchoring works.
+ */
+export function parseEslintJson(input: string | unknown, opts: { cwd?: string } = {}): Finding[] {
+  const docs = asArray(coerceJson(input));
+  const findings: Finding[] = [];
+  const cwd = opts.cwd ? opts.cwd.replace(/\/+$/, "") + "/" : "";
+  for (const fileRaw of docs) {
+    const file = asRecord(fileRaw);
+    const rawPath = typeof file.filePath === "string" ? file.filePath : "";
+    if (!rawPath) continue;
+    const path = cwd && rawPath.startsWith(cwd) ? rawPath.slice(cwd.length) : rawPath;
+    for (const msgRaw of asArray(file.messages)) {
+      const msg = asRecord(msgRaw);
+      const ruleId = typeof msg.ruleId === "string" && msg.ruleId ? msg.ruleId : "parse-error";
+      const message = typeof msg.message === "string" ? msg.message.trim() : ruleId;
+      const severity = normalizeFindingSeverity(msg.severity === 2 ? "error" : "warning");
+      const line = typeof msg.line === "number" ? msg.line : undefined;
+      findings.push({
+        tool: "eslint",
+        ruleId,
+        message,
+        severity,
+        path,
+        ...(line !== undefined ? { line } : {}),
+        key: findingKey("eslint", ruleId, path),
+      });
+    }
+  }
+  return findings;
+}
+
+const NPM_AUDIT_SEVERITY: Record<string, FindingSeverity> = {
+  critical: "blocker",
+  high: "critical",
+  moderate: "major",
+  low: "minor",
+  info: "info",
+};
+
+/**
+ * Parse `npm audit --json` output (`vulnerabilities` map). Each vulnerable package becomes one
+ * finding anchored to `package.json` (vulnerabilities are dependency-level, not file-level), so
+ * the next agent is warned before re-introducing or ignoring the advisory.
+ */
+export function parseNpmAudit(input: string | unknown): Finding[] {
+  const doc = asRecord(coerceJson(input));
+  const vulns = asRecord(doc.vulnerabilities);
+  const findings: Finding[] = [];
+  for (const [name, vulnRaw] of Object.entries(vulns)) {
+    const vuln = asRecord(vulnRaw);
+    const sev = typeof vuln.severity === "string" ? vuln.severity.toLowerCase() : "info";
+    const severity = NPM_AUDIT_SEVERITY[sev] ?? "info";
+    const via = asArray(vuln.via);
+    const firstAdvisory = via.map(asRecord).find((v) => typeof v.title === "string");
+    const title =
+      firstAdvisory && typeof firstAdvisory.title === "string"
+        ? (firstAdvisory.title as string)
+        : `Vulnerable dependency: ${name}`;
+    const range = typeof vuln.range === "string" ? ` (affected range: ${vuln.range})` : "";
+    findings.push({
+      tool: "npm-audit",
+      ruleId: name,
+      message: `${title}${range}`,
+      severity,
+      path: "package.json",
+      key: findingKey("npm-audit", name, "package.json"),
+    });
+  }
+  return findings;
+}
+
+export type FindingFormat = "sarif" | "sonar" | "eslint" | "npm-audit";
+
 /** Dispatch to the right parser by declared format. */
-export function parseFindings(format: "sarif" | "sonar", input: string | unknown): Finding[] {
-  return format === "sonar" ? parseSonar(input) : parseSarif(input);
+export function parseFindings(
+  format: FindingFormat,
+  input: string | unknown,
+  opts: { cwd?: string } = {},
+): Finding[] {
+  switch (format) {
+    case "sonar":
+      return parseSonar(input);
+    case "eslint":
+      return parseEslintJson(input, opts);
+    case "npm-audit":
+      return parseNpmAudit(input);
+    default:
+      return parseSarif(input);
+  }
 }
 
 function normalizeUri(uri: string): string {
@@ -290,7 +418,13 @@ export function draftsFromFindings(findings: Finding[], options: DraftsOptions =
     if (SEVERITY_RANK[finding.severity] < minRank) continue;
     if (seen.has(finding.key)) continue;
     seen.add(finding.key);
-    drafts.push(findingToDraft(finding, options));
+    // Quality floor (ingest): drop auto-fixable stylistic noise, and drop a draft that has no sensor
+    // and reads as generic/low-signal (backstop — finding bodies are usually concrete, so this rarely
+    // fires, but it keeps the corpus free of empty seeds).
+    if (!options.includeStylistic && isStylisticRule(finding.ruleId)) continue;
+    const draft = findingToDraft(finding, options);
+    if (!meetsSeedQualityFloor(draft.body, draft.has_sensor)) continue;
+    drafts.push(draft);
     if (options.limit !== undefined && drafts.length >= options.limit) break;
   }
   return drafts;

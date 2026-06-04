@@ -41,6 +41,10 @@ export interface MemTriedOutput {
   id: string;
   scope: string;
   file_path: string;
+  /** True when a regex sensor was auto-generated → the loop can close (gate will block the repeat). */
+  sensor_generated: boolean;
+  /** Present only when no sensor was generated: tells the agent the loop stays OPEN and how to close it. */
+  hint?: string;
 }
 
 export async function memTried(
@@ -91,5 +95,21 @@ export async function memTried(
 
   await writeFile(file, serializeMemory({ frontmatter, body }), "utf8");
 
-  return { id: frontmatter.id, scope: frontmatter.scope, file_path: file };
+  // Ratchet visibility: a captured lesson only CLOSES the loop (gate blocks the repeat) if it carries
+  // a sensor. suggestSensorFromMemory returns null when no anchor `paths` were given, or no distinctive
+  // token was found. Surface that explicitly so the agent knows the lesson is advisory-only, not enforced.
+  const sensorGenerated = Boolean(sensor);
+  const hint = sensorGenerated
+    ? undefined
+    : input.paths.length === 0
+      ? "No sensor was generated (no `paths` given), so this lesson is feedforward-only — it will be briefed but the gate cannot block the repeat. Re-run with `paths` set to the file(s) where the mistake lives to close the loop."
+      : "No sensor could be derived from the wording (no distinctive code token). The lesson is briefed but not enforced; add a concrete forbidden token/value, or attach a sensor manually, to make the gate block the repeat.";
+
+  return {
+    id: frontmatter.id,
+    scope: frontmatter.scope,
+    file_path: file,
+    sensor_generated: sensorGenerated,
+    ...(hint ? { hint } : {}),
+  };
 }

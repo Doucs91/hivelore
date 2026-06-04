@@ -6,6 +6,44 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.17.1] — cold-start metric integrity + proof-line wiring
+
+Integration pass after merging Lot A (cold-start), Lot B (visible value), and Lot C (reach).
+
+#### Fixed
+- **No more fabricated "prevented mistake" events on the first post-init commit.** The anti-pattern
+  gate's self-match guard only excluded `.ai/`; the same commit also stages every file
+  `haive init` / `haive bridges` generate (AGENTS.md, CLAUDE.md, `.cursorrules`, `.clinerules`,
+  `.windsurfrules`, …, `copilot-instructions.md`, the haive workflows, `.gitignore`, MCP configs).
+  Those mirror the seeded corpus, so a single distinctive word self-matched the seeded gotchas and
+  recorded false catches (inflating the dashboard prevention trend and gate-precision). Generalised
+  to `isHaiveOwnedPath` and applied to the literal/semantic **and** sensor paths (the sensor path
+  previously scanned the raw, unstripped diff). Real anti-patterns in real code are still caught.
+- Removed dead no-op code in `core/bridges.ts` (`renderMemoriesBlock`).
+
+#### Added
+- **Briefing proof line**: `get_briefing` now appends `briefingProofLine()` to its hints, surfacing
+  the measured outcome ("this harness prevented N repeated mistakes") in-context. Returns nothing on
+  a cold corpus, so a fresh repo never makes a hollow claim. (Wires the Lot B × Lot C coordination
+  point that shipped as a TODO.)
+
+### Lot C: Reach & feedforward
+
+#### Added
+- **`core/bridges.ts`** — pure bridge generator (`generateBridges`, `prepareBridgeData`,
+  `bridgeMemorySummary`). Formats native config files for 7 harnesses: Cline (`.clinerules`),
+  Windsurf (`.windsurfrules`), Continue (`.continuerules`), Cody (`.sourcegraph/cody-rules.md`),
+  Zed (`.rules`), Codex/AGENTS.md, GitHub Copilot. Each bridge includes validated memories AND
+  block sensors — the enforcement differentiator vs memories.sh.
+- **`cli/commands/bridges.ts`** — `haive bridges sync` command. Idempotent (marker-based),
+  supports `--all`, `--only <targets>`, `--max-memories`, `--dry-run`.
+  Also exposes `haive bridges list` to show target status.
+- **`BRIDGE_TARGETS`, `BRIDGE_TARGET_PATH`, `BRIDGE_MARKERS`** exported from `@hiveai/core`
+  for use by Lot A (`init.ts` can call `generateBridges()` at init time — C6 interface).
+- **C5 hook point**: `get-briefing.ts` now has a documented insertion comment for
+  `briefingProofLine()` from Lot B (when that function is ready, import and wire it there).
+- Tests: `packages/core/test/bridges.test.ts` — unit + per-target snapshot tests.
+
 ## [0.17.0] — one shared briefing-priority classifier (kill the CLI/MCP drift)
 
 The must_read / useful / background tier was implemented **twice** — in the MCP `get_briefing` tool and

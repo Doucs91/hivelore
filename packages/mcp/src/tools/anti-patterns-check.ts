@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import {
   addedLinesFromDiff,
-  appendPreventionEvent,
+  BRIDGE_TARGET_PATH,
   buildDocFrequency,
   CODE_STOPWORDS,
   deriveConfidence,
@@ -12,9 +12,8 @@ import {
   loadUsageIndex,
   literalMatchesAnyToken,
   memoryMatchesAnchorPaths,
-  recordPrevention,
+  recordPreventionHits,
   runSensors,
-  saveUsageIndex,
   sensorTargetsFromDiff,
   tokenizeQuery,
   type DocFrequency,
@@ -135,10 +134,41 @@ function tokenizeDiffForLiteral(diff: string): string[] {
 }
 
 /**
- * Drop hunks for files under `.ai/` from a unified diff. Anti-patterns are about CODE reintroducing
- * a known mistake — editing the knowledge base itself (a memory file that *documents* a bad command,
- * project-context, etc.) must never corroborate a literal/semantic match. Without this, re-tagging or
- * editing a memory whose body contains the bad pattern self-matches and can hard-block the commit.
+ * Files hAIve generates/writes that are NOT application code: agent bridges (Lot A init + Lot C
+ * bridges), the MCP client configs, and `.gitignore` (init appends a hAIve block). Scanning any of
+ * these for anti-patterns self-matches the corpus they mirror (a bridge listing the seeded gotchas,
+ * a `.gitignore` line that merely contains "cache", etc.).
+ */
+const HAIVE_GENERATED_FILES = new Set<string>([
+  ...Object.values(BRIDGE_TARGET_PATH), // .clinerules, .windsurfrules, .continuerules, .rules, AGENTS.md, .github/copilot-instructions.md, .sourcegraph/cody-rules.md
+  "CLAUDE.md",
+  ".cursorrules",
+  ".gitignore",
+  ".mcp.json",
+  ".cursor/mcp.json",
+  ".vscode/mcp.json",
+]);
+
+/**
+ * True for files hAIve itself owns/generates: the `.ai/` knowledge base, plus the agent-bridge,
+ * config, and workflow files it writes from that same corpus. Scanning these for anti-patterns
+ * self-matches the memories they mirror and fabricates "prevented mistake" events on the very first
+ * post-init commit (which stages the seeded corpus AND everything init generated, all at once).
+ */
+export function isHaiveOwnedPath(p: string): boolean {
+  if (p.startsWith(".ai/")) return true;
+  if (HAIVE_GENERATED_FILES.has(p)) return true;
+  if (p.startsWith(".cursor/rules/")) return true; // haive-mcp-required.mdc and siblings
+  if (/^\.github\/workflows\/haive-.*\.ya?ml$/.test(p)) return true;
+  return false;
+}
+
+/**
+ * Drop hunks for hAIve-owned files (see {@link isHaiveOwnedPath}) from a unified diff. Anti-patterns
+ * are about CODE reintroducing a known mistake — editing hAIve's own knowledge base or the bridge
+ * files it generates from that corpus must never corroborate a literal/semantic match. Without this,
+ * re-tagging a memory, or simply committing a fresh `haive init` (which writes the seeded corpus AND
+ * its bridges in one commit), self-matches and can hard-block or inflate prevention counts.
  * See gotcha 2026-06-03-gotcha-antipattern-self-match-on-memory-file-edit.
  */
 export function stripAiDirHunks(diff: string): string {
@@ -155,7 +185,7 @@ export function stripAiDirHunks(diff: string): string {
     if (line.startsWith("diff --git ")) {
       flush();
       const target = line.match(/ b\/(.+)$/)?.[1] ?? "";
-      keep = !target.startsWith(".ai/");
+      keep = !isHaiveOwnedPath(target);
     }
     block.push(line);
   }
@@ -272,15 +302,19 @@ export async function antiPatternsCheck(
   // 2b. Sensor matches — deterministic regex checks derived from memories.
   // A sensor fires on the ADDED lines of the diff ("you introduced the bad pattern").
   // This is the feedback *computational* signal: same result every time, no warmup.
-  if (input.diff) {
-    const added = addedLinesFromDiff(input.diff);
-    const diffTargets = sensorTargetsFromDiff(input.diff);
+  if (scanDiff) {
+    const added = addedLinesFromDiff(scanDiff);
+    const diffTargets = sensorTargetsFromDiff(scanDiff);
     const hasFileTargets = diffTargets.some((target) => target.path.length > 0);
+    // Never run sensors against hAIve-owned files — a memory/bridge that documents a bad pattern
+    // contains that pattern and would self-fire (see stripAiDirHunks / isHaiveOwnedPath).
+    const codePaths = input.paths.filter((p) => !isHaiveOwnedPath(p));
+    const fallbackContent = added.trim().length > 0 ? added : scanDiff;
     const targets = diffTargets.length > 0 && hasFileTargets
       ? diffTargets
-      : input.paths.length > 0
-        ? input.paths.map((p) => ({ path: p, content: added.trim().length > 0 ? added : input.diff! }))
-        : [{ path: "", content: added.trim().length > 0 ? added : input.diff }];
+      : codePaths.length > 0
+        ? codePaths.map((p) => ({ path: p, content: fallbackContent }))
+        : [{ path: "", content: fallbackContent }];
     const hits = runSensors(negative.map(({ memory }) => memory), targets);
     for (const hit of hits) {
       const found = negative.find(({ memory }) => memory.frontmatter.id === hit.memory_id);
@@ -332,27 +366,22 @@ export async function antiPatternsCheck(
     })
     .slice(0, input.limit);
 
-  // OUTCOME measurement: record the strong, diff-corroborated catches as prevention events — the
-  // semantic anti-pattern path's contribution to "a known mistake was intercepted before it landed".
-  // Weak semantic-only matches are advisory (review noise), NOT catches, so they are excluded.
-  // Debounced via recordPrevention so re-running the gate on the same diff doesn't inflate counts.
+  // OUTCOME measurement: record only HIGH-CONFIDENCE catches as prevention events. A prevention
+  // event is a measured claim ("a known mistake was intercepted before it landed") and must not be
+  // cheap to trigger, or the dashboard/gate-precision/proof-line inflate on noise. We require one of:
+  //   • a deterministic SENSOR fired (computational, same result every time), or
+  //   • the change is in a file the lesson is ANCHORED to AND shares its vocabulary (anchor + literal).
+  // Deliberately excluded: semantic-only (advisory), and a bare distinctive-literal in an UNRELATED
+  // file — on a small/cold corpus a single moderately-rare shared word ("cache", "client") otherwise
+  // self-records a phantom catch. Such matches still SURFACE as review warnings; they just aren't
+  // counted as outcomes. Debounced via recordPrevention so re-running on the same diff can't inflate.
   const strongCatches = warnings.filter(
     (w) =>
       w.reasons.includes("sensor") ||
-      w.distinctive_literal === true ||
       (w.reasons.includes("anchor") && w.reasons.includes("literal")),
   );
-  if (strongCatches.length > 0) {
-    const recordedIds: string[] = [];
-    for (const w of strongCatches) if (recordPrevention(usage, w.id)) recordedIds.push(w.id);
-    if (recordedIds.length > 0) {
-      await saveUsageIndex(ctx.paths, usage).catch(() => { /* best-effort telemetry */ });
-      const at = new Date().toISOString();
-      for (const id of recordedIds) {
-        await appendPreventionEvent(ctx.paths, { at, id, source: "anti-pattern" }).catch(() => { /* best-effort */ });
-      }
-    }
-  }
+  // THE shared recorder — same path the git-hook gate and `haive sensors check` use (debounced).
+  await recordPreventionHits(ctx.paths, strongCatches.map((w) => w.id), "anti-pattern");
 
   return {
     scanned: negative.length,

@@ -1,14 +1,19 @@
 import {
+  applyFeedbackAdjustment,
   computeImpact,
   getUsage,
   loadMemoriesFromDir,
   loadUsageIndex,
   recordApplied,
   recordRejection,
+  recommendFeedbackAdjustment,
   saveUsageIndex,
+  serializeMemory,
   type ImpactTier,
+  type FeedbackAdjustment,
 } from "@hiveai/core";
 import { existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -45,6 +50,7 @@ export interface MemFeedbackOutput {
     tier: ImpactTier;
     signals: string[];
   };
+  feedback_adjustment?: FeedbackAdjustment;
 }
 
 /**
@@ -76,6 +82,14 @@ export async function memFeedback(
   await saveUsageIndex(ctx.paths, index);
 
   const usage = getUsage(index, input.id);
+  const adjustment = input.outcome === "rejected"
+    ? recommendFeedbackAdjustment(target.memory.frontmatter, usage)
+    : { action: "none" as const, reason: "No automatic adjustment needed." };
+  const adjustedFrontmatter = applyFeedbackAdjustment(target.memory.frontmatter, adjustment);
+  if (adjustedFrontmatter !== target.memory.frontmatter) {
+    target.memory.frontmatter = adjustedFrontmatter;
+    await writeFile(target.filePath, serializeMemory(target.memory), "utf8");
+  }
   const impact = computeImpact(target.memory.frontmatter, usage);
 
   return {
@@ -88,5 +102,6 @@ export async function memFeedback(
       rejected_count: usage.rejected_count,
     },
     impact: { score: impact.score, tier: impact.tier, signals: impact.signals },
+    feedback_adjustment: adjustment,
   };
 }

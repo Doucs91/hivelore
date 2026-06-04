@@ -2,7 +2,7 @@
 id: 2026-05-04-gotcha-mem-save-scope-overridden-by-defaultscope
 scope: team
 type: gotcha
-status: validated
+status: deprecated
 anchor:
   paths:
     - packages/mcp/src/tools/mem-save.ts

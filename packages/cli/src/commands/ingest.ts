@@ -1,3 +1,24 @@
+/**
+ * CI USAGE — integrate haive ingest in your pipeline:
+ *
+ *   # ESLint / any SARIF emitter
+ *   eslint --format @microsoft/eslint-formatter-sarif --output-file eslint.sarif src/
+ *   haive ingest --from sarif eslint.sarif --scope team --min-severity major
+ *
+ *   # SonarQube file export
+ *   haive ingest --from sonar sonar-issues.json --scope team --min-severity major
+ *
+ *   # SonarQube live API (no file needed — Node 18+)
+ *   haive ingest --from sonar-api \
+ *     --sonar-url "$SONAR_HOST_URL" --sonar-token "$SONAR_TOKEN" \
+ *     --sonar-component my_project --min-severity major
+ *
+ *   # Dry-run to preview without writing
+ *   haive ingest --from sarif report.sarif --dry-run
+ *
+ * Exit codes: 0 = success (even when nothing new), 1 = bad args or unreadable report.
+ * New memories are status=proposed; a human validates them with `haive memory pending`.
+ */
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -17,12 +38,13 @@ import {
 import { ui } from "../utils/ui.js";
 
 interface IngestOptions {
-  from?: "sarif" | "sonar" | "sonar-api";
+  from?: "sarif" | "sonar" | "sonar-api" | "eslint" | "npm-audit";
   dryRun?: boolean;
   scope?: "personal" | "team" | "module";
   module?: string;
   type?: "gotcha" | "convention";
   minSeverity?: FindingSeverity;
+  includeStylistic?: boolean;
   limit?: string;
   author?: string;
   json?: boolean;
@@ -47,17 +69,23 @@ export function registerIngest(program: Command): void {
       "  no MCP or special setup required, just a URL + token you provide (or SONAR_HOST_URL /\n" +
       "  SONAR_TOKEN env). If you don't use it, file-based ingest works exactly the same.\n\n" +
       "  Example:\n" +
-      "    haive ingest --from sarif eslint.sarif --dry-run\n" +
+      "    haive ingest --from eslint eslint-report.json --min-severity major\n" +
+      "    haive ingest --from npm-audit audit.json --scope team\n" +
+      "    haive ingest --from sarif report.sarif --dry-run\n" +
       "    haive ingest --from sonar sonar-issues.json --scope team --min-severity major\n" +
-      "    haive ingest --from sonar-api --sonar-component my_project --min-severity major\n",
+      "    haive ingest --from sonar-api --sonar-component my_project --min-severity major\n\n" +
+      "  Generate the input reports:\n" +
+      "    eslint -f json -o eslint-report.json .      # --from eslint\n" +
+      "    npm audit --json > audit.json               # --from npm-audit\n",
     )
-    .argument("[file]", "path to the findings report JSON (required for --from sarif|sonar)")
-    .requiredOption("--from <format>", "report format: sarif | sonar | sonar-api")
+    .argument("[file]", "path to the findings report JSON (required for --from sarif|sonar|eslint|npm-audit)")
+    .requiredOption("--from <format>", "report format: sarif | sonar | sonar-api | eslint | npm-audit")
     .option("--dry-run", "show what would be created without writing", false)
     .option("--scope <scope>", "memory scope: personal | team | module", "team")
     .option("--module <name>", "module name (required when scope=module)")
     .option("--type <type>", "memory type: gotcha | convention", "gotcha")
     .option("--min-severity <severity>", "ignore findings below this severity (info|minor|major|critical|blocker)")
+    .option("--include-stylistic", "also ingest auto-fixable stylistic rules (semi/quotes/prefer-const…); off by default as low-value noise", false)
     .option("--limit <n>", "cap the number of memories created")
     .option("--author <author>", "author email or handle")
     .option("--json", "emit JSON", false)
@@ -68,8 +96,9 @@ export function registerIngest(program: Command): void {
     .option("-d, --dir <dir>", "project root")
     .action(async (file: string | undefined, opts: IngestOptions) => {
       const format = opts.from;
-      if (format !== "sarif" && format !== "sonar" && format !== "sonar-api") {
-        ui.error("--from must be sarif, sonar, or sonar-api");
+      const VALID_FORMATS = ["sarif", "sonar", "sonar-api", "eslint", "npm-audit"] as const;
+      if (!format || !(VALID_FORMATS as readonly string[]).includes(format)) {
+        ui.error(`--from must be one of: ${VALID_FORMATS.join(", ")}`);
         process.exitCode = 1;
         return;
       }
@@ -93,7 +122,8 @@ export function registerIngest(program: Command): void {
       }
 
       // `sonar-api` parses with the same Sonar reader; only the source differs (HTTP vs file).
-      const parseFormat: "sarif" | "sonar" = format === "sarif" ? "sarif" : "sonar";
+      const parseFormat: "sarif" | "sonar" | "eslint" | "npm-audit" =
+        format === "sonar-api" ? "sonar" : format;
 
       let raw: string;
       if (format === "sonar-api") {
@@ -126,14 +156,17 @@ export function registerIngest(program: Command): void {
       }
 
       let drafts: MemoryDraft[];
+      let findingsCount = 0;
       try {
-        const findings = parseFindings(parseFormat, raw);
+        const findings = parseFindings(parseFormat, raw, { cwd: root });
+        findingsCount = findings.length;
         drafts = draftsFromFindings(findings, {
           type: opts.type ?? "gotcha",
           scope: opts.scope ?? "team",
           module: opts.module,
           author: opts.author,
           ...(opts.minSeverity ? { minSeverity: opts.minSeverity } : {}),
+          ...(opts.includeStylistic ? { includeStylistic: true } : {}),
           ...(opts.limit ? { limit: Math.max(0, Number.parseInt(opts.limit, 10) || 0) } : {}),
         });
       } catch (err) {
@@ -159,7 +192,9 @@ export function registerIngest(program: Command): void {
           JSON.stringify(
             {
               format,
+              findings: findingsCount,
               parsed: drafts.length,
+              filtered_low_value: Math.max(0, findingsCount - drafts.length),
               new: fresh.length,
               skipped_existing: skipped,
               dry_run: Boolean(opts.dryRun),
@@ -179,9 +214,11 @@ export function registerIngest(program: Command): void {
         return;
       }
 
+      const filteredLowValue = Math.max(0, findingsCount - drafts.length);
       console.log(
         ui.bold(
-          `hAIve ingest (${format}) — ${drafts.length} finding(s), ${fresh.length} new` +
+          `hAIve ingest (${format}) — ${findingsCount} finding(s), ${fresh.length} new` +
+          (filteredLowValue > 0 ? `, ${filteredLowValue} low-value/stylistic filtered` : "") +
           (skipped > 0 ? `, ${skipped} already ingested` : ""),
         ),
       );

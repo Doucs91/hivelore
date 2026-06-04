@@ -119,10 +119,30 @@ function pickDistinctiveToken(text: string): string | null {
   return best?.raw ?? null;
 }
 
+/**
+ * Reject tokens that produce nonsensical sensors: pure numbers, number ranges / line refs
+ * (`1131-1186`), version-ish strings, and bare filenames (`enforce.ts`). A sensor built from these
+ * fires on noise and trains agents to ignore the gate — the false-positive failure mode the harness
+ * must avoid. (Real reproduced miss: a gotcha body referencing `enforce.ts:1131-1186` produced the
+ * regex `enforce\.ts\s*:\s*1131-1186`.)
+ */
+const FILE_EXT_REF = /\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|swift|rb|php|cs|cpp|c|h|md|json|ya?ml|toml|lock)\b/i;
+function isDegenerateToken(token: string): boolean {
+  if (/^[\d.\-:_]+$/.test(token)) return true; // pure number / range / line ref like 1131-1186
+  if (/\d+\s*-\s*\d+/.test(token)) return true; // a numeric / line range embedded anywhere (e.g. 1131-1186)
+  if (FILE_EXT_REF.test(token)) return true; // contains a filename reference (e.g. enforce.ts, enforce.ts:1131)
+  // mostly digits (e.g. a version or id with a stray letter): <=1 letter among many digits
+  const letters = (token.match(/[A-Za-z]/g) ?? []).length;
+  const digits = (token.match(/\d/g) ?? []).length;
+  if (digits >= 3 && letters <= 1) return true;
+  return false;
+}
+
 function isDistinctiveToken(token: string, isCodeLike: boolean): boolean {
   if (token.length < 4 || token.length > 80) return false;
   if (/^https?:\/\//i.test(token)) return false;
   if (/^\d+$/.test(token)) return false;
+  if (isDegenerateToken(token)) return false;
   const lower = token.toLowerCase();
   if (SENSOR_STOPWORDS.has(lower)) return false;
   if (!/[A-Za-z]/.test(token)) return false;
@@ -134,6 +154,7 @@ function isBoringValue(value: string): boolean {
   if (!value || value.length > 80) return true;
   const lower = value.toLowerCase();
   if (lower === "true" || lower === "false") return false;
+  if (isDegenerateToken(value)) return true; // numbers / ranges / line refs / filenames are not real values
   return SENSOR_STOPWORDS.has(lower);
 }
 

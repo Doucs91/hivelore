@@ -11,15 +11,22 @@
  */
 import type { LoadedMemory } from "./loader.js";
 
+/** Where a file's "heat" came from: committed git churn, agent edits this/recent sessions, or both. */
+export type HotFileSource = "git" | "agent" | "both";
+
 export interface HotFile {
   path: string;
   /** Number of times the file changed in the lookback window (the "heat"). */
   changes: number;
+  /** Provenance of the heat. Optional for back-compat with git-only callers. */
+  source?: HotFileSource;
 }
 
 export interface CoverageGap {
   path: string;
   changes: number;
+  /** Provenance of the heat that made this file a blind spot. */
+  source?: HotFileSource;
 }
 
 export interface CoverageOptions {
@@ -86,8 +93,46 @@ export function findCoverageGaps(
   for (const hot of hotFiles) {
     if (hot.changes < minChanges) continue;
     if (isCovered(hot.path, coverage)) continue;
-    gaps.push({ path: normalizePath(hot.path), changes: hot.changes });
+    gaps.push({ path: normalizePath(hot.path), changes: hot.changes, ...(hot.source ? { source: hot.source } : {}) });
   }
   gaps.sort((a, b) => b.changes - a.changes);
   return gaps.slice(0, limit);
+}
+
+/**
+ * Tally a flat list of edited file paths into HotFiles — the agent-edit heat signal from the
+ * PostToolUse observation log (files agents actually touch), complementary to committed git churn.
+ * Pure: the caller reads/normalizes the observation paths.
+ */
+export function tallyHotFiles(paths: string[], source: HotFileSource = "agent"): HotFile[] {
+  const counts = new Map<string, number>();
+  for (const raw of paths) {
+    const norm = normalizePath(raw);
+    if (!norm) continue;
+    counts.set(norm, (counts.get(norm) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([path, changes]) => ({ path, changes, source }))
+    .sort((a, b) => b.changes - a.changes);
+}
+
+/**
+ * Merge two HotFile lists, summing heat per path. A file hot in both lists is tagged `both` so the
+ * report can show that agents AND git churn both point at the same uncovered file (the strongest gap).
+ */
+export function mergeHotFiles(a: HotFile[], b: HotFile[]): HotFile[] {
+  const merged = new Map<string, HotFile>();
+  for (const hot of [...a, ...b]) {
+    const norm = normalizePath(hot.path);
+    if (!norm) continue;
+    const existing = merged.get(norm);
+    if (!existing) {
+      merged.set(norm, { path: norm, changes: hot.changes, ...(hot.source ? { source: hot.source } : {}) });
+      continue;
+    }
+    existing.changes += hot.changes;
+    if (hot.source && existing.source && hot.source !== existing.source) existing.source = "both";
+    else existing.source = existing.source ?? hot.source;
+  }
+  return [...merged.values()].sort((x, y) => y.changes - x.changes);
 }

@@ -5,16 +5,13 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { Command } from "commander";
 import {
-  appendPreventionEvent,
   findProjectRoot,
   isRetiredMemory,
   loadConfig,
   loadMemoriesFromDir,
-  loadUsageIndex,
-  recordPrevention,
+  recordPreventionHits,
   resolveHaivePaths,
   runSensors,
-  saveUsageIndex,
   selectCommandSensors,
   sensorTargetsFromDiff,
   serializeMemory,
@@ -130,21 +127,10 @@ export function registerSensors(program: Command): void {
       }
 
       // Outcome measurement: a sensor firing on a real diff is a *prevention* event — the encoded
-      // lesson intercepted a known mistake before it landed. Record it (debounced) so impact and
-      // the dashboard can show demonstrated value, not just retrieval.
+      // lesson intercepted a known mistake before it landed. THE shared recorder bumps impact
+      // (debounced) and logs the event, identically to the git-hook gate and the MCP anti-pattern gate.
       const firedIds = [...new Set([...hits, ...commandHits].map((hit) => hit.memory_id))];
-      if (firedIds.length > 0) {
-        const usage = await loadUsageIndex(paths);
-        const recordedIds: string[] = [];
-        for (const id of firedIds) if (recordPrevention(usage, id)) recordedIds.push(id);
-        if (recordedIds.length > 0) {
-          await saveUsageIndex(paths, usage).catch(() => { /* best-effort telemetry */ });
-          const at = new Date().toISOString();
-          for (const id of recordedIds) {
-            await appendPreventionEvent(paths, { at, id, source: "sensor" }).catch(() => { /* best-effort */ });
-          }
-        }
-      }
+      await recordPreventionHits(paths, firedIds, "sensor");
 
       const output = {
         scanned: memories.length,

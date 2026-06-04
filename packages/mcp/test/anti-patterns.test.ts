@@ -2,9 +2,9 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveHaivePaths } from "@hiveai/core";
+import { loadPreventionEvents, resolveHaivePaths } from "@hiveai/core";
 import type { HaiveContext } from "../src/context.js";
-import { antiPatternsCheck, stripAiDirHunks } from "../src/tools/anti-patterns-check.js";
+import { antiPatternsCheck, isHaiveOwnedPath, stripAiDirHunks } from "../src/tools/anti-patterns-check.js";
 import { classifyAntiPatternWarningForTest, preCommitCheck } from "../src/tools/precommit-check.js";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -120,6 +120,39 @@ describe("antiPatternsCheck", () => {
     expect(warning!.reasons).toContain("sensor");
     expect(warning!.sensor_message).toContain("do not set it true");
     expect(warning!.sensor_severity).toBe("warn");
+  });
+
+  // ── prevention-event recording: only HIGH-CONFIDENCE catches count as outcomes ──
+
+  it("records a prevention event when a deterministic sensor fires", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!, "2024-01-01-gotcha-reload", "gotcha",
+      "# uvicorn reload\n\nNever ship reload=True.",
+      { paths: ["src/main.py"], sensor: { pattern: "reload\\s*=\\s*True", message: "no reload=True", severity: "warn" } },
+    );
+    await antiPatternsCheck({ diff: "+uvicorn.run(app, reload=True)", paths: ["src/main.py"], limit: 8, semantic: false }, ctx);
+    const events = await loadPreventionEvents(ctx.paths);
+    expect(events.map((e) => e.id)).toContain("2024-01-01-gotcha-reload");
+  });
+
+  it("does NOT record a prevention event for a bare distinctive-literal match in an unrelated file", async () => {
+    // No sensor, no anchor overlap with the changed file: a single rare shared word ("frobnicate")
+    // makes this distinctive-literal, which is enough to SURFACE a review warning but must NOT be
+    // counted as a measured catch — this is the cold-start phantom-metric guard.
+    await writeMemory(
+      ctx.paths.teamDir!, "2024-01-01-attempt-frobnicate", "attempt",
+      "# frobnicate\n\nThe frobnicate helper corrupts state — never call frobnicate.",
+      { paths: ["src/legacy/frob.ts"] }, // anchored elsewhere, not to the changed file
+    );
+    const result = await antiPatternsCheck(
+      { diff: "+const y = frobnicate();", paths: ["src/unrelated/widget.ts"], limit: 8, semantic: false },
+      ctx,
+    );
+    // It still surfaces as advisory…
+    expect(result.warnings.some((w) => w.id === "2024-01-01-attempt-frobnicate")).toBe(true);
+    // …but is not recorded as an outcome.
+    const events = await loadPreventionEvents(ctx.paths);
+    expect(events).toHaveLength(0);
   });
 
   it("does NOT fire the sensor when the bad pattern is only on a removed line", async () => {
@@ -616,6 +649,51 @@ describe("preCommitCheck", () => {
     expect(warning.level).toBe("review");
   });
 
+  it("demotes a non-anchored memory whose deterministic sensor did NOT fire to info (precision)", () => {
+    // Noise reduction (#2): a memory carries a sensor, the sensor did not fire, and it is not
+    // anchored to a touched file → strong evidence of non-violation → info (hidden), not review.
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-has-sensor-not-fired",
+      type: "gotcha",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "an unrelated gotcha that happens to carry a regex sensor",
+      reasons: ["literal", "semantic"],
+      semantic_score: 0.66,
+      has_sensor: true,
+      anchor_paths: ["packages/mcp/package.json"],
+    }, ["packages/core/src/probe.ts"], false);
+
+    expect(warning.level).toBe("info");
+    expect(warning.rationale).toMatch(/sensor that did not fire/);
+  });
+
+  it("raises the uncorroborated semantic review floor to 0.65 (noise reduction)", () => {
+    const below = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-weak-semantic",
+      type: "gotcha",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "weak semantic-only match against generic text",
+      reasons: ["semantic"],
+      semantic_score: 0.62,
+      anchor_paths: [],
+    }, ["packages/core/src/probe.ts"], false);
+    expect(below.level).toBe("info"); // 0.62 < 0.65 → hidden as noise
+
+    const above = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-ok-semantic",
+      type: "gotcha",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "stronger semantic match worth a human's attention",
+      reasons: ["semantic"],
+      semantic_score: 0.7,
+      anchor_paths: [],
+    }, ["packages/core/src/probe.ts"], false);
+    expect(above.level).toBe("review"); // 0.7 >= 0.65 → review
+  });
+
   it("anchored gate still does NOT block a non-anchored config-token match (false-positive guard)", () => {
     // The documented false-positive class: a NON-anchored gotcha matching a config file only via
     // broad tokens (npm/install/package.json). The anchored gate requires an anchor reason, and
@@ -975,5 +1053,54 @@ describe("stripAiDirHunks", () => {
 
   it("returns non-git text as-is", () => {
     expect(stripAiDirHunks("+just some added text")).toBe("+just some added text");
+  });
+
+  it("drops hAIve-generated bridge/config/workflow hunks so a fresh-init commit can't self-match", () => {
+    // The first commit after `haive init` stages the seeded corpus AND every file init generated
+    // (bridges, .gitignore, MCP configs, workflows). None are application code; none may corroborate.
+    const diff = [
+      "diff --git a/AGENTS.md b/AGENTS.md",
+      "+- gotcha: never ship uvicorn reload=True to production",
+      "diff --git a/.gitignore b/.gitignore",
+      "+.ai/.cache/*",
+      "diff --git a/.github/workflows/haive-enforcement.yml b/.github/workflows/haive-enforcement.yml",
+      "+      - uses: actions/cache@v4",
+      "diff --git a/CLAUDE.md b/CLAUDE.md",
+      "+prisma client disconnect lambda guidance",
+      "diff --git a/src/main.py b/src/main.py",
+      "+uvicorn.run(app, reload=True)",
+    ].join("\n");
+    const out = stripAiDirHunks(diff);
+    // Generated files gone…
+    expect(out).not.toContain("AGENTS.md");
+    expect(out).not.toContain(".gitignore");
+    expect(out).not.toContain("haive-enforcement.yml");
+    expect(out).not.toContain("CLAUDE.md");
+    // …real code kept.
+    expect(out).toContain("src/main.py");
+    expect(out).toContain("uvicorn.run(app, reload=True)");
+  });
+});
+
+describe("isHaiveOwnedPath", () => {
+  it("flags the .ai/ knowledge base and hAIve-generated files", () => {
+    for (const p of [
+      ".ai/memories/team/x.md", ".ai/code-map.json",
+      "AGENTS.md", "CLAUDE.md", ".cursorrules", ".clinerules", ".windsurfrules",
+      ".github/copilot-instructions.md", ".sourcegraph/cody-rules.md",
+      ".gitignore", ".mcp.json", ".cursor/mcp.json", ".vscode/mcp.json",
+      ".cursor/rules/haive-mcp-required.mdc", ".github/workflows/haive-sync.yml",
+    ]) {
+      expect(isHaiveOwnedPath(p)).toBe(true);
+    }
+  });
+
+  it("does not flag application code or a user's own CI workflow", () => {
+    for (const p of [
+      "src/index.ts", "packages/cli/src/app.ts", "main.py", "README.md",
+      ".github/workflows/ci.yml", "config/settings.json",
+    ]) {
+      expect(isHaiveOwnedPath(p)).toBe(false);
+    }
   });
 });

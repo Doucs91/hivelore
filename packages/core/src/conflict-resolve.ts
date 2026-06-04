@@ -74,3 +74,57 @@ export function planConflictResolution(
     stale_reason: `Superseded by ${keepId} (conflict resolved on ${reason}).`,
   };
 }
+
+export interface AppliedConflictResolution {
+  /** Updated frontmatter for the memory to keep (promoted). */
+  winner: MemoryFrontmatter;
+  /** Updated frontmatter for the memory to supersede (deprecated). */
+  loser: MemoryFrontmatter;
+  /** Topic the winner now carries — the consolidation target for future `mem_save` upserts. Null when neither carried one. */
+  topic: string | null;
+  /** True when the winner adopted the loser's topic because it had none. */
+  topic_adopted: boolean;
+}
+
+/**
+ * Turn a {@link ConflictResolution} plan into the two concrete frontmatter updates — the guided
+ * supersede the backlog called for, wired into topic-upsert/revision_count:
+ *   - loser  → deprecated, stamped with stale_reason + a related_ids link to the winner.
+ *   - winner → revision_count++ (it absorbed a contradiction), verified now, linked to the loser,
+ *     and it ADOPTS the loser's topic when it had none — so the next `mem_save` on this subject
+ *     upserts into the winner instead of spawning a third conflicting memory. An existing winner
+ *     topic is never overwritten. Pure: the caller persists both.
+ */
+export function applyConflictResolution(
+  winner: LoadedMemory,
+  loser: LoadedMemory,
+  plan: ConflictResolution,
+  now: Date = new Date(),
+): AppliedConflictResolution {
+  const ts = now.toISOString();
+  const wf = winner.memory.frontmatter;
+  const lf = loser.memory.frontmatter;
+
+  const winnerHasTopic = Boolean(wf.topic && wf.topic.trim() !== "");
+  const loserHasTopic = Boolean(lf.topic && lf.topic.trim() !== "");
+  const topicAdopted = !winnerHasTopic && loserHasTopic;
+  const topic = winnerHasTopic ? wf.topic! : topicAdopted ? lf.topic! : null;
+
+  const winnerFm: MemoryFrontmatter = {
+    ...wf,
+    revision_count: wf.revision_count + 1,
+    verified_at: ts,
+    related_ids: [...new Set([...wf.related_ids, plan.supersede_id])],
+    ...(topic ? { topic } : {}),
+  };
+
+  const loserFm: MemoryFrontmatter = {
+    ...lf,
+    status: "deprecated",
+    stale_reason: plan.stale_reason,
+    verified_at: ts,
+    related_ids: [...new Set([...lf.related_ids, plan.keep_id])],
+  };
+
+  return { winner: winnerFm, loser: loserFm, topic, topic_adopted: topicAdopted };
+}

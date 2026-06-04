@@ -10,6 +10,8 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   buildFrontmatter,
+  loadMemoriesFromDir,
+  meetsSeedQualityFloor,
   memoryFilePath,
   serializeMemory,
   STACK_PACK_TAG,
@@ -40,11 +42,13 @@ interface PackMemory {
   sensor?: PackSensor;
 }
 
-type StackName = "nestjs" | "nextjs" | "remix" | "react" | "express" | "fastify" | "prisma" | "drizzle"
+export type StackName = "nestjs" | "nextjs" | "remix" | "react" | "express" | "fastify" | "prisma" | "drizzle"
   | "zustand" | "redux" | "reactquery" | "trpc" | "mongoose" | "graphql"
-  | "fastapi" | "django" | "go" | "flask" | "vue" | "spring";
+  | "fastapi" | "django" | "go" | "flask" | "vue" | "spring"
+  | "tailwind" | "vite" | "sveltekit" | "astro" | "typescript" | "monorepo"
+  | "laravel" | "rails" | "dotnet" | "docker";
 
-const PACKS: Record<StackName, PackMemory[]> = {
+export const PACKS: Record<StackName, PackMemory[]> = {
   nestjs: [
     {
       slug: "jwtmodule-requires-secret",
@@ -81,6 +85,11 @@ app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: t
 
 Controller → Service → Repository (or direct ORM) is the required layering.
 Direct ORM usage in controllers makes testing impossible and couples transport to persistence.`,
+      sensor: {
+        pattern: "@prisma/client|PrismaClient|getRepository\\(|createQueryBuilder\\(",
+        paths: ["**/*.controller.ts"],
+        message: "ORM/Prisma used directly in a controller — move persistence into a Service (Controller → Service → Repository).",
+      },
     },
     {
       slug: "nestjs-exception-filter-for-prisma",
@@ -272,6 +281,10 @@ Routes without schema accept any body and bypass Fastify's fast-json-stringify s
 Calling $disconnect() after each request wastes the warm connection pool.
 Create one PrismaClient per process (module-level singleton), not per request.
 Disconnecting is only needed when the process is shutting down.`,
+      sensor: {
+        pattern: "\\$disconnect\\(\\)",
+        message: "prisma.$disconnect() per request drains the warm connection pool in serverless — use a module-level PrismaClient singleton and only disconnect on shutdown.",
+      },
     },
     {
       slug: "prisma-migrations-never-modify",
@@ -330,6 +343,10 @@ const count = useStore((s) => s.count);
 \`\`\`
 
 Subscribing to the whole store is the single most common Zustand performance mistake.`,
+      sensor: {
+        pattern: "use[A-Z]\\w*Store\\(\\s*\\)",
+        message: "A Zustand store hook called with no selector subscribes to the WHOLE store (re-renders on any change) — pass a slice selector: useStore(s => s.field).",
+      },
     },
     {
       slug: "zustand-devtools-wrap-dev-only",
@@ -554,7 +571,8 @@ const users = await User.find({});
 const users = await User.find({}).lean();
 \`\`\`
 
-Never use .lean() when you need to call .save() or Mongoose instance methods.`,
+\`.lean()\` skips hydration into a Mongoose \`Document\`, so getters, virtuals, \`toObject()\` and
+instance methods are gone. Never use \`.lean()\` when you then call \`.save()\` or instance methods.`,
     },
     {
       slug: "mongoose-index-frequently-queried-fields",
@@ -778,6 +796,10 @@ db.execute(f"SELECT * FROM users WHERE id = {uid}")
 # ✅
 db.execute("SELECT * FROM users WHERE id = %s", (uid,))
 \`\`\``,
+      sensor: {
+        pattern: "execute\\(\\s*f[\"']",
+        message: "SQL built with an f-string inside execute() — SQL injection risk; use a parameterized query: execute(\"… %s …\", (params,)).",
+      },
     },
   ],
 
@@ -894,6 +916,217 @@ Pass it explicitly down the call chain so cancellation and deadlines propagate.`
     },
   ],
 
+  tailwind: [
+    {
+      slug: "tailwind-content-paths-required",
+      type: "gotcha",
+      tags: ["tailwind", "css", "build"],
+      body: `Classes only ship if their files are listed in \`content\` (tailwind.config). Miss a path and the styles silently vanish in production.
+
+\`\`\`js
+content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"]
+\`\`\`
+Never build class names dynamically by string concatenation (\`\`text-\${color}-500\`\`) — Tailwind's scanner can't see them and they get purged. Use full literal class names or a safelist.`,
+    },
+    {
+      slug: "tailwind-no-apply-everywhere",
+      type: "convention",
+      tags: ["tailwind", "css", "maintainability"],
+      body: `Don't recreate component CSS with \`@apply\` for everything — it defeats the utility-first model and grows the bundle.
+
+Prefer utility classes in markup; reach for \`@apply\` only for small, truly repeated primitives (e.g. \`.btn\`). For real components, extract a React/Vue component, not a CSS class.`,
+    },
+  ],
+
+  vite: [
+    {
+      slug: "vite-env-prefix-client-exposure",
+      type: "gotcha",
+      tags: ["vite", "security", "env"],
+      body: `Only \`import.meta.env.VITE_*\` variables are exposed to client code — and they are bundled into the shipped JS.
+
+Never give a secret a \`VITE_\` prefix: it ends up readable in the browser. Keep server secrets unprefixed and read them server-side only.`,
+      sensor: {
+        pattern: "VITE_[A-Z0-9_]*(SECRET|PRIVATE|TOKEN|PASSWORD|API_?KEY)",
+        message: "A VITE_ env var with a secret-looking name is bundled into client JS — drop the VITE_ prefix and read it server-side.",
+      },
+    },
+    {
+      slug: "vite-no-process-env",
+      type: "gotcha",
+      tags: ["vite", "env"],
+      body: `\`process.env\` is not available in Vite client code — use \`import.meta.env\`.
+
+Referencing \`process.env.FOO\` in browser code throws \`process is not defined\` at runtime (or is statically undefined). Vite only replaces \`import.meta.env.*\`.`,
+    },
+  ],
+
+  sveltekit: [
+    {
+      slug: "sveltekit-env-static-private-vs-public",
+      type: "gotcha",
+      tags: ["sveltekit", "security", "env"],
+      body: `Import secrets from \`$env/static/private\` (or \`$env/dynamic/private\`) — never \`$env/static/public\`.
+
+\`$env/*/public\` (and any \`PUBLIC_\`-prefixed var) is shipped to the browser. SvelteKit refuses to import a private module into client code, but a value moved to a PUBLIC_ name is silently exposed.`,
+    },
+    {
+      slug: "sveltekit-load-runs-on-server-and-client",
+      type: "gotcha",
+      tags: ["sveltekit", "load", "ssr"],
+      body: `A universal \`load\` (in \`+page.js\`) runs on BOTH server and client. Only \`+page.server.js\` / \`+layout.server.js\` loads are server-only.
+
+Put DB access, secrets, and private fetches in \`.server\` load functions. Universal loads must be safe to run in the browser.`,
+    },
+  ],
+
+  astro: [
+    {
+      slug: "astro-islands-need-client-directive",
+      type: "gotcha",
+      tags: ["astro", "hydration", "islands"],
+      body: `Components are server-rendered to static HTML by default — interactivity requires a \`client:*\` directive.
+
+\`\`\`astro
+<Counter client:load />
+<Counter client:visible />
+\`\`\`
+Without a \`client:\` directive, event handlers and hooks simply don't run in the browser.`,
+    },
+    {
+      slug: "astro-frontmatter-runs-on-server",
+      type: "convention",
+      tags: ["astro", "ssr"],
+      body: `The component frontmatter (the code fence \`---\`) runs on the server at build/request time, not in the browser.
+
+Fetch data and read secrets there freely — it never ships to the client. Don't expect \`window\`/\`document\` in the frontmatter; guard browser APIs inside \`client:\`-hydrated components or \`<script>\` tags.`,
+    },
+  ],
+
+  typescript: [
+    {
+      slug: "typescript-no-any-prefer-unknown",
+      type: "convention",
+      tags: ["typescript", "types"],
+      body: `Avoid \`any\` — it disables type-checking for everything it touches and spreads silently. Use \`unknown\` and narrow, or a precise type.
+
+Enable \`"strict": true\` (and \`noImplicitAny\`) in tsconfig. \`unknown\` forces a check before use; \`any\` forces nothing.`,
+      sensor: {
+        pattern: ":\\s*any\\b",
+        message: "Explicit `any` disables type-checking — use `unknown` + narrowing or a precise type.",
+      },
+    },
+    {
+      slug: "typescript-no-non-null-assertion-on-untrusted",
+      type: "gotcha",
+      tags: ["typescript", "types", "safety"],
+      body: `The non-null assertion (\`value!\`) silences the compiler but does NOT check at runtime — it just crashes later if the value is actually null/undefined.
+
+Prefer a real guard (\`if (!value) throw…\`) or optional chaining. Reserve \`!\` for cases the compiler can't see but you can prove (e.g. just-initialized fields).`,
+    },
+  ],
+
+  monorepo: [
+    {
+      slug: "monorepo-pin-internal-deps-workspace-protocol",
+      type: "convention",
+      tags: ["monorepo", "turborepo", "nx", "pnpm"],
+      body: `Reference internal packages with the workspace protocol (\`"@scope/pkg": "workspace:*"\`), not a version range.
+
+A real version range makes the package manager fetch the published version from the registry instead of linking the local source — you end up testing stale code.`,
+    },
+    {
+      slug: "monorepo-declare-task-inputs-outputs",
+      type: "gotcha",
+      tags: ["monorepo", "turborepo", "nx", "caching"],
+      body: `Task caching is only correct if inputs/outputs are declared. An undeclared output (e.g. a \`dist/\` folder) means a cache hit restores nothing and downstream tasks break.
+
+In Turborepo declare \`outputs\` per task in \`turbo.json\`; in Nx declare \`outputs\` in target options. Missing/incorrect \`outputs\` is the #1 cause of "works locally, broken in CI" cache bugs.`,
+    },
+  ],
+
+  laravel: [
+    {
+      slug: "laravel-eloquent-n-plus-one",
+      type: "gotcha",
+      tags: ["laravel", "php", "eloquent", "performance"],
+      body: `Accessing a relationship in a loop triggers one query per row (N+1). Eager-load with \`with()\`.
+
+\`\`\`php
+foreach (Post::with('author')->get() as $post) { echo $post->author->name; }
+\`\`\`
+Enable \`Model::preventLazyLoading()\` in dev to catch these.`,
+    },
+    {
+      slug: "laravel-mass-assignment-fillable",
+      type: "gotcha",
+      tags: ["laravel", "php", "security"],
+      body: `\`Model::create($request->all())\` is a mass-assignment hole unless \`$fillable\` is set — a user can set columns you never intended (e.g. \`is_admin\`).
+
+Define \`$fillable\` (allow-list) on every model and validate the request before creating.`,
+    },
+  ],
+
+  rails: [
+    {
+      slug: "rails-n-plus-one-includes",
+      type: "gotcha",
+      tags: ["rails", "ruby", "activerecord", "performance"],
+      body: `Calling an association inside a loop triggers N+1 queries. Use \`includes\` to eager-load.
+
+\`\`\`ruby
+Post.includes(:author).each { |p| puts p.author.name }
+\`\`\`
+Add the \`bullet\` gem in development to detect them automatically.`,
+    },
+    {
+      slug: "rails-strong-parameters",
+      type: "convention",
+      tags: ["rails", "ruby", "security"],
+      body: `Never pass \`params\` straight to \`update\`/\`create\` — always go through strong parameters (\`params.require(:user).permit(:name, :email)\`).
+
+Permitting everything (or skipping it) lets a request set protected attributes like \`admin\`/\`role\`.`,
+    },
+  ],
+
+  dotnet: [
+    {
+      slug: "dotnet-async-no-blocking-result-wait",
+      type: "gotcha",
+      tags: ["dotnet", "csharp", "async", "deadlock"],
+      body: `Never block on async with \`.Result\` or \`.Wait()\` — it deadlocks under a synchronization context (ASP.NET classic, UI).
+
+Make the call chain async all the way up; use \`ConfigureAwait(false)\` in library code.`,
+    },
+    {
+      slug: "dotnet-httpclient-reuse",
+      type: "convention",
+      tags: ["dotnet", "csharp", "resources"],
+      body: `Don't create a new \`HttpClient\` per request — reuse one (or use \`IHttpClientFactory\`). Creating + disposing per call exhausts sockets (\`SocketException\` under load).
+
+Wrap other \`IDisposable\` resources (DbConnection, streams) in \`using\` so they're released deterministically.`,
+    },
+  ],
+
+  docker: [
+    {
+      slug: "docker-no-secrets-in-image-layers",
+      type: "gotcha",
+      tags: ["docker", "security", "secrets"],
+      body: `\`ENV\`/\`ARG\` secrets and \`COPY .env\` are baked into image layers — anyone with the image can read them via \`docker history\`, even if a later layer deletes the file.
+
+Use build secrets (\`RUN --mount=type=secret\`) or inject at runtime. Add \`.env\` to \`.dockerignore\`.`,
+    },
+    {
+      slug: "docker-pin-base-image-and-nonroot",
+      type: "convention",
+      tags: ["docker", "kubernetes", "security"],
+      body: `Pin a specific base image tag (not \`:latest\`) for reproducible builds, and run as a non-root user (\`USER app\`).
+
+Containers default to root; a container escape then runs as host root. In Kubernetes set \`securityContext.runAsNonRoot: true\`. Use multi-stage builds to keep build tooling out of the runtime image.`,
+    },
+  ],
+
 };
 
 /**
@@ -929,6 +1162,12 @@ export function autoDetectStacks(deps: Record<string, string>): StackName[] {
     ["trpc",       ["@trpc/server", "@trpc/client"]],
     ["mongoose",   ["mongoose"]],
     ["graphql",    ["@apollo/client", "@apollo/server", "apollo-server", "graphql"]],
+    ["tailwind",   ["tailwindcss"]],
+    ["vite",       ["vite"]],
+    ["sveltekit",  ["@sveltejs/kit"]],
+    ["astro",      ["astro"]],
+    ["typescript", ["typescript"]],
+    ["monorepo",   ["turbo", "nx", "@nrwl/workspace", "@nx/workspace"]],
   ];
   for (const [stack, signals] of stackDetectors) {
     if (signals.some((s) => s in deps)) detected.push(stack);
@@ -940,18 +1179,42 @@ export function autoDetectStacks(deps: Record<string, string>): StackName[] {
   return detected;
 }
 
-/** Seed memory pack files on disk. Returns count of memories written. */
+export interface SeedPackResult {
+  memories: number;
+  sensors: number;
+}
+
+/** Seed memory pack files on disk. Returns counts of memories and sensors written. */
 export async function seedStackPack(
   haivePaths: HaivePaths,
   stack: StackName,
-): Promise<number> {
+): Promise<SeedPackResult> {
   const memories = PACKS[stack];
-  if (!memories) return 0;
+  if (!memories) return { memories: 0, sensors: 0 };
 
   await mkdir(haivePaths.teamDir, { recursive: true });
 
-  let count = 0;
+  // Dedup by a STABLE signature, not the filename. `buildFrontmatter` stamps today's date into
+  // the id, so a cross-day re-seed used to produce a duplicate (e.g. the typescript pack appeared
+  // twice after a slug change). We skip a pack memory if the corpus already contains one with the
+  // same `topic` OR the same date-insensitive id signature (`type-slug`), so re-seeding is idempotent.
+  const DATE_PREFIX = /^\d{4}-\d{2}-\d{2}-/;
+  const existingTopics = new Set<string>();
+  const existingSignatures = new Set<string>();
+  if (existsSync(haivePaths.memoriesDir)) {
+    for (const { memory } of await loadMemoriesFromDir(haivePaths.memoriesDir)) {
+      if (memory.frontmatter.topic) existingTopics.add(memory.frontmatter.topic);
+      existingSignatures.add(memory.frontmatter.id.replace(DATE_PREFIX, ""));
+    }
+  }
+
+  let memCount = 0;
+  let sensorCount = 0;
   for (const mem of memories) {
+    // Quality floor: never seed low-value starter content. A pack memory earns its place only if it
+    // carries a sensor (enforceable) or is a concrete, non-generic trap. Guards against the corpus
+    // being polluted with guessable "best practice" an agent already knows.
+    if (!meetsSeedQualityFloor(mem.body, Boolean(mem.sensor))) continue;
     const sensor: Sensor | undefined = mem.sensor
       ? {
           kind: "regex",
@@ -964,22 +1227,43 @@ export async function seedStackPack(
           last_fired: null,
         }
       : undefined;
+    // Avoid doubling the stack word in the generated name/slug (e.g. a pack slug already
+    // prefixed with the stack → "typescript-typescript-no-any" → "Typescript Typescript …").
+    const combinedSlug = mem.slug === stack || mem.slug.startsWith(`${stack}-`)
+      ? mem.slug
+      : `${stack}-${mem.slug}`;
+    // Stable upsert key: survives date and slug-formatting changes across versions.
+    const topic = `stack-pack:${stack}:${mem.slug}`;
+    const signature = `${mem.type}-${combinedSlug}`;
+    if (existingTopics.has(topic) || existingSignatures.has(signature)) continue; // already seeded
     const fm = buildFrontmatter({
       type: mem.type,
-      slug: `${stack}-${mem.slug}`,
+      slug: combinedSlug,
       scope: "team",
       status: "validated",
       // STACK_PACK_TAG marks this as generic seed knowledge so briefing ranking
       // keeps it at `background` priority until it earns a repo-specific anchor.
       tags: [...mem.tags, STACK_PACK_TAG],
+      topic,
       ...(sensor ? { sensor } : {}),
     });
     const filePath = memoryFilePath(haivePaths, "team", fm.id);
-    if (existsSync(filePath)) continue; // never overwrite existing
-    const content = serializeMemory({ frontmatter: fm, body: `${mem.body}\n\n${SEED_FOOTER(stack)}` });
+    if (existsSync(filePath)) continue; // belt-and-suspenders for same-day re-runs
+    // Give the seed a clean, human title up front so the corpus normalizer doesn't synthesize an
+    // ugly one from the id (e.g. "Convention Typescript No Any Prefer Unknown"). Pre-empting it with
+    // a real "<Stack>: <Rule>" H1 keeps briefings readable.
+    const ruleSlug = combinedSlug.startsWith(`${stack}-`) ? combinedSlug.slice(stack.length + 1) : combinedSlug;
+    const titleCase = (s: string): string =>
+      s.split("-").filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    const heading = `${titleCase(stack)}: ${titleCase(ruleSlug)}`;
+    const titledBody = /^#{1,3}\s+\S/m.test(mem.body.trim()) ? mem.body : `# ${heading}\n\n${mem.body}`;
+    const content = serializeMemory({ frontmatter: fm, body: `${titledBody}\n\n${SEED_FOOTER(stack)}` });
     await mkdir(path.dirname(filePath), { recursive: true });
     await writeFile(filePath, content, "utf8");
-    count++;
+    existingTopics.add(topic);
+    existingSignatures.add(signature);
+    memCount++;
+    if (sensor) sensorCount++;
   }
-  return count;
+  return { memories: memCount, sensors: sensorCount };
 }

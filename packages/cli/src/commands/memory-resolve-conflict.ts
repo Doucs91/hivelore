@@ -10,6 +10,7 @@ import { writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { Command } from "commander";
 import {
+  applyConflictResolution,
   findProjectRoot,
   planConflictResolution,
   resolveHaivePaths,
@@ -50,15 +51,26 @@ export function registerMemoryResolveConflict(memory: Command): void {
       }
 
       const plan = planConflictResolution(a, b);
+      const winner = plan.keep_id === idA ? a : b;
       const loser = plan.supersede_id === idA ? a : b;
+      const applied = applyConflictResolution(winner, loser, plan);
 
       if (opts.json) {
-        console.log(JSON.stringify({ ...plan, applied: Boolean(opts.yes) }, null, 2));
+        console.log(JSON.stringify({
+          ...plan,
+          winner_revision_count: applied.winner.revision_count,
+          topic: applied.topic,
+          topic_adopted: applied.topic_adopted,
+          applied: Boolean(opts.yes),
+        }, null, 2));
       } else {
         console.log(ui.bold("Conflict resolution"));
-        console.log(`  keep:      ${ui.green(plan.keep_id)}`);
+        console.log(`  keep:      ${ui.green(plan.keep_id)} ${ui.dim(`(rev ${winner.memory.frontmatter.revision_count}→${applied.winner.revision_count})`)}`);
         console.log(`  supersede: ${ui.red(plan.supersede_id)} ${ui.dim(`→ deprecated`)}`);
         console.log(`  reason:    ${plan.reason}`);
+        if (applied.topic) {
+          console.log(`  topic:     ${applied.topic}${applied.topic_adopted ? ui.dim(" (adopted from superseded — future captures upsert into the winner)") : ""}`);
+        }
       }
 
       if (!opts.yes) {
@@ -66,19 +78,20 @@ export function registerMemoryResolveConflict(memory: Command): void {
         return;
       }
 
+      // Persist BOTH: promote the winner (revision/topic) and deprecate the loser, so the corpus
+      // converges on a single authoritative memory per subject instead of leaving a silent contradiction.
       await writeFile(
-        loser.filePath,
-        serializeMemory({
-          frontmatter: {
-            ...loser.memory.frontmatter,
-            status: "deprecated",
-            stale_reason: plan.stale_reason,
-            related_ids: [...new Set([...loser.memory.frontmatter.related_ids, plan.keep_id])],
-          },
-          body: loser.memory.body,
-        }),
+        winner.filePath,
+        serializeMemory({ frontmatter: applied.winner, body: winner.memory.body }),
         "utf8",
       );
-      if (!opts.json) ui.success(`Deprecated ${plan.supersede_id}; ${plan.keep_id} remains authoritative.`);
+      await writeFile(
+        loser.filePath,
+        serializeMemory({ frontmatter: applied.loser, body: loser.memory.body }),
+        "utf8",
+      );
+      if (!opts.json) {
+        ui.success(`Deprecated ${plan.supersede_id}; promoted ${plan.keep_id} (rev ${applied.winner.revision_count}${applied.topic ? `, topic=${applied.topic}` : ""}).`);
+      }
     });
 }

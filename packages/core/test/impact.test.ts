@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   compareImpact,
   computeImpact,
+  applyFeedbackAdjustment,
+  recommendFeedbackAdjustment,
   summarizeImpact,
   DEFAULT_DORMANT_DAYS,
 } from "../src/impact.js";
@@ -152,6 +154,42 @@ describe("compareImpact + summarizeImpact", () => {
     expect(s.high).toBe(1);
     expect(s.dormant).toBe(1);
     expect(s.prune_candidates).toBe(1);
+  });
+});
+
+describe("feedback adjustment recommendations", () => {
+  it("downgrades a contested block sensor to warn", () => {
+    const withBlock = fm({
+      sensor: {
+        kind: "regex",
+        pattern: "legacyField",
+        flags: undefined,
+        command: undefined,
+        paths: [],
+        message: "do not reintroduce legacyField",
+        severity: "block",
+        autogen: true,
+        last_fired: null,
+      },
+    });
+    const adjustment = recommendFeedbackAdjustment(withBlock, usage({ rejected_count: 1 }));
+    expect(adjustment.action).toBe("downgrade-block-sensor");
+    const next = applyFeedbackAdjustment(withBlock, adjustment, NOW);
+    expect(next.sensor?.severity).toBe("warn");
+    expect(next.tags).toContain("feedback-contested");
+  });
+
+  it("deprecates repeatedly rejected memories with no positive outcome", () => {
+    const adjustment = recommendFeedbackAdjustment(fm(), usage({ rejected_count: 2 }));
+    expect(adjustment.action).toBe("deprecate-memory");
+    const next = applyFeedbackAdjustment(fm(), adjustment, NOW);
+    expect(next.status).toBe("deprecated");
+    expect(next.stale_reason).toContain("rejection");
+  });
+
+  it("does not deprecate a memory with prevention outcomes", () => {
+    const adjustment = recommendFeedbackAdjustment(fm(), usage({ rejected_count: 3, prevented_count: 1 }));
+    expect(adjustment.action).toBe("none");
   });
 });
 

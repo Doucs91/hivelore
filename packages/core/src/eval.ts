@@ -65,6 +65,12 @@ export interface SensorCaseResult {
 
 export interface RetrievalAggregate {
   cases: RetrievalCaseResult[];
+  /**
+   * Top-k precision = expected hits ÷ surfaced results. Inherently LOW when only ~1 memory is
+   * expected per case but k results are surfaced (e.g. 1/8 ≈ 0.12) — this is a top-k artifact, not
+   * a quality defect. Retrieval quality is judged by `mean_recall` and `mrr`; precision is NOT part
+   * of the headline eval score (see `scoreEval`). Reported for completeness only.
+   */
   mean_precision: number;
   mean_recall: number;
   /** Mean reciprocal rank of the first expected hit — rewards ranking the right memory high. */

@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import path from "node:path";
 import { promisify } from "node:util";
 
 const exec = promisify(execFile);
@@ -32,10 +33,20 @@ const SOURCE_GLOBS = [
   "*.java", "*.kt", "*.swift", "*.rb", "*.php", "*.cs", "*.cpp", "*.c", "*.h",
 ];
 
+/**
+ * True only when `root` is the git repo root, or sits ABOVE it — NOT when `root` is a subdirectory of
+ * a larger repo. Otherwise the radar surfaces the PARENT repo's commits/churn as if they were this
+ * project's (a real leak: a fixture with a local `.ai/` but no `.git` walked up to the parent repo's
+ * history). When the git toplevel is an ancestor of `root`, the parent's history is not "this project's".
+ */
 async function isGitRepo(root: string): Promise<boolean> {
   try {
-    await exec("git", ["rev-parse", "--is-inside-work-tree"], { cwd: root });
-    return true;
+    const { stdout } = await exec("git", ["rev-parse", "--show-toplevel"], { cwd: root });
+    const toplevel = path.resolve(stdout.trim());
+    const resolvedRoot = path.resolve(root);
+    if (toplevel === resolvedRoot) return true;
+    // Allow the toplevel being INSIDE root (root contains the repo); reject it being an ANCESTOR.
+    return toplevel.startsWith(resolvedRoot + path.sep);
   } catch {
     return false;
   }
