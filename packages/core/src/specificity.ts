@@ -90,3 +90,28 @@ export const GUESSABLE_THRESHOLD = 0.3;
 export function isLikelyGuessable(body: string, threshold: number = GUESSABLE_THRESHOLD): boolean {
   return specificityScore(body) < threshold;
 }
+
+/**
+ * Quality floor for SEEDED memories (stack packs, ingested findings) — the guard against shipping
+ * low-value "use const not var" starter content. A seed earns its place only if it is either:
+ *   - ENFORCEABLE: it carries a hand-authored sensor (its value is the gate, not its prose), or
+ *   - SPECIFIC: it reads as a concrete framework/repo trap (specificity >= floor) and is NOT
+ *     generic best-practice prose a capable model already follows.
+ * Used both at seed time (skip a memory that fails) and as a CI guard over the shipped pack library.
+ *
+ * The floor (0.2) is intentionally LOWER than {@link GUESSABLE_THRESHOLD} (0.3, used to lint claimed
+ * team knowledge): a seed is explicitly background-priority framework REFERENCE, not a claim of
+ * non-guessable team policy, so a concrete framework gotcha with a code example clears it — while
+ * genuine garbage ("use const", "write tests") still scores ~0 and/or trips looksLikeGenericAdvice.
+ */
+export const SEED_QUALITY_FLOOR = 0.2;
+
+export function meetsSeedQualityFloor(
+  body: string,
+  hasSensor: boolean,
+  floor: number = SEED_QUALITY_FLOOR,
+): boolean {
+  if (hasSensor) return true;
+  if (looksLikeGenericAdvice(body)) return false;
+  return specificityScore(body) >= floor;
+}

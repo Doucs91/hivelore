@@ -11,6 +11,7 @@ import path from "node:path";
 import {
   buildFrontmatter,
   loadMemoriesFromDir,
+  meetsSeedQualityFloor,
   memoryFilePath,
   serializeMemory,
   STACK_PACK_TAG,
@@ -47,7 +48,7 @@ export type StackName = "nestjs" | "nextjs" | "remix" | "react" | "express" | "f
   | "tailwind" | "vite" | "sveltekit" | "astro" | "typescript" | "monorepo"
   | "laravel" | "rails" | "dotnet" | "docker";
 
-const PACKS: Record<StackName, PackMemory[]> = {
+export const PACKS: Record<StackName, PackMemory[]> = {
   nestjs: [
     {
       slug: "jwtmodule-requires-secret",
@@ -84,6 +85,11 @@ app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: t
 
 Controller → Service → Repository (or direct ORM) is the required layering.
 Direct ORM usage in controllers makes testing impossible and couples transport to persistence.`,
+      sensor: {
+        pattern: "@prisma/client|PrismaClient|getRepository\\(|createQueryBuilder\\(",
+        paths: ["**/*.controller.ts"],
+        message: "ORM/Prisma used directly in a controller — move persistence into a Service (Controller → Service → Repository).",
+      },
     },
     {
       slug: "nestjs-exception-filter-for-prisma",
@@ -275,6 +281,10 @@ Routes without schema accept any body and bypass Fastify's fast-json-stringify s
 Calling $disconnect() after each request wastes the warm connection pool.
 Create one PrismaClient per process (module-level singleton), not per request.
 Disconnecting is only needed when the process is shutting down.`,
+      sensor: {
+        pattern: "\\$disconnect\\(\\)",
+        message: "prisma.$disconnect() per request drains the warm connection pool in serverless — use a module-level PrismaClient singleton and only disconnect on shutdown.",
+      },
     },
     {
       slug: "prisma-migrations-never-modify",
@@ -333,6 +343,10 @@ const count = useStore((s) => s.count);
 \`\`\`
 
 Subscribing to the whole store is the single most common Zustand performance mistake.`,
+      sensor: {
+        pattern: "use[A-Z]\\w*Store\\(\\s*\\)",
+        message: "A Zustand store hook called with no selector subscribes to the WHOLE store (re-renders on any change) — pass a slice selector: useStore(s => s.field).",
+      },
     },
     {
       slug: "zustand-devtools-wrap-dev-only",
@@ -557,7 +571,8 @@ const users = await User.find({});
 const users = await User.find({}).lean();
 \`\`\`
 
-Never use .lean() when you need to call .save() or Mongoose instance methods.`,
+\`.lean()\` skips hydration into a Mongoose \`Document\`, so getters, virtuals, \`toObject()\` and
+instance methods are gone. Never use \`.lean()\` when you then call \`.save()\` or instance methods.`,
     },
     {
       slug: "mongoose-index-frequently-queried-fields",
@@ -781,6 +796,10 @@ db.execute(f"SELECT * FROM users WHERE id = {uid}")
 # ✅
 db.execute("SELECT * FROM users WHERE id = %s", (uid,))
 \`\`\``,
+      sensor: {
+        pattern: "execute\\(\\s*f[\"']",
+        message: "SQL built with an f-string inside execute() — SQL injection risk; use a parameterized query: execute(\"… %s …\", (params,)).",
+      },
     },
   ],
 
@@ -1192,6 +1211,10 @@ export async function seedStackPack(
   let memCount = 0;
   let sensorCount = 0;
   for (const mem of memories) {
+    // Quality floor: never seed low-value starter content. A pack memory earns its place only if it
+    // carries a sensor (enforceable) or is a concrete, non-generic trap. Guards against the corpus
+    // being polluted with guessable "best practice" an agent already knows.
+    if (!meetsSeedQualityFloor(mem.body, Boolean(mem.sensor))) continue;
     const sensor: Sensor | undefined = mem.sensor
       ? {
           kind: "regex",
