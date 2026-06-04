@@ -29,7 +29,7 @@ last_read_at: null
 revision_count: 0
 requires_human_approval: false
 ---
-# Convention Typescript Typescript No Any Prefer Unknown
+# TypeScript: avoid `any`, prefer `unknown`
 
 Avoid `any` — it disables type-checking for everything it touches and spreads silently. Use `unknown` and narrow, or a precise type.
 

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-06-03T22:53:20.639Z",
+  "generated_at": "2026-06-03T23:41:52.082Z",
   "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -312,10 +312,10 @@
         {
           "name": "registerInit",
           "kind": "function",
-          "line": 255
+          "line": 235
         }
       ],
-      "loc": 888
+      "loc": 898
     },
     "packages/cli/src/commands/install-hooks.ts": {
       "exports": [
@@ -1093,10 +1093,10 @@
           "name": "generateBridges",
           "kind": "function",
           "description": "Generate bridge file content for the requested targets.",
-          "line": 282
+          "line": 298
         }
       ],
-      "loc": 296
+      "loc": 312
     },
     "packages/core/src/briefing-body.ts": {
       "summary": "Strip memory markdown down to actionable bullet lines — cheaper for briefing payloads.",

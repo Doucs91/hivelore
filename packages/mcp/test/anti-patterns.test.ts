@@ -649,6 +649,51 @@ describe("preCommitCheck", () => {
     expect(warning.level).toBe("review");
   });
 
+  it("demotes a non-anchored memory whose deterministic sensor did NOT fire to info (precision)", () => {
+    // Noise reduction (#2): a memory carries a sensor, the sensor did not fire, and it is not
+    // anchored to a touched file → strong evidence of non-violation → info (hidden), not review.
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-has-sensor-not-fired",
+      type: "gotcha",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "an unrelated gotcha that happens to carry a regex sensor",
+      reasons: ["literal", "semantic"],
+      semantic_score: 0.66,
+      has_sensor: true,
+      anchor_paths: ["packages/mcp/package.json"],
+    }, ["packages/core/src/probe.ts"], false);
+
+    expect(warning.level).toBe("info");
+    expect(warning.rationale).toMatch(/sensor that did not fire/);
+  });
+
+  it("raises the uncorroborated semantic review floor to 0.65 (noise reduction)", () => {
+    const below = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-weak-semantic",
+      type: "gotcha",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "weak semantic-only match against generic text",
+      reasons: ["semantic"],
+      semantic_score: 0.62,
+      anchor_paths: [],
+    }, ["packages/core/src/probe.ts"], false);
+    expect(below.level).toBe("info"); // 0.62 < 0.65 → hidden as noise
+
+    const above = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-ok-semantic",
+      type: "gotcha",
+      scope: "team",
+      confidence: "authoritative",
+      body_preview: "stronger semantic match worth a human's attention",
+      reasons: ["semantic"],
+      semantic_score: 0.7,
+      anchor_paths: [],
+    }, ["packages/core/src/probe.ts"], false);
+    expect(above.level).toBe("review"); // 0.7 >= 0.65 → review
+  });
+
   it("anchored gate still does NOT block a non-anchored config-token match (false-positive guard)", () => {
     // The documented false-positive class: a NON-anchored gotcha matching a config file only via
     // broad tokens (npm/install/package.json). The anchored gate requires an anchor reason, and

@@ -22,7 +22,7 @@ last_read_at: null
 revision_count: 0
 requires_human_approval: false
 ---
-# Gotcha Typescript Typescript No Non Null Assertion On Untrusted
+# TypeScript: non-null assertion (`!`) is not a runtime check
 
 The non-null assertion (`value!`) silences the compiler but does NOT check at runtime — it just crashes later if the value is actually null/undefined.
 

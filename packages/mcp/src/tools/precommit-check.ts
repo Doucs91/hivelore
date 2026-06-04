@@ -313,12 +313,27 @@ function classifyWarning(
     };
   }
 
+  // Sensor veto for review: a memory that carries a deterministic sensor which did NOT fire, and is
+  // not anchored to any touched file, is strong evidence the diff does not contain its pattern — the
+  // sensor is the authoritative check. Surfacing it as "review" is pure noise (this was the bulk of
+  // the 11 review hits on a 3-line `: any` diff). Demote to info (hidden in concise output).
+  if (warning.has_sensor && !warning.reasons.includes("sensor") && !warning.reasons.includes("anchor")) {
+    return {
+      ...warning,
+      level: "info",
+      rationale:
+        "memory has a deterministic sensor that did not fire and is not anchored to a touched file — treated as non-violation noise",
+      affected_files: affectedFiles,
+      repair_command: repairCommand,
+    };
+  }
+
   // A bare semantic match (not anchored to a touched file, no distinctive token) needs a stronger
-  // score to be worth a human's attention. At 0.45–0.6 against generic text it is mostly noise — and
+  // score to be worth a human's attention. At 0.45–0.65 against generic text it is mostly noise — and
   // review noise trains agents to ignore the gate. Corroborated matches (anchored or distinctive
   // literal) keep the lower 0.45 bar; everything weaker falls through to "info" (hidden by default).
   const corroborated = warning.reasons.includes("anchor") || warning.distinctive_literal === true;
-  const semanticReviewFloor = corroborated ? 0.45 : 0.6;
+  const semanticReviewFloor = corroborated ? 0.45 : 0.65;
   if (
     (hasSemantic && semanticScore >= semanticReviewFloor) ||
     (highConfidence && warning.reasons.includes("anchor") && warning.reasons.includes("literal"))

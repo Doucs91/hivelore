@@ -34,7 +34,11 @@ const REVERT_RE = /^Revert\s+"(.+)"\s*$/i;
 const FIXUP_RE = /^(?:fixup!|hotfix[:!]|fix[:!]\s*revert|revert\s+revert)/i;
 const URGENT_FIX_RE = /\b(hotfix|urgent fix|emergency fix|critical fix|broke production|broken build)\b/i;
 // A commit that admits a stop-gap encodes a known trap: the "right" fix is still owed.
-const WORKAROUND_RE = /\b(workaround|work around|hack(?:y|ish)?|band[- ]?aid|temporary fix|temp fix|quick fix|kludge|monkey[- ]?patch|stop[- ]?gap|FIXME|XXX)\b/i;
+// The leading `(?<![\w-])` stops compound *nouns* (a feature literally named "env-workaround",
+// "X-workaround") from being mistaken for an admission of bricolage — that produced a meaningless
+// seed for `chore: apply env-workaround down-rank to corpus`. FIXME/XXX are deliberately excluded:
+// they belong in code, not commit subjects, where they were pure noise.
+const WORKAROUND_RE = /(?<![\w-])(?:work[\s-]?around|band[\s-]?aid|temporary fix|temp fix|quick[\s-]?fix|kludge|monkey[\s-]?patch|stop[\s-]?gap)(?![\w-])|\bhack(?:y|ish)?\b/i;
 
 function slugify(text: string): string {
   return (

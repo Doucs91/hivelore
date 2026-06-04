@@ -43,6 +43,14 @@ describe("proposeSeedsFromCommits", () => {
     expect(out.map((o) => o.kind)).toEqual(["workaround", "workaround"]);
   });
 
+  it("does NOT treat a compound feature name ('env-workaround') as a workaround admission", () => {
+    const out = proposeSeedsFromCommits([
+      c("x1", "chore: apply env-workaround down-rank to existing corpus"),
+      c("x2", "feat: add workaround-registry module"),
+    ]);
+    expect(out).toHaveLength(0);
+  });
+
   it("dedupes by slug and respects the limit", () => {
     const commits = [
       c("1", 'Revert "same change"'),

@@ -5,17 +5,21 @@ import path from "node:path";
 import { Command } from "commander";
 import {
   antiPatternGateParams,
+  BRIDGE_TARGET_PATH,
   findProjectRoot,
   findUncapturedFailures,
   hasRecentBriefingMarker,
   isFreshIsoDate,
+  isRetiredMemory,
   loadConfig,
   loadMemoriesFromDir,
   memoryMatchesAnchorPaths,
   readRecentBriefingMarker,
   resolveBriefingBudget,
   resolveHaivePaths,
+  runSensors,
   saveConfig,
+  sensorTargetsFromDiff,
   SESSION_RECAP_TTL_MS,
   verifyAnchor,
   writeBriefingMarker,
@@ -1114,20 +1118,111 @@ async function runPrecommitPolicy(
     anchored_blocks,
     semantic: true,
   }, { paths });
+
+  // Deterministic regex sensors — the precise/computational layer. Previously these
+  // only ran via the standalone `haive sensors check` and never on a real commit
+  // (see 2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate). Run them here
+  // so a promoted block sensor actually blocks and warn sensors surface in the gate,
+  // covering convention/architecture sensors the fuzzy anti-pattern matcher skips.
+  const sensorFindings = await runSensorGate(paths, snapshot.diff);
+
   if (!result.should_block) {
-    return [{
-      severity: "ok",
-      code: "precommit-policy-pass",
-      message: `${stage === "ci" ? "CI" : "Pre-commit"} policy passed for ${touchedPaths.length} changed file(s).`,
-    }];
+    return [
+      {
+        severity: "ok",
+        code: "precommit-policy-pass",
+        message: `${stage === "ci" ? "CI" : "Pre-commit"} policy passed for ${touchedPaths.length} changed file(s).`,
+      },
+      ...sensorFindings,
+    ];
   }
-  return [{
-    severity: "error",
-    code: "precommit-policy-block",
-    message: `Pre-commit policy matched ${result.summary.blocking_warnings ?? result.summary.anti_patterns} blocking anti-pattern(s), ${result.summary.stale_anchors} stale anchor(s).`,
-    fix: "Review the hAIve warnings, then update the code or the relevant memories.",
-    impact: 45,
-  }];
+  return [
+    {
+      severity: "error",
+      code: "precommit-policy-block",
+      message: `Pre-commit policy matched ${result.summary.blocking_warnings ?? result.summary.anti_patterns} blocking anti-pattern(s), ${result.summary.stale_anchors} stale anchor(s).`,
+      fix: "Review the hAIve warnings, then update the code or the relevant memories.",
+      impact: 45,
+    },
+    ...sensorFindings,
+  ];
+}
+
+/**
+ * Files hAIve itself owns/generates — scanning them with sensors self-matches the very
+ * memories they mirror (a memory body documenting a bad pattern contains that pattern).
+ * Mirrors `isHaiveOwnedPath` in the MCP anti-pattern check, kept local to avoid a new export.
+ */
+const SENSOR_OWNED_FILES = new Set<string>([
+  ...Object.values(BRIDGE_TARGET_PATH),
+  "CLAUDE.md",
+  ".cursorrules",
+  ".gitignore",
+  ".mcp.json",
+  ".cursor/mcp.json",
+  ".vscode/mcp.json",
+  ".cursor/rules/haive-mcp-required.mdc",
+]);
+
+function isSensorScannablePath(p: string): boolean {
+  if (!p) return false;
+  if (p.startsWith(".ai/")) return false;
+  return !SENSOR_OWNED_FILES.has(p);
+}
+
+/**
+ * Run the repo's regex sensors against the staged diff and turn hits into findings:
+ * a `block`-severity sensor → error (fails the gate); a `warn` sensor → warn (visible,
+ * non-blocking). Read-only and best-effort: a sensor bug must never break a commit.
+ */
+async function runSensorGate(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  diff: string,
+): Promise<EnforcementFinding[]> {
+  if (!diff || !existsSync(paths.memoriesDir)) return [];
+  try {
+    const loaded = await loadMemoriesFromDir(paths.memoriesDir);
+    const sensorMemories = loaded
+      .map((l) => l.memory)
+      .filter((m) => {
+        const s = m.frontmatter.sensor;
+        return Boolean(s) && s!.kind === "regex" && !isRetiredMemory(m.frontmatter, m.body);
+      });
+    if (sensorMemories.length === 0) return [];
+
+    // Only scan real code targets — never hAIve-owned/`.ai/` files (self-match guard).
+    const targets = sensorTargetsFromDiff(diff).filter((t) => isSensorScannablePath(t.path));
+    if (targets.length === 0) return [];
+
+    const hits = runSensors(sensorMemories, targets);
+    const findings: EnforcementFinding[] = [];
+    const seen = new Set<string>();
+    for (const hit of hits) {
+      if (seen.has(hit.memory_id)) continue;
+      seen.add(hit.memory_id);
+      const where = hit.file ? ` (${hit.file})` : "";
+      if (hit.severity === "block") {
+        findings.push({
+          severity: "error",
+          code: "sensor-block",
+          message: `Block sensor fired — ${hit.memory_id}: ${hit.message}${where}`,
+          fix: "Remove the flagged pattern, or run `haive sensors check` to inspect the match.",
+          impact: 45,
+        });
+      } else {
+        findings.push({
+          severity: "warn",
+          code: "sensor-warn",
+          message: `Sensor flagged ${hit.memory_id}: ${hit.message}${where}`,
+          fix: "Review the flagged line; `haive sensors check` shows the matched code.",
+          impact: 5,
+        });
+      }
+    }
+    return findings;
+  } catch {
+    return []; // best-effort: never break the gate on a sensor error
+  }
 }
 
 async function findGeneratedArtifacts(paths: ReturnType<typeof resolveHaivePaths>): Promise<EnforcementFinding[]> {

@@ -168,3 +168,7 @@
 {"tool":"mem_save","at":"2026-06-03T22:13:56.422Z","summary":"reach-coldstart-2agent-plan-vs-memories-sh"}
 {"tool":"get_briefing","at":"2026-06-03T23:03:35.632Z","summary":"Wire haive init to generate ALL native bridges (via the bridges generator) after seeding so they carry seeded memories+sensors; replace legacy .cursorrules with .cursor/rules/*.mdc; improve bridge generation quality to be best-in-class reach."}
 {"tool":"mem_save","at":"2026-06-03T23:18:30.284Z","summary":"init-generates-all-bridges-reach-onboarding"}
+{"tool":"get_briefing","at":"2026-06-03T23:47:01.419Z","summary":"Add a new MCP tool under packages/mcp/src/tools and register it in server.ts"}
+{"tool":"pre_commit_check","at":"2026-06-03T23:49:36.046Z","summary":"1p"}
+{"tool":"mem_save","at":"2026-06-03T23:51:26.741Z","summary":"regex-sensors-orphaned-from-precommit-gate"}
+{"tool":"pre_commit_check","at":"2026-06-04T00:17:28.579Z","summary":"1p"}

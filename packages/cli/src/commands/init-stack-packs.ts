@@ -1189,9 +1189,14 @@ export async function seedStackPack(
           last_fired: null,
         }
       : undefined;
+    // Avoid doubling the stack word in the generated name/slug (e.g. a pack slug already
+    // prefixed with the stack → "typescript-typescript-no-any" → "Typescript Typescript …").
+    const combinedSlug = mem.slug === stack || mem.slug.startsWith(`${stack}-`)
+      ? mem.slug
+      : `${stack}-${mem.slug}`;
     const fm = buildFrontmatter({
       type: mem.type,
-      slug: `${stack}-${mem.slug}`,
+      slug: combinedSlug,
       scope: "team",
       status: "validated",
       // STACK_PACK_TAG marks this as generic seed knowledge so briefing ranking

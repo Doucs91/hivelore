@@ -2,7 +2,7 @@
 id: 2026-05-04-gotcha-pattern-detect-slug-collision-same-filename
 scope: team
 type: gotcha
-status: validated
+status: deprecated
 anchor:
   paths:
     - packages/mcp/src/tools/pattern-detect.ts

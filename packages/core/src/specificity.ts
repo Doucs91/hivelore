@@ -71,6 +71,18 @@ export function specificityScore(body: string): number {
   return score;
 }
 
+/**
+ * True when a body uses generic best-practice phrasing a capable model already follows.
+ * Used to SCOPE the LOW_VALUE lint: a low-density body is only "guessable noise" when it also
+ * reads like generic advice. An arbitrary team *policy* can be prose-y yet unguessable (e.g.
+ * "UI text in English, user content in any language") — that must NOT be flagged. Positive
+ * evidence (a generic phrase) keeps the lint high-precision and kills that false positive.
+ */
+export function looksLikeGenericAdvice(body: string): boolean {
+  const lower = (body ?? "").toLowerCase();
+  return GENERIC_PHRASES.some((p) => lower.includes(p));
+}
+
 /** Default threshold below which a memory is considered likely-guessable (low marginal value). */
 export const GUESSABLE_THRESHOLD = 0.3;
 
