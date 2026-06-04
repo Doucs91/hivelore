@@ -56,10 +56,16 @@ Lesson: re-verify a "verified" claim by tracing the *installed* path, not the co
 - C/P2-6 (gate precision) ✅ DONE earlier: `haive dashboard` shows precision + tuning suggestion; `eval --fail-under-gate-precision` gates CI.
 - B/P0-2 ✅ DONE earlier: `enforce finish` has `checkFailureCapture` (blocks on uncaptured detected failures).
 - P1 (eval trend) ✅ DONE earlier: `eval --record`/`--trend`/`--regression-gate`.
-- D/P1-3: coverage-gap detection (uncovered hot files) — `failure-coverage.ts` exists; broaden to usage-log hot files. STILL OPEN.
-- E/P2-5: `conflict-candidates` guided supersede into topic-upsert. STILL OPEN.
+- D/P1-3 ✅ DONE (v0.23.0): `haive coverage` crosses the corpus with git churn AND agent-edit hot files
+  from `observations.jsonl` (`tallyHotFiles`/`mergeHotFiles`, `--source git|agent|both`, per-gap source tag).
+- E/P2-5 ✅ DONE (v0.23.0): guided supersede — `applyConflictResolution` promotes the winner
+  (revision_count++, adopts the loser's topic so future captures consolidate); `mem_conflict_candidates`
+  attaches a `suggested_resolution` + apply command to every pair.
 - F/P3-7: cold-start seeding — `seed-git` / `ingest` / stack packs shipped; keep widening. MOSTLY DONE.
 - H/P3-8 ✅ DONE earlier: `.ai/` merge driver shipped (v0.15.0).
+
+**As of v0.23.0 the entire original harness-positioning backlog (A–H) is closed except F (cold-start,
+ongoing by nature). The existing loop is "perfected"; next work should be net-new, not gap-filling.**
 
 **Out of scope (do NOT expand into):** Behaviour harness (test gen/verification) — that's a
 different product; hAIve complements tests, never replaces them.
