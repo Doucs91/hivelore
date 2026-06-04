@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { proposeSeedsFromCommits, type GitCommit } from "../src/seed-git.js";
+import { isNoiseSubject, proposeSeedsFromCommits, type GitCommit } from "../src/seed-git.js";
 
 function c(sha: string, subject: string, files: string[] = []): GitCommit {
   return { sha, subject, files };
@@ -60,5 +60,28 @@ describe("proposeSeedsFromCommits", () => {
     const out = proposeSeedsFromCommits(commits);
     expect(out).toHaveLength(2);
     expect(proposeSeedsFromCommits(commits, 1)).toHaveLength(1);
+  });
+});
+
+describe("seed-git quality floor (noise subjects)", () => {
+  it("isNoiseSubject flags merge/bump/deps/wip/format, not real lessons", () => {
+    expect(isNoiseSubject("Merge branch 'feature/login'")).toBe(true);
+    expect(isNoiseSubject("bump deps")).toBe(true);
+    expect(isNoiseSubject("update dependencies")).toBe(true);
+    expect(isNoiseSubject("v1.2.3")).toBe(true);
+    expect(isNoiseSubject("wip: trying stuff")).toBe(true);
+    expect(isNoiseSubject("prettier")).toBe(true);
+    expect(isNoiseSubject("add Stripe webhook idempotency key")).toBe(false);
+  });
+
+  it("does not propose seeds from reverted/fixed noise commits", () => {
+    const out = proposeSeedsFromCommits([
+      c("a1", 'Revert "Merge branch \'main\' into dev"', ["x.ts"]),
+      c("a2", 'Revert "bump deps"'),
+      c("a3", "hotfix: update dependencies"),
+      c("a4", 'Revert "add Stripe webhook idempotency key"', ["src/pay.ts"]),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.what).toBe("add Stripe webhook idempotency key");
   });
 });

@@ -37,6 +37,10 @@ export const IngestFindingsInputSchema = {
     .enum(["info", "minor", "major", "critical", "blocker"])
     .optional()
     .describe("Ignore findings below this severity"),
+  include_stylistic: z
+    .boolean()
+    .optional()
+    .describe("Also ingest auto-fixable stylistic rules (semi/quotes/prefer-const…); off by default as low-value noise"),
   limit: z.number().int().positive().optional().describe("Cap the number of memories created"),
   author: z.string().optional().describe("Author handle or email"),
   dry_run: z
@@ -93,6 +97,7 @@ export async function ingestFindings(
     module: input.module,
     author: input.author,
     ...(input.min_severity ? { minSeverity: input.min_severity } : {}),
+    ...(input.include_stylistic ? { includeStylistic: true } : {}),
     ...(input.limit ? { limit: input.limit } : {}),
   });
 

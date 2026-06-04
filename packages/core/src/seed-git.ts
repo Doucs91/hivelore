@@ -40,6 +40,20 @@ const URGENT_FIX_RE = /\b(hotfix|urgent fix|emergency fix|critical fix|broke pro
 // they belong in code, not commit subjects, where they were pure noise.
 const WORKAROUND_RE = /(?<![\w-])(?:work[\s-]?around|band[\s-]?aid|temporary fix|temp fix|quick[\s-]?fix|kludge|monkey[\s-]?patch|stop[\s-]?gap)(?![\w-])|\bhack(?:y|ish)?\b/i;
 
+/**
+ * Quality floor for git seeds: a reverted/fixed *merge*, *version bump*, *dependency update* or *wip*
+ * commit is mechanical noise, not a repo-specific lesson — seeding it just clutters the corpus. The
+ * specificity floor doesn't fit here (a seed body is mostly boilerplate prose), so the right gate is a
+ * subject denylist on the thing that was reverted/fixed.
+ */
+const SUBJECT_NOISE_RE =
+  /^(?:merge\b|merge branch|merge pull request|bump\b|bumps?\b|release\b|releases?\b|v?\d+\.\d+\.\d+(?:[-.\w]*)?$|wip\b|update (?:deps|dependencies|lockfile|snapshots?|submodules?)|dependenc(?:y|ies) updates?|chore\(deps|deps:|lint(?:ing)?\b|format(?:ting)?\b|prettier\b|reformat\b|typo\b)/i;
+
+/** True when a reverted/fixed subject is mechanical noise (merge/bump/deps/wip/format), not a lesson. */
+export function isNoiseSubject(subject: string): boolean {
+  return SUBJECT_NOISE_RE.test(subject.trim());
+}
+
 function slugify(text: string): string {
   return (
     text
@@ -79,6 +93,7 @@ export function proposeSeedsFromCommits(
     }
 
     if (!what || !kind) continue;
+    if (isNoiseSubject(what)) continue; // merge/bump/deps/wip/format — mechanical, not a lesson
     const slug = slugify(what);
     if (seen.has(slug)) continue;
     seen.add(slug);

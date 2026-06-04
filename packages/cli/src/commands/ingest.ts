@@ -44,6 +44,7 @@ interface IngestOptions {
   module?: string;
   type?: "gotcha" | "convention";
   minSeverity?: FindingSeverity;
+  includeStylistic?: boolean;
   limit?: string;
   author?: string;
   json?: boolean;
@@ -84,6 +85,7 @@ export function registerIngest(program: Command): void {
     .option("--module <name>", "module name (required when scope=module)")
     .option("--type <type>", "memory type: gotcha | convention", "gotcha")
     .option("--min-severity <severity>", "ignore findings below this severity (info|minor|major|critical|blocker)")
+    .option("--include-stylistic", "also ingest auto-fixable stylistic rules (semi/quotes/prefer-const…); off by default as low-value noise", false)
     .option("--limit <n>", "cap the number of memories created")
     .option("--author <author>", "author email or handle")
     .option("--json", "emit JSON", false)
@@ -154,14 +156,17 @@ export function registerIngest(program: Command): void {
       }
 
       let drafts: MemoryDraft[];
+      let findingsCount = 0;
       try {
         const findings = parseFindings(parseFormat, raw, { cwd: root });
+        findingsCount = findings.length;
         drafts = draftsFromFindings(findings, {
           type: opts.type ?? "gotcha",
           scope: opts.scope ?? "team",
           module: opts.module,
           author: opts.author,
           ...(opts.minSeverity ? { minSeverity: opts.minSeverity } : {}),
+          ...(opts.includeStylistic ? { includeStylistic: true } : {}),
           ...(opts.limit ? { limit: Math.max(0, Number.parseInt(opts.limit, 10) || 0) } : {}),
         });
       } catch (err) {
@@ -187,7 +192,9 @@ export function registerIngest(program: Command): void {
           JSON.stringify(
             {
               format,
+              findings: findingsCount,
               parsed: drafts.length,
+              filtered_low_value: Math.max(0, findingsCount - drafts.length),
               new: fresh.length,
               skipped_existing: skipped,
               dry_run: Boolean(opts.dryRun),
@@ -207,9 +214,11 @@ export function registerIngest(program: Command): void {
         return;
       }
 
+      const filteredLowValue = Math.max(0, findingsCount - drafts.length);
       console.log(
         ui.bold(
-          `hAIve ingest (${format}) — ${drafts.length} finding(s), ${fresh.length} new` +
+          `hAIve ingest (${format}) — ${findingsCount} finding(s), ${fresh.length} new` +
+          (filteredLowValue > 0 ? `, ${filteredLowValue} low-value/stylistic filtered` : "") +
           (skipped > 0 ? `, ${skipped} already ingested` : ""),
         ),
       );

@@ -1,6 +1,7 @@
 import type { MemoryFrontmatter } from "./types.js";
 import { buildFrontmatter } from "./parser.js";
 import { suggestSensorFromMemory } from "./sensor-suggest.js";
+import { meetsSeedQualityFloor } from "./specificity.js";
 
 /**
  * Findings ingestion — the self-feeding half of the sensors story (feature B).
@@ -67,6 +68,24 @@ export interface DraftsOptions extends DraftOptions {
   limit?: number;
   /** Only ingest findings at or above this severity. Default: none (all). */
   minSeverity?: FindingSeverity;
+  /** Include auto-fixable stylistic rules (semi/quotes/indent/prefer-const…). Default false — they are
+   *  linter-autofix noise, not lessons worth a memory. */
+  includeStylistic?: boolean;
+}
+
+/**
+ * Auto-fixable stylistic / formatting rules. Seeding a memory for "missing semicolon" or
+ * "prefer const" is pure clutter: a linter fixes them and a capable model already follows them. We
+ * match the rule's last segment so prefixed ids (`@typescript-eslint/semi`, `prettier/prettier`) are
+ * caught. This is the ingest-side quality floor — specificity scoring can't catch it (a finding body
+ * is always concrete: it has a file path and line).
+ */
+const STYLISTIC_RULE_RE =
+  /(?:^|[/:])(?:prettier|semi|semi-spacing|no-extra-semi|quotes|jsx-quotes|quote-props|indent|comma-dangle|comma-spacing|comma-style|eol-last|linebreak-style|no-trailing-spaces|no-multiple-empty-lines|no-multi-spaces|object-curly-spacing|array-bracket-spacing|block-spacing|space-before-blocks|space-before-function-paren|space-infix-ops|space-in-parens|keyword-spacing|arrow-spacing|key-spacing|func-call-spacing|padded-blocks|padding-line-between-statements|brace-style|spaced-comment|max-len|prefer-const|no-var)(?:$|[/:])/i;
+
+/** True when a finding's rule is pure auto-fixable formatting/style (no lesson value as a seed). */
+export function isStylisticRule(ruleId: string): boolean {
+  return STYLISTIC_RULE_RE.test(ruleId ?? "");
 }
 
 const SEVERITY_RANK: Record<FindingSeverity, number> = {
@@ -380,7 +399,13 @@ export function draftsFromFindings(findings: Finding[], options: DraftsOptions =
     if (SEVERITY_RANK[finding.severity] < minRank) continue;
     if (seen.has(finding.key)) continue;
     seen.add(finding.key);
-    drafts.push(findingToDraft(finding, options));
+    // Quality floor (ingest): drop auto-fixable stylistic noise, and drop a draft that has no sensor
+    // and reads as generic/low-signal (backstop — finding bodies are usually concrete, so this rarely
+    // fires, but it keeps the corpus free of empty seeds).
+    if (!options.includeStylistic && isStylisticRule(finding.ruleId)) continue;
+    const draft = findingToDraft(finding, options);
+    if (!meetsSeedQualityFloor(draft.body, draft.has_sensor)) continue;
+    drafts.push(draft);
     if (options.limit !== undefined && drafts.length >= options.limit) break;
   }
   return drafts;

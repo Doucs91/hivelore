@@ -183,3 +183,4 @@
 {"tool":"mem_save","at":"2026-06-04T16:57:04.287Z","summary":"haive-state-assessment-v023-grounded"}
 {"tool":"mem_session_end","at":"2026-06-04T19:55:33.095Z","summary":"Attack every weakness from the grounded state assessment and implement fixes in "}
 {"tool":"mem_session_end","at":"2026-06-04T20:27:14.951Z","summary":"Test the cold-start seed quality in real conditions (installed v0.24.0) and rais"}
+{"tool":"get_briefing","at":"2026-06-04T20:45:07.428Z","summary":"Extend the seed quality floor (meetsSeedQualityFloor) to ingested findings (haive ingest / ingest_findings) and seed-git drafts so low-value proposals are filtered; harden the flaky embeddings CLI test."}

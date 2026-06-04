@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   draftsFromFindings,
+  isStylisticRule,
   filterNewDrafts,
   findingToDraft,
   normalizeFindingSeverity,
@@ -234,5 +235,44 @@ describe("parseFindings dispatch", () => {
   it("routes eslint and npm-audit formats", () => {
     expect(parseFindings("eslint", JSON.stringify([{ filePath: "a.ts", messages: [{ ruleId: "r", severity: 2, message: "m" }] }]))[0]!.tool).toBe("eslint");
     expect(parseFindings("npm-audit", JSON.stringify({ vulnerabilities: { p: { name: "p", severity: "info", via: [] } } }))[0]!.tool).toBe("npm-audit");
+  });
+});
+
+describe("ingest quality floor", () => {
+  const F = (ruleId: string, extra: Partial<Finding> = {}): Finding => ({
+    tool: "eslint",
+    ruleId,
+    message: extra.message ?? `${ruleId} violated`,
+    severity: extra.severity ?? "major",
+    path: extra.path ?? "src/app.ts",
+    line: extra.line ?? 10,
+    key: `eslint:${ruleId}:${extra.path ?? "src/app.ts"}`,
+    ...(extra.snippet ? { snippet: extra.snippet } : {}),
+  });
+
+  it("isStylisticRule flags auto-fixable formatting rules (incl. prefixed ids)", () => {
+    expect(isStylisticRule("semi")).toBe(true);
+    expect(isStylisticRule("@typescript-eslint/semi")).toBe(true);
+    expect(isStylisticRule("prettier/prettier")).toBe(true);
+    expect(isStylisticRule("prefer-const")).toBe(true);
+    expect(isStylisticRule("no-eval")).toBe(false);
+    expect(isStylisticRule("typescript:S2068")).toBe(false);
+  });
+
+  it("draftsFromFindings drops stylistic noise but keeps real findings", () => {
+    const drafts = draftsFromFindings([
+      F("semi", { path: "src/a.ts" }),
+      F("prefer-const", { path: "src/b.ts" }),
+      F("no-eval", { path: "src/c.ts", snippet: "eval(input)" }),
+    ]);
+    const rules = drafts.map((d) => d.finding.ruleId);
+    expect(rules).toContain("no-eval");
+    expect(rules).not.toContain("semi");
+    expect(rules).not.toContain("prefer-const");
+  });
+
+  it("includeStylistic keeps the formatting rules when explicitly asked", () => {
+    const drafts = draftsFromFindings([F("semi", { path: "src/a.ts" })], { includeStylistic: true });
+    expect(drafts.map((d) => d.finding.ruleId)).toContain("semi");
   });
 });
