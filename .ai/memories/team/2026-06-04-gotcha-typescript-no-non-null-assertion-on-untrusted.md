@@ -1,5 +1,5 @@
 ---
-id: 2026-06-03-gotcha-typescript-typescript-no-non-null-assertion-on-untrusted
+id: 2026-06-04-gotcha-typescript-no-non-null-assertion-on-untrusted
 scope: team
 type: gotcha
 status: validated
@@ -13,7 +13,7 @@ tags:
   - types
   - safety
   - stack-pack
-created_at: '2026-06-03T22:53:20.003Z'
+created_at: '2026-06-04T03:30:24.266Z'
 expires_when: null
 verified_at: null
 stale_reason: null
@@ -22,7 +22,7 @@ last_read_at: null
 revision_count: 0
 requires_human_approval: false
 ---
-# TypeScript: non-null assertion (`!`) is not a runtime check
+# Gotcha Typescript No Non Null Assertion On Untrusted
 
 The non-null assertion (`value!`) silences the compiler but does NOT check at runtime — it just crashes later if the value is actually null/undefined.
 

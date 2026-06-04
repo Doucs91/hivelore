@@ -1038,10 +1038,10 @@ async function verifyDecisionCoverage(
   }
 
   const all = await loadMemoriesFromDir(paths.memoriesDir);
+  const changedSet = new Set(changedFiles);
   const policyTypes = new Set(["decision", "gotcha", "architecture", "convention"]);
   const relevant = all
-    .map(({ memory }) => memory)
-    .filter((memory) => {
+    .filter(({ memory }) => {
       const fm = memory.frontmatter;
       if (!policyTypes.has(fm.type)) return false;
       if (fm.status !== "validated") return false;
@@ -1064,13 +1064,22 @@ async function verifyDecisionCoverage(
       message:
         `CI surfaced ${relevant.length} relevant anchored decision/polic${relevant.length === 1 ? "y" : "ies"} ` +
         `for ${changedFiles.length} changed file(s). Runtime briefing markers are local-only and are not expected on GitHub Actions.`,
-      memory_ids: relevant.slice(0, 20).map((memory) => memory.frontmatter.id),
+      memory_ids: relevant.slice(0, 20).map(({ memory }) => memory.frontmatter.id),
       affected_files: changedFiles.slice(0, 10),
     }];
   }
 
   const consulted = new Set(marker?.memory_ids ?? []);
-  const missing = relevant.filter((memory) => !consulted.has(memory.frontmatter.id));
+  // Self-authored exemption: a policy memory whose OWN backing file is in this changeset is being
+  // written/edited by the committer — requiring it to be pre-surfaced in a briefing is pure friction
+  // (you cannot brief a memory you are creating in the same commit). Treat it as covered.
+  const missing = relevant
+    .filter(({ memory, filePath }) => {
+      if (consulted.has(memory.frontmatter.id)) return false;
+      if (changedSet.has(path.relative(paths.root, filePath))) return false;
+      return true;
+    })
+    .map(({ memory }) => memory);
   if (missing.length === 0) {
     return [{
       severity: "ok",

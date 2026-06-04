@@ -172,3 +172,5 @@
 {"tool":"pre_commit_check","at":"2026-06-03T23:49:36.046Z","summary":"1p"}
 {"tool":"mem_save","at":"2026-06-03T23:51:26.741Z","summary":"regex-sensors-orphaned-from-precommit-gate"}
 {"tool":"pre_commit_check","at":"2026-06-04T00:17:28.579Z","summary":"1p"}
+{"tool":"get_briefing","at":"2026-06-04T03:57:32.690Z","summary":"Fix stack-pack dedup to upsert by stable topic (not filename) to stop re-seed duplicates; fix briefing --json empty stdout; smooth the decision-coverage pre-commit friction; polish generated memory titles."}
+{"tool":"mem_save","at":"2026-06-04T04:06:24.535Z","summary":"stack-pack-dedup-by-signature-and-coverage-self-exempt"}

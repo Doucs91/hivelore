@@ -1,5 +1,5 @@
 ---
-id: 2026-06-03-convention-typescript-typescript-no-any-prefer-unknown
+id: 2026-06-04-convention-typescript-no-any-prefer-unknown
 scope: team
 type: convention
 status: validated
@@ -20,7 +20,7 @@ tags:
   - typescript
   - types
   - stack-pack
-created_at: '2026-06-03T22:53:19.995Z'
+created_at: '2026-06-04T03:30:24.257Z'
 expires_when: null
 verified_at: null
 stale_reason: null
@@ -29,7 +29,7 @@ last_read_at: null
 revision_count: 0
 requires_human_approval: false
 ---
-# TypeScript: avoid `any`, prefer `unknown`
+# Convention Typescript No Any Prefer Unknown
 
 Avoid `any` — it disables type-checking for everything it touches and spreads silently. Use `unknown` and narrow, or a precise type.
 

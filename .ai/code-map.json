@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-06-03T23:41:52.082Z",
+  "generated_at": "2026-06-04T03:30:24.678Z",
   "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -172,15 +172,15 @@
         {
           "name": "registerEnforce",
           "kind": "function",
-          "line": 100
+          "line": 104
         },
         {
           "name": "runWithEnforcement",
           "kind": "function",
-          "line": 725
+          "line": 729
         }
       ],
-      "loc": 2134
+      "loc": 2229
     },
     "packages/cli/src/commands/eval.ts": {
       "exports": [
@@ -305,7 +305,7 @@
           "line": 1168
         }
       ],
-      "loc": 1212
+      "loc": 1217
     },
     "packages/cli/src/commands/init.ts": {
       "exports": [
@@ -476,35 +476,35 @@
         {
           "name": "LintSeverity",
           "kind": "type",
-          "line": 23
+          "line": 24
         },
         {
           "name": "MemoryLintFinding",
           "kind": "interface",
-          "line": 25
+          "line": 26
         },
         {
           "name": "MemoryLintFix",
           "kind": "interface",
-          "line": 45
+          "line": 46
         },
         {
           "name": "MemoryLintReport",
           "kind": "interface",
-          "line": 52
+          "line": 53
         },
         {
           "name": "lintMemoriesAsync",
           "kind": "function",
-          "line": 57
+          "line": 58
         },
         {
           "name": "registerMemoryLint",
           "kind": "function",
-          "line": 394
+          "line": 398
         }
       ],
-      "loc": 466
+      "loc": 470
     },
     "packages/cli/src/commands/memory-list.ts": {
       "exports": [
@@ -2610,10 +2610,10 @@
           "name": "proposeSeedsFromCommits",
           "kind": "function",
           "description": "Turn commits into seed proposals.",
-          "line": 53
+          "line": 57
         }
       ],
-      "loc": 100
+      "loc": 104
     },
     "packages/core/src/seed.ts": {
       "summary": "Pure stack-detection helpers for cold-start seeding.",
@@ -2762,19 +2762,25 @@
           "line": 47
         },
         {
+          "name": "looksLikeGenericAdvice",
+          "kind": "function",
+          "description": "True when a body uses generic best-practice phrasing a capable model already follows.",
+          "line": 81
+        },
+        {
           "name": "GUESSABLE_THRESHOLD",
           "kind": "const",
           "description": "Default threshold below which a memory is considered likely-guessable (low marginal value).",
-          "line": 75
+          "line": 87
         },
         {
           "name": "isLikelyGuessable",
           "kind": "function",
           "description": "True when a memory body looks like generic knowledge a capable model already has.",
-          "line": 78
+          "line": 90
         }
       ],
-      "loc": 81
+      "loc": 93
     },
     "packages/core/src/token-budget.ts": {
       "summary": "Token budgeting helpers.",
@@ -4607,10 +4613,10 @@
         {
           "name": "classifyAntiPatternWarningForTest",
           "kind": "function",
-          "line": 361
+          "line": 376
         }
       ],
-      "loc": 514
+      "loc": 529
     },
     "packages/mcp/src/tools/runtime-journal-append.ts": {
       "exports": [

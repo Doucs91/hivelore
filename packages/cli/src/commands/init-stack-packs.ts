@@ -10,6 +10,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   buildFrontmatter,
+  loadMemoriesFromDir,
   memoryFilePath,
   serializeMemory,
   STACK_PACK_TAG,
@@ -1174,6 +1175,20 @@ export async function seedStackPack(
 
   await mkdir(haivePaths.teamDir, { recursive: true });
 
+  // Dedup by a STABLE signature, not the filename. `buildFrontmatter` stamps today's date into
+  // the id, so a cross-day re-seed used to produce a duplicate (e.g. the typescript pack appeared
+  // twice after a slug change). We skip a pack memory if the corpus already contains one with the
+  // same `topic` OR the same date-insensitive id signature (`type-slug`), so re-seeding is idempotent.
+  const DATE_PREFIX = /^\d{4}-\d{2}-\d{2}-/;
+  const existingTopics = new Set<string>();
+  const existingSignatures = new Set<string>();
+  if (existsSync(haivePaths.memoriesDir)) {
+    for (const { memory } of await loadMemoriesFromDir(haivePaths.memoriesDir)) {
+      if (memory.frontmatter.topic) existingTopics.add(memory.frontmatter.topic);
+      existingSignatures.add(memory.frontmatter.id.replace(DATE_PREFIX, ""));
+    }
+  }
+
   let memCount = 0;
   let sensorCount = 0;
   for (const mem of memories) {
@@ -1194,6 +1209,10 @@ export async function seedStackPack(
     const combinedSlug = mem.slug === stack || mem.slug.startsWith(`${stack}-`)
       ? mem.slug
       : `${stack}-${mem.slug}`;
+    // Stable upsert key: survives date and slug-formatting changes across versions.
+    const topic = `stack-pack:${stack}:${mem.slug}`;
+    const signature = `${mem.type}-${combinedSlug}`;
+    if (existingTopics.has(topic) || existingSignatures.has(signature)) continue; // already seeded
     const fm = buildFrontmatter({
       type: mem.type,
       slug: combinedSlug,
@@ -1202,13 +1221,16 @@ export async function seedStackPack(
       // STACK_PACK_TAG marks this as generic seed knowledge so briefing ranking
       // keeps it at `background` priority until it earns a repo-specific anchor.
       tags: [...mem.tags, STACK_PACK_TAG],
+      topic,
       ...(sensor ? { sensor } : {}),
     });
     const filePath = memoryFilePath(haivePaths, "team", fm.id);
-    if (existsSync(filePath)) continue; // never overwrite existing
+    if (existsSync(filePath)) continue; // belt-and-suspenders for same-day re-runs
     const content = serializeMemory({ frontmatter: fm, body: `${mem.body}\n\n${SEED_FOOTER(stack)}` });
     await mkdir(path.dirname(filePath), { recursive: true });
     await writeFile(filePath, content, "utf8");
+    existingTopics.add(topic);
+    existingSignatures.add(signature);
     memCount++;
     if (sensor) sensorCount++;
   }
