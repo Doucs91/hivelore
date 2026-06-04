@@ -1226,7 +1226,15 @@ export async function seedStackPack(
     });
     const filePath = memoryFilePath(haivePaths, "team", fm.id);
     if (existsSync(filePath)) continue; // belt-and-suspenders for same-day re-runs
-    const content = serializeMemory({ frontmatter: fm, body: `${mem.body}\n\n${SEED_FOOTER(stack)}` });
+    // Give the seed a clean, human title up front so the corpus normalizer doesn't synthesize an
+    // ugly one from the id (e.g. "Convention Typescript No Any Prefer Unknown"). Pre-empting it with
+    // a real "<Stack>: <Rule>" H1 keeps briefings readable.
+    const ruleSlug = combinedSlug.startsWith(`${stack}-`) ? combinedSlug.slice(stack.length + 1) : combinedSlug;
+    const titleCase = (s: string): string =>
+      s.split("-").filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    const heading = `${titleCase(stack)}: ${titleCase(ruleSlug)}`;
+    const titledBody = /^#{1,3}\s+\S/m.test(mem.body.trim()) ? mem.body : `# ${heading}\n\n${mem.body}`;
+    const content = serializeMemory({ frontmatter: fm, body: `${titledBody}\n\n${SEED_FOOTER(stack)}` });
     await mkdir(path.dirname(filePath), { recursive: true });
     await writeFile(filePath, content, "utf8");
     existingTopics.add(topic);

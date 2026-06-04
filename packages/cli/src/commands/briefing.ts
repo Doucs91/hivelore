@@ -43,6 +43,8 @@ interface BriefingOptions {
   memoryFormat?: string;
   /** Back-compat alias for users who know the MCP get_briefing format option. */
   format?: string;
+  /** Emit the ranked briefing as JSON (parity with the MCP get_briefing tool) instead of text. */
+  json?: boolean;
 }
 
 const RADAR_AUTO_THRESHOLD = 3;
@@ -126,6 +128,7 @@ export function registerBriefing(program: Command): void {
     .option("--explain-source", "annotate each memory with [source: <relative-path> · anchors: <files>] for traceable citations")
     .option("--radar", "force project radar (recent commits, open TODOs, hot files) even when memories are plentiful")
     .option("--no-radar", "disable the project radar even when memories are scarce")
+    .option("--json", "emit the ranked briefing as JSON (memories + scores + priority), like the MCP get_briefing tool", false)
     .option(
       "--budget <preset>",
       "align with MCP get_briefing budget_preset: quick | balanced | deep — sets cap + truncation budget (overrides --max-memories / replaces default open-ended output)",
@@ -201,8 +204,10 @@ export function registerBriefing(program: Command): void {
         maxMemories = presetNums.max_memories;
       }
 
+      const json = opts.json === true;
       const writer = budgetTokensCap !== null ? new TokenBudgetWriter(budgetTokensCap * CHARS_PER_TOKEN) : null;
       const out = (text: string): boolean => {
+        if (json) return true; // JSON mode: suppress all formatted text; structured payload emitted below
         if (writer) return writer.write(text);
         console.log(text);
         return true;
@@ -361,6 +366,7 @@ export function registerBriefing(program: Command): void {
       const top = scored.slice(0, maxMemories);
 
       if (top.length === 0) {
+        if (json) { console.log(JSON.stringify({ task: opts.task ?? null, memories: [], briefing_quality: "thin" }, null, 2)); return; }
         ui.info("No relevant memories found.");
         const draftCount = all.filter(
           (m) =>
@@ -396,6 +402,28 @@ export function registerBriefing(program: Command): void {
       const quality = mustReadCount > 0 || usefulCount > 0
         ? backgroundCount > mustReadCount + usefulCount && backgroundCount > 2 ? "noisy" : "strong"
         : "thin";
+
+      // JSON mode: emit the structured ranked briefing (parity with the MCP get_briefing tool) and stop.
+      if (json) {
+        console.log(JSON.stringify({
+          task: opts.task ?? null,
+          files: filePaths,
+          briefing_quality: quality,
+          counts: { must_read: mustReadCount, useful: usefulCount, background: backgroundCount },
+          recap_id: recaps[0]?.memory.frontmatter.id ?? null,
+          memories: top.map((item, i) => ({
+            id: item.memory.frontmatter.id,
+            scope: item.memory.frontmatter.scope,
+            type: item.memory.frontmatter.type,
+            status: item.memory.frontmatter.status,
+            priority: priorities[i],
+            score: item.score,
+            file: path.relative(root, item.filePath),
+            summary: (item.memory.body.split("\n").map((l) => l.replace(/^#+\s*/, "").trim()).find((l) => l.length > 0) ?? "").slice(0, 140),
+          })),
+        }, null, 2));
+        return;
+      }
       out(ui.dim(`briefing_quality: ${quality} · must_read=${mustReadCount} useful=${usefulCount} background=${backgroundCount}`));
       out("");
       for (const [idx, item] of top.entries()) {

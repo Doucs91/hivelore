@@ -1088,6 +1088,34 @@ async function verifyDecisionCoverage(
     }];
   }
 
+  // Auto-brief (default on): instead of blocking with "run a briefing first", the gate surfaces the
+  // relevant policies itself and records them in the session marker — feedforward at commit time with
+  // zero manual step (the harness iterates the loop, not the human). Strict teams set
+  // enforcement.autoBrief=false to keep the legacy "must brief before commit" hard gate.
+  if (stage === "pre-commit" || stage === "pre-push") {
+    const cfg = await loadConfig(paths).catch(() => ({}) as HaiveConfig);
+    if (cfg.enforcement?.autoBrief !== false) {
+      await writeBriefingMarker(paths, {
+        sessionId,
+        source: "haive-autobrief",
+        task: "decision-coverage auto-surfaced at commit",
+        memoryIds: relevant.map(({ memory }) => memory.frontmatter.id),
+        files: changedFiles,
+      }).catch(() => { /* best-effort: marker is runtime-local */ });
+      return [{
+        severity: "ok",
+        code: "decision-coverage-autosurfaced",
+        message:
+          `Surfaced ${relevant.length} relevant decision/policy memor${relevant.length === 1 ? "y" : "ies"} ` +
+          `for ${changedFiles.length} changed file(s) at commit time` +
+          (missing.length > 0 ? ` (${missing.length} not previously briefed — now recorded)` : "") +
+          ". Set enforcement.autoBrief=false to require a manual briefing first.",
+        memory_ids: relevant.slice(0, 12).map(({ memory }) => memory.frontmatter.id),
+        affected_files: changedFiles.slice(0, 10),
+      }];
+    }
+  }
+
   return [{
     severity: stage === "local" ? "warn" : "error",
     code: "decision-coverage-missing",
