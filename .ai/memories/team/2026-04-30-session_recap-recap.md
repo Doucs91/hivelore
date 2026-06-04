@@ -5,51 +5,51 @@ type: session_recap
 status: validated
 anchor:
   paths:
-    - packages/core/src/coverage.ts
-    - packages/core/src/conflict-resolve.ts
-    - packages/cli/src/commands/coverage.ts
-    - packages/cli/src/commands/memory-resolve-conflict.ts
-    - packages/mcp/src/tools/mem-conflict-candidates.ts
-    - packages/core/test/coverage.test.ts
-    - packages/core/test/conflict-resolve.test.ts
+    - packages/core/test/architecture-shared-paths.test.ts
+    - packages/core/src/sensor-suggest.ts
+    - packages/cli/src/utils/briefing-radar.ts
+    - packages/mcp/src/tools/get-briefing.ts
+    - packages/cli/src/commands/dashboard.ts
+    - packages/cli/src/commands/benchmark.ts
+    - packages/core/test/sensor-suggest.test.ts
   symbols: []
 tags:
   - session
   - recap
 created_at: '2026-04-30T00:02:07.282Z'
 expires_when: null
-verified_at: '2026-06-04T15:39:48.165Z'
+verified_at: '2026-06-04T19:55:33.250Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 topic: session-recap-team
-revision_count: 34
+revision_count: 35
 requires_human_approval: false
 ---
 ## Goal
-Close the last two harness-positioning backlog items (D/P1-3 coverage from agent-edit hot files; E/P2-5 guided conflict supersede into topic-upsert) and ship them.
+Attack every weakness from the grounded state assessment and implement fixes in one pass (order: improve → add → remove/deprecate), perfecting the existing.
 
 ## Accomplished
-- Shipped v0.23.0 (core/cli/mcp/embeddings lockstep; tag pushed; CI + sonarqube green; enforce finish 100%).
-- D/P1-3: `haive coverage` now crosses the corpus with BOTH git churn AND agent-edit hot files from `.ai/.cache/observations.jsonl`; core `tallyHotFiles`/`mergeHotFiles` (pure), `HotFile`/`CoverageGap` carry a `source`, new `--source git|agent|both`. Smoke-verified: merged git 355 + agent 59.
-- E/P2-5: `applyConflictResolution` promotes the winner (revision_count++, verified, linked) and adopts the loser's topic when it had none (future captures consolidate into the winner); `haive memory resolve-conflict --yes` writes BOTH files; MCP `mem_conflict_candidates` attaches `suggested_resolution` + apply command per pair.
-- Tests: coverage tally/merge/source + conflict apply (promotion, topic-adopt, no-overwrite). core 332 / mcp 126 / cli 67 green.
-- Updated positioning memory: backlog A–H now all closed except F (cold-start, ongoing).
+- Shipped v0.24.0 (lockstep; tag pushed; CI+sonar green after a flaky-embeddings rerun; enforce finish 100%).
+- IMPROVE: (1) architecture guard test — build fails if prevention recording bypasses the shared recordPreventionHits (kills the recurring drift smell); (2) hardened suggestSensorFromMemory to reject degenerate tokens (numeric/line ranges like 1131-1186, file refs like enforce.ts:1131) so it never emits nonsensical regex sensors; (3) fixed briefing radar parent-repo git leak (use git only when toplevel is at/under project root); (4) minimal auto-context now surfaces detected run commands from package.json (cold-start).
+- ADD: dashboard "Value" line (repeats blocked / high-impact / active) with an honest cost note.
+- REMOVE/CLARIFY: benchmark token_proxy -> report_tokens_est, relabeled report-only not total tokens; verified --advanced surface pruning already shipped (14 core vs 38 advanced).
+- Tests: core 334 / mcp 126 / cli 67 green; tsc clean. Smoke: dashboard Value line renders, radar leak gone.
 
 ## Discoveries & surprises
-- The coverage module + CLI already existed (git churn only); the gap was purely the agent-edit source — observations.jsonl carries per-edit `files[]`, the right signal. Re-verified rather than rebuilt.
-- conflict resolution already deprecated the loser but never promoted the winner — the "wire into topic-upsert/revision_count" was the missing half; without it the corpus could keep spawning a third conflicting memory on the same subject.
-- package.json files surface as coverage blind spots (hot, no covering memory) — legitimate, not a bug; could add to isNoisePath if too noisy.
-- With v0.23.0 the original harness-engineering backlog (A–H) is fully closed except cold-start (F). Next work should be net-new, not gap-filling.
+- #8 (advanced-surface pruning) and the init --bootstrap (#4 core) were ALREADY implemented — re-verified instead of rebuilding (my earlier "sprawl/weak cold-start" notes were partly inflated by 1-file benchmark fixtures with no package.json).
+- The CI failure was a FLAKY embeddings test (cli.test.ts:445 asserts an embeddings index exists after memory add — depends on Transformers.js model download in CI); unrelated to my changes; passed on rerun. Worth making that test resilient (skip when the model can't load) so it stops flaking releases.
+- Near-miss process bug: `git add -A` committed the throwaway benchmark dirs because .gitignore only had `benchmarks/agent-benchmark/`, not `-rework/`/`.tpl`/`.accept`/`RESULTS.md`. A blanket `benchmarks/` ignore then over-deleted PRE-EXISTING tracked fixtures (manual-run, agent-benchmark-2026-05-31). Fixed with a specific ignore list + re-track before push. Lesson: check `git status` file count before committing; never blanket-ignore a dir that already has tracked content.
+- Two of my recommendations were deliberately declined (compact default; redundancy auto-detector) — honest 'won't build vaporware' calls.
 
 ## Files touched
-- `packages/core/src/coverage.ts`
-- `packages/core/src/conflict-resolve.ts`
-- `packages/cli/src/commands/coverage.ts`
-- `packages/cli/src/commands/memory-resolve-conflict.ts`
-- `packages/mcp/src/tools/mem-conflict-candidates.ts`
-- `packages/core/test/coverage.test.ts`
-- `packages/core/test/conflict-resolve.test.ts`
+- `packages/core/test/architecture-shared-paths.test.ts`
+- `packages/core/src/sensor-suggest.ts`
+- `packages/cli/src/utils/briefing-radar.ts`
+- `packages/mcp/src/tools/get-briefing.ts`
+- `packages/cli/src/commands/dashboard.ts`
+- `packages/cli/src/commands/benchmark.ts`
+- `packages/core/test/sensor-suggest.test.ts`
 
 ## Next steps
-Backlog A–H closed except F (cold-start, ongoing). Optional polish: surface suggested_resolution in the CLI conflict-candidates command (parity with MCP); consider adding package.json to coverage isNoisePath. Human: npm publish v0.22.0 + v0.23.0 when ready (agents never publish).
+Make the embeddings-index CLI test resilient (skip/soft-pass when the model can't download) so it stops flaking CI on release. Optional: extend detectRunCommands to pyproject/Makefile for non-Node repos. The grounded-assessment memory now records v0.24.0 status for each priority.

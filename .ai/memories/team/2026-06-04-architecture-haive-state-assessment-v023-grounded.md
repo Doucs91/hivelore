@@ -49,7 +49,17 @@ add an architectural guard. See [[2026-06-04-gotcha-prevention-not-recorded-in-p
 - Surface-area sprawl — ~60 CLI commands, ~40 MCP tools, many overlapping memory-* commands. High cognitive/maintenance load.
 - `token_proxy` (report size) overstates the token gap ~3× vs real billing; even labeled, it's in the headline table.
 
-**Top improvement priorities (perfect/sharpen, don't add):** (1) consolidate parallel paths + add an arch test;
-(2) make autogen sensors safe-by-default; (3) tighten briefing relevance (fix radar parent-repo leak, default min-score);
-(4) real cold-start bootstrap; (5) prune the command/tool surface behind --advanced; (6) surface a with-vs-without
-value/cost line so users see when hAIve helped vs was overhead.
+**Top improvement priorities — STATUS after v0.24.0:**
+(1) ✅ DONE: architecture guard test (`core/test/architecture-shared-paths.test.ts`) fails the build if prevention
+    recording bypasses `recordPreventionHits`.
+(2) ✅ DONE: `suggestSensorFromMemory` rejects degenerate tokens (numeric/line ranges, file refs); stays warn-only.
+(3) ✅ PARTLY: radar parent-repo git leak fixed (`briefing-radar.ts` uses git only when toplevel is at/under root).
+    `min_semantic_score` default left at 0 (deliberate — anchor/literal hits always kept; a floor risks recall).
+(4) ✅ PARTLY: minimal auto-context now surfaces detected run commands (`get-briefing.ts` detectRunCommands); the
+    full `init --bootstrap` already captured stack/scripts/modules. Earlier "weak cold-start" was inflated by 1-file fixtures.
+(5) ✅ ALREADY SHIPPED (verified): `--advanced` surface — 14 core vs 38 advanced commands.
+(6) ✅ DONE: dashboard "Value" line (repeats blocked / high-impact / active) + honest cost note. Benchmark
+    `token_proxy` renamed `report_tokens_est` (honesty).
+
+**Deliberately NOT done (principled):** default briefing stays `full` (compact would gut the proven 0→100% value);
+no redundancy auto-detector (unreliable → would be vaporware; the dashboard cost-honesty line stands in).
