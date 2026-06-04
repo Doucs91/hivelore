@@ -56,4 +56,20 @@ describe("suggestSensorFromMemory", () => {
 
     expect(sensor?.pattern).toBe("status\\s*[:=]\\s*[\"']?ok[\"']?");
   });
+
+  it("never builds a degenerate sensor from line refs / numeric ranges / filenames", () => {
+    // Reproduced real miss: a gotcha body referencing enforce.ts:1131-1186 produced a nonsensical
+    // regex `enforce\.ts\s*:\s*1131-1186`. Such a sensor fires on noise → must be rejected.
+    const lineRef = suggestSensorFromMemory(
+      "# Gate path\n\nThe leak is in enforce.ts:1131-1186 where runPrecommitPolicy lives.",
+      ["packages/cli/src/commands/enforce.ts"],
+    );
+    expect(lineRef?.pattern).not.toMatch(/1131-1186/);
+    expect(lineRef?.pattern).not.toMatch(/enforce\\\.ts/);
+
+    // A body that has ONLY a filename + line numbers yields no usable token → null, not garbage.
+    expect(
+      suggestSensorFromMemory("# Note\n\nSee config.json line 42 and 1131-1186.", ["a.ts"]),
+    ).toBeNull();
+  });
 });

@@ -76,6 +76,22 @@ function renderDashboard(r: DashboardReport): void {
   console.log(`  ${ui.dim("scopes:")} ${formatCounts(inv.by_scope)}`);
   console.log(`  ${ui.dim("types: ")} ${formatCounts(inv.by_type)}`);
 
+  // ── Value vs cost (the honest one-line answer to "is hAIve earning its keep?") ──
+  console.log();
+  console.log(ui.bold("Value") + ui.dim("  (what hAIve demonstrably earned — vs its per-task cost)"));
+  const blocked = prevention.trend.last_30d;
+  const demonstrated = impact.high;
+  console.log(
+    `  ${blocked > 0 ? ui.green(`${blocked} repeat${blocked === 1 ? "" : "s"} blocked (30d)`) : "0 repeats blocked (30d)"}` +
+    ` · ${demonstrated} high-impact memor${demonstrated === 1 ? "y" : "ies"} (applied/prevented)` +
+    ` · ${inv.active} active polic${inv.active === 1 ? "y" : "ies"} surfaceable`,
+  );
+  console.log(
+    ui.dim(
+      "  Cost is real: the briefing adds context to every task; the payoff is downstream (defects/incidents avoided), not the agent's token bill.",
+    ),
+  );
+
   // ── Prevention (outcome) ──
   console.log();
   console.log(ui.bold("Prevention") + ui.dim("  (caught-for-you outcome)"));

@@ -20,7 +20,7 @@ interface AgentBenchmarkRow {
   test_iterations: number;
   terminal_failures: number;
   decision_mentions: number;
-  token_proxy: number;
+  report_tokens_est: number;
   haive_impact: boolean;
 }
 
@@ -109,7 +109,7 @@ function parseAgentReport(fixture: string, report: string): AgentBenchmarkRow {
     test_iterations: countMatches(section(report, "Test Iterations"), /Iteration\s+\d+|^- /gim),
     terminal_failures: countMatches(section(report, "Terminal Errors"), /fail|error|not raised|exited with code 1/gi),
     decision_mentions: sectionBulletCount(report, "Key Decisions"),
-    token_proxy: estimateTokens(report),
+    report_tokens_est: estimateTokens(report),
     haive_impact: /hAIve Memory Impact[\s\S]*?\b(yes|directly|changed|shaped|confirmed)\b/i.test(report),
   };
 }
@@ -134,7 +134,7 @@ function summarizeGroup(rows: AgentBenchmarkRow[]) {
     test_iterations: sum("test_iterations"),
     terminal_failures: sum("terminal_failures"),
     decision_mentions: sum("decision_mentions"),
-    token_proxy: sum("token_proxy"),
+    report_tokens_est: sum("report_tokens_est"),
     haive_impact_count: rows.filter((r) => r.haive_impact).length,
   };
 }
@@ -151,22 +151,24 @@ function renderMarkdown(
     "",
     "## Summary",
     "",
-    "| Group | Fixtures | Commands | Files read | Files modified | Test iterations | Terminal failures | Decision mentions | Token proxy | hAIve impact |",
+    "| Group | Fixtures | Commands | Files read | Files modified | Test iterations | Terminal failures | Decision mentions | Report tokens (est, report only) | hAIve impact |",
     "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     groupLine("hAIve", summary.haive),
     groupLine("Plain", summary.plain),
     "",
     "## Fixtures",
     "",
-    "| Fixture | Group | Commands | Files read | Files modified | Test iterations | Terminal failures | Decisions | Token proxy | hAIve impact |",
+    "| Fixture | Group | Commands | Files read | Files modified | Test iterations | Terminal failures | Decisions | Report tokens (est, report only) | hAIve impact |",
     "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ...rows.map((row) =>
-      `| \`${row.fixture}\` | ${row.group} | ${row.commands} | ${row.files_read} | ${row.files_modified} | ${row.test_iterations} | ${row.terminal_failures} | ${row.decision_mentions} | ${row.token_proxy} | ${row.haive_impact ? "yes" : "no"} |`,
+      `| \`${row.fixture}\` | ${row.group} | ${row.commands} | ${row.files_read} | ${row.files_modified} | ${row.test_iterations} | ${row.terminal_failures} | ${row.decision_mentions} | ${row.report_tokens_est} | ${row.haive_impact ? "yes" : "no"} |`,
     ),
     "",
     "## Reading",
     "",
-    "The token proxy is estimated from the agent report size, not from private model billing data.",
+    "`Report tokens (est)` estimates the size of the agent's WRITTEN REPORT only — a verbosity proxy, NOT",
+    "the agent's total token consumption. For real per-agent token/latency, capture your runner's telemetry",
+    "(e.g. subagent token counts) separately; this report can't see model billing.",
     "Use this report to compare relative effort and decision quality, then pair it with final test results and a human review of the diffs.",
     "",
   ];
@@ -174,7 +176,7 @@ function renderMarkdown(
 }
 
 function groupLine(label: string, group: ReturnType<typeof summarizeGroup>): string {
-  return `| ${label} | ${group.fixtures} | ${group.commands} | ${group.files_read} | ${group.files_modified} | ${group.test_iterations} | ${group.terminal_failures} | ${group.decision_mentions} | ${group.token_proxy} | ${group.haive_impact_count} |`;
+  return `| ${label} | ${group.fixtures} | ${group.commands} | ${group.files_read} | ${group.files_modified} | ${group.test_iterations} | ${group.terminal_failures} | ${group.decision_mentions} | ${group.report_tokens_est} | ${group.haive_impact_count} |`;
 }
 
 function sectionBulletCount(markdown: string, title: string): number {
