@@ -259,6 +259,27 @@ describe("ingest quality floor", () => {
     expect(isStylisticRule("typescript:S2068")).toBe(false);
   });
 
+  it("isStylisticRule flags Sonar numeric formatting/naming keys (both id variants)", () => {
+    expect(isStylisticRule("typescript:S103")).toBe(true);   // long lines
+    expect(isStylisticRule("javascript:S1131")).toBe(true);  // trailing whitespace
+    expect(isStylisticRule("python:S00117")).toBe(true);     // legacy naming id -> S117
+    expect(isStylisticRule("java:S117")).toBe(true);         // var naming
+    // Real, high-value Sonar rules must NOT be flagged:
+    expect(isStylisticRule("typescript:S2068")).toBe(false); // hard-coded credentials
+    expect(isStylisticRule("typescript:S5852")).toBe(false); // ReDoS
+    expect(isStylisticRule("typescript:S1234")).toBe(false); // cognitive complexity (not in set)
+  });
+
+  it("draftsFromFindings drops Sonar stylistic rules but keeps security findings", () => {
+    const drafts = draftsFromFindings([
+      F("typescript:S103", { tool: "sonar", path: "src/a.ts", message: "Split this long line." }),
+      F("typescript:S00117", { tool: "sonar", path: "src/b.ts", message: "Rename this variable." }),
+      F("typescript:S2068", { tool: "sonar", path: "src/c.ts", message: "Remove hard-coded credentials.", snippet: "const pw = \"admin123\"" }),
+    ]);
+    const rules = drafts.map((d) => d.finding.ruleId);
+    expect(rules).toEqual(["typescript:S2068"]);
+  });
+
   it("draftsFromFindings drops stylistic noise but keeps real findings", () => {
     const drafts = draftsFromFindings([
       F("semi", { path: "src/a.ts" }),

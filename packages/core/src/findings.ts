@@ -83,9 +83,28 @@ export interface DraftsOptions extends DraftOptions {
 const STYLISTIC_RULE_RE =
   /(?:^|[/:])(?:prettier|semi|semi-spacing|no-extra-semi|quotes|jsx-quotes|quote-props|indent|comma-dangle|comma-spacing|comma-style|eol-last|linebreak-style|no-trailing-spaces|no-multiple-empty-lines|no-multi-spaces|object-curly-spacing|array-bracket-spacing|block-spacing|space-before-blocks|space-before-function-paren|space-infix-ops|space-in-parens|keyword-spacing|arrow-spacing|key-spacing|func-call-spacing|padded-blocks|padding-line-between-statements|brace-style|spaced-comment|max-len|prefer-const|no-var)(?:$|[/:])/i;
 
-/** True when a finding's rule is pure auto-fixable formatting/style (no lesson value as a seed). */
+/**
+ * SonarQube uses NUMERIC rule keys (`typescript:S103`, `python:S00117`), so the name-based regex above
+ * can't catch them. This is a curated set of Sonar rules that are pure formatting / naming convention /
+ * trivial maintainability — the same low-value-as-a-seed tier. Keys are normalized (leading zeros
+ * stripped: `S00117` → `S117`) so both the legacy and modern ids match.
+ */
+const SONAR_STYLISTIC_KEYS = new Set([
+  "S100", "S101", "S103", "S104", "S105", "S113", "S114", "S115", "S116", "S117", "S118", "S119",
+  "S120", "S121", "S122", "S125", "S1110", "S1116", "S1131", "S1542",
+]);
+
+/** Extract a normalized Sonar rule key (`S117`) from a rule id like `typescript:S00117`, else null. */
+function sonarRuleKey(ruleId: string): string | null {
+  const m = /(?:^|:)s0*(\d{1,5})$/i.exec(ruleId ?? "");
+  return m ? `S${m[1]}` : null;
+}
+
+/** True when a finding's rule is pure auto-fixable formatting / naming convention (no lesson value as a seed). */
 export function isStylisticRule(ruleId: string): boolean {
-  return STYLISTIC_RULE_RE.test(ruleId ?? "");
+  if (STYLISTIC_RULE_RE.test(ruleId ?? "")) return true;
+  const sonarKey = sonarRuleKey(ruleId);
+  return sonarKey !== null && SONAR_STYLISTIC_KEYS.has(sonarKey);
 }
 
 const SEVERITY_RANK: Record<FindingSeverity, number> = {
