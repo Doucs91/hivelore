@@ -888,6 +888,39 @@ describe("hAIve CLI integration", () => {
     expect(report.findings.some((f) => f.code === "briefing-loaded")).toBe(true);
   });
 
+  it("briefing prints breadcrumbs and drill-down calls before deeper memory bodies", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-cli-breadcrumbs-"));
+    try {
+      await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
+      await run(repo, [
+        "memory", "add",
+        "--type", "decision",
+        "--slug", "breadcrumb-policy",
+        "--paths", "src/breadcrumb.ts",
+        "--body", "Always follow the breadcrumb policy before editing this file.",
+        "--dir", repo,
+      ]);
+      await run(repo, ["memory", "approve", "--all", "--dir", repo]).catch(() => { /* autopilot may pre-validate */ });
+
+      const { stdout } = await run(repo, [
+        "briefing",
+        "--task", "edit breadcrumb file",
+        "--files", "src/breadcrumb.ts",
+        "--budget", "quick",
+        "--dir", repo,
+      ]);
+
+      expect(stdout).toContain("=== Breadcrumbs ===");
+      expect(stdout).toContain("Start here:");
+      expect(stdout).toContain("breadcrumb-policy");
+      expect(stdout).toContain("Drill down only if needed:");
+      expect(stdout).toContain("mem_get(");
+      expect(stdout).toContain("code_search(");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("enforce cleanup preserves cache ignores and briefing markers", async () => {
     await run(workDir, ["briefing", "--task", "cleanup preservation smoke", "--budget", "quick", "--dir", workDir]);
     const cacheDir = path.join(workDir, ".ai/.cache");

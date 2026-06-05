@@ -6,6 +6,21 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.26.3] — breadcrumbs-first briefings and cleaner native bridges
+
+#### Added
+- MCP `get_briefing` now returns a `breadcrumbs` map with concise `start_here` pointers and
+  `drill_down` calls, so agents can keep default context small and pull deeper memories/code only
+  when a task needs it.
+- `haive briefing` prints a `Breadcrumbs` section before full memory bodies, including first-hop
+  memory pointers plus optional `mem_get`, `mem_relevant_to`, `code_search`, and `code_map` follow-ups.
+
+#### Changed
+- Native bridges now frame hAIve as a small breadcrumb map and recommend `get_briefing` with
+  `budget_preset:"quick"` + `format:"actions"` before drilling deeper.
+- Generated native bridges skip `personal` memories so committed agent files do not reference
+  gitignored local-only records.
+
 ## [0.26.2] — native bridges become non-destructive managed blocks
 
 #### Added

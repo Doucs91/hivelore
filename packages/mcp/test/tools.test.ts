@@ -386,6 +386,8 @@ describe("hAIve MCP tools", () => {
       expect(briefing.memories[0]?.id).toBe(anchored.id);
       expect(briefing.memories[0]?.priority).toBe("must_read");
       expect(briefing.memories[0]?.why?.some((w) => w.includes("Glob anchor match"))).toBe(true);
+      expect(briefing.breadcrumbs?.start_here[0]).toContain(anchored.id);
+      expect(briefing.breadcrumbs?.drill_down.some((d) => d.includes(`mem_get("${anchored.id}")`))).toBe(true);
       expect(briefing.briefing_quality.level).toBe("strong");
     });
 

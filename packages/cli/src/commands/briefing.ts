@@ -426,6 +426,15 @@ export function registerBriefing(program: Command): void {
       }
       out(ui.dim(`briefing_quality: ${quality} · must_read=${mustReadCount} useful=${usefulCount} background=${backgroundCount}`));
       out("");
+      printCliBreadcrumbs({
+        top,
+        priorities,
+        task: opts.task,
+        files: filePaths,
+        symbols: parseCsv(opts.symbols),
+        out,
+        stopped,
+      });
       for (const [idx, item] of top.entries()) {
         if (stopped()) break;
         const fm = item.memory.frontmatter;
@@ -558,6 +567,67 @@ function priorityBadge(priority: CliMemoryPriority): string {
   if (priority === "must_read") return ui.red("[must_read]");
   if (priority === "useful") return ui.yellow("[useful]");
   return ui.dim("[background]");
+}
+
+function printCliBreadcrumbs(input: {
+  top: Array<{ memory: Awaited<ReturnType<typeof loadMemoriesFromDir>>[number]["memory"]; filePath: string; score: number }>;
+  priorities: CliMemoryPriority[];
+  task?: string;
+  files: string[];
+  symbols: string[];
+  out: (text: string) => boolean;
+  stopped: () => boolean;
+}): void {
+  if (input.stopped()) return;
+  const startHere = input.top.slice(0, 4).map((item, idx) => {
+    const fm = item.memory.frontmatter;
+    const priority = input.priorities[idx] ?? "background";
+    const anchor = fm.anchor.paths[0] ? ` · applies to ${fm.anchor.paths[0]}` : "";
+    const summary = item.memory.body
+      .split("\n")
+      .map((line) => line.replace(/^#+\s*/, "").trim())
+      .find((line) => line.length > 0) ?? fm.id;
+    return `  - ${priority}: ${fm.id}${anchor} — ${summary.slice(0, 120)}`;
+  });
+
+  const drillDown: string[] = [];
+  for (const item of input.top.slice(0, 3)) {
+    drillDown.push(`  - mem_get("${item.memory.frontmatter.id}")`);
+  }
+  if (input.task && input.files.length > 0) {
+    drillDown.push(
+      `  - mem_relevant_to(task:"${cliOneLine(input.task)}", files:[${input.files.map((f) => `"${f}"`).join(", ")}], format:"actions")`,
+    );
+  }
+  if (input.task) drillDown.push(`  - code_search(query:"${cliOneLine(input.task)}", k:5)`);
+  for (const symbol of input.symbols.slice(0, 3)) {
+    drillDown.push(`  - code_map(symbol:"${cliOneLine(symbol)}")`);
+  }
+
+  if (startHere.length === 0 && drillDown.length === 0) return;
+
+  input.out(`${ui.bold("=== Breadcrumbs ===")}\n`);
+  if (startHere.length > 0) {
+    input.out(ui.bold("Start here:"));
+    for (const line of startHere) {
+      if (input.stopped()) return;
+      input.out(line);
+    }
+    input.out("");
+  }
+  const uniqueDrillDown = [...new Set(drillDown)].slice(0, 6);
+  if (uniqueDrillDown.length > 0) {
+    input.out(ui.bold("Drill down only if needed:"));
+    for (const line of uniqueDrillDown) {
+      if (input.stopped()) return;
+      input.out(line);
+    }
+    input.out("");
+  }
+}
+
+function cliOneLine(value: string): string {
+  return value.replace(/\s+/g, " ").replace(/"/g, '\\"').trim().slice(0, 120);
 }
 
 function parseCsv(value: string | undefined): string[] {

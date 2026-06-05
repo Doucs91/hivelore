@@ -45,6 +45,7 @@ import type { HaiveContext } from "../context.js";
 import { pendingDistillPath, type PendingDistill } from "../session-tracker.js";
 import type {
   ActionRequiredItem,
+  BriefingBreadcrumbs,
   BriefingMemory,
   BriefingOutput,
 } from "./briefing-types.js";
@@ -784,6 +785,16 @@ export async function getBriefing(
     if (proof) hints.push(proof);
   }
 
+  const breadcrumbs = buildBriefingBreadcrumbs({
+    memories: outputMemories,
+    byId,
+    symbolLocations,
+    task: input.task,
+    files: input.files,
+    symbols: input.symbols,
+    adaptiveTrim,
+  });
+
   // ── Briefing marker (satisfies enforcement gate for MCP-native agents) ─
   if (existsSync(ctx.paths.haiveDir)) {
     await writeBriefingMarker(ctx.paths, {
@@ -828,6 +839,7 @@ export async function getBriefing(
     module_contexts: trimmedModules,
     memories: outputMemories,
     briefing_quality: briefingQuality,
+    ...(breadcrumbs ? { breadcrumbs } : {}),
     ...(symbolLocations ? { symbol_locations: symbolLocations } : {}),
     action_required: actionRequired,
     decay_warnings: decayWarnings,
@@ -867,4 +879,70 @@ async function detectRunCommands(root: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+function buildBriefingBreadcrumbs(input: {
+  memories: BriefingMemory[];
+  byId: Map<string, LoadedMemory>;
+  symbolLocations: BriefingOutput["symbol_locations"];
+  task?: string;
+  files: string[];
+  symbols: string[];
+  adaptiveTrim: boolean;
+}): BriefingBreadcrumbs | undefined {
+  const startHere: string[] = [];
+  const drillDown: string[] = [];
+
+  for (const memory of input.memories.slice(0, 4)) {
+    const loaded = input.byId.get(memory.id);
+    const anchor = loaded?.memory.frontmatter.anchor.paths[0];
+    const anchorNote = anchor ? ` · applies to ${anchor}` : "";
+    startHere.push(
+      `${memory.priority}: memory ${memory.id} (${memory.scope}/${memory.type})${anchorNote} — ${compactSummary(memory.body)}`,
+    );
+  }
+
+  for (const hit of input.symbolLocations?.slice(0, 4) ?? []) {
+    const first = hit.locations[0];
+    if (!first) continue;
+    startHere.push(`code: ${hit.symbol} -> ${first.file}:${first.line} [${first.kind}]`);
+  }
+
+  if (startHere.length === 0 && input.files.length > 0) {
+    startHere.push(`files: ${input.files.slice(0, 4).join(", ")}${input.files.length > 4 ? ", ..." : ""}`);
+  }
+
+  const topDeepMemories = input.memories
+    .filter((m) => m.priority === "must_read" || m.priority === "useful")
+    .slice(0, 3);
+  for (const memory of topDeepMemories) {
+    drillDown.push(`mem_get("${memory.id}") for the full memory`);
+  }
+
+  if (input.task && input.files.length > 0) {
+    drillDown.push(
+      `mem_relevant_to(task:"${oneLine(input.task)}", files:[${input.files.map((f) => `"${f}"`).join(", ")}], format:"actions")`,
+    );
+  }
+  if (input.task) {
+    drillDown.push(`code_search(query:"${oneLine(input.task)}", k:5)`);
+  }
+  for (const symbol of input.symbols.slice(0, 3)) {
+    drillDown.push(`code_map(symbol:"${oneLine(symbol)}")`);
+  }
+
+  const uniqueDrillDown = [...new Set(drillDown)].slice(0, 6);
+  if (startHere.length === 0 && uniqueDrillDown.length === 0 && !input.adaptiveTrim) return undefined;
+
+  return {
+    start_here: startHere.slice(0, 6),
+    drill_down: uniqueDrillDown,
+    note: input.adaptiveTrim
+      ? "No repo-specific policy matched; keep going with normal Read/Grep and pull deeper hAIve context only if needed."
+      : "Breadcrumbs first: read these pointers, then drill down only when the task still needs more context.",
+  };
+}
+
+function oneLine(value: string): string {
+  return value.replace(/\s+/g, " ").replace(/"/g, '\\"').trim().slice(0, 120);
 }

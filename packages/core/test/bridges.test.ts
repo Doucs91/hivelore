@@ -110,6 +110,17 @@ describe("prepareBridgeData", () => {
     expect(topMemories).toHaveLength(0);
   });
 
+  it("excludes personal memories from committed native bridges", () => {
+    const personal = makeMemory({
+      id: "2026-01-01-attempt-personal",
+      scope: "personal",
+      type: "attempt",
+      body: "## Local-only attempt\nDo not publish this breadcrumb.",
+    });
+    const { topMemories } = prepareBridgeData([personal, VALIDATED_MEMORY], []);
+    expect(topMemories.map((m) => m.id)).toEqual([VALIDATED_MEMORY.frontmatter.id]);
+  });
+
   it("includes validated and proposed memories", () => {
     const { topMemories } = prepareBridgeData([VALIDATED_MEMORY, PROPOSED_MEMORY], []);
     expect(topMemories).toHaveLength(2);
@@ -216,6 +227,14 @@ describe("generateBridges", () => {
     for (const output of outputs) {
       expect(output.content).toContain(VALIDATED_MEMORY.frontmatter.id);
     }
+  });
+
+  it("frames generated bridges as breadcrumb maps with quick drill-down guidance", () => {
+    const [out] = generateBridges([VALIDATED_MEMORY], [], { targets: ["windsurf"] });
+    expect(out?.content).toContain("small breadcrumb map");
+    expect(out?.content).toContain('budget_preset:"quick"');
+    expect(out?.content).toContain("Drill down only if needed");
+    expect(out?.content).toContain("Top breadcrumbs only");
   });
 
   it("injects sensor message in block sensors section", () => {

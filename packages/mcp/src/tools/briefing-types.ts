@@ -56,6 +56,21 @@ export interface ActionRequiredItem {
   developer_message: string;
 }
 
+export interface BriefingBreadcrumbs {
+  /**
+   * Small first-hop map for the agent. These are not full context; they are the best
+   * places to look before deciding whether deeper reads are needed.
+   */
+  start_here: string[];
+  /**
+   * Follow-up calls/reads for progressive disclosure. Agents should pull these only
+   * when the task still needs more detail after the briefing.
+   */
+  drill_down: string[];
+  /** Short operating note for this briefing. */
+  note?: string;
+}
+
 export interface BriefingOutput {
   task?: string;
   search_mode: "semantic" | "literal_fallback" | "literal";
@@ -66,6 +81,11 @@ export interface BriefingOutput {
   module_contexts: Array<{ name: string; content: string; truncated: boolean }>;
   memories: BriefingMemory[];
   briefing_quality: BriefingQuality;
+  /**
+   * Breadcrumbs-first context map: keep the default briefing small, then pull deeper
+   * memories/code references only when the task needs them.
+   */
+  breadcrumbs?: BriefingBreadcrumbs;
   symbol_locations?: CodeMapSymbolHit[];
   /**
    * Memories that require explicit human confirmation before any code action.
