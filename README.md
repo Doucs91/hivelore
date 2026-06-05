@@ -352,37 +352,7 @@ team memories as a PR comment so reviewers and agents never miss a non-obvious c
 
 ---
 
-## Benchmark results
-
-**12 cold-start sub-agents (same model), paired hAIve vs plain, across 3 project types.** Each fixture
-hides a *non-guessable* repo policy that maps to a real, documented production incident, with the policy
-visible only in the hAIve fixture's `.ai/` memory. Both conditions get an identical stub + a provided
-basic test; correctness is graded by a **hidden** acceptance test (the policy's edge cases) the agents
-never see. 2 reps × 2 conditions × 3 types — illustrative, not statistically powered.
-
-| Metric | hAIve (n=6) | Plain (n=6) |
-|---|:---:|:---:|
-| Provided test pass | 6/6 (100%) | 6/6 (100%) |
-| **Hidden policy pass** | **6/6 (100%)** | **0/6 (0%)** |
-| **Documented prod bug reproduced** | **0/6** | **6/6** |
-
-What the plain agents shipped every time — the exact documented bug:
-
-- **money:** `Math.round(...)` (half-up → overcharges, bug HV-114). hAIve used banker's rounding.
-- **utc:** `datetime.strptime(...)` (naive datetime → incident INC-77). hAIve forced tz-aware UTC.
-- **pagination:** uncapped `LIMIT` (outage OPS-9). hAIve clamped `pageSize` to 100.
-
-> **Read this honestly.** This measures one thing: **correctness on the unguessable.** hAIve took
-> policy-correctness from 0% → 100%, preventing the precise documented production bugs a plain agent
-> reintroduces on every run. That payoff lands **downstream** — incidents, human review, and
-> revert-and-refix across sessions.
->
-> We are **not** publishing a token-cost or speed verdict: the briefing step is real overhead, but we
-> have not run the large, real-world benchmarks needed to characterize that cost honestly (small fixtures
-> can't tell you what navigation/rework looks like in a 1,000-file repo). We don't claim what we haven't
-> measured at scale.
-
-### Adaptive briefing
+## Adaptive briefing
 
 A briefing only earns its place when it carries unguessable knowledge, so `get_briefing` returns
 `briefing_value: "high" | "low"`. When nothing team-specific matches the files/task, the auto-generated
