@@ -76,7 +76,7 @@ export function registerSync(program: Command): void {
     .option("--no-promote", "skip the auto-promotion step")
     .option(
       "--inject-bridge",
-      "inject top validated memories into CLAUDE.md + AGENTS.md (or --bridge-file) between <!-- haive:memories-start/end --> markers",
+      "refresh CLAUDE.md + AGENTS.md hAIve managed blocks (or --bridge-file legacy custom injection)",
     )
     .option("--bridge-file <path>", "bridge file to inject into (default: CLAUDE.md)")
     .option("--bridge-max-memories <n>", "max memories to inject into bridge file", "5")
@@ -272,42 +272,52 @@ export function registerSync(program: Command): void {
 
       if (opts.injectBridge) {
         const maxInject = Math.max(1, Number(opts.bridgeMaxMemories ?? 5));
-        // With an explicit --bridge-file, inject only there. Otherwise inject into the
-        // standard bridges: CLAUDE.md always, plus AGENTS.md (cross-harness convention)
-        // when it exists, so an AGENTS.md-aware agent gets the same breadcrumbs.
-        let bridgeTargets: string[];
         if (opts.bridgeFile) {
-          bridgeTargets = [path.resolve(opts.bridgeFile)];
+          await injectBridge(path.resolve(opts.bridgeFile), paths.memoriesDir, maxInject, root, opts.quiet);
+        } else if (!dryRun) {
+          const res = await writeBridgeFiles(root, paths, {
+            targets: ["claude", "agents"],
+            maxMemories: maxInject,
+            onlyExisting: true,
+          });
+          for (const warning of res.warnings) ui.warn(`bridge refresh failed: ${warning}`);
+          const touched = res.created.length + res.updated.length;
+          if (touched > 0) {
+            log(ui.dim(`bridges: refreshed ${touched} instruction bridge file(s)`));
+          }
         } else {
-          const agentsMd = path.join(root, "AGENTS.md");
-          bridgeTargets = [path.join(root, "CLAUDE.md")];
-          if (existsSync(agentsMd)) bridgeTargets.push(agentsMd);
-        }
-        for (const bridgeFile of bridgeTargets) {
-          await injectBridge(bridgeFile, paths.memoriesDir, maxInject, root, opts.quiet);
+          const res = await writeBridgeFiles(root, paths, {
+            targets: ["claude", "agents"],
+            maxMemories: maxInject,
+            onlyExisting: true,
+            dryRun,
+          });
+          for (const warning of res.warnings) ui.warn(`bridge refresh failed: ${warning}`);
+          const touched = res.created.length + res.updated.length;
+          if (touched > 0) {
+            log(ui.dim(`bridges: would refresh ${touched} instruction bridge file(s)`));
+          }
         }
       }
 
       // ── Auto-refresh existing native bridges (keep reach configs fresh) ─────
-      // CLAUDE.md / AGENTS.md stay under --inject-bridge above; here we refresh the
-      // native agent configs (cursor, cline, windsurf, …) that already exist on disk,
-      // so a pull/merge never leaves a stale .cursor/rules or .clinerules behind.
+      // Refresh only files that already exist on disk, so a pull/merge never leaves
+      // stale native bridge configs behind and never creates surprise files.
       if (opts.noBridges !== true) {
-        const nativeTargets = BRIDGE_TARGETS.filter(
-          (t): t is BridgeTarget => t !== "claude" && t !== "agents",
-        );
         try {
           const res = await writeBridgeFiles(root, paths, {
-            targets: nativeTargets,
+            targets: BRIDGE_TARGETS,
             onlyExisting: true,
             dryRun,
           });
           const touched = res.created.length + res.updated.length;
+          for (const warning of res.warnings) ui.warn(`bridge refresh failed: ${warning}`);
           if (touched > 0) {
             log(
               ui.dim(
                 `bridges: ${dryRun ? "would refresh" : "refreshed"} ${touched} native bridge file(s)` +
-                (res.unchanged.length > 0 ? ` · ${res.unchanged.length} unchanged` : ""),
+                (res.unchanged.length > 0 ? ` · ${res.unchanged.length} unchanged` : "") +
+                (res.skipped.length > 0 ? ` · ${res.skipped.length} skipped` : ""),
               ),
             );
           }

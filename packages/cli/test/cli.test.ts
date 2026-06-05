@@ -180,8 +180,59 @@ describe("hAIve CLI integration", () => {
       const claude = await readFile(path.join(bridgeDir, "CLAUDE.md"), "utf8");
       const agents = await readFile(path.join(bridgeDir, "AGENTS.md"), "utf8");
       expect(claude).toContain("bridge-demo");
+      expect(claude).toContain("haive:bridge-start");
       expect(agents).toContain("haive:memories-start");
+      expect(agents).toContain("haive:bridge-start");
       expect(agents).toContain("bridge-demo");
+    } finally {
+      await rm(bridgeDir, { recursive: true, force: true });
+    }
+  });
+
+  it("native bridge generation preserves existing human content and appends only a managed block", async () => {
+    const bridgeDir = await mkdtemp(path.join(tmpdir(), "haive-native-preserve-"));
+    try {
+      await mkdir(path.join(bridgeDir, ".github"), { recursive: true });
+      await writeFile(path.join(bridgeDir, "AGENTS.md"), "# Human agent notes\n\nKeep this root guidance.\n", "utf8");
+      await writeFile(
+        path.join(bridgeDir, ".github/copilot-instructions.md"),
+        "# Human Copilot notes\n\nKeep this Copilot guidance.\n",
+        "utf8",
+      );
+
+      await run(bridgeDir, ["init", "--no-bootstrap", "--stack", "none", "-y", "--dir", bridgeDir]);
+
+      const agents = await readFile(path.join(bridgeDir, "AGENTS.md"), "utf8");
+      const copilot = await readFile(path.join(bridgeDir, ".github/copilot-instructions.md"), "utf8");
+
+      expect(agents).toContain("Keep this root guidance.");
+      expect(agents).toContain("haive:bridge-start");
+      expect(agents).toContain("Working through hAIve");
+      expect(copilot).toContain("Keep this Copilot guidance.");
+      expect(copilot).toContain("haive:bridge-start");
+      expect(copilot).toContain("Working through hAIve");
+    } finally {
+      await rm(bridgeDir, { recursive: true, force: true });
+    }
+  });
+
+  it("bridges sync skips native files with broken hAIve markers instead of overwriting them", async () => {
+    const bridgeDir = await mkdtemp(path.join(tmpdir(), "haive-native-invalid-"));
+    try {
+      await run(bridgeDir, ["init", "--no-bootstrap", "--stack", "none", "--no-bridges", "-y", "--dir", bridgeDir]);
+      const agentsPath = path.join(bridgeDir, "AGENTS.md");
+      const broken = "# Human agent notes\n\n<!-- haive:bridge-start -->\npartial generated block\n";
+      await writeFile(agentsPath, broken, "utf8");
+
+      const sync = await run(bridgeDir, ["bridges", "sync", "--only", "agents", "--dir", bridgeDir]);
+      const after = await readFile(agentsPath, "utf8");
+      expect(after).toBe(broken);
+      expect(sync.stderr + sync.stdout).toContain("marker mismatch");
+      expect(sync.stdout).toContain("1 skipped");
+
+      const status = await run(bridgeDir, ["bridges", "status", "--dir", bridgeDir]);
+      expect(status.stdout).toContain("agents");
+      expect(status.stdout).toContain("invalid");
     } finally {
       await rm(bridgeDir, { recursive: true, force: true });
     }

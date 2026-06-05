@@ -188,6 +188,8 @@ describe("generateBridges", () => {
   it("each output contains memories markers", () => {
     const outputs = generateBridges(memories, sensors);
     for (const output of outputs) {
+      expect(output.content).toContain(BRIDGE_MARKERS.bridgeStart);
+      expect(output.content).toContain(BRIDGE_MARKERS.bridgeEnd);
       expect(output.content).toContain(BRIDGE_MARKERS.memoriesStart);
       expect(output.content).toContain(BRIDGE_MARKERS.memoriesEnd);
     }

@@ -186,3 +186,7 @@
 {"tool":"get_briefing","at":"2026-06-04T20:45:07.428Z","summary":"Extend the seed quality floor (meetsSeedQualityFloor) to ingested findings (haive ingest / ingest_findings) and seed-git drafts so low-value proposals are filtered; harden the flaky embeddings CLI test."}
 {"tool":"mem_session_end","at":"2026-06-04T21:01:47.008Z","summary":"Extend the cold-start seed quality floor to ingested findings and git-seed draft"}
 {"tool":"mem_session_end","at":"2026-06-04T21:22:33.912Z","summary":"Close the Sonar gap in the ingest quality floor: numeric Sonar rule keys (typesc"}
+{"tool":"get_briefing","at":"2026-06-05T19:00:28.216Z","summary":"Analyser le projet hAIve de fond en comble, exécuter une batterie de tests/vérifications, puis positionner hAIve par rapport au harness engineering et aux concurrents à partir de recherches web."}
+{"tool":"mem_session_end","at":"2026-06-05T19:05:23.868Z","summary":"Analyser hAIve de fond en comble, tester largement le monorepo, puis positionner"}
+{"tool":"get_briefing","at":"2026-06-05T19:31:21.793Z","summary":"Implémenter la synchronisation native non destructive des bridges hAIve: ne jamais écraser les fichiers natifs existants, remplacer uniquement les blocs balisés, créer des fichiers dédiés pour les dossiers de rules, ajouter le statut/tests nécessaires puis vérifier build/tests/enforcement."}
+{"tool":"mem_tried","at":"2026-06-05T19:45:05.942Z","summary":"Running pnpm -r build and pnpm -r typecheck in parallel after version bump"}

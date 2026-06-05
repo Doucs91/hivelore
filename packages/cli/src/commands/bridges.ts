@@ -9,7 +9,7 @@ import {
   type BridgeTarget,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
-import { writeBridgeFiles } from "../utils/bridge-files.js";
+import { getBridgeFileStatuses, writeBridgeFiles } from "../utils/bridge-files.js";
 
 interface BridgesSyncOptions {
   all?: boolean;
@@ -17,6 +17,11 @@ interface BridgesSyncOptions {
   maxMemories?: string;
   dryRun?: boolean;
   dir?: string;
+}
+
+interface BridgesStatusOptions {
+  dir?: string;
+  maxMemories?: string;
 }
 
 export function registerBridges(program: Command): void {
@@ -96,33 +101,51 @@ export function registerBridges(program: Command): void {
       if (dryRun) {
         for (const p of res.created) console.log(ui.dim(`[dry-run] would create ${p}`));
         for (const p of res.updated) console.log(ui.dim(`[dry-run] would update ${p}`));
+        for (const p of res.unchanged) console.log(ui.dim(`[dry-run] unchanged ${p}`));
+        for (const warning of res.warnings) ui.warn(warning);
         return;
       }
       for (const p of res.created) console.log(ui.dim(`bridges: created ${p}`));
       for (const p of res.updated) console.log(ui.dim(`bridges: updated ${p}`));
+      for (const warning of res.warnings) ui.warn(warning);
 
       const parts: string[] = [];
       if (res.created.length > 0) parts.push(`${res.created.length} created`);
       if (res.updated.length > 0) parts.push(`${res.updated.length} updated`);
       if (res.unchanged.length > 0) parts.push(`${res.unchanged.length} unchanged`);
+      if (res.skipped.length > 0) parts.push(`${res.skipped.length} skipped`);
       console.log(ui.dim(`bridges: ${parts.join(" · ") || "nothing to do"}`));
     });
 
   // ── List subcommand ───────────────────────────────────────────────────
   bridges
-    .command("list")
-    .description("List bridge targets and their status in this project")
+    .command("status")
+    .alias("list")
+    .description("List bridge targets and whether their hAIve-managed blocks are current")
     .option("-d, --dir <dir>", "project root")
-    .action(async (opts: { dir?: string }) => {
+    .option("--max-memories <n>", "max memories expected in generated bridge blocks", "8")
+    .action(async (opts: BridgesStatusOptions) => {
       const root = findProjectRoot(opts.dir);
+      const paths = resolveHaivePaths(root);
+      const statuses = await getBridgeFileStatuses(root, paths, {
+        targets: BRIDGE_TARGETS,
+        maxMemories: Math.max(1, Number(opts.maxMemories ?? 8)),
+      });
       console.log(ui.bold("hAIve bridge targets:"));
-      for (const target of BRIDGE_TARGETS) {
-        const relPath = BRIDGE_TARGET_PATH[target];
-        const exists = existsSync(path.join(root, relPath));
-        const marker = exists ? ui.dim("✓") : ui.dim("·");
-        console.log(`  ${marker} ${target.padEnd(10)} ${relPath}${exists ? "" : "  (not present)"}`);
+      for (const status of statuses) {
+        const marker =
+          status.state === "invalid" ? ui.yellow("!") :
+          status.wouldChange ? ui.dim("~") :
+          status.exists ? ui.dim("✓") :
+          ui.dim("·");
+        const note =
+          status.state === "missing" ? "not present" :
+          status.state === "invalid" ? `invalid: ${status.issues.join("; ")}` :
+          status.wouldChange ? `${status.state}, stale` :
+          status.state;
+        console.log(`  ${marker} ${status.target.padEnd(10)} ${status.path}  (${note})`);
       }
       console.log("");
-      console.log(ui.dim("Run `haive bridges sync --all` to generate all targets."));
+      console.log(ui.dim("Run `haive bridges sync --all` to create missing targets and refresh stale managed blocks."));
     });
 }

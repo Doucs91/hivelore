@@ -6,6 +6,20 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.26.2] — native bridges become non-destructive managed blocks
+
+#### Added
+- Native bridge files now carry a full `haive:bridge-start/end` managed block, so hAIve can refresh
+  its generated instructions/memories without owning the whole native file.
+- `haive bridges status` reports each target as managed, legacy-managed, unmanaged, missing, stale, or
+  invalid; `bridges list` remains an alias.
+
+#### Fixed
+- `haive bridges sync` now skips files with broken or duplicated hAIve markers instead of appending or
+  overwriting ambiguously. Existing human content outside hAIve markers is preserved.
+- `haive sync` uses the same bridge writer for existing native bridge files, including `AGENTS.md` and
+  `CLAUDE.md`, eliminating drift between the legacy `--inject-bridge` path and native bridge sync.
+
 ## [0.26.1] — catch SonarQube stylistic/naming rules in the ingest quality floor
 
 #### Fixed
