@@ -916,6 +916,13 @@ describe("hAIve CLI integration", () => {
       expect(stdout).toContain("Drill down only if needed:");
       expect(stdout).toContain("mem_get(");
       expect(stdout).toContain("code_search(");
+      // The breadcrumbs map must stay a terse pointer list — it must not duplicate the memory body
+      // (which is printed in full just below). Guard against the breadcrumbs re-bloating.
+      const startHereBlock = stdout.slice(
+        stdout.indexOf("Start here:"),
+        stdout.indexOf("Drill down only if needed:"),
+      );
+      expect(startHereBlock).not.toContain("Always follow the breadcrumb policy");
     } finally {
       await rm(repo, { recursive: true, force: true });
     }

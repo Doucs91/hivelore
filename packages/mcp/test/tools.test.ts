@@ -388,6 +388,13 @@ describe("hAIve MCP tools", () => {
       expect(briefing.memories[0]?.why?.some((w) => w.includes("Glob anchor match"))).toBe(true);
       expect(briefing.breadcrumbs?.start_here[0]).toContain(anchored.id);
       expect(briefing.breadcrumbs?.drill_down.some((d) => d.includes(`mem_get("${anchored.id}")`))).toBe(true);
+      // Breadcrumbs are a pointer map, not a copy: the memory body must NOT be re-summarized into start_here.
+      expect(briefing.breadcrumbs?.start_here.join("\n")).not.toContain("owns app state");
+      // The breadcrumbs payload is now counted honestly toward the budget.
+      expect(briefing.budget.spent.breadcrumbs).toBeGreaterThan(0);
+      expect(briefing.estimated_tokens).toBeGreaterThanOrEqual(
+        briefing.budget.spent.project + briefing.budget.spent.modules + briefing.budget.spent.memories,
+      );
       expect(briefing.briefing_quality.level).toBe("strong");
     });
 

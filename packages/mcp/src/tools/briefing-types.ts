@@ -115,7 +115,8 @@ export interface BriefingOutput {
   estimated_tokens: number;
   budget: {
     max_tokens: number;
-    spent: { project: number; modules: number; memories: number };
+    /** Per-section token spend. `breadcrumbs` is present only when the breadcrumbs map is emitted. */
+    spent: { project: number; modules: number; memories: number; breadcrumbs?: number };
     preset_applied?: "quick" | "balanced" | "deep";
   };
 }

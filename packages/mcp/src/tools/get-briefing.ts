@@ -794,6 +794,11 @@ export async function getBriefing(
     symbols: input.symbols,
     adaptiveTrim,
   });
+  // Breadcrumbs add to the wire payload, so count them honestly toward the budget instead of
+  // silently understating estimated_tokens (they were previously omitted from totalTokens/spent).
+  const breadcrumbTokens = breadcrumbs
+    ? estimateTokens([...breadcrumbs.start_here, ...breadcrumbs.drill_down, breadcrumbs.note ?? ""].join("\n"))
+    : 0;
 
   // ── Briefing marker (satisfies enforcement gate for MCP-native agents) ─
   if (existsSync(ctx.paths.haiveDir)) {
@@ -847,7 +852,7 @@ export async function getBriefing(
     ...(isColdStart ? { low_value: true as const } : {}),
     briefing_value: briefingValueLow ? "low" : "high",
     ...(hints.length > 0 ? { hints } : {}),
-    estimated_tokens: totalTokens,
+    estimated_tokens: totalTokens + breadcrumbTokens,
     budget: {
       max_tokens: briefingMaxTokens,
       ...(input.budget_preset ? { preset_applied: input.budget_preset } : {}),
@@ -855,6 +860,7 @@ export async function getBriefing(
         project: projectSlice.estimatedTokens,
         modules: modulesSlice.estimatedTokens,
         memories: memoriesSlice.estimatedTokens,
+        ...(breadcrumbTokens ? { breadcrumbs: breadcrumbTokens } : {}),
       },
     },
   };
@@ -893,13 +899,14 @@ function buildBriefingBreadcrumbs(input: {
   const startHere: string[] = [];
   const drillDown: string[] = [];
 
+  // Breadcrumbs are a *map*, not the content: a terse pointer (priority · id · scope/type · anchor).
+  // The body already lives in `memories[]` (and is one `mem_get` away), so we deliberately do NOT
+  // re-summarize it here — that kept the default payload small instead of duplicating it.
   for (const memory of input.memories.slice(0, 4)) {
     const loaded = input.byId.get(memory.id);
     const anchor = loaded?.memory.frontmatter.anchor.paths[0];
     const anchorNote = anchor ? ` · applies to ${anchor}` : "";
-    startHere.push(
-      `${memory.priority}: memory ${memory.id} (${memory.scope}/${memory.type})${anchorNote} — ${compactSummary(memory.body)}`,
-    );
+    startHere.push(`${memory.priority}: memory ${memory.id} (${memory.scope}/${memory.type})${anchorNote}`);
   }
 
   for (const hit of input.symbolLocations?.slice(0, 4) ?? []) {

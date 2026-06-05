@@ -6,6 +6,20 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.26.4] — leaner breadcrumbs (map, not manual) + honest token budget
+
+#### Changed
+- `get_briefing` breadcrumbs `start_here` is now a terse pointer (priority · id · scope/type · anchor)
+  instead of re-summarizing the memory body that already ships in `memories[]`. This removes the
+  duplication introduced in 0.26.3 and keeps the default context genuinely small.
+- `haive briefing` mirrors the same change: the `Start here` block is a pointer list, not a second
+  copy of each memory body (the full body still prints below).
+
+#### Fixed
+- `get_briefing` now counts the breadcrumbs payload toward `estimated_tokens` and reports it as
+  `budget.spent.breadcrumbs`. Previously breadcrumbs were emitted after the token total was computed,
+  so the reported budget understated the real wire size.
+
 ## [0.26.3] — breadcrumbs-first briefings and cleaner native bridges
 
 #### Added

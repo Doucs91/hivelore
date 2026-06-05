@@ -579,15 +579,13 @@ function printCliBreadcrumbs(input: {
   stopped: () => boolean;
 }): void {
   if (input.stopped()) return;
+  // A terse pointer map only — the full body for each memory is printed right below, so re-summarizing
+  // it here would just duplicate the payload. Keep breadcrumbs small ("map, not manual").
   const startHere = input.top.slice(0, 4).map((item, idx) => {
     const fm = item.memory.frontmatter;
     const priority = input.priorities[idx] ?? "background";
     const anchor = fm.anchor.paths[0] ? ` · applies to ${fm.anchor.paths[0]}` : "";
-    const summary = item.memory.body
-      .split("\n")
-      .map((line) => line.replace(/^#+\s*/, "").trim())
-      .find((line) => line.length > 0) ?? fm.id;
-    return `  - ${priority}: ${fm.id}${anchor} — ${summary.slice(0, 120)}`;
+    return `  - ${priority}: ${fm.id} (${fm.scope}/${fm.type})${anchor}`;
   });
 
   const drillDown: string[] = [];
