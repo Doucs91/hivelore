@@ -77,7 +77,7 @@ Bottom status bar shows total memories and flags action_required:
 ```
 
 ### ⚡ Auto-reload
-The extension watches `.ai/memories/**` and refreshes automatically when you run `haive memory add`, `haive sync`, or edit memory files directly.
+The extension watches `.ai/memories/**` and refreshes automatically when you run `haive memory save`, `haive sync`, or edit memory files directly.
 
 ### Human context routines
 The extension is designed to reinforce a small daily discipline:

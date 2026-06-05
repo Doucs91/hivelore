@@ -6,6 +6,161 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.26.1] — catch SonarQube stylistic/naming rules in the ingest quality floor
+
+#### Fixed
+- SonarQube uses numeric rule keys (`typescript:S103`, `python:S00117`), so the name-based stylistic
+  denylist missed them. Added a curated set of Sonar formatting/naming/trivial-maintainability keys
+  (S100/S101/S103/S105/S113/S114–S122/S125/S1110/S1116/S1131/S1542), normalized so legacy (`S00117`)
+  and modern (`S117`) ids both match. Real security/quality rules (S2068 hard-coded creds, S5852 ReDoS,
+  S1234 cognitive complexity) are untouched. Live-verified: `haive ingest --from sonar` on 5 findings →
+  3 stylistic filtered, 2 security rules kept.
+
+## [0.26.0] — quality floor for ingested findings and git seeds; flaky-test hardening
+
+#### Added
+- **Source-appropriate quality gates for the two remaining cold-start sources.** Calibration showed the
+  specificity floor is the wrong tool for them (a finding body is always concrete → passes; a git-seed
+  body is mostly boilerplate → fails), so each source gets its own gate:
+  - **ingest** drops auto-fixable **stylistic** rules (semi/quotes/indent/prefer-const/prettier…),
+    matched on the rule's last segment so prefixed ids count. `haive ingest --include-stylistic`
+    opts back in; the MCP `ingest_findings` tool gains `include_stylistic`. Reports "N low-value/
+    stylistic filtered".
+  - **seed-git** drops mechanical **noise** subjects (merge/bump/release/deps/wip/format/typo) — a
+    reverted merge or dep-bump is not a repo lesson.
+
+#### Fixed
+- The embeddings index test is now best-effort — it asserts when the Transformers.js model produced an
+  index and never flakes the build when the model is unavailable in CI.
+
+## [0.25.0] — enforce a quality floor on cold-start seeds; framework seeds become sensors
+
+#### Added
+- **`meetsSeedQualityFloor` + `SEED_QUALITY_FLOOR` (0.2).** A seed earns its place only if it carries a
+  sensor (enforceable) OR is concrete and non-generic — lower than the 0.3 memory-lint bar because seeds
+  are background framework reference, not claimed team knowledge. `seed-quality.test.ts` audits the whole
+  shipped pack library and fails the build if anyone adds a low-value seed.
+- Upgraded the 6 sub-floor seeds with sensors — flask (SQL f-string injection), prisma (`$disconnect`
+  in serverless), zustand (whole-store subscribe), nestjs (ORM in controller, scoped to `*.controller.ts`);
+  enriched the mongoose `.lean()` note. A fresh Next/Nest/Prisma repo now ships 4 active sensors (was 2).
+
+## [0.24.0] — architecture guard, safe autogen sensors, radar-leak fix, cold-start commands, dashboard value line
+
+#### Added
+- **Architecture guard test:** prevention recording MUST funnel through the single shared
+  `recordPreventionHits`; the build fails if any source bypasses it (kills the recurring
+  "bolted-on entry points" drift that caused two silent leaks).
+- **Dashboard "Value" headline:** repeats blocked (30d) · high-impact memories · active policies, with
+  an honest "cost is real; payoff is downstream" note.
+
+#### Changed
+- **Cold-start:** the minimal auto-generated project context now surfaces detected run commands
+  (test/build/lint/typecheck/dev) from `package.json` — the #1 non-guessable session-1 fact.
+- Hardened `suggestSensorFromMemory` to reject degenerate tokens (numeric/line ranges, `file.ts:123`
+  refs) so it never emits a nonsensical regex sensor (autogen stays warn-only).
+- Benchmark `token_proxy` → `report_tokens_est`, relabeled "report only, NOT total agent tokens" — we
+  have real runtime telemetry now; an honesty fix.
+
+#### Fixed
+- Briefing radar no longer leaks the parent repo's git history when the git toplevel is an ancestor of
+  the project root.
+
+## [0.23.0] — agent-edit coverage; guided conflict supersede
+
+#### Added
+- **`haive coverage` crosses the corpus with both committed git churn AND agent-edited hot files** from
+  the PostToolUse observation log (`.ai/.cache/observations.jsonl`), merged and tagged per gap with its
+  heat source (`git` | `agent` | `both`). New `--source git|agent|both`.
+- **Conflict resolution is now a guided supersede, not just a deprecate.** `applyConflictResolution`
+  promotes the winner (revision_count++, verified, linked) and has it adopt the loser's topic when it had
+  none — so future `mem_save` upserts consolidate into the winner instead of spawning a third
+  contradiction. `haive memory resolve-conflict --yes` writes both files; `mem_conflict_candidates`
+  attaches a `suggested_resolution` (keep/supersede + apply command) to every pair.
+
+## [0.22.0] — close the prevention-recording leak in the installed gate
+
+Perfecting the existing loop (capture → brief → block → measure) before adding anything new; grounded in
+a code-verified harness-engineering audit that found the headline "measure" leg leaked.
+
+#### Fixed
+- **`recordPreventionHits` is now THE single prevention recorder.** The git-hook gate, `haive sensors
+  check`, and the anti-pattern MCP tool funnel through it (debounced), so what the installed gate
+  **blocks** is finally **counted**. The regex/command-sensor path used to block without recording; only
+  anti-pattern catches were recorded before.
+
+#### Added
+- `runSensorGate` records prevention for regex AND command sensors in the git-hook gate; shell/test
+  command sensors run in-gate behind `enforcement.runCommandSensors`.
+- `mem_tried` returns `sensor_generated` + a hint when the ratchet stays open (no paths / no distinctive
+  token), so a paths-less capture isn't silently advisory-only.
+- `haive eval` reports case provenance (synthesized vs authored) and warns when the score is purely
+  self-referential.
+
+## [0.21.0] — pre-commit gate auto-briefs; `haive briefing --json`
+
+#### Added
+- **Auto-brief:** the pre-commit/pre-push decision-coverage gate no longer blocks waiting for a manual
+  `haive briefing` — it surfaces the relevant anchored decisions itself and records them in the session
+  marker at commit time, then passes with `decision-coverage-autosurfaced`. New `enforcement.autoBrief`
+  (default true); set false for the strict legacy gate.
+- **`haive briefing --json`** emits the ranked memories + quality + counts (parity with the MCP
+  `get_briefing` tool for scripting/CI).
+
+#### Changed
+- Stack-pack seeds get a clean "`<Stack>: <Rule>`" H1 so the corpus normalizer stops synthesizing ugly
+  "Convention `<slug>`" titles.
+
+## [0.20.1] — idempotent stack-pack re-seed, smoother decision-coverage gate
+
+#### Fixed
+- Stack-pack re-seed no longer creates duplicates across days/versions: dedup by a stable
+  date-insensitive signature (`type-slug`) OR `topic` (`stack-pack:<stack>:<slug>`).
+- The decision-coverage gate no longer blocks a commit over a policy memory you author in the **same**
+  commit — a policy memory counts as covered when its own `.md` file is staged. Strictly loosens; never
+  adds a false block.
+
+## [0.20.0] — run regex sensors in the pre-commit gate, tighten matcher precision
+
+#### Fixed
+- **Regex sensors were orphaned from the commit gate.** The installed hook ran only `enforce check`
+  (fuzzy anti-pattern matcher), while `haive eval` reported `catch_rate 1.0` — real commits had zero
+  sensor protection. `runPrecommitPolicy` now runs `runSensorGate` (all regex sensors, any memory type)
+  on the staged diff: block sensor → fails the gate, warn sensor → visible non-blocking finding.
+- **Tightened fuzzy precision:** a non-anchored memory whose sensor did NOT fire → info (non-violation
+  evidence); uncorroborated semantic review floor 0.6 → 0.65. Cuts the "20 mostly-irrelevant matches for
+  a 3-line diff" noise that trains agents to ignore the gate.
+- `memory-lint` `LOW_VALUE_GUESSABLE` now requires positive generic-advice evidence so an
+  arbitrary-but-prose team policy isn't mislabeled.
+
+## [0.19.0] — `haive init` generates all 12 native bridges, carrying memories + sensors
+
+#### Changed
+- A fresh `init` now produces **every** supported bridge via the shared generator, **after** seeding, so
+  each carries the repo's memories + block sensors (before, init reached ~4 agents with an empty static
+  template). New `--bridge-targets <all|comma-list>` (default all); `--no-bridges` still skips. The
+  first-session report shows "Reach: N agent bridge(s) generated".
+- The `HAIVE_PREAMBLE` shared by every bridge is upgraded to the full instructional body (repo map +
+  4-step "Working through hAIve" + Safety). Generic stack-pack memories stay **out** of bridges
+  (on-thesis — bridges stay repo-specific + enforced rules).
+
+## [0.18.0] — 12 bridge targets, +10 stack packs, eslint/npm-audit ingest
+
+Closes the two adoption levers from the battle plan (reach + cold-start) where hAIve was "good, not
+ahead" vs memories.sh — while keeping the enforcement edge (bridges carry block sensors, not just memory
+injection).
+
+#### Added
+- **Reach: 7 → 12 bridge targets.** Added `claude` (CLAUDE.md, now unified into the bridges pipeline),
+  `cursor` (`.cursor/rules/haive-memories.mdc`), `roo` (`.roo/rules/haive.md`), `gemini` (GEMINI.md),
+  `aider` (CONVENTIONS.md), joining cline/windsurf/continue/cody/zed/agents/copilot. Anchor paths render
+  inline ("applies to: …") on every target.
+- **Cold-start: +10 stack packs** — tailwind, vite, sveltekit, astro, typescript, monorepo, laravel,
+  rails, dotnet, docker — with sensors where high-signal. Detection wired into `init` (composer.json →
+  Laravel, Gemfile → Rails, .csproj → .NET, Dockerfile → docker, turbo.json/nx.json → monorepo).
+- **`haive ingest --from eslint|npm-audit`:** ESLint JSON (cwd-relativized paths + derived sensor) and
+  `npm audit` JSON (anchored to package.json).
+- **seed-git:** new `workaround` signal (workaround/hack/band-aid/FIXME/stop-gap).
+
 ## [0.17.1] — cold-start metric integrity + proof-line wiring
 
 Integration pass after merging Lot A (cold-start), Lot B (visible value), and Lot C (reach).

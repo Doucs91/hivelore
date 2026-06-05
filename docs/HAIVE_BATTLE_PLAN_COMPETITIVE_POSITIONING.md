@@ -8,8 +8,15 @@
 > **Rule for this document:** no hype. A battle plan that oversells is useless. Every strength is
 > grounded in code; every weakness is named. The honesty *is* the weapon — it's what lets us aim.
 >
-> _Last consolidated: 2026-06-03 (hAIve v0.17.0). Source: a multi-session dogfooding + research effort
-> where the analyst drove hAIve end-to-end to ship v0.15.0 → v0.17.0._
+> _Last consolidated: 2026-06-03 (hAIve v0.17.0); progress notes added 2026-06-04 (v0.26.1). Source: a
+> multi-session dogfooding + research effort where the analyst drove hAIve end-to-end to ship
+> v0.15.0 → v0.26.1._
+>
+> **Status update (v0.26.1):** the three adoption levers in §8 have largely shipped — 12 native bridges
+> generated at init (reach), cold-start seeding from stack/git/scanners **with a quality floor** (kill
+> cold-start), and a dashboard "Value" line + briefing proof line (visible value). The measured loop's
+> prevention-recording leak (the "measure" leg) was closed in v0.22.0. The two **strategic risks** in §7
+> (adoption-order inversion, the autonomy bet) remain the open fronts; they are about timing, not shape.
 
 ---
 
@@ -206,17 +213,21 @@ Neither risk is about the *shape* (feedforward + feedback + measurement is corre
   (recall/MRR/catch-rate trend). Answers the question every buyer of an AI tool secretly has.
 
 **Close the timing gap (the actual work, in priority order):**
-1. **Kill cold-start.** Value must appear in session #1, not after 50 memories. Auto-seed from signals
-   the repo already has: git revert/hotfix history (`seed-git`, shipped), lint/CI/Sonar findings
-   (`ingest`), changelog. Ship a curated starter pack per stack. *This is the single highest-leverage
-   adoption lever.*
-2. **Widen reach beyond MCP.** Generate native bridge configs (AGENTS.md / .cursorrules / Copilot /
-   Cline) from the same corpus — meet agents where they are, like memories.sh. MCP-only caps the funnel.
-3. **Make value visible early.** A first-session "here's what I caught / surfaced for you" summary; a
-   dashboard line a human reads in 5 seconds; the prevention trend front-and-center.
+1. **Kill cold-start.** ✅ *Largely shipped (v0.18–0.26).* Value must appear in session #1, not after 50
+   memories. Auto-seed from signals the repo already has: git revert/hotfix/workaround history
+   (`seed-git`), lint/CI/Sonar/npm-audit findings (`ingest`, with `sarif`/`sonar`/`eslint`/`npm-audit`),
+   and 20+ curated stack packs. Every source now passes a **quality floor** so cold-start never ships
+   generic, guessable advice. *Remaining: changelog ingest; broader real-world calibration.*
+2. **Widen reach beyond MCP.** ✅ *Shipped (v0.18–0.19).* `haive init` now generates **12** native bridge
+   configs (CLAUDE.md / AGENTS.md / Cursor / Cline / Windsurf / Continue / Cody / Zed / Roo / Gemini /
+   Aider / Copilot) from the same corpus — carrying memories **and block sensors**, our edge over
+   memories.sh (injection-only).
+3. **Make value visible early.** ✅ *Shipped (v0.17.1, v0.24.0).* Briefing proof line ("prevented N
+   repeated mistakes", silent on a cold corpus) + dashboard "Value" headline (repeats blocked 30d ·
+   high-impact memories · active policies). *Remaining: a first-session "here's what I caught" summary.*
 4. **Keep the harness helpful, not a burden.** Every false positive that trains an agent to ignore the
    gate is an existential bug (we hit and fixed several: failure-detection noise, anti-pattern
-   self-match, decision-coverage friction). Guard this ruthlessly.
+   self-match, decision-coverage friction, the prevention-recording leak in v0.22.0). Guard this ruthlessly.
 
 **Don't fight where we lose:** don't chase vector/graph memory sophistication (Family 1) — it's the
 least real need for code and a crowded, funded fight. Our narrowness is a feature.

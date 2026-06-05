@@ -220,6 +220,30 @@ them once: `haive memory save/search/get/delete` ↔ `mem_save`/`mem_search`/`me
 
 ---
 
+## Cold start — value in session one
+
+An empty corpus is worth nothing, so `haive init` seeds from signals the repo already has — and every
+seed passes a **quality floor** so cold-start never ships generic, guessable advice. A seed earns its
+place only if it carries an enforceable sensor or is concrete and non-generic.
+
+| Source | What it seeds | Quality gate |
+|---|---|---|
+| **Stack packs** | Detected-framework traps (Next/Nest/Prisma/Flask/Rails/Tailwind/Docker… 20+ packs), with **block sensors** where high-signal | specificity floor — generic advice is dropped, audited in CI |
+| **Git history** (`--seed`, on by default) | Draft memories from revert/hotfix/workaround commits — your repo's real scars | noise-subject denylist (merge/bump/deps/wip/format dropped) |
+| **Scanner findings** (`haive ingest`) | SonarQube / SARIF / ESLint / `npm audit` findings as proposed, anchored memories with sensors | auto-fixable **stylistic** rules dropped (incl. Sonar numeric keys); `--include-stylistic` to keep |
+
+```bash
+haive init                                   # Detect stack + seed packs + seed git history
+haive ingest --from sonar issues.json --min-severity major
+haive ingest --from eslint report.json
+haive ingest --from sarif report.sarif --dry-run   # Preview without writing
+```
+
+Ingested and git-seeded memories land as `proposed` (warn-only sensors). Review them with
+`haive memory list --status proposed`; promote vetted sensors to `block` with `haive sensors promote`.
+
+---
+
 ## .ai/ directory layout
 
 ```
@@ -233,13 +257,35 @@ your-project/
 │       ├── personal/               # Private — gitignored
 │       ├── team/                   # Shared — committed to git
 │       └── module/<name>/          # Module-scoped memories
-├── CLAUDE.md                       # Auto-generated bridge for Claude Code
-├── .cursorrules                    # Auto-generated bridge for Cursor
+├── CLAUDE.md                       # Auto-generated bridge (Claude Code)
+├── AGENTS.md / GEMINI.md / …       # …and 10 more native bridges (see below)
 └── .github/
     ├── copilot-instructions.md     # Auto-generated bridge for Copilot
     └── workflows/
         ├── haive-sync.yml          # Anchor verification on merge
         └── haive-enforcement.yml   # Required policy gate
+```
+
+### Native bridges — meet every agent where it is
+
+For CLI/IDE agents without MCP, `haive init` generates native config files from the **same** corpus, so
+the team's memories and **block sensors** travel to whatever agent a developer uses — not just an empty
+template, the enforcement edge too. `haive sync` keeps them fresh; never hand-edit them (regenerate with
+`haive bridges sync`).
+
+| Agent | File | Agent | File |
+|---|---|---|---|
+| Claude Code | `CLAUDE.md` | Cline | `.clinerules` |
+| Cursor | `.cursor/rules/haive-memories.mdc` | Windsurf | `.windsurfrules` |
+| Codex / generic | `AGENTS.md` | Continue | `.continuerules` |
+| GitHub Copilot | `.github/copilot-instructions.md` | Cody | `.sourcegraph/cody-rules.md` |
+| Gemini CLI | `GEMINI.md` | Zed | `.rules` |
+| Aider | `CONVENTIONS.md` | Roo | `.roo/rules/haive.md` |
+
+```bash
+haive bridges list                 # Show target status
+haive bridges sync --all           # Regenerate every native bridge
+haive init --bridge-targets cursor,copilot   # Or scope to specific agents
 ```
 
 ---
@@ -300,46 +346,18 @@ MCP profiles keep the product focused:
 | [`@hiveai/core`](./packages/core) | dependency | Types, schema, anchors, policy primitives, token budgets |
 | [`@hiveai/embeddings`](./packages/embeddings) | `npm i -g @hiveai/embeddings` | Optional: local semantic ranking (bge-small-en-v1.5, fully offline) |
 
+**Also in this repo:** a [VS Code extension](./packages/vscode) (surfaces memories inline + a Strategic
+Cockpit over the CLI's observability) and a [GitHub Action](./packages/github-action) (posts relevant
+team memories as a PR comment so reviewers and agents never miss a non-obvious constraint).
+
 ---
 
-## Benchmark results
+## Adaptive briefing
 
-**10 cold sub-agents, 5 projects, the same task with and without hAIve.** Each fixture hides a
-policy that is *not* visible in the code; correctness is graded by a hidden rubric the agents never
-see. Real token/tool counts from the agent runtime (not a proxy). `n=1` per cell — a characterization,
-not a significance test.
-
-**Correctness (did the agent satisfy the hidden policy?)**
-
-| Project | Policy type | Without hAIve | With hAIve |
-|---|---|:---:|:---:|
-| multitenant (TS) | inferable | ✅ | ✅ |
-| money / Decimal (Py) | inferable | ✅ | ✅ |
-| migrations (SQL) | inferable | ✅ | ✅ |
-| public-id `AC-100007` (TS) | **arbitrary** | ❌ invented `rec_7` | ✅ |
-| status `OK`/`KO` (Py) | **arbitrary** | ❌ returned `ok`/`error` | ✅ |
-| **Total** | | **3 / 5** | **5 / 5** |
-
-**Cost, split by policy type (real tokens):**
-
-| | Tokens without | Tokens with | Outcome |
-|---|---:|---:|---|
-| Inferable policies | 31,725 | 63,252 | same answer — hAIve is overhead here |
-| Arbitrary policies | 31,325 | 23,143 | hAIve **2/2 vs 0/2**, and **−26% tokens** |
-
-> **Read this honestly.** hAIve does **not** make agents faster or cheaper on tasks a capable model
-> can already infer — there it is pure briefing overhead, which is exactly why [adaptive briefing](#adaptive-briefing)
-> trims itself to near-zero when nothing team-specific matches. Its value is **correctness on the
-> unguessable**: the two failures without hAIve were confident, well-tested, *wrong-by-policy* code.
-> On the arbitrary cases hAIve is even cheaper, because the plain agent burns tokens inventing a
-> convention (and still gets it wrong).
-
-### Adaptive briefing
-
-Because a briefing only earns its tokens when it carries unguessable knowledge, `get_briefing`
-returns `briefing_value: "high" | "low"`. When nothing team-specific matches the files/task, the
-auto-generated project context is trimmed to a one-line note (config: `adaptiveBriefing`, default on).
-hAIve charges tokens only when it actually knows something the model doesn't.
+A briefing only earns its place when it carries unguessable knowledge, so `get_briefing` returns
+`briefing_value: "high" | "low"`. When nothing team-specific matches the files/task, the auto-generated
+project context is trimmed to a one-line note (config: `adaptiveBriefing`, default on) — so hAIve
+surfaces deeper context only when it actually knows something the model doesn't.
 
 ---
 
@@ -347,30 +365,39 @@ hAIve charges tokens only when it actually knows something the model doesn't.
 
 ```bash
 # Setup
-haive init [--with-ci] [--no-bridges]        # Initialize .ai/ + bridge files
+haive init [--with-ci] [--no-bridges]         # Initialize .ai/ + bridge files + seed stack/git
+haive init --bridge-targets <all|csv>         # Scope generated bridges to specific agents
 haive enforce install                         # Install Git hooks + CI enforcement
 haive enforce status                          # Enforcement posture report
+haive bridges list/sync [--all]               # Inspect / regenerate native agent bridges
 haive index code                              # Build .ai/code-map.json
 haive index code --status [--json]            # Report code-map / code-search index freshness
 
 # Daily use
-haive briefing [--task <text>] [--files]     # Print context + relevant memories
+haive briefing [--task <text>] [--files] [--json]   # Print context + relevant memories
 haive run -- <agent command>                  # Wrap any CLI agent in hAIve session
 haive enforce check [--stage pre-commit]      # Policy gate
 haive enforce ci                              # CI entrypoint
 haive enforce finish                          # Final agent-exit gate: commit/push + version/tag protocol
+haive coverage [--source git|agent|both]      # Find changed files no memory covers
 haive sync [--since <ref>] [--embed]          # Verify anchors + auto-promote
-haive sensors list/check/export               # Operate executable memory sensors
+haive sensors list/check/export/promote       # Operate executable memory sensors
 
 # Memory
-haive memory add --type <type> [--paths|--files <csv>]  # Add a memory (anchor to files)
+haive memory save --type <type> [--paths|--files <csv>] # Save a memory (anchor to files)
 haive memory list [--scope] [--status]        # List memories
-haive memory query <text>                     # Full-text search
+haive memory search <text>                    # Full-text / semantic search
+haive memory get <id>                         # Read one record
 haive memory approve [<id>|--all]             # Mark as validated
 haive memory promote <id>                     # personal → team
 haive memory tried                            # Record a failed approach
+haive memory resolve-conflict [--yes]         # Guided supersede of contradicting memories
 haive memory verify [--update] [--json]       # Check anchor freshness
 haive memory import --from <file>             # Import docs as memories
+
+# Cold start (seed from existing signals)
+haive ingest --from sonar|sarif|eslint|npm-audit <file>  # Scanner findings → anchored memories
+haive ingest --from <fmt> <file> --dry-run    # Preview without writing
 
 # Semantic search
 haive embeddings index                        # Build index (first run: downloads model)
