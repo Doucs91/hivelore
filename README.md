@@ -358,45 +358,36 @@ team memories as a PR comment so reviewers and agents never miss a non-obvious c
 hides a *non-guessable* repo policy that maps to a real, documented production incident, with the policy
 visible only in the hAIve fixture's `.ai/` memory. Both conditions get an identical stub + a provided
 basic test; correctness is graded by a **hidden** acceptance test (the policy's edge cases) the agents
-never see. Telemetry (`subagent_tokens`, `tool_uses`, `duration_ms`) is **real**, from the agent runtime.
-2 reps × 2 conditions × 3 types — illustrative, not statistically powered.
+never see. 2 reps × 2 conditions × 3 types — illustrative, not statistically powered.
 
 | Metric | hAIve (n=6) | Plain (n=6) |
 |---|:---:|:---:|
 | Provided test pass | 6/6 (100%) | 6/6 (100%) |
 | **Hidden policy pass** | **6/6 (100%)** | **0/6 (0%)** |
 | **Documented prod bug reproduced** | **0/6** | **6/6** |
-| Mean tokens / task | 15,248 | 12,215 |
-| Mean tool calls / task | 8.33 | 7.00 |
-| Mean wall-time / task | 57.7 s | 35.8 s |
 
-**Deltas:** tokens **+24.8%**, tool calls **+19.0%**, wall-time **+61.5%**, policy-correctness
-**0% → 100%**. What the plain agents shipped every time — the exact documented bug:
+What the plain agents shipped every time — the exact documented bug:
 
 - **money:** `Math.round(...)` (half-up → overcharges, bug HV-114). hAIve used banker's rounding.
 - **utc:** `datetime.strptime(...)` (naive datetime → incident INC-77). hAIve forced tz-aware UTC.
 - **pagination:** uncapped `LIMIT` (outage OPS-9). hAIve clamped `pageSize` to 100.
 
-> **Read this honestly.** Within one agent run with a runnable test, hAIve does **not** save tokens or
-> time — it costs ~+25% tokens and is slower (pure briefing overhead, which is why
-> [adaptive briefing](#adaptive-briefing) trims itself toward zero when nothing team-specific matches).
-> Its measured return is **correctness on the unguessable**: it took policy-correctness from 0% → 100%,
-> preventing the precise documented production bugs a plain agent reintroduces on every run. That payoff
-> lands **downstream** — incidents, human review, revert-and-refix across sessions — not on the coding
-> agent's own token bill.
-
-> **On the "cheaper at scale via rework" hypothesis.** A second benchmark encoded the policy in the test
-> the agent reads. The cost did **not** flip (hAIve +32% tokens): a strong model infers a locally-checkable
-> rule from the expected values and implements it first try, so no rework occurs in either group. The
-> rework-flip plausibly appears only when the violation is caught **downstream** (CI, review, production)
-> or in large-repo **navigation** cost — both untested here. We don't claim what we haven't measured.
+> **Read this honestly.** This measures one thing: **correctness on the unguessable.** hAIve took
+> policy-correctness from 0% → 100%, preventing the precise documented production bugs a plain agent
+> reintroduces on every run. That payoff lands **downstream** — incidents, human review, and
+> revert-and-refix across sessions.
+>
+> We are **not** publishing a token-cost or speed verdict: the briefing step is real overhead, but we
+> have not run the large, real-world benchmarks needed to characterize that cost honestly (small fixtures
+> can't tell you what navigation/rework looks like in a 1,000-file repo). We don't claim what we haven't
+> measured at scale.
 
 ### Adaptive briefing
 
-Because a briefing only earns its tokens when it carries unguessable knowledge, `get_briefing`
-returns `briefing_value: "high" | "low"`. When nothing team-specific matches the files/task, the
-auto-generated project context is trimmed to a one-line note (config: `adaptiveBriefing`, default on).
-hAIve charges tokens only when it actually knows something the model doesn't.
+A briefing only earns its place when it carries unguessable knowledge, so `get_briefing` returns
+`briefing_value: "high" | "low"`. When nothing team-specific matches the files/task, the auto-generated
+project context is trimmed to a one-line note (config: `adaptiveBriefing`, default on) — so hAIve
+surfaces deeper context only when it actually knows something the model doesn't.
 
 ---
 
