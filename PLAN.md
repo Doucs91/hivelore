@@ -3,6 +3,14 @@
 > **hAIve** (mélange de *hive* et *AI*) — couche Git-native de contexte, mémoire et policy gates pour les harnesses d'agents de code.
 > Document de référence pour reprendre le travail à froid après fermeture de session.
 > Dernière mise à jour : 2026-06-02
+>
+> ⚠️ **Document historique de conception (design doc).** La vision (§1) et les décisions architecturales
+> (§2) restent valables, mais l'**historique des versions** (§6) s'arrête à v0.2.16 et la **roadmap v0.3**
+> (§7) a depuis été livrée (code-map dans le briefing, TUI/cockpit, workflow `proposed → validated`).
+> Pour l'**état courant du produit** (v0.26.1) : voir le `README.md`, le `CHANGELOG.md`, et
+> `docs/HAIVE_BATTLE_PLAN_COMPETITIVE_POSITIONING.md`. Faits notables livrés depuis : 12 ponts natifs,
+> cold-start (stack packs + seed-git + `ingest`) avec plancher de qualité, sensors exécutables dans le
+> gate, et la boucle mesurée (prevention/impact/eval).
 
 ---
 
