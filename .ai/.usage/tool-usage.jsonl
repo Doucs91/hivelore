@@ -190,3 +190,21 @@
 {"tool":"mem_session_end","at":"2026-06-05T19:05:23.868Z","summary":"Analyser hAIve de fond en comble, tester largement le monorepo, puis positionner"}
 {"tool":"get_briefing","at":"2026-06-05T19:31:21.793Z","summary":"Implémenter la synchronisation native non destructive des bridges hAIve: ne jamais écraser les fichiers natifs existants, remplacer uniquement les blocs balisés, créer des fichiers dédiés pour les dossiers de rules, ajouter le statut/tests nécessaires puis vérifier build/tests/enforcement."}
 {"tool":"mem_tried","at":"2026-06-05T19:45:05.942Z","summary":"Running pnpm -r build and pnpm -r typecheck in parallel after version bump"}
+{"tool":"mem_session_end","at":"2026-06-05T19:52:51.151Z","summary":"Implémenter la synchronisation native non destructive des bridges hAIve, avec bl"}
+{"tool":"get_briefing","at":"2026-06-05T20:05:54.116Z","summary":"Tester à fond la nouvelle version installée de hAIve après installation globale, en particulier les bridges natifs non destructifs, puis produire une recap sur l'état de hAIve après usage répété."}
+{"tool":"get_briefing","at":"2026-06-05T20:09:17.178Z","summary":"Finaliser le test approfondi de la nouvelle version hAIve installée, vérifier les commandes de garde-fou restantes puis produire une récap utilisateur après usage répété."}
+{"tool":"mem_session_end","at":"2026-06-05T20:09:42.635Z","summary":"Tester à fond la nouvelle version hAIve installée et produire une récap honnête "}
+{"tool":"get_briefing","at":"2026-06-05T21:01:14.463Z","summary":"Implémenter une approche breadcrumbs-first dans hAIve: contexte court par défaut, liens de drill-down vers code/mémoires, et bridges natifs plus orientés table des matières sans ajouter de gros moteur de recherche."}
+{"tool":"mem_tried","at":"2026-06-05T21:09:02.506Z","summary":"Running package Vitest with --runInBand"}
+{"tool":"mem_tried","at":"2026-06-05T21:10:45.220Z","summary":"Adding a CLI briefing test memory to the shared integration workDir"}
+{"tool":"mem_session_end","at":"2026-06-05T21:24:25.048Z","summary":"Implémenter une amélioration breadcrumbs-first de hAIve sans changer son positio"}
+{"tool":"get_briefing","at":"2026-06-05T22:11:14.705Z","summary":"Analyser hAIve en profondeur, le tester, et évaluer son positionnement sur le harness engineering face aux concurrents"}
+{"tool":"get_briefing","at":"2026-06-05T22:30:24.126Z","summary":"improve bridge generation and breadcrumbs in get_briefing"}
+{"tool":"mem_save","at":"2026-06-05T22:47:25.644Z","summary":"briefing-breadcrumbs-are-pointers-not-copies"}
+{"tool":"get_briefing","at":"2026-06-06T02:03:05.076Z","summary":"Améliorer le ranking de code_search (pertinence des résultats) sans ajouter de complexité ni nouveau moteur"}
+{"tool":"mem_save","at":"2026-06-06T02:14:55.504Z","summary":"code-search-hybrid-ranking"}
+{"tool":"mem_save","at":"2026-06-06T03:01:31.311Z","summary":"search-perf-and-index-staleness"}
+{"tool":"mem_save","at":"2026-06-06T03:51:57.801Z","summary":"harness-quality-batch-v0270"}
+{"tool":"get_briefing","at":"2026-06-06T05:48:33.079Z","summary":"Fix cold-start on monorepos: code-map must index nested git repos; warn when code-map is near-empty vs source on disk; detect nested-package stacks; add auto-publish workflow; corpus hygiene"}
+{"tool":"mem_save","at":"2026-06-06T06:10:07.331Z","summary":"coldstart-monorepo-nested-git-repos"}
+{"tool":"get_briefing","at":"2026-06-06T18:27:10.480Z","summary":"Deep analysis and full testing of hAIve, plus web research on harness engineering and competitive positioning"}

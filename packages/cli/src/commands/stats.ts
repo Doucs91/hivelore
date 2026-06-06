@@ -146,7 +146,6 @@ async function writeRoiReport(
   }
 
   const roiHints = [
-    "Correlate get_briefing calls with skipped multi-file exploration — proxies available via `pnpm benchmark:roi` at repo root.",
     "Prefer get_briefing(format:'actions') or budget_preset:'quick' for low-risk edits to reduce token pressure.",
     "Run `haive memory lint` in CI to keep the corpus actionable.",
     "Install the haive VS Code extension (packages/vscode) for always-on memory surfacing beside the editor.",

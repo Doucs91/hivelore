@@ -6,6 +6,21 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.28.1] — repo cleanup (remove internal research/benchmark artifacts)
+
+#### Removed
+- **`docs/`** internal strategy/research/planning/recap documents (battle plan, harness
+  coherence map, roadmaps, implementation plans, agent briefs, handoffs) — not user-facing.
+- **`benchmarks/`** and **`benchmark-results/`** fixtures + artifacts, the
+  `scripts/agent-roi-benchmark.mjs` proxy, and the root `benchmark:roi` package script.
+- **`PLAN.md`** historical design doc (superseded by README/CHANGELOG).
+- Seven research/positioning recap memories under `.ai/memories/team/` (harness-engineering
+  positioning, competitive battle plan, state assessment). Product gotchas/decisions kept.
+
+#### Changed
+- Dropped dangling references to the removed docs/scripts from `cli` help text and a code comment.
+- No behavioral change to published commands beyond one removed `stats` ROI hint line.
+
 ## [0.28.0] — cold-start on real monorepos + auto-publish + corpus hygiene
 
 > Grounded in dogfooding hAIve cold-start on a real 1.4 GB Next/Nest-style marketplace monorepo.

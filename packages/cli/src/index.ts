@@ -206,7 +206,7 @@ function applySurfaceVisibility(root: Command): void {
 
   // Families block lists advanced command names, so it only shows in advanced help —
   // the default help stays focused on the golden path (those names would otherwise leak
-  // into the core surface). See Phase E of docs/HARNESS-COHERENCE-MAP-2026-06.md.
+  // into the core surface).
   const familiesBlock = showAdvanced
     ? [
         "",
