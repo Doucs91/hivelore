@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-06-04T03:30:24.678Z",
+  "generated_at": "2026-06-06T03:00:49.729Z",
   "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
     "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
@@ -93,27 +93,27 @@
           "line": 27
         }
       ],
-      "loc": 196
+      "loc": 198
     },
     "packages/cli/src/commands/bridges.ts": {
       "exports": [
         {
           "name": "registerBridges",
           "kind": "function",
-          "line": 22
+          "line": 27
         }
       ],
-      "loc": 129
+      "loc": 152
     },
     "packages/cli/src/commands/briefing.ts": {
       "exports": [
         {
           "name": "registerBriefing",
           "kind": "function",
-          "line": 110
+          "line": 112
         }
       ],
-      "loc": 543
+      "loc": 639
     },
     "packages/cli/src/commands/coverage.ts": {
       "summary": "`haive coverage` — harness coverage-gap report.",
@@ -121,10 +121,10 @@
         {
           "name": "registerCoverage",
           "kind": "function",
-          "line": 33
+          "line": 76
         }
       ],
-      "loc": 88
+      "loc": 158
     },
     "packages/cli/src/commands/dashboard.ts": {
       "exports": [
@@ -134,7 +134,7 @@
           "line": 22
         }
       ],
-      "loc": 192
+      "loc": 208
     },
     "packages/cli/src/commands/dev-link.ts": {
       "exports": [
@@ -172,25 +172,25 @@
         {
           "name": "registerEnforce",
           "kind": "function",
-          "line": 104
+          "line": 110
         },
         {
           "name": "runWithEnforcement",
           "kind": "function",
-          "line": 729
+          "line": 735
         }
       ],
-      "loc": 2229
+      "loc": 2329
     },
     "packages/cli/src/commands/eval.ts": {
       "exports": [
         {
           "name": "registerEval",
           "kind": "function",
-          "line": 70
+          "line": 74
         }
       ],
-      "loc": 479
+      "loc": 512
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -211,7 +211,7 @@
           "line": 21
         }
       ],
-      "loc": 184
+      "loc": 221
     },
     "packages/cli/src/commands/ingest.ts": {
       "summary": "CI USAGE — integrate haive ingest in your pipeline: # ESLint / any SARIF emitter eslint --format @microsoft/eslint-formatter-sarif --output-file eslint.sarif src/ haive ingest --from sarif eslint.sarif --scope team --min-severity major # SonarQube file export haive ingest --from sonar sonar-issues.json --scope team --min-severity major # SonarQube live API (no file needed — Node 18+) haive ingest --from sonar-api \\ --sonar-url \"$SONAR_HOST_URL\" --sonar-token \"$SONAR_TOKEN\" \\ --sonar-component my_project --min-severity major # Dry-run to preview without writing haive ingest --from sarif report.sarif --dry-run Exit codes: 0 = success (even when nothing new), 1 = bad args or unreadable report.",
@@ -219,10 +219,10 @@
         {
           "name": "registerIngest",
           "kind": "function",
-          "line": 59
+          "line": 60
         }
       ],
-      "loc": 299
+      "loc": 308
     },
     "packages/cli/src/commands/init-bootstrap.ts": {
       "summary": "Bootstrap: auto-generate .ai/project-context.md from local filesystem signals.",
@@ -264,48 +264,53 @@
         {
           "name": "StackName",
           "kind": "type",
-          "line": 43
+          "line": 45
+        },
+        {
+          "name": "PACKS",
+          "kind": "const",
+          "line": 51
         },
         {
           "name": "createContext",
           "kind": "function",
           "description": "createContext(): resolve session once, share across all procedures",
-          "line": 508
+          "line": 523
         },
         {
           "name": "dbConnect",
           "kind": "function",
-          "line": 534
+          "line": 549
         },
         {
           "name": "SUPPORTED_STACKS",
           "kind": "const",
-          "line": 1121
+          "line": 1141
         },
         {
           "name": "isValidStack",
           "kind": "function",
-          "line": 1123
+          "line": 1143
         },
         {
           "name": "autoDetectStacks",
           "kind": "function",
           "description": "Auto-detect which stacks are present from a package.json dep map.",
-          "line": 1128
+          "line": 1148
         },
         {
           "name": "SeedPackResult",
           "kind": "interface",
-          "line": 1162
+          "line": 1182
         },
         {
           "name": "seedStackPack",
           "kind": "function",
           "description": "Seed memory pack files on disk.",
-          "line": 1168
+          "line": 1188
         }
       ],
-      "loc": 1217
+      "loc": 1270
     },
     "packages/cli/src/commands/init.ts": {
       "exports": [
@@ -562,10 +567,10 @@
         {
           "name": "registerMemoryResolveConflict",
           "kind": "function",
-          "line": 27
+          "line": 28
         }
       ],
-      "loc": 85
+      "loc": 98
     },
     "packages/cli/src/commands/memory-rm.ts": {
       "exports": [
@@ -661,7 +666,7 @@
           "line": 29
         }
       ],
-      "loc": 114
+      "loc": 123
     },
     "packages/cli/src/commands/memory-update.ts": {
       "exports": [
@@ -772,10 +777,10 @@
         {
           "name": "registerSensors",
           "kind": "function",
-          "line": 52
+          "line": 49
         }
       ],
-      "loc": 342
+      "loc": 328
     },
     "packages/cli/src/commands/session-end.ts": {
       "summary": "haive session end — save a structured end-of-session recap.",
@@ -823,7 +828,7 @@
           "line": 51
         }
       ],
-      "loc": 703
+      "loc": 713
     },
     "packages/cli/src/commands/tui.ts": {
       "exports": [
@@ -902,57 +907,73 @@
         {
           "name": "WriteBridgesResult",
           "kind": "interface",
-          "line": 24
+          "line": 25
         },
         {
           "name": "WriteBridgesOptions",
           "kind": "interface",
-          "line": 30
+          "line": 33
+        },
+        {
+          "name": "BridgeFileState",
+          "kind": "type",
+          "line": 41
+        },
+        {
+          "name": "BridgeFileStatus",
+          "kind": "interface",
+          "line": 48
         },
         {
           "name": "writeBridgeFiles",
           "kind": "function",
           "description": "Load corpus + sensors and write/refresh the requested bridge files idempotently.",
-          "line": 39
+          "line": 58
+        },
+        {
+          "name": "getBridgeFileStatuses",
+          "kind": "function",
+          "description": "Build per-target status for `haive bridges status` without writing files.",
+          "line": 141
         },
         {
           "name": "extractMarkerBlock",
           "kind": "function",
           "description": "── Marker helpers ───────────────────────────────────────────────────────────",
-          "line": 119
+          "line": 211
         },
         {
           "name": "replaceMarkerBlock",
           "kind": "function",
-          "line": 126
+          "line": 218
         }
       ],
-      "loc": 140
+      "loc": 375
     },
     "packages/cli/src/utils/briefing-radar.ts": {
       "exports": [
         {
           "name": "RadarOptions",
           "kind": "interface",
-          "line": 6
+          "line": 7
         },
         {
           "name": "RadarReport",
           "kind": "interface",
-          "line": 16
+          "line": 17
         },
         {
           "name": "buildRadar",
           "kind": "function",
-          "line": 195
+          "line": 206
         },
         {
           "name": "radarHasContent",
           "kind": "function",
-          "line": 209
+          "line": 220
         }
       ],
-      "loc": 212
+      "loc": 223
     },
     "packages/cli/src/utils/claude-hooks.ts": {
       "summary": "Patch a Claude Code settings.json file with hAIve enforcement hooks.",
@@ -1081,22 +1102,22 @@
           "name": "bridgeMemorySummary",
           "kind": "function",
           "description": "First meaningful line of a memory body, condensed for bridge display.",
-          "line": 100
+          "line": 102
         },
         {
           "name": "prepareBridgeData",
           "kind": "function",
           "description": "Filter and rank memories + sensors for bridge injection.",
-          "line": 113
+          "line": 115
         },
         {
           "name": "generateBridges",
           "kind": "function",
           "description": "Generate bridge file content for the requested targets.",
-          "line": 298
+          "line": 310
         }
       ],
-      "loc": 312
+      "loc": 324
     },
     "packages/core/src/briefing-body.ts": {
       "summary": "Strip memory markdown down to actionable bullet lines — cheaper for briefing payloads.",
@@ -1272,47 +1293,47 @@
         {
           "name": "DEFAULT_CONFIG",
           "kind": "const",
-          "line": 233
+          "line": 240
         },
         {
           "name": "AUTOPILOT_DEFAULTS",
           "kind": "const",
-          "line": 263
+          "line": 270
         },
         {
           "name": "AntiPatternGate",
           "kind": "type",
           "description": "The pre-commit anti-pattern gate hardness levels.",
-          "line": 294
+          "line": 301
         },
         {
           "name": "antiPatternGateParams",
           "kind": "function",
           "description": "Single source of truth mapping a configured `antiPatternGate` to the `pre_commit_check` parameters that implement it.",
-          "line": 302
+          "line": 309
         },
         {
           "name": "configPath",
           "kind": "function",
-          "line": 318
+          "line": 325
         },
         {
           "name": "loadConfig",
           "kind": "function",
-          "line": 322
+          "line": 329
         },
         {
           "name": "loadConfigSync",
           "kind": "function",
-          "line": 339
+          "line": 346
         },
         {
           "name": "saveConfig",
           "kind": "function",
-          "line": 353
+          "line": 360
         }
       ],
-      "loc": 371
+      "loc": 378
     },
     "packages/core/src/conflict-candidates.ts": {
       "exports": [
@@ -1359,9 +1380,20 @@
           "kind": "function",
           "description": "Compare two memories; returns the one that should WIN plus the reason.",
           "line": 43
+        },
+        {
+          "name": "AppliedConflictResolution",
+          "kind": "interface",
+          "line": 78
+        },
+        {
+          "name": "applyConflictResolution",
+          "kind": "function",
+          "description": "Turn a {@link ConflictResolution} plan into the two concrete frontmatter updates — the guided supersede the backlog called for, wired into topic-upsert/revision_count: - loser  → deprecated, stamped with stale_reason + a related_ids link to the winner.",
+          "line": 98
         }
       ],
-      "loc": 77
+      "loc": 131
     },
     "packages/core/src/context-throttle.ts": {
       "summary": "Project-context emission throttle — a token saver for long sessions.",
@@ -1441,40 +1473,58 @@
       "summary": "Harness coverage-gap detection — \"which churny files have NO team knowledge on them?\".",
       "exports": [
         {
+          "name": "HotFileSource",
+          "kind": "type",
+          "description": "Where a file's \"heat\" came from: committed git churn, agent edits this/recent sessions, or both.",
+          "line": 15
+        },
+        {
           "name": "HotFile",
           "kind": "interface",
-          "line": 14
+          "line": 17
         },
         {
           "name": "CoverageGap",
           "kind": "interface",
-          "line": 20
+          "line": 25
         },
         {
           "name": "CoverageOptions",
           "kind": "interface",
-          "line": 25
+          "line": 32
         },
         {
           "name": "buildCoverageIndex",
           "kind": "function",
           "description": "Build the set of path prefixes the corpus covers: every anchor path of a non-dead, non-recap covering memory.",
-          "line": 44
+          "line": 51
         },
         {
           "name": "isCovered",
           "kind": "function",
           "description": "True when `file` equals or is nested under any covered path prefix.",
-          "line": 63
+          "line": 70
         },
         {
           "name": "findCoverageGaps",
           "kind": "function",
           "description": "Cross hot files with the coverage index → the uncovered, frequently-edited files.",
-          "line": 76
+          "line": 83
+        },
+        {
+          "name": "tallyHotFiles",
+          "kind": "function",
+          "description": "Tally a flat list of edited file paths into HotFiles — the agent-edit heat signal from the PostToolUse observation log (files agents actually touch), complementary to committed git churn.",
+          "line": 107
+        },
+        {
+          "name": "mergeHotFiles",
+          "kind": "function",
+          "description": "Merge two HotFile lists, summing heat per path.",
+          "line": 123
         }
       ],
-      "loc": 94
+      "loc": 139
     },
     "packages/core/src/cross-repo.ts": {
       "summary": "Cross-repo memory import — pulls `shared`-scoped memories from other projects.",
@@ -1865,95 +1915,101 @@
           "name": "FindingSeverity",
           "kind": "type",
           "description": "Findings ingestion — the self-feeding half of the sensors story (feature B).",
-          "line": 22
+          "line": 23
         },
         {
           "name": "Finding",
           "kind": "interface",
-          "line": 24
+          "line": 25
         },
         {
           "name": "MemoryDraft",
           "kind": "interface",
-          "line": 45
+          "line": 46
         },
         {
           "name": "DraftOptions",
           "kind": "interface",
-          "line": 56
+          "line": 57
         },
         {
           "name": "DraftsOptions",
           "kind": "interface",
-          "line": 65
+          "line": 66
+        },
+        {
+          "name": "isStylisticRule",
+          "kind": "function",
+          "description": "True when a finding's rule is pure auto-fixable formatting / naming convention (no lesson value as a seed).",
+          "line": 104
         },
         {
           "name": "normalizeFindingSeverity",
           "kind": "function",
           "description": "Normalize a tool-specific severity string to the shared scale.",
-          "line": 81
+          "line": 119
         },
         {
           "name": "parseSarif",
           "kind": "function",
           "description": "Parse SARIF 2.1.0 (`runs[].results[]`).",
-          "line": 132
+          "line": 170
         },
         {
           "name": "parseSonar",
           "kind": "function",
           "description": "Parse the SonarQube issues payload (`issues[]` from `/api/issues/search`).",
-          "line": 180
+          "line": 218
         },
         {
           "name": "parseEslintJson",
           "kind": "function",
           "description": "Parse the ESLint JSON formatter output (`eslint --format json`): an array of `{ filePath, messages: [{ ruleId, severity, message, line }] }`.",
-          "line": 219
+          "line": 257
         },
         {
           "name": "parseNpmAudit",
           "kind": "function",
           "description": "Parse `npm audit --json` output (`vulnerabilities` map).",
-          "line": 261
+          "line": 299
         },
         {
           "name": "FindingFormat",
           "kind": "type",
-          "line": 288
+          "line": 326
         },
         {
           "name": "parseFindings",
           "kind": "function",
           "description": "Dispatch to the right parser by declared format.",
-          "line": 291
+          "line": 329
         },
         {
           "name": "findingBody",
           "kind": "function",
           "description": "Build the markdown body for a finding-derived memory.",
-          "line": 331
+          "line": 369
         },
         {
           "name": "findingToDraft",
           "kind": "function",
           "description": "Convert one finding into a proposed memory draft (with a conservative sensor when derivable).",
-          "line": 349
+          "line": 387
         },
         {
           "name": "draftsFromFindings",
           "kind": "function",
           "description": "Convert a batch of findings into drafts, deduped within the batch and capped/filtered.",
-          "line": 375
+          "line": 413
         },
         {
           "name": "filterNewDrafts",
           "kind": "function",
           "description": "Drop drafts whose topic already exists in the corpus (cross-run dedup).",
-          "line": 390
+          "line": 434
         }
       ],
-      "loc": 394
+      "loc": 438
     },
     "packages/core/src/gate-precision.ts": {
       "summary": "Gate signal-quality — is the inferential (anti-pattern) gate earning trust or crying wolf? hAIve's anti-pattern gate is probabilistic and warmup-sensitive, so it is deliberately calibrated NOT to hard-block on weak matches.",
@@ -2256,96 +2312,102 @@
         {
           "name": "PreventionSource",
           "kind": "type",
-          "line": 17
+          "line": 23
         },
         {
           "name": "PreventionEvent",
           "kind": "interface",
-          "line": 19
+          "line": 25
         },
         {
           "name": "preventionLogPath",
           "kind": "function",
-          "line": 28
+          "line": 34
         },
         {
           "name": "appendPreventionEvent",
           "kind": "function",
           "description": "Append one catch to the log.",
-          "line": 33
+          "line": 39
+        },
+        {
+          "name": "recordPreventionHits",
+          "kind": "function",
+          "description": "THE single recorder for \"a documented lesson intercepted a real mistake\".",
+          "line": 57
         },
         {
           "name": "loadPreventionEvents",
           "kind": "function",
           "description": "Read all catch events (skips malformed lines).",
-          "line": 40
+          "line": 81
         },
         {
           "name": "PreventionTrend",
           "kind": "interface",
           "description": "── Pure analytics over the event log ───────────────────────────────────────",
-          "line": 60
+          "line": 101
         },
         {
           "name": "computePreventionTrend",
           "kind": "function",
-          "line": 71
+          "line": 112
         },
         {
           "name": "RecurrenceRow",
           "kind": "interface",
-          "line": 93
+          "line": 134
         },
         {
           "name": "RecurrenceReport",
           "kind": "interface",
-          "line": 102
+          "line": 143
         },
         {
           "name": "computeRecurrence",
           "kind": "function",
-          "line": 113
+          "line": 154
         },
         {
           "name": "BriefingProofLineOptions",
           "kind": "interface",
-          "line": 132
+          "line": 173
         },
         {
           "name": "briefingProofLine",
           "kind": "function",
           "description": "Coordination point for Lot C: turn prevention events into one compact proof line suitable for get_briefing, without coupling this lot to the MCP tool.",
-          "line": 143
+          "line": 184
         },
         {
           "name": "CaughtForYouOptions",
           "kind": "interface",
-          "line": 160
+          "line": 201
         },
         {
           "name": "CaughtForYouRow",
           "kind": "interface",
-          "line": 169
+          "line": 210
         },
         {
           "name": "CaughtForYouSummary",
           "kind": "interface",
-          "line": 179
+          "line": 220
         },
         {
           "name": "summarizeCaughtForYou",
           "kind": "function",
           "description": "Build the end-of-session \"caught for you\" scene from prevention events.",
-          "line": 204
+          "line": 245
         },
         {
           "name": "renderCaughtForYou",
           "kind": "function",
           "description": "Render a compact human-readable block for CLI/session recaps.",
-          "line": 259
+          "line": 300
         }
       ],
-      "loc": 272
+      "loc": 313
     },
     "packages/core/src/priority.ts": {
       "summary": "THE single source of truth for briefing memory priority — must_read / useful / background.",
@@ -2607,13 +2669,19 @@
           "line": 18
         },
         {
+          "name": "isNoiseSubject",
+          "kind": "function",
+          "description": "True when a reverted/fixed subject is mechanical noise (merge/bump/deps/wip/format), not a lesson.",
+          "line": 53
+        },
+        {
           "name": "proposeSeedsFromCommits",
           "kind": "function",
           "description": "Turn commits into seed proposals.",
-          "line": 57
+          "line": 71
         }
       ],
-      "loc": 104
+      "loc": 119
     },
     "packages/core/src/seed.ts": {
       "summary": "Pure stack-detection helpers for cold-start seeding.",
@@ -2652,7 +2720,7 @@
           "line": 26
         }
       ],
-      "loc": 153
+      "loc": 174
     },
     "packages/core/src/sensors.ts": {
       "exports": [
@@ -2778,9 +2846,20 @@
           "kind": "function",
           "description": "True when a memory body looks like generic knowledge a capable model already has.",
           "line": 90
+        },
+        {
+          "name": "SEED_QUALITY_FLOOR",
+          "kind": "const",
+          "description": "Quality floor for SEEDED memories (stack packs, ingested findings) — the guard against shipping low-value \"use const not var\" starter content.",
+          "line": 107
+        },
+        {
+          "name": "meetsSeedQualityFloor",
+          "kind": "function",
+          "line": 109
         }
       ],
-      "loc": 93
+      "loc": 118
     },
     "packages/core/src/token-budget.ts": {
       "summary": "Token budgeting helpers.",
@@ -3082,27 +3161,33 @@
           "line": 30
         },
         {
+          "name": "isCodeIndexStale",
+          "kind": "function",
+          "description": "Is the code-search embeddings index stale relative to the current code-map? The indexer stamps `source_generated_at` with the code-map's `generated_at` it was built from, so a mismatch means the code-map was rebuilt afterwards and the index may miss or mislocate symbols.",
+          "line": 40
+        },
+        {
           "name": "emptyCodeIndex",
           "kind": "function",
-          "line": 34
+          "line": 45
         },
         {
           "name": "loadCodeIndex",
           "kind": "function",
-          "line": 48
+          "line": 59
         },
         {
           "name": "saveCodeIndex",
           "kind": "function",
-          "line": 54
+          "line": 65
         },
         {
           "name": "buildCodeEntryText",
           "kind": "function",
-          "line": 61
+          "line": 72
         }
       ],
-      "loc": 71
+      "loc": 82
     },
     "packages/embeddings/src/code-indexer.ts": {
       "exports": [
@@ -3133,7 +3218,7 @@
           "line": 14
         }
       ],
-      "loc": 53
+      "loc": 98
     },
     "packages/embeddings/src/embedder.ts": {
       "exports": [
@@ -3155,15 +3240,15 @@
         {
           "name": "Embedder",
           "kind": "class",
-          "line": 32
+          "line": 33
         },
         {
           "name": "cosine",
           "kind": "function",
-          "line": 62
+          "line": 70
         }
       ],
-      "loc": 79
+      "loc": 87
     },
     "packages/embeddings/src/index-cache.ts": {
       "exports": [
@@ -3313,6 +3398,11 @@
           "line": 32
         },
         {
+          "name": "isCodeIndexStale",
+          "kind": "const",
+          "line": 32
+        },
+        {
           "name": "loadCodeIndex",
           "kind": "const",
           "line": 32
@@ -3325,15 +3415,15 @@
         {
           "name": "rebuildCodeIndex",
           "kind": "const",
-          "line": 42
+          "line": 43
         },
         {
           "name": "codeSemanticSearch",
           "kind": "const",
-          "line": 47
+          "line": 48
         }
       ],
-      "loc": 51
+      "loc": 52
     },
     "packages/embeddings/src/indexer.ts": {
       "exports": [
@@ -3642,43 +3732,43 @@
         {
           "name": "AntiPatternsCheckInputSchema",
           "kind": "const",
-          "line": 26
+          "line": 24
         },
         {
           "name": "AntiPatternsCheckInput",
           "kind": "interface",
-          "line": 64
+          "line": 62
         },
         {
           "name": "AntiPatternsWarning",
           "kind": "interface",
-          "line": 72
+          "line": 70
         },
         {
           "name": "AntiPatternsCheckOutput",
           "kind": "interface",
-          "line": 102
+          "line": 100
         },
         {
           "name": "isHaiveOwnedPath",
           "kind": "function",
           "description": "True for files hAIve itself owns/generates: the `.ai/` knowledge base, plus the agent-bridge, config, and workflow files it writes from that same corpus.",
-          "line": 160
+          "line": 158
         },
         {
           "name": "stripAiDirHunks",
           "kind": "function",
           "description": "Drop hunks for hAIve-owned files (see {@link isHaiveOwnedPath}) from a unified diff.",
-          "line": 176
+          "line": 174
         },
         {
           "name": "antiPatternsCheck",
           "kind": "function",
           "description": "Scan a diff (or set of paths) against documented attempt/gotcha memories.",
-          "line": 207
+          "line": 205
         }
       ],
-      "loc": 402
+      "loc": 391
     },
     "packages/mcp/src/tools/bootstrap-project-save.ts": {
       "exports": [
@@ -3774,12 +3864,17 @@
           "line": 47
         },
         {
-          "name": "BriefingOutput",
+          "name": "BriefingBreadcrumbs",
           "kind": "interface",
           "line": 59
+        },
+        {
+          "name": "BriefingOutput",
+          "kind": "interface",
+          "line": 74
         }
       ],
-      "loc": 102
+      "loc": 123
     },
     "packages/mcp/src/tools/code-map.ts": {
       "exports": [
@@ -3816,55 +3911,55 @@
         {
           "name": "CodeSearchInputSchema",
           "kind": "const",
-          "line": 4
+          "line": 5
         },
         {
           "name": "CodeSearchInput",
           "kind": "type",
-          "line": 30
+          "line": 31
         },
         {
           "name": "CodeSearchHit",
           "kind": "interface",
-          "line": 34
+          "line": 35
         },
         {
           "name": "CodeSearchOutput",
           "kind": "interface",
-          "line": 43
+          "line": 44
         },
         {
           "name": "codeSearch",
           "kind": "function",
-          "line": 49
+          "line": 52
         }
       ],
-      "loc": 83
+      "loc": 107
     },
     "packages/mcp/src/tools/get-briefing.ts": {
       "exports": [
         {
           "name": "GetBriefingInputSchema",
           "kind": "const",
-          "line": 70
+          "line": 72
         },
         {
           "name": "GetBriefingZod",
           "kind": "const",
-          "line": 151
+          "line": 153
         },
         {
           "name": "GetBriefingInput",
           "kind": "type",
-          "line": 152
+          "line": 154
         },
         {
           "name": "getBriefing",
           "kind": "function",
-          "line": 154
+          "line": 156
         }
       ],
-      "loc": 844
+      "loc": 956
     },
     "packages/mcp/src/tools/get-project-context.ts": {
       "exports": [
@@ -3927,20 +4022,20 @@
         {
           "name": "IngestFindingsInput",
           "kind": "type",
-          "line": 48
+          "line": 52
         },
         {
           "name": "IngestFindingsOutput",
           "kind": "interface",
-          "line": 52
+          "line": 56
         },
         {
           "name": "ingestFindings",
           "kind": "function",
-          "line": 70
+          "line": 74
         }
       ],
-      "loc": 149
+      "loc": 154
     },
     "packages/mcp/src/tools/mem-approve.ts": {
       "exports": [
@@ -3972,20 +4067,20 @@
         {
           "name": "MemConflictCandidatesInputSchema",
           "kind": "const",
-          "line": 10
+          "line": 41
         },
         {
           "name": "MemConflictCandidatesInput",
           "kind": "type",
-          "line": 53
+          "line": 84
         },
         {
           "name": "memConflictCandidates",
           "kind": "function",
-          "line": 59
+          "line": 90
         }
       ],
-      "loc": 90
+      "loc": 138
     },
     "packages/mcp/src/tools/mem-conflicts.ts": {
       "exports": [
@@ -4479,10 +4574,10 @@
         {
           "name": "memTried",
           "kind": "function",
-          "line": 46
+          "line": 50
         }
       ],
-      "loc": 96
+      "loc": 116
     },
     "packages/mcp/src/tools/mem-update.ts": {
       "exports": [
