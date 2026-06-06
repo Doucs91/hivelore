@@ -33,6 +33,7 @@ export {
   buildCodeEntryText,
   codeIndexPath,
   emptyCodeIndex,
+  isCodeIndexStale,
   loadCodeIndex,
   saveCodeIndex,
   type CodeEmbeddingEntry,

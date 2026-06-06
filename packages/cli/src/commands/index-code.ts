@@ -146,6 +146,21 @@ async function reportIndexStatus(
   const searchIndexFile = path.join(paths.haiveDir, ".cache", "embeddings", "code-embeddings-index.json");
   const searchIndexPresent = existsSync(searchIndexFile);
 
+  // Freshness verdicts (cheap — no re-walk, no embedding):
+  //  • code-map is stale if any file it lists was modified after the map was generated.
+  //  • the search index is stale if it was built from a different (older) code-map generation.
+  const codeMapStale = map ? isCodeMapStale(root, map.generated_at, Object.keys(map.files)) : false;
+  let searchIndexStale: boolean | null = null;
+  if (searchIndexPresent && map) {
+    try {
+      const mod = await import("@hiveai/embeddings");
+      const idx = await mod.loadCodeIndex(paths);
+      if (idx) searchIndexStale = mod.isCodeIndexStale(idx.source_generated_at, map.generated_at);
+    } catch {
+      // embeddings not installed — report presence without a freshness verdict
+    }
+  }
+
   const status = {
     code_map: {
       present: map !== null,
@@ -154,10 +169,12 @@ async function reportIndexStatus(
       exports: exportCount,
       generated_at: map?.generated_at ?? null,
       file_mtime: mapMtime,
+      stale: codeMapStale,
     },
     code_search_index: {
       present: searchIndexPresent,
       path: path.relative(root, searchIndexFile),
+      stale: searchIndexStale,
     },
   };
 
@@ -173,11 +190,31 @@ async function reportIndexStatus(
     return;
   }
   ui.info(
-    `code-map: ${fileCount} file(s), ${exportCount} export(s) · generated ${status.code_map.generated_at ?? "?"}`,
+    `code-map: ${fileCount} file(s), ${exportCount} export(s) · generated ${status.code_map.generated_at ?? "?"}` +
+      (codeMapStale ? " · ⚠ STALE — source changed since generation; run `haive index code`" : " · fresh"),
   );
-  ui.info(
-    status.code_search_index.present
-      ? `code-search index: present (${status.code_search_index.path})`
-      : `code-search index: missing — run \`haive index code-search\` for semantic code lookup.`,
-  );
+  if (!searchIndexPresent) {
+    ui.info("code-search index: missing — run `haive index code-search` for semantic code lookup.");
+  } else if (searchIndexStale) {
+    ui.info(
+      `code-search index: present (${status.code_search_index.path}) · ⚠ STALE — built from an older ` +
+        "code-map; run `haive index code-search`",
+    );
+  } else {
+    ui.info(`code-search index: present (${status.code_search_index.path})` + (searchIndexStale === false ? " · fresh" : ""));
+  }
+}
+
+/** True if any file the code-map lists has an mtime newer than the map's generation time. Cheap (stat only). */
+function isCodeMapStale(root: string, generatedAt: string, files: string[]): boolean {
+  const gen = Date.parse(generatedAt);
+  if (Number.isNaN(gen)) return false;
+  for (const file of files) {
+    try {
+      if (statSync(path.join(root, file)).mtimeMs > gen) return true;
+    } catch {
+      // file moved/deleted since generation — also a form of drift, but stat errors are ignored here
+    }
+  }
+  return false;
 }

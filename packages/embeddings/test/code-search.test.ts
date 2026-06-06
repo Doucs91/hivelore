@@ -3,6 +3,7 @@ import type { HaivePaths } from "@hiveai/core";
 import type { EmbedderLike } from "../src/embedder.js";
 import type { CodeEmbeddingIndex } from "../src/code-index-cache.js";
 import { codeSemanticSearch } from "../src/code-search.js";
+import { isCodeIndexStale } from "../src/code-index-cache.js";
 
 // codeSemanticSearch only touches paths when no index is injected; tests inject one.
 const paths = {} as HaivePaths;
@@ -64,5 +65,20 @@ describe("codeSemanticSearch hybrid ranking", () => {
     const result = await codeSemanticSearch(paths, "date", { embedder, index, minScore: 0.2 });
     expect(result).not.toBeNull();
     expect(result!.hits).toHaveLength(0);
+  });
+});
+
+describe("isCodeIndexStale", () => {
+  it("is stale when the index was built from a different code-map generation", () => {
+    expect(isCodeIndexStale("2026-06-01T00:00:00.000Z", "2026-06-05T00:00:00.000Z")).toBe(true);
+  });
+
+  it("is fresh when generations match", () => {
+    expect(isCodeIndexStale("2026-06-05T00:00:00.000Z", "2026-06-05T00:00:00.000Z")).toBe(false);
+  });
+
+  it("never false-alarms on unknown timestamps", () => {
+    expect(isCodeIndexStale("", "2026-06-05T00:00:00.000Z")).toBe(false);
+    expect(isCodeIndexStale("2026-06-05T00:00:00.000Z", "")).toBe(false);
   });
 });

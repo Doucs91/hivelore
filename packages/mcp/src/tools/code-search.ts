@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { loadCodeMap } from "@hiveai/core";
 import type { HaiveContext } from "../context.js";
 
 export const CodeSearchInputSchema = {
@@ -43,6 +44,8 @@ export interface CodeSearchHit {
 export interface CodeSearchOutput {
   available: boolean;
   hits: CodeSearchHit[];
+  /** True when the embeddings index was built from an older code-map — results may miss new/moved symbols. */
+  stale?: true;
   notice?: string;
 }
 
@@ -78,5 +81,26 @@ export async function codeSearch(
     };
   }
 
-  return { available: true, hits: result.hits };
+  // Flag (don't hide) a stale index: the code-map was rebuilt after the embeddings index, so newly
+  // added or moved symbols may be missing/mislocated. Best-effort — never fail the search over this.
+  let stale = false;
+  try {
+    const codeMap = await loadCodeMap(ctx.paths);
+    if (codeMap) stale = mod.isCodeIndexStale(result.index.source_generated_at, codeMap.generated_at);
+  } catch {
+    // ignore — staleness is advisory
+  }
+
+  return {
+    available: true,
+    hits: result.hits,
+    ...(stale
+      ? {
+          stale: true as const,
+          notice:
+            "Code-search index is stale (built from an older code-map); newly added or moved symbols " +
+            "may be missing or mislocated. Rebuild with `haive index code && haive index code-search`.",
+        }
+      : {}),
+  };
 }

@@ -1,7 +1,7 @@
 {
   "name": "haive-monorepo",
   "private": true,
-  "version": "0.26.5",
+  "version": "0.26.6",
   "description": "hAIve - repo-native memory and context policy for coding-agent harnesses",
   "license": "Apache-2.0",
   "repository": {

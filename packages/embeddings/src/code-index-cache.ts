@@ -31,6 +31,17 @@ export function codeIndexPath(paths: HaivePaths): string {
   return path.join(cacheDir(paths), CODE_INDEX_FILE);
 }
 
+/**
+ * Is the code-search embeddings index stale relative to the current code-map?
+ * The indexer stamps `source_generated_at` with the code-map's `generated_at` it was built from,
+ * so a mismatch means the code-map was rebuilt afterwards and the index may miss or mislocate symbols.
+ * Unknown timestamps (empty strings) are treated as not-stale to avoid false alarms.
+ */
+export function isCodeIndexStale(indexSourceGeneratedAt: string, codeMapGeneratedAt: string): boolean {
+  if (!indexSourceGeneratedAt || !codeMapGeneratedAt) return false;
+  return indexSourceGeneratedAt !== codeMapGeneratedAt;
+}
+
 export function emptyCodeIndex(
   model = DEFAULT_MODEL,
   dimension = DEFAULT_DIMENSION,

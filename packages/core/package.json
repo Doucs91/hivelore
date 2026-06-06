@@ -1,6 +1,6 @@
 {
   "name": "@hiveai/core",
-  "version": "0.26.5",
+  "version": "0.26.6",
   "description": "hAIve core - memory, anchors, lifecycle, and enforcement primitives for agent harnesses",
   "license": "Apache-2.0",
   "repository": {

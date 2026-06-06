@@ -16,6 +16,7 @@ interface FeatureExtractionPipeline {
 
 let cachedPipeline: FeatureExtractionPipeline | null = null;
 let cachedModel: string | null = null;
+const cachedEmbedders = new Map<string, Embedder>();
 
 async function loadPipeline(model: string): Promise<FeatureExtractionPipeline> {
   if (cachedPipeline && cachedModel === model) return cachedPipeline;
@@ -37,10 +38,17 @@ export class Embedder implements EmbedderLike {
   ) {}
 
   static async create(model: string = DEFAULT_MODEL): Promise<Embedder> {
+    // Reuse the fully-initialized embedder per model: the pipeline is already cached, but each
+    // create() otherwise runs a "dimension probe" inference — wasteful when an agent issues several
+    // code_search / semantic-search calls in one session. Caching the instance makes calls 2..N free.
+    const cached = cachedEmbedders.get(model);
+    if (cached) return cached;
     const pipe = await loadPipeline(model);
     const probe = await pipe("dimension probe", { pooling: "mean", normalize: true });
     const dim = probe.data instanceof Float32Array ? probe.data.length : probe.data.length;
-    return new Embedder(pipe, model, dim);
+    const embedder = new Embedder(pipe, model, dim);
+    cachedEmbedders.set(model, embedder);
+    return embedder;
   }
 
   async encode(text: string): Promise<Float32Array> {

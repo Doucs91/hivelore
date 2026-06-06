@@ -6,6 +6,24 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.26.6] — faster repeated search + index staleness transparency
+
+#### Changed
+- `Embedder.create()` now caches the fully-initialized embedder per model. The ONNX pipeline was
+  already cached, but every `create()` re-ran a "dimension probe" inference — so each `code_search`
+  / semantic-search call paid for two inferences instead of one. Repeated searches in a session are
+  now materially faster (calls 2..N skip the probe entirely). Behaviour is unchanged.
+- `haive index code --status` now reports a **freshness verdict**, not just a timestamp: the code-map
+  is flagged stale when a file it lists changed after generation, and the code-search index is flagged
+  stale when it was built from an older code-map. Verdicts are included in `--json` (`code_map.stale`,
+  `code_search_index.stale`) for CI/agents. Cheap — stat-only, no re-walk or re-embedding.
+
+#### Added
+- `code_search` MCP tool now returns `stale: true` plus an actionable notice when the embeddings index
+  was built from an older code-map, so agents know results may miss newly added/moved symbols instead
+  of silently trusting stale hits. New pure helper `isCodeIndexStale` (no false alarms on unknown
+  timestamps).
+
 ## [0.26.5] — hybrid code_search ranking (exact symbol names first)
 
 #### Changed

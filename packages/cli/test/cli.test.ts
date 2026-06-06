@@ -928,6 +928,41 @@ describe("hAIve CLI integration", () => {
     }
   });
 
+  it("index code --status reports a code-search index built from an older code-map as stale", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-cli-idxstatus-"));
+    try {
+      const aiDir = path.join(repo, ".ai");
+      await mkdir(path.join(aiDir, ".cache", "embeddings"), { recursive: true });
+      await writeFile(
+        path.join(aiDir, "code-map.json"),
+        JSON.stringify({ version: 1, generated_at: "2026-06-05T00:00:00.000Z", root: repo, files: {} }),
+        "utf8",
+      );
+      await writeFile(
+        path.join(aiDir, ".cache", "embeddings", "code-embeddings-index.json"),
+        JSON.stringify({
+          model: "fake",
+          dimension: 4,
+          updated_at: "",
+          source_generated_at: "2026-06-01T00:00:00.000Z",
+          entries: [],
+        }),
+        "utf8",
+      );
+
+      const { stdout } = await run(repo, ["index", "code", "--status", "--json", "--dir", repo]);
+      const status = JSON.parse(stdout) as {
+        code_map: { stale: boolean };
+        code_search_index: { present: boolean; stale: boolean | null };
+      };
+      expect(status.code_map.stale).toBe(false); // no files listed → nothing newer than generation
+      expect(status.code_search_index.present).toBe(true);
+      expect(status.code_search_index.stale).toBe(true); // built from the older 06-01 code-map
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("enforce cleanup preserves cache ignores and briefing markers", async () => {
     await run(workDir, ["briefing", "--task", "cleanup preservation smoke", "--budget", "quick", "--dir", workDir]);
     const cacheDir = path.join(workDir, ".ai/.cache");
