@@ -1,4 +1,65 @@
 {
+  "retrieval": [
+    {
+      "name": "module format (ESM vs CommonJS)",
+      "task": "Can I use require() and module.exports in this codebase, or is it ESM-only? What import settings are enforced?",
+      "expect_ids": ["2026-04-25-decision-esm-only"]
+    },
+    {
+      "name": "multi-agent release coordination",
+      "task": "How should I coordinate commit, version bump, tag and push for a release while other agents work on the same repo in parallel without merge conflicts?",
+      "expect_ids": ["2026-05-31-decision-git-sync-protocol-multi-agent"]
+    },
+    {
+      "name": "bundle size / externals",
+      "task": "The built CLI bundle is huge after build. What configuration decides which dependencies are inlined versus kept external?",
+      "files": ["packages/cli/tsup.config.ts"],
+      "expect_ids": ["2026-04-25-gotcha-tsup-externals-required"]
+    },
+    {
+      "name": "register a new MCP tool",
+      "task": "What is the full procedure to add and register a brand new MCP tool so the server exposes it?",
+      "files": ["packages/mcp/src/server.ts"],
+      "expect_ids": ["2026-04-28-architecture-adding-new-mcp-tool"]
+    },
+    {
+      "name": "serialize crash on undefined frontmatter",
+      "task": "Writing a memory file throws an error when a frontmatter field is undefined. Why does serialization fail and how is it handled?",
+      "files": ["packages/core/src/parser.ts"],
+      "symbols": ["serializeMemory"],
+      "expect_ids": ["2026-04-28-gotcha-serializememory-undefined-values-crash"]
+    },
+    {
+      "name": "embeddings packaging",
+      "task": "Should the embeddings package be a peer dependency, or shipped with the CLI/MCP so a normal global install keeps semantic search working?",
+      "files": ["packages/cli/package.json"],
+      "expect_ids": ["2026-05-28-decision-ship-embeddings-with-cli-mcp"]
+    },
+    {
+      "name": "tool environment independence",
+      "task": "Can a new hAIve command depend on the user's Sonar MCP server being configured, or must every tool work standalone with no external setup?",
+      "expect_ids": ["2026-06-02-decision-tools-must-be-environment-independent"]
+    },
+    {
+      "name": "deterministic embeddings in tests",
+      "task": "How can unit tests run semantic search deterministically without downloading the real transformers model?",
+      "files": ["packages/embeddings/src/embedder.ts"],
+      "symbols": ["EmbedderLike"],
+      "expect_ids": ["2026-04-25-architecture-embedderlike-interface"]
+    },
+    {
+      "name": "core layer purity",
+      "task": "Is it allowed to add filesystem reads or network calls inside the core domain package, or must it stay pure?",
+      "files": ["packages/core/src/relevance.ts"],
+      "expect_ids": ["2026-06-02-architecture-core-pure-domain-layer"]
+    },
+    {
+      "name": "code-map scope (tracked vs untracked)",
+      "task": "Does the code-map index untracked or gitignored files, or only the project's tracked source files?",
+      "files": ["packages/core/src/code-map.ts"],
+      "expect_ids": ["2026-05-28-decision-codemap-tracked-files-by-default"]
+    }
+  ],
   "sensors": [
     {
       "name": "mcp package.json export guard",
