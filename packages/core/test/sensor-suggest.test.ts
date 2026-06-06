@@ -85,3 +85,44 @@ describe("suggestSensorFromMemory", () => {
     else expect(sensor).toBeNull();
   });
 });
+
+describe("suggestSensorFromMemory — discriminating (X without Y)", () => {
+  it("emits pattern=trigger + absent=companion for 'create without idempotencyKey'", () => {
+    const body = [
+      "# Called stripe.paymentIntents.create without an idempotencyKey option",
+      "",
+      "**Why it failed / do NOT use:** A retried request created a second paymentIntent and double-charged the customer.",
+      "",
+      "**Instead, use:** Always pass { idempotencyKey } as the second arg to paymentIntents.create",
+      "",
+    ].join("\n");
+    const sensor = suggestSensorFromMemory(body, ["src/payments/stripe.ts"]);
+    expect(sensor?.pattern).toContain("paymentIntents");
+    expect(sensor?.absent).toBe("idempotencyKey");
+    expect(sensor?.severity).toBe("warn");
+    expect(sensor?.message).toMatch(/without idempotencyKey/);
+  });
+
+  it("detects a 'must pass X' requirement in a gotcha body", () => {
+    const body = [
+      "# Stripe charges must pass an idempotencyKey",
+      "",
+      "Every stripe.paymentIntents.create MUST receive an idempotencyKey in options, or a retry double-charges.",
+    ].join("\n");
+    const sensor = suggestSensorFromMemory(body, ["src/payments/stripe.ts"]);
+    expect(sensor?.absent).toBe("idempotencyKey");
+  });
+
+  it("does not set absent when there is no required companion", () => {
+    const body = [
+      "# BigInt broke serialization",
+      "",
+      "**Why it failed / do NOT use:** `BigInt` broke JSON serialization.",
+      "",
+      "**Instead, use:** Decimal strings at API boundaries.",
+    ].join("\n");
+    const sensor = suggestSensorFromMemory(body, ["src/math.ts"]);
+    expect(sensor?.pattern).toBe("BigInt");
+    expect(sensor?.absent).toBeUndefined();
+  });
+});

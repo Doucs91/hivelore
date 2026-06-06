@@ -81,6 +81,7 @@ export function registerSensors(program: Command): void {
           `  • ${row.id} ${ui.dim(`(${row.kind}, ${row.severity})`)} ` +
           `${row.pattern ?? row.command ?? ""}`,
         );
+        if ("absent" in row && row.absent) console.log(`     ${ui.dim("only when missing:")} ${row.absent}`);
         if (row.paths.length > 0) console.log(`     ${ui.dim("paths:")} ${row.paths.join(", ")}`);
         if (row.last_fired) console.log(`     ${ui.dim("last fired:")} ${row.last_fired}`);
         if (brittle) console.log(`     ${ui.yellow("⚠ brittle:")} ${brittle} — consider rewriting or retiring this sensor`);
@@ -272,6 +273,7 @@ async function sensorRows(paths: ReturnType<typeof resolveHaivePaths>) {
       kind: sensor.kind,
       severity: sensor.severity,
       pattern: sensor.pattern,
+      absent: sensor.absent,
       command: sensor.command,
       paths: sensor.paths.length > 0 ? sensor.paths : memory.frontmatter.anchor.paths,
       message: sensor.message,

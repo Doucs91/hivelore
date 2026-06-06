@@ -38,22 +38,76 @@ export function suggestSensorFromMemory(
   const negativeText = body.split(/\*\*Instead,\s*use:\*\*|^##\s+Instead\b/im)[0] ?? body;
   const assignment = pickAssignmentPattern(negativeText);
   const lowercaseValue = assignment ? null : pickLowercaseValuePattern(negativeText);
-  const token = assignment?.label ?? lowercaseValue?.label ?? pickDistinctiveToken(negativeText);
+
+  // Discriminating "X without Y" sensor. When neither a key=value nor a lowercase pattern applies,
+  // look for a REQUIRED COMPANION ("create WITHOUT idempotencyKey", "must pass idempotencyKey") and
+  // emit pattern=trigger (the risky call) + absent=companion (the correct-usage marker). The sensor
+  // then fires on the faulty call ONLY — not on every call — which is what makes it safe to promote.
+  let companion: { trigger: string; required: string } | null = null;
+  if (!assignment && !lowercaseValue) {
+    const required = pickRequiredCompanion(body);
+    const trigger = pickDistinctiveToken(negativeText);
+    if (
+      required &&
+      trigger &&
+      trigger.toLowerCase() !== required.toLowerCase() &&
+      !trigger.toLowerCase().includes(required.toLowerCase()) &&
+      !sensorPatternBrittleness(escapeRegExp(trigger))
+    ) {
+      companion = { trigger, required };
+    }
+  }
+
+  const token = assignment?.label ?? lowercaseValue?.label ?? companion?.trigger ?? pickDistinctiveToken(negativeText);
   if (!token) return null;
 
-  const pattern = assignment?.pattern ?? lowercaseValue?.pattern ?? escapeRegExp(token);
+  const pattern =
+    assignment?.pattern ?? lowercaseValue?.pattern ?? escapeRegExp(companion?.trigger ?? token);
   // Belt-and-suspenders: never emit a pattern that is already known to be brittle (line numbers, etc.).
   if (sensorPatternBrittleness(pattern)) return null;
 
-  return {
+  const sensor: Sensor = {
     kind: "regex",
     pattern,
     paths,
-    message: sensorMessageFromBody(body, token),
+    message: companion ? companionMessage(body, companion) : sensorMessageFromBody(body, token),
     severity: "warn",
     autogen: true,
     last_fired: null,
   };
+  if (companion) sensor.absent = escapeRegExp(companion.required);
+  return sensor;
+}
+
+/**
+ * Detect a required-companion token: the thing that, when MISSING, makes the call faulty
+ * ("create without an idempotencyKey", "must pass idempotencyKey"). Returns a distinctive code
+ * token or null. Used to build a discriminating `absent` regex.
+ */
+function pickRequiredCompanion(text: string): string | null {
+  const tok = "([A-Za-z`'\"$][\\w.$-]{2,79})";
+  const patterns = [
+    new RegExp(`\\bwithout\\s+(?:an?|the|its|explicit|a\\s+valid|passing|setting|providing)?\\s*${tok}`, "i"),
+    new RegExp(`\\bmissing\\s+(?:an?|the|its)?\\s*${tok}`, "i"),
+    new RegExp(`\\bforgot(?:\\s+to\\s+\\w+)?\\s+(?:an?|the)?\\s*${tok}`, "i"),
+    new RegExp(`\\b(?:must|should|always|need\\s+to|needs\\s+to)\\s+(?:pass|provide|include|set|add|receive|specify|supply)\\s+(?:an?|the)?\\s*${tok}`, "i"),
+    new RegExp(`\\bno\\s+${tok}\\b`, "i"),
+  ];
+  for (const re of patterns) {
+    const candidate = cleanCompanionToken(text.match(re)?.[1]);
+    if (candidate && isDistinctiveToken(candidate, false)) return candidate;
+  }
+  return null;
+}
+
+function cleanCompanionToken(raw: string | undefined | null): string {
+  return (raw ?? "").replace(/^[^\w.$-]+|[^\w.$-]+$/g, "");
+}
+
+function companionMessage(body: string, c: { trigger: string; required: string }): string {
+  const instead = body.match(/\*\*Instead,\s*use:\*\*\s*([^\n]+)/i)?.[1]?.trim();
+  const base = `${c.trigger} without ${c.required}`;
+  return instead ? `${base} — ${instead}` : `${base} — add the required ${c.required}.`;
 }
 
 function pickLowercaseValuePattern(text: string): { label: string; pattern: string; score: number } | null {

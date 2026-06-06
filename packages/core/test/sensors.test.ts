@@ -189,3 +189,70 @@ describe("sensors", () => {
     expect(selectCommandSensors([shell, test], []).map((s) => s.kind).sort()).toEqual(["shell", "test"]);
   });
 });
+
+describe("discriminating sensors (absent / correct-usage marker)", () => {
+  const discriminating: Sensor = {
+    kind: "regex",
+    pattern: "stripe\\.paymentIntents\\.create",
+    absent: "idempotencyKey",
+    paths: ["src/payments/stripe.ts"],
+    message: "stripe.paymentIntents.create without idempotencyKey",
+    severity: "block",
+    autogen: true,
+    last_fired: null,
+  };
+
+  it("fires on the faulty call (trigger present, companion absent)", () => {
+    const hit = runRegexSensor("m1", discriminating, {
+      path: "src/payments/stripe.ts",
+      content: "return stripe.paymentIntents.create({ amount, currency: 'usd' });",
+    });
+    expect(hit).not.toBeNull();
+    expect(hit?.severity).toBe("block");
+  });
+
+  it("suppresses the correct call (companion within the window, multi-line)", () => {
+    const content = [
+      "return stripe.paymentIntents.create(",
+      "  { amount, currency: 'usd' },",
+      "  { idempotencyKey },",
+      ");",
+    ].join("\n");
+    expect(runRegexSensor("m1", discriminating, { path: "src/payments/stripe.ts", content })).toBeNull();
+  });
+
+  it("a correct function directly above a faulty one does NOT mask it (real adjacent layout)", () => {
+    // Reproduces the live failure: a symmetric window let goodRefund's idempotencyKey leak down into
+    // badRefund's window. The forward-biased window must fire on badRefund anyway.
+    const content = [
+      "export async function goodRefund(a: number, k: string) {",
+      "  return stripe.paymentIntents.create(",
+      "    { amount: a, currency: 'usd' },",
+      "    { idempotencyKey: k },",
+      "  );",
+      "}",
+      "",
+      "export async function badRefund(a: number) {",
+      "  return stripe.paymentIntents.create({ amount: a, currency: 'usd' });",
+      "}",
+    ].join("\n");
+    const hit = runRegexSensor("m1", discriminating, { path: "src/payments/stripe.ts", content });
+    expect(hit).not.toBeNull();
+    expect(hit?.matched_line).toContain("create");
+    expect(hit?.matched_line).not.toContain("idempotencyKey");
+  });
+
+  it("a hoisted options object on the line just above is still recognized (short lookback)", () => {
+    const content = [
+      "const opts = { idempotencyKey };",
+      "return stripe.paymentIntents.create(args, opts);",
+    ].join("\n");
+    expect(runRegexSensor("m1", discriminating, { path: "src/payments/stripe.ts", content })).toBeNull();
+  });
+
+  it("a sensor without `absent` still fires on every match (back-compat)", () => {
+    const plain: Sensor = { ...discriminating, absent: undefined };
+    const content = "stripe.paymentIntents.create({ a }, { idempotencyKey });";
+    expect(runRegexSensor("m1", plain, { path: "src/payments/stripe.ts", content })).not.toBeNull();
+  });
+});

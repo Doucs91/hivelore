@@ -81,6 +81,18 @@ export function sensorAppliesToPath(
 }
 
 /**
+ * Window (in added lines) searched for the `absent` (correct-usage) marker around a trigger match.
+ *
+ * FORWARD-biased on purpose: a risky call's required companion (e.g. an option object) is part of the
+ * call's ARGUMENTS, which follow the call across the next few lines — so we look mostly ahead.
+ * The lookback is tiny (catches an options-object hoisted to the line just above) but small enough
+ * that a *separate* correct call sitting above a faulty one does NOT mask the faulty one (the live
+ * failure that a symmetric window caused). Asymmetry > a single big symmetric window.
+ */
+export const SENSOR_ABSENT_WINDOW = 6;
+export const SENSOR_ABSENT_LOOKBACK = 2;
+
+/**
  * Compile a regex sensor. Returns null when the sensor is not a runnable regex
  * (wrong kind, missing/invalid pattern) so callers can skip it safely.
  */
@@ -90,6 +102,17 @@ export function compileRegexSensor(sensor: Sensor): RegExp | null {
     // Always multiline so `^`/`$` work per added line; merge with caller flags.
     const flags = new Set(["m", ...(sensor.flags ?? "").split("")].filter(Boolean));
     return new RegExp(sensor.pattern, [...flags].join(""));
+  } catch {
+    return null;
+  }
+}
+
+/** Compile the optional `absent` (correct-usage) regex for a discriminating sensor, or null. */
+function compileAbsentRegex(sensor: Sensor): RegExp | null {
+  if (sensor.kind !== "regex" || !sensor.absent) return null;
+  try {
+    const flags = new Set(["m", ...(sensor.flags ?? "").split("")].filter(Boolean));
+    return new RegExp(sensor.absent, [...flags].join(""));
   } catch {
     return null;
   }
@@ -106,24 +129,38 @@ export function runRegexSensor(
 ): SensorHit | null {
   const re = compileRegexSensor(sensor);
   if (!re) return null;
-  for (const rawLine of target.content.split("\n")) {
+  const absentRe = compileAbsentRegex(sensor);
+  const lines = target.content.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i]!;
     // Fresh lastIndex each line (no global flag is forced, but be defensive).
     re.lastIndex = 0;
-    if (re.test(rawLine)) {
-      // A brittle pattern (hardcoded line numbers, etc.) must never hard-block, even if a human
-      // promoted it to `block` — a fragile false-positive gate is what trains agents to ignore the
-      // gate entirely. Downgrade to warn at match time so it stays advisory everywhere.
-      const brittle = sensor.kind === "regex" && sensor.pattern ? sensorPatternBrittleness(sensor.pattern) : null;
-      const severity = brittle ? "warn" : sensor.severity;
-      return {
-        memory_id: memoryId,
-        sensor,
-        file: target.path,
-        matched_line: rawLine.trim().slice(0, 200),
-        message: sensor.message,
-        severity,
-      };
+    if (!re.test(rawLine)) continue;
+
+    // Discriminating sensor: the trigger matched, but if the correct-usage marker (`absent`) is
+    // present within the window around this match, this is a LEGITIMATE use — skip it and keep
+    // scanning for a genuinely faulty occurrence. This is what turns "fires on every call" into
+    // "fires only on the faulty call".
+    if (absentRe) {
+      const from = Math.max(0, i - SENSOR_ABSENT_LOOKBACK);
+      const to = Math.min(lines.length, i + SENSOR_ABSENT_WINDOW + 1);
+      absentRe.lastIndex = 0;
+      if (absentRe.test(lines.slice(from, to).join("\n"))) continue;
     }
+
+    // A brittle pattern (hardcoded line numbers, etc.) must never hard-block, even if a human
+    // promoted it to `block` — a fragile false-positive gate is what trains agents to ignore the
+    // gate entirely. Downgrade to warn at match time so it stays advisory everywhere.
+    const brittle = sensor.kind === "regex" && sensor.pattern ? sensorPatternBrittleness(sensor.pattern) : null;
+    const severity = brittle ? "warn" : sensor.severity;
+    return {
+      memory_id: memoryId,
+      sensor,
+      file: target.path,
+      matched_line: rawLine.trim().slice(0, 200),
+      message: sensor.message,
+      severity,
+    };
   }
   return null;
 }
