@@ -36,6 +36,20 @@ export function isEnvWorkaroundMemory(fm: { tags?: string[] } | null | undefined
   return Boolean(fm?.tags?.some((t) => ENV_WORKAROUND_TAGS.has(t)));
 }
 
+/**
+ * True when a memory carries any tag in `excludeTags` (case-insensitive) — used to keep
+ * strategy/positioning memories OUT of automatic briefing surfacing while leaving them searchable.
+ * See `HaiveConfig.briefingExcludeTags`. Empty/undefined list ⇒ never excluded.
+ */
+export function memoryHasExcludedTag(
+  fm: { tags?: string[] } | null | undefined,
+  excludeTags: string[] | null | undefined,
+): boolean {
+  if (!excludeTags || excludeTags.length === 0) return false;
+  const lowered = new Set(excludeTags.map((t) => t.toLowerCase()));
+  return Boolean(fm?.tags?.some((t) => lowered.has(t.toLowerCase())));
+}
+
 const MODULE_PATTERNS = [
   /^packages\/([^/]+)\//,
   /^apps\/([^/]+)\//,

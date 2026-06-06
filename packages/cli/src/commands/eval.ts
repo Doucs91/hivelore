@@ -469,16 +469,17 @@ function renderMarkdown(
     `Spec: ${resolved.source}`,
     `Cases: ${provenance}`,
     "",
-    `## Overall score: ${report.score}/100`,
+    // Honesty: the HEADLINE is the independent (authored) score when the run mixes in self-referential
+    // synthesized cases — so 100/100 from cases the harness wrote about itself can't read as ground truth.
+    `## Overall score: ${authoredScore !== null ? authoredScore : report.score}/100${authoredScore !== null ? " (authored-only, independent ground truth)" : ""}`,
     "",
   ];
 
-  // When the headline blends authored + synthesized, surface the independent-only score too so the
-  // number isn't read as ground truth (Fowler's "measure harness quality" — honestly).
+  // Show the blended number as a secondary, clearly-labelled sanity floor — never the headline.
   if (authoredScore !== null) {
     lines.push(
-      `> Authored-only (independent ground truth): **${authoredScore}/100**. ` +
-        `The headline above blends this with ${resolved.synthesized} self-referential case(s) (a sanity floor).`,
+      `> Blended with ${resolved.synthesized} self-referential synthesized case(s): **${report.score}/100** ` +
+        `(a self-referential sanity floor, NOT ground truth — the headline above is the independent score).`,
       "",
     );
   }

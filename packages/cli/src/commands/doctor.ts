@@ -271,6 +271,26 @@ export function registerDoctor(program: Command): void {
         });
       }
 
+      // Honest protection signal: hAIve's headline claim is "blocks the repeat". If every sensor is
+      // warn-only, enforcement is *advisory*, not blocking — say so (and pull down protection_score)
+      // rather than letting the pitch outrun the config. Either promote a trusted sensor, or stop
+      // claiming enforcement. Counts toward the Protection section.
+      const sensorMemories = memories.filter((m) => m.memory.frontmatter.sensor);
+      const blockSensors = sensorMemories.filter(
+        (m) => m.memory.frontmatter.sensor?.severity === "block",
+      ).length;
+      if (sensorMemories.length > 0 && blockSensors === 0) {
+        findings.push({
+          severity: "warn",
+          code: "sensors-no-hard-block",
+          section: "Protection" as DoctorSection,
+          message:
+            `${sensorMemories.length} sensor(s) defined but 0 hard-block (all warn-only) — enforcement is ` +
+            `effectively advisory. The "blocks the repeat" guarantee isn't true until a trusted sensor is promoted.`,
+          fix: "haive sensors list   # then `haive sensors promote <id>` for a trusted, non-brittle sensor — or retire the noise",
+        });
+      }
+
       // ── 4. Code-map freshness ─────────────────────────────────────────────
       const codeMap = await loadCodeMap(paths);
       if (!codeMap) {

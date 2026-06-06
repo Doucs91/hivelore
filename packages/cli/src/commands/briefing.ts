@@ -10,8 +10,10 @@ import {
   literalMatchesAllTokens,
   literalMatchesAnyToken,
   loadCodeMap,
+  loadConfig,
   loadMemoriesFromDir,
   loadUsageIndex,
+  memoryHasExcludedTag,
   memoryMatchesAnchorPaths,
   queryCodeMap,
   resolveBriefingBudget,
@@ -332,6 +334,11 @@ export function registerBriefing(program: Command): void {
         );
       }
 
+      // Strategy/positioning memories are excluded from automatic surfacing (still searchable via
+      // `memory search`) — mirrors the MCP get_briefing filter so both façades behave identically.
+      const briefingConfig = await loadConfig(paths);
+      const excludeTags = briefingConfig.briefingExcludeTags;
+
       // Filter: exclude noise, drafts, stale, and session_recap (shown above) by default
       const candidates = all.filter(({ memory: mem }) => {
         const fm = mem.frontmatter;
@@ -340,6 +347,7 @@ export function registerBriefing(program: Command): void {
         if (!opts.includeStale && fm.status === "stale") return false;
         if (scopeFilter !== "all" && fm.scope !== scopeFilter && !(scopeFilter === "team" && fm.scope === "shared")) return false;
         if (fm.type === "session_recap") return false; // shown separately above
+        if (memoryHasExcludedTag(fm, excludeTags)) return false;
         return true;
       });
 

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { buildFrontmatter } from "../src/parser.js";
 import {
   inferModulesFromPaths,
+  memoryHasExcludedTag,
   memoryMatchesAnchorPaths,
   pathsOverlap,
 } from "../src/relevance.js";
+import { DEFAULT_BRIEFING_EXCLUDE_TAGS } from "../src/config.js";
 import type { Memory } from "../src/types.js";
 
 function memoryWithPaths(paths: string[]): Memory {
@@ -13,6 +15,29 @@ function memoryWithPaths(paths: string[]): Memory {
     body: "",
   };
 }
+
+describe("memoryHasExcludedTag (briefing strategy filter)", () => {
+  it("excludes a memory carrying a default meta tag (case-insensitive)", () => {
+    expect(memoryHasExcludedTag({ tags: ["Positioning"] }, DEFAULT_BRIEFING_EXCLUDE_TAGS)).toBe(true);
+    expect(memoryHasExcludedTag({ tags: ["strategy", "x"] }, DEFAULT_BRIEFING_EXCLUDE_TAGS)).toBe(true);
+  });
+
+  it("keeps an ordinary technical memory", () => {
+    expect(memoryHasExcludedTag({ tags: ["enforcement", "precommit"] }, DEFAULT_BRIEFING_EXCLUDE_TAGS)).toBe(false);
+    expect(memoryHasExcludedTag({ tags: [] }, DEFAULT_BRIEFING_EXCLUDE_TAGS)).toBe(false);
+    expect(memoryHasExcludedTag({}, DEFAULT_BRIEFING_EXCLUDE_TAGS)).toBe(false);
+  });
+
+  it("never excludes when the list is empty or missing (feature off)", () => {
+    expect(memoryHasExcludedTag({ tags: ["positioning"] }, [])).toBe(false);
+    expect(memoryHasExcludedTag({ tags: ["positioning"] }, undefined)).toBe(false);
+  });
+
+  it("respects a custom exclude list", () => {
+    expect(memoryHasExcludedTag({ tags: ["billing"] }, ["billing"])).toBe(true);
+    expect(memoryHasExcludedTag({ tags: ["billing"] }, ["other"])).toBe(false);
+  });
+});
 
 describe("inferModulesFromPaths", () => {
   it("extracts package names from packages/<name>/...", () => {

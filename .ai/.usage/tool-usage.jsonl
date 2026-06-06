@@ -209,3 +209,4 @@
 {"tool":"mem_save","at":"2026-06-06T06:10:07.331Z","summary":"coldstart-monorepo-nested-git-repos"}
 {"tool":"get_briefing","at":"2026-06-06T18:27:10.480Z","summary":"Deep analysis and full testing of hAIve, plus web research on harness engineering and competitive positioning"}
 {"tool":"mem_relevant_to","at":"2026-06-06T19:19:38.418Z","summary":"Disable auto-generation of session_recap memories and add an ephemeral NEXT.md h"}
+{"tool":"mem_relevant_to","at":"2026-06-06T19:46:24.067Z","summary":"Filter strategy/positioning memories out of get_briefing; count prevention only "}

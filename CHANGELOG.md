@@ -6,6 +6,29 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.28.3] — honesty pass: kill briefing bias, deflate metrics, truthful protection
+
+> Three fixes from dogfooding: stop the corpus from biasing the agent, stop the metrics from
+> overstating value, and stop the protection score from outrunning the config.
+
+#### Changed
+- **Briefing bias loop broken.** `get_briefing` and the CLI `briefing` no longer auto-surface
+  strategy/positioning memories (new config `briefingExcludeTags`, default
+  `positioning, competitive, strategy, harness-engineering, roadmap`). They remain fully searchable
+  via `mem_search` / `memory search` — only automatic injection is filtered, so the corpus informs
+  facts without shaping the agent's opinions on every task.
+- **Prevention metric deflated to real blocks.** The anti-pattern gate now records a prevention event
+  only for catches that would actually hard-block (a deterministic sensor fired, or a high-confidence
+  semantic match ≥ 0.75) — never the re-surfacing of an anchored note that merely shares a word with a
+  broad diff. This ends the inflated "N repeats blocked" headline that counted one note matching every
+  package.json commit.
+- **Eval headline is the independent score.** `haive eval` now leads with the authored-only
+  (independent ground truth) score; the blended authored+synthesized number is shown as a secondary,
+  clearly-labelled self-referential sanity floor — never the headline.
+- **Honest protection score.** `haive doctor` now reports `sensors-no-hard-block` (Protection) when
+  sensors exist but none hard-block — enforcement is advisory, and the score reflects it — with a fix
+  to promote a trusted sensor or retire noise.
+
 ## [0.28.2] — ephemeral session handoff (NEXT.md) + opt-out of auto recap memories
 
 > Stop the low-signal auto `session_recap` dump from accumulating in — and biasing — the `.ai/`

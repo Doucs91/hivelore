@@ -61,6 +61,16 @@ export interface HaiveConfig {
    */
   adaptiveBriefing?: boolean;
 
+  /**
+   * Memory tags that are EXCLUDED from automatic surfacing in `get_briefing` / `mem_relevant_to`.
+   * Purpose: break the self-reinforcing bias loop where strategy/positioning memories get auto-injected
+   * into every agent's context and shape its *opinions* (not just its facts). Excluded memories are
+   * still fully searchable via explicit `mem_search` / `memory search` — they just don't auto-load.
+   * Matching is case-insensitive on frontmatter tags. Default targets clearly-meta tags; override
+   * (set to `[]` to disable). Note: this filters by TAG, so tag strategy notes accordingly.
+   */
+  briefingExcludeTags?: string[];
+
   /** Default scope for new memories. Default: "personal". Autopilot sets "team". */
   defaultScope?: "personal" | "team";
 
@@ -253,6 +263,19 @@ export interface HaiveConfig {
   };
 }
 
+/**
+ * Tags excluded from automatic briefing surfacing by default. These are "meta" tags — strategy,
+ * positioning, competitive analysis, roadmaps — whose memories bias an agent's opinions rather than
+ * inform a concrete coding task. Still searchable via explicit mem_search.
+ */
+export const DEFAULT_BRIEFING_EXCLUDE_TAGS: string[] = [
+  "positioning",
+  "competitive",
+  "strategy",
+  "harness-engineering",
+  "roadmap",
+];
+
 export const DEFAULT_CONFIG: HaiveConfig = {
   autopilot: false,
   defaultScope: "personal",
@@ -262,6 +285,7 @@ export const DEFAULT_CONFIG: HaiveConfig = {
   autoSessionEnd: false,
   autoSessionRecap: true,
   sessionHandoff: false,
+  briefingExcludeTags: DEFAULT_BRIEFING_EXCLUDE_TAGS,
   autoContext: false,
   autoRepair: {
     context: false,
@@ -294,6 +318,7 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
   autoSessionEnd: true,
   autoSessionRecap: true,
   sessionHandoff: false,
+  briefingExcludeTags: DEFAULT_BRIEFING_EXCLUDE_TAGS,
   autoContext: true,
   autoRepair: {
     context: true,

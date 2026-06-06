@@ -155,6 +155,27 @@ describe("antiPatternsCheck", () => {
     expect(events).toHaveLength(0);
   });
 
+  it("does NOT record a prevention event for an anchor+literal match without strong semantic (#2a honesty)", async () => {
+    // Previously anchor+literal alone was counted as a 'prevention' — over-counting every commit that
+    // merely touched an anchored file and shared a word (the inflated "485 repeats blocked"). Now only
+    // real hard-blocks count (sensor or high-confidence semantic ≥ 0.75); anchor+literal still SURFACES
+    // as advisory but is not a measured outcome.
+    await writeMemory(
+      ctx.paths.teamDir!, "2024-01-01-gotcha-migration-edit2", "gotcha",
+      "# Migration edit forbidden\n\nNever modify an existing migration file.",
+      { paths: ["db/migrations/V1__init.sql"] },
+    );
+    const result = await antiPatternsCheck(
+      { diff: "- ALTER TABLE migration_edit ...", paths: ["db/migrations/V1__init.sql"], limit: 8, semantic: false },
+      ctx,
+    );
+    expect(
+      result.warnings.some((w) => w.reasons.includes("anchor") && w.reasons.includes("literal")),
+    ).toBe(true);
+    const events = await loadPreventionEvents(ctx.paths);
+    expect(events).toHaveLength(0);
+  });
+
   it("does NOT fire the sensor when the bad pattern is only on a removed line", async () => {
     await writeMemory(
       ctx.paths.teamDir!,

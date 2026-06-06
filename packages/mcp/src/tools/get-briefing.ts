@@ -20,6 +20,7 @@ import {
   literalMatchesAnyToken,
   loadCodeMap,
   loadConfig,
+  memoryHasExcludedTag,
   hashProjectContext,
   loadMemoriesFromDir,
   loadPreventionEvents,
@@ -208,12 +209,18 @@ export async function getBriefing(
       }
     }
 
+    // Strategy/positioning memories are excluded from AUTOMATIC surfacing so they can't bias the
+    // agent's opinions on every task (they remain searchable via mem_search). See briefingExcludeTags.
+    const briefingCfg = await loadConfig(ctx.paths).catch(() => null);
+    const excludeTags = briefingCfg?.briefingExcludeTags;
+
     const allMemories = allLoaded.filter(({ memory }) => {
       const s = memory.frontmatter.status;
       if (s === "rejected" || s === "deprecated") return false;
       if (!input.include_stale && s === "stale") return false;
       if (!input.include_stale && isRetiredMemory(memory.frontmatter, memory.body)) return false;
       if (memory.frontmatter.type === "session_recap") return false;
+      if (memoryHasExcludedTag(memory.frontmatter, excludeTags)) return false;
       return true;
     });
     usage = await loadUsageIndex(ctx.paths);
