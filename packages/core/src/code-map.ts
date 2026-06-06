@@ -116,6 +116,22 @@ export async function buildCodeMap(
   };
 }
 
+/**
+ * Count source files physically present on disk (FS walk, excluding node_modules/build/hidden dirs),
+ * regardless of git tracking. Used by `haive doctor` to detect a code-map that captured far fewer
+ * files than the repo actually holds (untracked source, or a structure the indexer missed).
+ */
+export async function countSourceFilesOnDisk(
+  root: string,
+  options: { excludeDirs?: string[] } = {},
+): Promise<number> {
+  const include = new Set(DEFAULT_INCLUDE);
+  const exclude = new Set([...DEFAULT_EXCLUDE, ...(options.excludeDirs ?? [])]);
+  let count = 0;
+  for await (const _file of walkSourceFiles(root, include, exclude)) count++;
+  return count;
+}
+
 async function* collectSourceFiles(
   root: string,
   include: Set<string>,
@@ -125,10 +141,53 @@ async function* collectSourceFiles(
   const gitFiles = gitSourceFiles(root, include, exclude, includeUntracked === true);
   if (gitFiles) {
     for (const rel of gitFiles) yield path.join(root, rel);
+
+    // `git ls-files` in the parent does NOT descend into a subdirectory that is its own git repo
+    // (monorepos with embedded/nested repos or submodules). Their real source would silently be
+    // invisible — on a real marketplace monorepo this indexed 2 of 1400+ files. So discover nested
+    // repos and `git ls-files` each one. This still indexes ONLY tracked source (each repo's own
+    // .gitignore is respected) — it does NOT fall back to walking untracked junk, preserving
+    // 2026-05-28-decision-codemap-tracked-files-by-default.
+    for await (const nested of findNestedGitRepos(root, exclude)) {
+      const nestedFiles = gitSourceFiles(nested, include, exclude, includeUntracked === true);
+      if (nestedFiles) {
+        for (const rel of nestedFiles) yield path.join(nested, rel);
+      }
+    }
     return;
   }
 
   yield* walkSourceFiles(root, include, exclude);
+}
+
+/**
+ * Find subdirectories of `root` that are their own git repositories (contain a `.git` entry).
+ * Skips excluded dirs (node_modules, dist, …) and hidden dirs, and does not descend INTO a found
+ * repo (its own `git ls-files` covers its subtree). Depth-limited to keep large trees cheap.
+ */
+async function* findNestedGitRepos(
+  root: string,
+  exclude: Set<string>,
+  depth = 0,
+): AsyncGenerator<string> {
+  if (depth > 6) return;
+  let entries;
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name.startsWith(".")) continue;
+    if (exclude.has(entry.name)) continue;
+    const full = path.join(root, entry.name);
+    if (existsSync(path.join(full, ".git"))) {
+      yield full; // its own ls-files handles its subtree; don't descend further here
+    } else {
+      yield* findNestedGitRepos(full, exclude, depth + 1);
+    }
+  }
 }
 
 function gitSourceFiles(

@@ -14,6 +14,8 @@ import { isSyntheticSuggestionQuery } from "./memory-suggest.js";
 declare const __HAIVE_VERSION__: string;
 import {
   codeMapPath,
+  countSourceFilesOnDisk,
+  sensorPatternBrittleness,
   findProjectRoot,
   getUsage,
   isStackPackSeed,
@@ -254,6 +256,21 @@ export function registerDoctor(program: Command): void {
         });
       }
 
+      // Corpus hygiene: brittle sensors (over-fit to line numbers/literals) silently rot and inflate
+      // the "active protection" count. Surface them so they can be rewritten or retired.
+      const brittleSensors = memories.filter((m) => {
+        const s = m.memory.frontmatter.sensor;
+        return s?.kind === "regex" && s.pattern && sensorPatternBrittleness(s.pattern);
+      }).length;
+      if (brittleSensors > 0) {
+        findings.push({
+          severity: "info",
+          code: "memory-brittle-sensors",
+          message: `${brittleSensors} sensor(s) look brittle (hardcoded line numbers/literals) — they won't hard-block and may not fire on real diffs.`,
+          fix: "haive sensors list   # review the ⚠ brittle entries, then rewrite or retire them",
+        });
+      }
+
       // ── 4. Code-map freshness ─────────────────────────────────────────────
       const codeMap = await loadCodeMap(paths);
       if (!codeMap) {
@@ -267,12 +284,24 @@ export function registerDoctor(program: Command): void {
         const cmFile = codeMapPath(paths);
         const cmStat = await stat(cmFile);
         const ageDays = (now - cmStat.mtimeMs) / MS_PER_DAY;
+        const indexedCount = Object.keys(codeMap.files).length;
         if (ageDays > 14) {
           findings.push({
             severity: "warn",
             code: "stale-code-map",
-            message: `code-map is ${Math.round(ageDays)} days old (${Object.keys(codeMap.files).length} files indexed).`,
+            message: `code-map is ${Math.round(ageDays)} days old (${indexedCount} files indexed).`,
             fix: "haive index code   # or rely on the post-merge git hook",
+          });
+        }
+        // Detect a near-empty code-map: many source files on disk but few indexed (untracked source
+        // or a structure the indexer missed). Silent before — on a real monorepo it indexed 2/1400+.
+        const onDisk = await countSourceFilesOnDisk(root);
+        if (onDisk >= 20 && indexedCount < onDisk * 0.5) {
+          findings.push({
+            severity: "warn",
+            code: "code-map-near-empty",
+            message: `code-map indexed ${indexedCount} file(s) but ~${onDisk} source file(s) are on disk — most of your code is NOT indexed (untracked source, or nested repos the indexer can't reach).`,
+            fix: "haive index code   # if files are untracked, commit them or check nested-repo setup",
           });
         }
       }

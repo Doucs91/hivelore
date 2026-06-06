@@ -6,6 +6,37 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.28.0] — cold-start on real monorepos + auto-publish + corpus hygiene
+
+> Grounded in dogfooding hAIve cold-start on a real 1.4 GB Next/Nest-style marketplace monorepo.
+> The headline finding: on a monorepo with **nested git repos**, `git ls-files` doesn't descend into
+> them, so the code-map indexed **2 of 1400+ files — silently**. Fixed and verified (2 → 1232).
+
+#### Fixed
+- **code-map now indexes nested git repositories** (monorepos with embedded repos / submodules).
+  Previously the parent's `git ls-files` skipped them, leaving the entire code-context layer
+  (`code_map`, `code_search`, `symbol_locations`, harness-coverage) near-empty on real monorepos.
+  Each nested repo's own `.gitignore` is still respected — no fallback to indexing untracked junk
+  (preserves the tracked-files-by-default decision). Verified on a real repo: 2 → 1232 files.
+- **Stack detection reads nested package.json** (sub-packages / nested repos), so frameworks that
+  live in a sub-package are detected, not just the root manifest (real repo: `react` → `react,
+  reactquery, tailwind, vite, typescript`).
+
+#### Added
+- **`haive doctor` flags a near-empty code-map**: warns when many source files are on disk but few
+  are indexed (untracked source, or a structure the indexer can't reach) — previously silent.
+  New pure helper `countSourceFilesOnDisk`.
+- **`release.yml` GitHub Action**: publishes the four lockstep packages to npm on a version tag,
+  gated by the `npm-publish` environment (manual approval) + `NPM_TOKEN`. Closes the gap where a
+  tagged release sat unpublished. (Does not change "agents never publish" — it's the human's tag +
+  approval + secret.) Verifies the tag matches the package version before publishing.
+
+#### Changed
+- **Brittle sensors can never hard-block.** A sensor with a brittle pattern (hardcoded line
+  numbers/literals) is downgraded to `warn` at match time even if promoted to `block` — a fragile
+  false-positive gate is what trains agents to ignore the gate. `haive doctor` now also reports the
+  brittle-sensor count under Corpus health.
+
 ## [0.27.0] — harness-quality batch: trustworthy sensors, eval honesty, version-aware briefings
 
 #### Added

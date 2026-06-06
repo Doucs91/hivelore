@@ -1,0 +1,60 @@
+name: release
+
+# Publish the four lockstep packages to npm when a version tag is pushed.
+#
+# This is the HUMAN-authorized publish path (it runs on Sady's tag + needs the npm-publish
+# environment's manual approval and the NPM_TOKEN secret) — it does not change the rule that
+# *agents* never run `npm publish`. It just closes the gap where a tagged release sat unpublished.
+#
+# One-time setup (repo owner):
+#   1. Settings → Secrets → Actions: add NPM_TOKEN (an npm automation token with publish rights).
+#   2. Settings → Environments: create `npm-publish` and add yourself as a required reviewer.
+# Then every `git push origin vX.Y.Z` opens a one-click approval that builds, tests, and publishes.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (e.g. v0.27.1). Defaults to the current ref."
+        required: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm-publish # gates on manual approval — configure required reviewers
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.14.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Safety: the pushed tag (vX.Y.Z) must match the lockstep package version, so a stale tag
+      # can never publish the wrong build. Skips the check for manual workflow_dispatch runs.
+      - name: Verify tag matches package version
+        if: github.ref_type == 'tag'
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package version $PKG"
+            exit 1
+          fi
+          echo "Publishing version $PKG"
+
+      - name: Build, test, and publish all packages
+        run: pnpm run publish:all
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

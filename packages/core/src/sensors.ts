@@ -110,13 +110,18 @@ export function runRegexSensor(
     // Fresh lastIndex each line (no global flag is forced, but be defensive).
     re.lastIndex = 0;
     if (re.test(rawLine)) {
+      // A brittle pattern (hardcoded line numbers, etc.) must never hard-block, even if a human
+      // promoted it to `block` — a fragile false-positive gate is what trains agents to ignore the
+      // gate entirely. Downgrade to warn at match time so it stays advisory everywhere.
+      const brittle = sensor.kind === "regex" && sensor.pattern ? sensorPatternBrittleness(sensor.pattern) : null;
+      const severity = brittle ? "warn" : sensor.severity;
       return {
         memory_id: memoryId,
         sensor,
         file: target.path,
         matched_line: rawLine.trim().slice(0, 200),
         message: sensor.message,
-        severity: sensor.severity,
+        severity,
       };
     }
   }

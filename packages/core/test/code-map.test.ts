@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { buildCodeMap, queryCodeMap } from "../src/code-map.js";
+import { buildCodeMap, countSourceFilesOnDisk, queryCodeMap } from "../src/code-map.js";
 
 const exec = promisify(execFile);
 
@@ -114,6 +114,36 @@ const SECRET = 42;
     const map = await buildCodeMap(workDir);
 
     expect(Object.keys(map.files)).toEqual(["src/math.ts"]);
+  });
+
+  it("countSourceFilesOnDisk counts source on disk and skips node_modules", async () => {
+    await writeFile(path.join(workDir, "node_modules", "junk", "x.ts"), "export const x = 1;", "utf8");
+    await writeFile(path.join(workDir, "src", "extra.ts"), "export const y = 2;", "utf8");
+    const n = await countSourceFilesOnDisk(workDir);
+    // beforeEach wrote src/math.ts + src/internal.ts; this test adds src/extra.ts. node_modules excluded.
+    expect(n).toBe(3);
+  });
+
+  it("indexes tracked source inside NESTED git repos (monorepo with embedded repos)", async () => {
+    // Parent repo tracks one file; a nested repo (its own .git) holds the real app source that the
+    // parent's `git ls-files` cannot see. Both must be indexed (its own .gitignore still respected).
+    await exec("git", ["init"], { cwd: workDir });
+    await exec("git", ["add", "src/math.ts"], { cwd: workDir });
+
+    const nested = path.join(workDir, "frontend");
+    await mkdir(path.join(nested, "src"), { recursive: true });
+    await exec("git", ["init"], { cwd: nested });
+    await writeFile(path.join(nested, ".gitignore"), "generated/\n", "utf8");
+    await writeFile(path.join(nested, "src", "app.ts"), `export function bootApp() { return 1; }`, "utf8");
+    await mkdir(path.join(nested, "generated"), { recursive: true });
+    await writeFile(path.join(nested, "generated", "junk.ts"), `export const JUNK = true;`, "utf8");
+    await exec("git", ["add", ".gitignore", "src/app.ts"], { cwd: nested });
+
+    const map = await buildCodeMap(workDir);
+    const files = Object.keys(map.files).sort();
+    expect(files).toContain("src/math.ts");
+    expect(files).toContain("frontend/src/app.ts"); // nested repo source is now indexed
+    expect(files).not.toContain("frontend/generated/junk.ts"); // nested .gitignore still respected
   });
 
   it("can include untracked git files without indexing ignored files", async () => {

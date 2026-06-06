@@ -615,6 +615,40 @@ async function resolveStacksToSeed(
     .filter(isValidStack);
 }
 
+/**
+ * Merge dependencies from package.json files in immediate sub-packages (depth ≤ 2), skipping
+ * node_modules/build/hidden dirs. Lets stack detection see frameworks that live in monorepo
+ * sub-packages or nested repos rather than the root manifest. Best-effort; returns undefined if none.
+ */
+async function collectNestedPackageDeps(root: string): Promise<Record<string, string> | undefined> {
+  const SKIP = new Set(["node_modules", "dist", "build", "out", ".git", ".next", "coverage", "vendor"]);
+  const merged: Record<string, string> = {};
+  let found = false;
+  async function scan(dir: string, depth: number): Promise<void> {
+    if (depth > 2) return;
+    let entries;
+    try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith(".") || SKIP.has(entry.name)) continue;
+      const sub = path.join(dir, entry.name);
+      const pkgPath = path.join(sub, "package.json");
+      if (existsSync(pkgPath)) {
+        try {
+          const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as {
+            dependencies?: Record<string, string>;
+            devDependencies?: Record<string, string>;
+          };
+          Object.assign(merged, pkg.dependencies ?? {}, pkg.devDependencies ?? {});
+          found = true;
+        } catch { /* ignore */ }
+      }
+      await scan(sub, depth + 1);
+    }
+  }
+  await scan(root, 0);
+  return found ? merged : undefined;
+}
+
 /** Read all manifest files at root and return detected valid stacks. */
 async function autoDetectStacksFromRoot(root: string): Promise<StackName[]> {
   let packageJsonDeps: Record<string, string> | undefined;
@@ -632,6 +666,12 @@ async function autoDetectStacksFromRoot(root: string): Promise<StackName[]> {
       packageJsonDeps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
     } catch { /* ignore parse errors */ }
   }
+
+  // Monorepos keep the real frameworks in sub-packages / nested repos (e.g. a Next.js frontend and a
+  // NestJS backend), not the root package.json. Merge nested deps so stack detection isn't blind to
+  // them — on a real marketplace monorepo the root-only scan saw "react" but missed next + nest.
+  const nestedDeps = await collectNestedPackageDeps(root);
+  if (nestedDeps) packageJsonDeps = { ...(packageJsonDeps ?? {}), ...nestedDeps };
 
   for (const name of ["requirements.txt", "requirements/base.txt", "requirements/prod.txt"]) {
     const reqPath = path.join(root, name);

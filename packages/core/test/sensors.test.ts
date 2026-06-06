@@ -94,6 +94,18 @@ describe("sensors", () => {
     expect(hit).toBeNull();
   });
 
+  it("downgrades a brittle block sensor to warn at match time (never hard-blocks)", () => {
+    const brittle = sensor({ pattern: "enforce\\.ts\\s*:\\s*1131-1186", severity: "block" });
+    const hit = runRegexSensor("m1", brittle, { path: "x.ts", content: "see enforce.ts: 1131-1186 here" });
+    expect(hit).not.toBeNull();
+    expect(hit!.severity).toBe("warn"); // brittle pattern can't hard-block even when promoted
+
+    // A durable block sensor keeps its block severity.
+    const durable = sensor({ pattern: "open-in-view", severity: "block" });
+    const ok = runRegexSensor("m1", durable, { path: "a.properties", content: "open-in-view=true" });
+    expect(ok!.severity).toBe("block");
+  });
+
   it("scopes by sensor paths, falling back to anchor paths", () => {
     const s = sensor({ paths: ["src/backend/"] });
     expect(sensorAppliesToPath(s, [], "src/backend/Repo.java")).toBe(true);
