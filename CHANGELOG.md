@@ -6,6 +6,19 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.26.5] — hybrid code_search ranking (exact symbol names first)
+
+#### Changed
+- `code_search` / `codeSemanticSearch` now re-ranks results with a small deterministic lexical bonus
+  layered on top of the semantic cosine: an exact symbol-name match (+0.30), a partial name-token
+  match (up to +0.20, proportional), and a filename-token match (+0.05). This lifts the symbol you
+  literally named above merely-similar neighbours — e.g. querying `rebuildCodeIndex` now returns the
+  function named `rebuildCodeIndex` first. No new index, model, or dependency; reuses data already in
+  the code index entry.
+- `min_score` keeps its documented meaning — a pure-semantic noise floor — so the lexical bonus
+  re-orders the relevant set without letting incidental filename tokens leak weak hits past the gate.
+  Ties break deterministically (score → semantic → file → line) for stable output.
+
 ## [0.26.4] — leaner breadcrumbs (map, not manual) + honest token budget
 
 #### Changed
