@@ -5,6 +5,8 @@
   "autoApproveDelayHours": 72,
   "autoPromoteMinReads": 1,
   "autoSessionEnd": true,
+  "autoSessionRecap": false,
+  "sessionHandoff": true,
   "autoContext": true,
   "autoRepair": {
     "context": true,

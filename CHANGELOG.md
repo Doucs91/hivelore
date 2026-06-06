@@ -6,6 +6,26 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.28.2] — ephemeral session handoff (NEXT.md) + opt-out of auto recap memories
+
+> Stop the low-signal auto `session_recap` dump from accumulating in — and biasing — the `.ai/`
+> corpus, while preserving cross-session continuity via a single overwritten handoff file.
+
+#### Added
+- **`NEXT.md` ephemeral session handoff** (`@hiveai/core` `handoff.ts`): on automatic session end,
+  hAIve can write/overwrite one root-level `NEXT.md` (focus + open threads + next steps), meant to be
+  gitignored. `buildHandoffMarkdown` / `writeSessionHandoff` / `readSessionHandoff` / `handoffAgeMs`.
+- **Config `sessionHandoff`** (default `false`): enable the NEXT.md handoff on auto session end.
+- **Config `autoSessionRecap`** (default `true`): when `false`, automatic session end no longer
+  persists a `session_recap` MEMORY into the corpus. A manual `haive session end --goal ...` is
+  unaffected (explicit recaps are always honored).
+
+#### Changed
+- `get_briefing` now falls back to surfacing `NEXT.md` as `last_session` when no recap memory exists,
+  so continuity survives `autoSessionRecap=false`.
+- The `requireSessionRecap` gate is satisfied by a recent `NEXT.md` handoff, not only a recap memory.
+- This repo dogfoods the new policy: `autoSessionRecap=false`, `sessionHandoff=true`.
+
 ## [0.28.1] — repo cleanup (remove internal research/benchmark artifacts)
 
 #### Removed

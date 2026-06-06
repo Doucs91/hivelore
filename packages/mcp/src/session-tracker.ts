@@ -12,6 +12,7 @@ import {
   appendUsageEvent,
   appendRuntimeJournalEntry,
   loadConfig,
+  writeSessionHandoff,
   type HaiveConfig,
 } from "@hiveai/core";
 import { mkdir, writeFile, rm } from "node:fs/promises";
@@ -109,26 +110,60 @@ export class SessionTracker {
         gitDiff = raw.slice(0, 8192) || undefined;
       } catch { /* not a git repo or no diff — ok */ }
 
-      // ── 2. Save minimal session recap ────────────────────────────────────
+      // ── 2. Save minimal session recap MEMORY (unless disabled) ───────────
+      // autoSessionRecap=false stops the low-signal recap dump from accumulating in
+      // (and biasing) the .ai/ corpus. Pair with sessionHandoff for an ephemeral NEXT.md.
       let recapId: string | undefined;
-      try {
-        const result = await memSessionEnd(
-          {
+      if (this.config?.autoSessionRecap !== false) {
+        try {
+          const result = await memSessionEnd(
+            {
+              goal: `Auto-captured session (${totalCalls} tool call${totalCalls === 1 ? "" : "s"})`,
+              accomplished: toolSummary,
+              discoveries: writingTools.length > 0
+                ? `${writingTools.length} memor${writingTools.length === 1 ? "y" : "ies"} saved during this session.`
+                : "No new memories saved this session.",
+              files_touched: [...filesSet].slice(0, 10),
+              next_steps: "",
+              scope: (this.config?.defaultScope as "personal" | "team") ?? "personal",
+              module: undefined,
+            },
+            this.ctx,
+          );
+          recapId = result.id;
+        } catch {
+          // Non-fatal — never block process exit
+        }
+      }
+
+      // ── 2b. Ephemeral NEXT.md handoff (opt-in via sessionHandoff) ─────────
+      // One overwritten file at the repo root: open threads (what was tried) + next steps,
+      // instead of an accumulating corpus memory. Best-effort; never blocks exit.
+      if (this.config?.sessionHandoff) {
+        const triedThreads = this.events
+          .filter((e) => e.tool === "mem_tried")
+          .map((e) => e.summary ?? "")
+          .filter(Boolean);
+        let diffStat: string | undefined;
+        try {
+          diffStat = execSync("git diff --stat HEAD", {
+            cwd: this.ctx.paths.root,
+            timeout: 5000,
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "ignore"],
+          }).trim() || undefined;
+        } catch { /* not a git repo / no diff */ }
+        try {
+          await writeSessionHandoff(this.ctx.paths.root, {
             goal: `Auto-captured session (${totalCalls} tool call${totalCalls === 1 ? "" : "s"})`,
-            accomplished: toolSummary,
-            discoveries: writingTools.length > 0
-              ? `${writingTools.length} memor${writingTools.length === 1 ? "y" : "ies"} saved during this session.`
-              : "No new memories saved this session.",
-            files_touched: [...filesSet].slice(0, 10),
-            next_steps: "",
-            scope: (this.config?.defaultScope as "personal" | "team") ?? "personal",
-            module: undefined,
-          },
-          this.ctx,
-        );
-        recapId = result.id;
-      } catch {
-        // Non-fatal — never block process exit
+            summary: toolSummary,
+            openThreads: triedThreads,
+            filesTouched: [...filesSet].slice(0, 20),
+            ...(diffStat ? { diffStat } : {}),
+          });
+        } catch {
+          // Non-fatal
+        }
       }
 
       void appendRuntimeJournalEntry(this.ctx.paths, {

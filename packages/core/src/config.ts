@@ -84,6 +84,22 @@ export interface HaiveConfig {
   autoSessionEnd?: boolean;
 
   /**
+   * Persist an auto-generated `session_recap` MEMORY into the `.ai/` corpus on automatic
+   * session end (MCP exit / SessionEnd hook). Default: true (preserves historical behavior).
+   * Set false to stop the low-signal recap dump from accumulating in — and biasing — the corpus;
+   * pair with `sessionHandoff` for an ephemeral NEXT.md handoff instead. Has no effect on a
+   * manual `haive session end --goal ...` (an explicit recap is always honored).
+   */
+  autoSessionRecap?: boolean;
+
+  /**
+   * On automatic session end, write/overwrite an ephemeral `NEXT.md` handoff at the repo root
+   * (open threads + next steps). Default: false. Meant to be gitignored — one overwritten file,
+   * not an accumulating corpus memory. Surfaced as `last_session` when no recap memory exists.
+   */
+  sessionHandoff?: boolean;
+
+  /**
    * Auto-generate a minimal project context from code-map when project-context.md is still
    * the template. Default: true in autopilot, false otherwise.
    */
@@ -244,6 +260,8 @@ export const DEFAULT_CONFIG: HaiveConfig = {
   autoApproveDelayHours: null,
   autoPromoteMinReads: 5,
   autoSessionEnd: false,
+  autoSessionRecap: true,
+  sessionHandoff: false,
   autoContext: false,
   autoRepair: {
     context: false,
@@ -274,6 +292,8 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
   autoApproveDelayHours: 72,
   autoPromoteMinReads: 1,
   autoSessionEnd: true,
+  autoSessionRecap: true,
+  sessionHandoff: false,
   autoContext: true,
   autoRepair: {
     context: true,

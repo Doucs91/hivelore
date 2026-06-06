@@ -12,6 +12,7 @@ import { Command } from "commander";
 import {
   buildFrontmatter,
   findProjectRoot,
+  loadConfig,
   loadMemoriesFromDir,
   loadPreventionEvents,
   loadUsageIndex,
@@ -20,6 +21,7 @@ import {
   resolveHaivePaths,
   serializeMemory,
   summarizeCaughtForYou,
+  writeSessionHandoff,
   type MemoryFrontmatter,
   type MemoryScope,
 } from "@hiveai/core";
@@ -369,6 +371,37 @@ export function registerSessionEnd(session: Command): void {
         const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
         if (existsSync(obsFile)) await rm(obsFile).catch(() => { /* non-fatal */ });
       };
+
+      // ── Auto mode honoring config ───────────────────────────────────
+      // When autoSessionRecap=false, an automatic (hook-driven) session end does NOT persist a
+      // recap memory into the corpus; it writes an ephemeral NEXT.md handoff instead (if enabled).
+      // A manual `haive session end --goal ...` is unaffected (explicit recaps are always honored).
+      const config = await loadConfig(paths);
+      if (opts.auto && config.autoSessionRecap === false) {
+        if (config.sessionHandoff) {
+          const diffStat = await runGit(root, ["diff", "--stat", "HEAD"]).catch(() => "");
+          const openThreads = (opts.discoveries ?? "")
+            .split("\n")
+            .map((s) => s.replace(/^[-*]\s*/, "").trim())
+            .filter(Boolean);
+          await writeSessionHandoff(root, {
+            goal,
+            openThreads,
+            filesTouched,
+            ...(opts.next?.trim() ? { nextSteps: opts.next.trim() } : {}),
+            ...(diffStat.trim() ? { diffStat: diffStat.trim() } : {}),
+          });
+        }
+        await cleanupObservations();
+        if (!opts.quiet) {
+          ui.info(
+            config.sessionHandoff
+              ? "Auto recap disabled (autoSessionRecap=false) — wrote ephemeral NEXT.md handoff."
+              : "Auto recap disabled (autoSessionRecap=false) — no recap memory written.",
+          );
+        }
+        return;
+      }
 
       // ── Topic upsert ────────────────────────────────────────────────
       if (existsSync(paths.memoriesDir)) {

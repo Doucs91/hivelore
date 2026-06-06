@@ -13,6 +13,9 @@ coverage
 .ai/.runtime/
 .ai/memories/personal/
 
+# hAIve ephemeral session handoff (overwritten each session, local-only)
+NEXT.md
+
 # hAIve project-level MCP configs generated per machine (absolute paths)
 .cursor/mcp.json
 .vscode/mcp.json

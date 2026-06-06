@@ -29,6 +29,7 @@ import {
   rankMemoriesLexical,
   recordProjectContextEmission,
   queryCodeMap,
+  readSessionHandoff,
   resolveBriefingBudget,
   serializeMemory,
   specificityScore,
@@ -196,6 +197,15 @@ export async function getBriefing(
         // dominating the briefing head. Human/post_task recaps pass through unchanged.
         body: compactAutoRecapBody(r.memory.body),
       };
+    }
+
+    // Fallback: when no recap memory exists (e.g. autoSessionRecap=false), surface the ephemeral
+    // NEXT.md handoff so the next session still resumes with open threads + next steps.
+    if (!lastSession) {
+      const handoff = await readSessionHandoff(ctx.paths.root);
+      if (handoff) {
+        lastSession = { id: "next-handoff", scope: "ephemeral", revision_count: 0, body: handoff };
+      }
     }
 
     const allMemories = allLoaded.filter(({ memory }) => {

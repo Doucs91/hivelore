@@ -9,6 +9,7 @@ import {
   BRIDGE_TARGET_PATH,
   findProjectRoot,
   findUncapturedFailures,
+  handoffAgeMs,
   hasRecentBriefingMarker,
   isFreshIsoDate,
   isRetiredMemory,
@@ -974,6 +975,9 @@ function withCategories(report: Omit<EnforcementReport, "categories">): Enforcem
 }
 
 async function hasRecentSessionRecap(paths: ReturnType<typeof resolveHaivePaths>): Promise<boolean> {
+  // An ephemeral NEXT.md handoff also satisfies continuity (autoSessionRecap=false setups).
+  const handoffAge = await handoffAgeMs(paths.root);
+  if (handoffAge !== null && handoffAge < SESSION_RECAP_TTL_MS) return true;
   if (!existsSync(paths.memoriesDir)) return false;
   const all = await loadMemoriesFromDir(paths.memoriesDir);
   return all.some(({ memory }) => {

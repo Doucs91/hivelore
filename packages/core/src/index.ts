@@ -45,6 +45,7 @@ export * from "./seed-git.js";
 export * from "./seed.js";
 export * from "./merge-memory.js";
 export * from "./recap.js";
+export * from "./handoff.js";
 export * from "./priority.js";
 // --- Lot C ---
 export * from "./bridges.js";
