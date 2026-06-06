@@ -45,6 +45,7 @@ import type { HaiveContext } from "../context.js";
 import { pendingDistillPath, type PendingDistill } from "../session-tracker.js";
 import type {
   ActionRequiredItem,
+  BriefingBreadcrumbItem,
   BriefingBreadcrumbs,
   BriefingMemory,
   BriefingOutput,
@@ -813,6 +814,7 @@ export async function getBriefing(
 
   return {
     ...(input.task ? { task: input.task } : {}),
+    server_version: serverVersion(),
     search_mode: searchMode,
     inferred_modules: inferred,
     ...(lastSession ? { last_session: lastSession } : {}),
@@ -897,26 +899,38 @@ function buildBriefingBreadcrumbs(input: {
   adaptiveTrim: boolean;
 }): BriefingBreadcrumbs | undefined {
   const startHere: string[] = [];
+  const startHereItems: BriefingBreadcrumbItem[] = [];
   const drillDown: string[] = [];
 
   // Breadcrumbs are a *map*, not the content: a terse pointer (priority · id · scope/type · anchor).
   // The body already lives in `memories[]` (and is one `mem_get` away), so we deliberately do NOT
   // re-summarize it here — that kept the default payload small instead of duplicating it.
+  // `start_here_items` is the structured twin (same pointers, machine-readable) — also never a copy.
   for (const memory of input.memories.slice(0, 4)) {
     const loaded = input.byId.get(memory.id);
     const anchor = loaded?.memory.frontmatter.anchor.paths[0];
     const anchorNote = anchor ? ` · applies to ${anchor}` : "";
     startHere.push(`${memory.priority}: memory ${memory.id} (${memory.scope}/${memory.type})${anchorNote}`);
+    startHereItems.push({
+      type: "memory",
+      id: memory.id,
+      scope: memory.scope,
+      mem_type: memory.type,
+      priority: memory.priority,
+      ...(anchor ? { file: anchor } : {}),
+    });
   }
 
   for (const hit of input.symbolLocations?.slice(0, 4) ?? []) {
     const first = hit.locations[0];
     if (!first) continue;
     startHere.push(`code: ${hit.symbol} -> ${first.file}:${first.line} [${first.kind}]`);
+    startHereItems.push({ type: "code", symbol: hit.symbol, file: first.file, line: first.line, kind: first.kind });
   }
 
   if (startHere.length === 0 && input.files.length > 0) {
     startHere.push(`files: ${input.files.slice(0, 4).join(", ")}${input.files.length > 4 ? ", ..." : ""}`);
+    for (const f of input.files.slice(0, 4)) startHereItems.push({ type: "files", file: f });
   }
 
   const topDeepMemories = input.memories
@@ -943,6 +957,7 @@ function buildBriefingBreadcrumbs(input: {
 
   return {
     start_here: startHere.slice(0, 6),
+    ...(startHereItems.length > 0 ? { start_here_items: startHereItems.slice(0, 6) } : {}),
     drill_down: uniqueDrillDown,
     note: input.adaptiveTrim
       ? "No repo-specific policy matched; keep going with normal Read/Grep and pull deeper hAIve context only if needed."
@@ -952,4 +967,11 @@ function buildBriefingBreadcrumbs(input: {
 
 function oneLine(value: string): string {
   return value.replace(/\s+/g, " ").replace(/"/g, '\\"').trim().slice(0, 120);
+}
+
+// Build-time version constant (tsup `define`, same as server.ts). `typeof` guard keeps unit tests —
+// which import this module without the define — from throwing on the undeclared identifier.
+declare const __HAIVE_VERSION__: string;
+function serverVersion(): string {
+  return typeof __HAIVE_VERSION__ === "string" ? __HAIVE_VERSION__ : "dev";
 }

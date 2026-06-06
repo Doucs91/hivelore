@@ -390,6 +390,13 @@ describe("hAIve MCP tools", () => {
       expect(briefing.breadcrumbs?.drill_down.some((d) => d.includes(`mem_get("${anchored.id}")`))).toBe(true);
       // Breadcrumbs are a pointer map, not a copy: the memory body must NOT be re-summarized into start_here.
       expect(briefing.breadcrumbs?.start_here.join("\n")).not.toContain("owns app state");
+      // Structured twin: typed pointer for the same memory, still a pointer (no body text).
+      const memItem = briefing.breadcrumbs?.start_here_items?.find((i) => i.type === "memory" && i.id === anchored.id);
+      expect(memItem).toBeDefined();
+      expect(JSON.stringify(memItem)).not.toContain("owns app state");
+      // The server stamps its version so a stale MCP vs the repo is detectable in-band.
+      expect(typeof briefing.server_version).toBe("string");
+      expect(briefing.server_version.length).toBeGreaterThan(0);
       // The breadcrumbs payload is now counted honestly toward the budget.
       expect(briefing.budget.spent.breadcrumbs).toBeGreaterThan(0);
       expect(briefing.estimated_tokens).toBeGreaterThanOrEqual(

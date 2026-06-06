@@ -13,6 +13,7 @@ import {
   resolveHaivePaths,
   runSensors,
   selectCommandSensors,
+  sensorPatternBrittleness,
   sensorTargetsFromDiff,
   serializeMemory,
   type CommandSensorSpec,
@@ -43,6 +44,7 @@ interface SensorsExportOptions {
 interface SensorsPromoteOptions {
   severity?: "warn" | "block";
   yes?: boolean;
+  force?: boolean;
   dir?: string;
 }
 
@@ -68,14 +70,20 @@ export function registerSensors(program: Command): void {
         ui.warn("No sensors found.");
         return;
       }
-      console.log(ui.bold(`hAIve sensors — ${rows.length}`));
+      const brittleCount = rows.filter((r) => "brittle" in r && r.brittle).length;
+      console.log(
+        ui.bold(`hAIve sensors — ${rows.length}`) +
+          (brittleCount > 0 ? ui.yellow(` (${brittleCount} brittle — see ⚠)`) : ""),
+      );
       for (const row of rows) {
+        const brittle = "brittle" in row ? row.brittle : undefined;
         console.log(
           `  • ${row.id} ${ui.dim(`(${row.kind}, ${row.severity})`)} ` +
           `${row.pattern ?? row.command ?? ""}`,
         );
         if (row.paths.length > 0) console.log(`     ${ui.dim("paths:")} ${row.paths.join(", ")}`);
         if (row.last_fired) console.log(`     ${ui.dim("last fired:")} ${row.last_fired}`);
+        if (brittle) console.log(`     ${ui.yellow("⚠ brittle:")} ${brittle} — consider rewriting or retiring this sensor`);
       }
     });
 
@@ -175,6 +183,7 @@ export function registerSensors(program: Command): void {
     .argument("<memory-id>", "memory id carrying the sensor")
     .option("--severity <severity>", "block | warn", "block")
     .option("--yes", "confirm promotion to block severity", false)
+    .option("--force", "promote even a brittle sensor (line-number/literal patterns) to block", false)
     .option("-d, --dir <dir>", "project root")
     .action(async (id: string, opts: SensorsPromoteOptions) => {
       const severity = opts.severity ?? "block";
@@ -201,6 +210,15 @@ export function registerSensors(program: Command): void {
       const sensor = found.memory.frontmatter.sensor;
       if (!sensor) {
         ui.error(`Memory ${id} does not carry a sensor.`);
+        process.exitCode = 1;
+        return;
+      }
+
+      // Don't let a brittle pattern become a hard gate — that's how false-positive blocks train
+      // agents to ignore the gate (an existential failure mode). Require --force to override.
+      const brittle = sensor.kind === "regex" && sensor.pattern ? sensorPatternBrittleness(sensor.pattern) : null;
+      if (severity === "block" && brittle && !opts.force) {
+        ui.error(`Refusing to block on a brittle sensor (${brittle}). Rewrite the pattern, or pass --force.`);
         process.exitCode = 1;
         return;
       }
@@ -248,6 +266,7 @@ async function sensorRows(paths: ReturnType<typeof resolveHaivePaths>) {
   const memories = await runnableSensorMemories(paths, false);
   return memories.map((memory) => {
     const sensor = memory.frontmatter.sensor!;
+    const brittle = sensor.kind === "regex" && sensor.pattern ? sensorPatternBrittleness(sensor.pattern) : null;
     return {
       id: memory.frontmatter.id,
       kind: sensor.kind,
@@ -258,6 +277,7 @@ async function sensorRows(paths: ReturnType<typeof resolveHaivePaths>) {
       message: sensor.message,
       autogen: sensor.autogen,
       last_fired: sensor.last_fired,
+      ...(brittle ? { brittle } : {}),
     };
   });
 }

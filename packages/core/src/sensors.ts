@@ -1,6 +1,21 @@
 import type { Memory, Sensor } from "./types.js";
 
 /**
+ * Is a regex sensor pattern brittle — over-fit to incident-specific literals that rot when code
+ * shifts (hardcoded line numbers / ranges like `1131-1186`)? High-precision by design: digits that
+ * live inside a character class (`[0-9]`) or quantifier (`{2,}`) generalize and are NOT flagged, so
+ * durable patterns like `v[0-9]+\.[0-9]+` or `:\s*any\b` stay clean. Returns a short reason or null.
+ *
+ * Used to keep brittle legacy sensors from being counted as real protection or promoted to `block`.
+ */
+export function sensorPatternBrittleness(pattern: string): string | null {
+  const literal = pattern.replace(/\[[^\]]*\]/g, "").replace(/\{[^}]*\}/g, "");
+  if (/\d{2,}\s*-\s*\d{2,}/.test(literal)) return "hardcoded line/number range — rots when code shifts";
+  if (/\d{3,}/.test(literal)) return "hardcoded numeric literal (likely a line number) — rots when code shifts";
+  return null;
+}
+
+/**
  * Sensors — the feedback *computational* layer of the harness.
  *
  * A memory's `sensor` turns a documented lesson (gotcha/attempt) into a deterministic

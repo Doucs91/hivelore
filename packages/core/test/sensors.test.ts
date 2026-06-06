@@ -6,9 +6,24 @@ import {
   runSensors,
   selectCommandSensors,
   sensorAppliesToPath,
+  sensorPatternBrittleness,
   sensorTargetsFromDiff,
 } from "../src/sensors.js";
 import type { Memory, Sensor } from "../src/types.js";
+
+describe("sensorPatternBrittleness", () => {
+  it("flags hardcoded line ranges and numeric literals (they rot when code shifts)", () => {
+    expect(sensorPatternBrittleness("enforce\\.ts\\s*:\\s*1131-1186")).toMatch(/line\/number range/);
+    expect(sensorPatternBrittleness("foo:\\s*1131")).toMatch(/numeric literal/);
+  });
+
+  it("does NOT flag durable patterns that generalize (digits inside classes/quantifiers)", () => {
+    expect(sensorPatternBrittleness(":\\s*any\\b")).toBeNull();
+    expect(sensorPatternBrittleness("v[0-9]+\\.[0-9]+\\.[0-9]+")).toBeNull();
+    expect(sensorPatternBrittleness("DEBUG\\s*=\\s*True")).toBeNull();
+    expect(sensorPatternBrittleness("antiPatternGate\\s*[:=]\\s*['\"]off['\"]")).toBeNull();
+  });
+});
 
 function sensor(overrides: Partial<Sensor> = {}): Sensor {
   return {

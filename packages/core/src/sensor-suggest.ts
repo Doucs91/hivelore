@@ -1,4 +1,5 @@
 import type { Sensor } from "./types.js";
+import { sensorPatternBrittleness } from "./sensors.js";
 
 const CODE_TOKEN_RE = /`([^`\n]{3,80})`|["']([A-Za-z0-9_.:-]{3,80})["']|\b([A-Za-z][A-Za-z0-9_.:-]{2,79})\b/g;
 
@@ -10,6 +11,9 @@ const SENSOR_STOPWORDS = new Set([
   "recorded", "repo", "return", "should", "source", "string", "this",
   "tried", "true", "type", "undefined", "value", "when", "where", "which", "with",
   "without",
+  // Error/diagnostic words: tokens lifted from an incident's *error output* (not the code to avoid)
+  // produced dead sensors like `CACError:Unknown` / `Fallback:ci.yml` that never match a real diff.
+  "unknown", "exception", "fallback", "stack", "trace", "output", "message", "warning",
 ]);
 
 export interface SensorSuggestionOptions {
@@ -37,9 +41,13 @@ export function suggestSensorFromMemory(
   const token = assignment?.label ?? lowercaseValue?.label ?? pickDistinctiveToken(negativeText);
   if (!token) return null;
 
+  const pattern = assignment?.pattern ?? lowercaseValue?.pattern ?? escapeRegExp(token);
+  // Belt-and-suspenders: never emit a pattern that is already known to be brittle (line numbers, etc.).
+  if (sensorPatternBrittleness(pattern)) return null;
+
   return {
     kind: "regex",
-    pattern: assignment?.pattern ?? lowercaseValue?.pattern ?? escapeRegExp(token),
+    pattern,
     paths,
     message: sensorMessageFromBody(body, token),
     severity: "warn",
@@ -142,6 +150,10 @@ function isDistinctiveToken(token: string, isCodeLike: boolean): boolean {
   if (token.length < 4 || token.length > 80) return false;
   if (/^https?:\/\//i.test(token)) return false;
   if (/^\d+$/.test(token)) return false;
+  // Prose / error-output fragments (e.g. a backtick span `CACError: Unknown option --runInBand`)
+  // make literal patterns that never match a real source diff — the dead-sensor class. Reject them.
+  if (/\S\s+\S+\s+\S/.test(token)) return false; // 3+ words → a phrase, not a code symbol
+  if (/[A-Za-z]:\s/.test(token)) return false; // "Error: …" message shape
   if (isDegenerateToken(token)) return false;
   const lower = token.toLowerCase();
   if (SENSOR_STOPWORDS.has(lower)) return false;

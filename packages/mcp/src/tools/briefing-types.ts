@@ -56,12 +56,33 @@ export interface ActionRequiredItem {
   developer_message: string;
 }
 
+/** A single structured breadcrumb pointer (machine-readable twin of a `start_here` string). */
+export interface BriefingBreadcrumbItem {
+  type: "memory" | "code" | "files";
+  /** memory: record id (fetch with mem_get). */
+  id?: string;
+  scope?: string;
+  /** memory record type (decision/gotcha/…). */
+  mem_type?: string;
+  priority?: string;
+  /** memory: anchor path the lesson applies to · code: file exporting the symbol · files: a target path. */
+  file?: string;
+  line?: number;
+  kind?: string;
+  symbol?: string;
+}
+
 export interface BriefingBreadcrumbs {
   /**
    * Small first-hop map for the agent. These are not full context; they are the best
    * places to look before deciding whether deeper reads are needed.
    */
   start_here: string[];
+  /**
+   * Structured twin of {@link start_here} — typed pointers (id / file / line / kind) so an agent can
+   * act (open the file, mem_get the id) without parsing strings. Still pointers, never body copies.
+   */
+  start_here_items?: BriefingBreadcrumbItem[];
   /**
    * Follow-up calls/reads for progressive disclosure. Agents should pull these only
    * when the task still needs more detail after the briefing.
@@ -73,6 +94,8 @@ export interface BriefingBreadcrumbs {
 
 export interface BriefingOutput {
   task?: string;
+  /** Version of the hAIve MCP server answering this briefing — lets the agent/human spot a stale server vs the repo. */
+  server_version: string;
   search_mode: "semantic" | "literal_fallback" | "literal";
   match_quality_note?: string;
   inferred_modules: string[];

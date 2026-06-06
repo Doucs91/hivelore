@@ -6,6 +6,29 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.27.0] — harness-quality batch: trustworthy sensors, eval honesty, version-aware briefings
+
+#### Added
+- **Sensor brittleness lint** (`sensorPatternBrittleness`): high-precision detector for sensors over-fit
+  to incident-specific literals (hardcoded line numbers / ranges like `1131-1186`). Digits inside
+  character classes/quantifiers (`[0-9]`, `{2,}`) generalize and are never flagged. Wired into:
+  `haive sensors list` (marks `⚠ brittle` + a count) so dead sensors are visible, not silently counted
+  as protection; and `haive sensors promote` (refuses to promote a brittle sensor to `block` without
+  `--force` — a brittle hard-gate is how false positives train agents to ignore the gate).
+- **`server_version`** in the `get_briefing` MCP output, so an agent/human can spot a stale MCP server
+  vs the repo in-band (previously only `haive doctor` surfaced it).
+- **Structured breadcrumbs**: `breadcrumbs.start_here_items[]` — a typed twin of `start_here`
+  (`{type,id,scope,file,line,kind,…}`) so agents act without parsing strings. Still pointers, never body copies.
+- **`haive eval` authored-only score**: when a run blends authored (independent) and synthesized
+  (self-referential) cases, the report and `--json` now surface the **authored-only** score separately
+  so a flattering 100/100 isn't read as ground truth. Counts authored sensor cases too.
+
+#### Changed
+- Sensor autogeneration is more conservative: error/diagnostic words (`unknown`, `exception`,
+  `fallback`, …) are stopworded and multi-word prose / error-output fragments (e.g. a backtick span
+  `CACError: Unknown option …`) are rejected, killing the residual "dead sensor" class that never
+  matched a real diff. (Line-number/file-ref rejection already existed.)
+
 ## [0.26.6] — faster repeated search + index staleness transparency
 
 #### Changed

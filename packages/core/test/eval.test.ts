@@ -39,6 +39,27 @@ describe("aggregateRetrieval + mrr", () => {
     expect(agg.mean_recall).toBeCloseTo(2 / 3, 3);
     expect(agg.mrr).toBeCloseTo((1 + 0.5 + 0) / 3, 3);
   });
+
+  it("authored-only score (slice past the synthesized cases) can differ from the blended headline", () => {
+    // Mirrors the CLI eval honesty split: cases are ordered [synthesized..., authored...].
+    const synthesized = [scoreRetrievalCase("s1", ["m1"], ["m1"]), scoreRetrievalCase("s2", ["m2"], ["m2"])]; // perfect
+    const authored = [scoreRetrievalCase("a1", ["mX"], ["a", "b"])]; // a real miss
+    const all = [...synthesized, ...authored];
+
+    const blended = overallScore(aggregateRetrieval(all), null);
+    const authoredOnly = overallScore(aggregateRetrieval(all.slice(synthesized.length)), null);
+
+    expect(blended).toBe(67); // 2 perfect + 1 miss, retrieval-only weighting
+    expect(authoredOnly).toBe(0); // the independent case actually missed — the honest number
+    expect(authoredOnly).toBeLessThan(blended);
+  });
+
+  it("authored-only score counts authored SENSOR cases when there are no authored retrieval cases", () => {
+    // Regression guard: when every authored case is a sensor (synthesis only makes retrieval cases),
+    // the authored-only score must reflect the sensor catch-rate, not collapse to 0 on an empty slice.
+    const authoredSensors = aggregateSensors([scoreSensorCase("a1", ["m1"], ["m1"])]); // catch-rate 1.0
+    expect(overallScore(null, authoredSensors)).toBe(100);
+  });
 });
 
 describe("sensor scoring", () => {

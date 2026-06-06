@@ -16,6 +16,7 @@ import {
   loadEvalHistory,
   loadPreventionEvents,
   loadUsageIndex,
+  overallScore,
   resolveHaivePaths,
   scoreRetrievalCase,
   scoreSensorCase,
@@ -155,6 +156,17 @@ export function registerEval(program: Command): void {
       }
 
       const report = buildReport(retrievalAgg, sensorAgg);
+      // Honesty: when the run mixes independent (authored) and self-referential (synthesized) cases,
+      // a blended headline can read as ground truth. Compute the authored-ONLY score from the cases
+      // that did NOT come from self-synthesis (no re-run — reuse the per-case results):
+      //  • retrieval: the slice after the synthesized retrieval cases (synthesis only makes retrieval);
+      //  • sensors: ALL sensor cases (they only ever come from the hand-authored spec).
+      const authoredRetrievalCases = retrievalAgg ? retrievalAgg.cases.slice(resolvedSpec.synthesized) : [];
+      const authoredRetrievalAgg = authoredRetrievalCases.length > 0 ? aggregateRetrieval(authoredRetrievalCases) : null;
+      const authoredScore =
+        resolvedSpec.authored > 0 && resolvedSpec.synthesized > 0 && (authoredRetrievalAgg || sensorAgg)
+          ? overallScore(authoredRetrievalAgg, sensorAgg)
+          : null;
       const [usage, preventionEvents, config] = await Promise.all([
         loadUsageIndex(paths),
         loadPreventionEvents(paths),
@@ -224,7 +236,11 @@ export function registerEval(program: Command): void {
           root,
           k,
           spec_source: resolvedSpec.source,
-          provenance: { synthesized: resolvedSpec.synthesized, authored: resolvedSpec.authored },
+          provenance: {
+            synthesized: resolvedSpec.synthesized,
+            authored: resolvedSpec.authored,
+            ...(authoredScore !== null ? { authored_score: authoredScore } : {}),
+          },
           report,
           gate_precision: gatePrecision,
           ...(delta ? { delta } : {}),
@@ -251,7 +267,7 @@ export function registerEval(program: Command): void {
         console.log(renderGateDelta(gateDelta));
       }
 
-      const md = renderMarkdown(root, k, resolvedSpec, report, gatePrecision);
+      const md = renderMarkdown(root, k, resolvedSpec, report, gatePrecision, authoredScore);
       if (opts.out) {
         const outFile = path.isAbsolute(opts.out) ? opts.out : path.join(root, opts.out);
         await writeFile(outFile, md, "utf8");
@@ -438,6 +454,7 @@ function renderMarkdown(
   resolved: ResolvedEvalSpec,
   report: ReturnType<typeof buildReport>,
   gatePrecision: GatePrecision,
+  authoredScore: number | null,
 ): string {
   const provenance =
     resolved.authored === 0
@@ -455,6 +472,16 @@ function renderMarkdown(
     `## Overall score: ${report.score}/100`,
     "",
   ];
+
+  // When the headline blends authored + synthesized, surface the independent-only score too so the
+  // number isn't read as ground truth (Fowler's "measure harness quality" — honestly).
+  if (authoredScore !== null) {
+    lines.push(
+      `> Authored-only (independent ground truth): **${authoredScore}/100**. ` +
+        `The headline above blends this with ${resolved.synthesized} self-referential case(s) (a sanity floor).`,
+      "",
+    );
+  }
 
   if (report.retrieval) {
     const r = report.retrieval;

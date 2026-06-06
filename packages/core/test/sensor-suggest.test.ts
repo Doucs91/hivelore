@@ -72,4 +72,16 @@ describe("suggestSensorFromMemory", () => {
       suggestSensorFromMemory("# Note\n\nSee config.json line 42 and 1131-1186.", ["a.ts"]),
     ).toBeNull();
   });
+
+  it("does not build a sensor from an incident's error output (dead-sensor class)", () => {
+    // Real dead sensors came from error text, e.g. `CACError: Unknown` — a pattern that never
+    // matches a real source diff. The error-word stopwords must reject the value.
+    const sensor = suggestSensorFromMemory(
+      "# vitest flag\n\n**Why it failed / do NOT use:** the run printed `CACError: Unknown option --runInBand`.",
+      ["package.json"],
+    );
+    // Best outcome is no sensor at all; if one is built, it must not encode the error phrase.
+    if (sensor) expect(sensor.pattern).not.toMatch(/Unknown/i);
+    else expect(sensor).toBeNull();
+  });
 });
