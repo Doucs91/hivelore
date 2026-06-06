@@ -15,7 +15,9 @@ declare const __HAIVE_VERSION__: string;
 import {
   codeMapPath,
   countSourceFilesOnDisk,
+  extractReferencedPaths,
   sensorPatternBrittleness,
+  sensorSelfCheck,
   findProjectRoot,
   getUsage,
   isStackPackSeed,
@@ -26,6 +28,7 @@ import {
   readUsageEvents,
   resolveHaivePaths,
   type LoadedMemory,
+  type SensorTarget,
   type UsageEvent,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
@@ -129,6 +132,23 @@ export function registerDoctor(program: Command): void {
             message: "project-context.md still contains the default template — get_briefing returns little value until filled.",
             fix: "Invoke the bootstrap_project MCP prompt from your AI client.",
           });
+        } else {
+          // Grounding: a FILLED context that cites file paths which don't exist on disk is ungrounded
+          // (hallucinated or stale) — the failure mode of LLM-generated context. Flag low-grounded ones.
+          const referenced = extractReferencedPaths(content);
+          const missing = referenced.filter((p) => !existsSync(path.resolve(root, p)));
+          const grounded = referenced.length - missing.length;
+          if (referenced.length >= 3 && grounded / referenced.length < 0.5) {
+            findings.push({
+              severity: "warn",
+              code: "project-context-ungrounded",
+              section: "Context quality" as DoctorSection,
+              message:
+                `project-context.md cites ${referenced.length} file path(s) but ${missing.length} don't exist on disk ` +
+                `(e.g. ${missing.slice(0, 3).join(", ")}) — it looks ungrounded or stale, not written from the real code.`,
+              fix: "Regenerate via the bootstrap_project MCP prompt, or fix the stale paths.",
+            });
+          }
         }
         const versionStatus = await projectContextVersionStatus(root, paths);
         if (versionStatus.mismatch) {
@@ -288,6 +308,37 @@ export function registerDoctor(program: Command): void {
             `${sensorMemories.length} sensor(s) defined but 0 hard-block (all warn-only) — enforcement is ` +
             `effectively advisory. The "blocks the repeat" guarantee isn't true until a trusted sensor is promoted.`,
           fix: "haive sensors list   # then `haive sensors promote <id>` for a trusted, non-brittle sensor — or retire the noise",
+        });
+      }
+
+      // Self-validation: a block sensor that matches the CURRENT (presumed-correct) code false-positives
+      // on every commit. It shouldn't be trusted as protection — surface it so it's fixed or demoted.
+      const firesOnCurrent: string[] = [];
+      for (const m of sensorMemories) {
+        const s = m.memory.frontmatter.sensor;
+        if (!s || s.kind !== "regex" || s.severity !== "block" || !s.pattern) continue;
+        const anchorPaths = s.paths.length > 0 ? s.paths : m.memory.frontmatter.anchor.paths;
+        const targets: SensorTarget[] = [];
+        for (const rel of anchorPaths) {
+          const abs = path.resolve(root, rel);
+          if (!existsSync(abs)) continue;
+          try { targets.push({ path: rel, content: await readFile(abs, "utf8") }); } catch { /* skip */ }
+        }
+        if (targets.length === 0) continue;
+        if (!sensorSelfCheck(s, { currentTargets: targets, badExamples: [] }).silent_on_current) {
+          firesOnCurrent.push(m.memory.frontmatter.id);
+        }
+      }
+      if (firesOnCurrent.length > 0) {
+        findings.push({
+          severity: "warn",
+          code: "sensor-fires-on-current",
+          section: "Protection" as DoctorSection,
+          message:
+            `${firesOnCurrent.length} block sensor(s) match the CURRENT code — they false-positive on every ` +
+            `commit and can't be trusted as protection: ${firesOnCurrent.slice(0, 3).join(", ")}` +
+            `${firesOnCurrent.length > 3 ? ", …" : ""}.`,
+          fix: "Make the pattern discriminating (add an 'absent' companion), or demote: `haive sensors promote <id> --severity warn`",
         });
       }
 

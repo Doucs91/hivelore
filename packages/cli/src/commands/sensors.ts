@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { Command } from "commander";
 import {
+  extractSensorExamples,
   findProjectRoot,
   isRetiredMemory,
   loadConfig,
@@ -14,10 +15,12 @@ import {
   runSensors,
   selectCommandSensors,
   sensorPatternBrittleness,
+  sensorSelfCheck,
   sensorTargetsFromDiff,
   serializeMemory,
   type CommandSensorSpec,
   type Memory,
+  type SensorTarget,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
 
@@ -222,6 +225,44 @@ export function registerSensors(program: Command): void {
         ui.error(`Refusing to block on a brittle sensor (${brittle}). Rewrite the pattern, or pass --force.`);
         process.exitCode = 1;
         return;
+      }
+
+      // Self-validation gate: a sensor may only hard-block once it proves it discriminates — it must
+      // be SILENT on the current (presumed-correct) code, and ideally FIRE on the lesson's bad example.
+      // A sensor that matches correct code is precisely what trains agents to ignore the gate.
+      if (severity === "block" && sensor.kind === "regex" && !opts.force) {
+        const anchorPaths = sensor.paths.length > 0 ? sensor.paths : found.memory.frontmatter.anchor.paths;
+        const currentTargets: SensorTarget[] = [];
+        for (const rel of anchorPaths) {
+          const abs = path.resolve(root, rel);
+          if (!existsSync(abs)) continue;
+          try {
+            currentTargets.push({ path: rel, content: await readFile(abs, "utf8") });
+          } catch { /* unreadable — skip */ }
+        }
+        const check = sensorSelfCheck(sensor, {
+          currentTargets,
+          badExamples: extractSensorExamples(found.memory.body),
+        });
+        if (currentTargets.length > 0 && !check.silent_on_current) {
+          ui.error(
+            `Refusing to block: this sensor fires on the CURRENT (presumed-correct) code in ` +
+              `${check.fired_on.join(", ")} — it would false-positive on every commit. ` +
+              `Make it discriminating (add an 'absent' companion), fix the current code, or pass --force.`,
+          );
+          process.exitCode = 1;
+          return;
+        }
+        if (check.fires_on_bad === true) {
+          ui.success("Self-check passed: fires on the lesson's bad example, silent on current code.");
+        } else if (check.fires_on_bad === false) {
+          ui.warn(
+            "Self-check: the sensor did NOT fire on the bad example in the lesson — it may not catch the " +
+              "mistake. Promoting anyway (it is at least silent on the current code).",
+          );
+        } else if (currentTargets.length > 0) {
+          ui.info("Self-check: silent on current code (no bad example in the lesson to confirm firing).");
+        }
       }
 
       const next = {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildFrontmatter } from "../src/parser.js";
 import {
+  extractReferencedPaths,
   inferModulesFromPaths,
   memoryHasExcludedTag,
   memoryMatchesAnchorPaths,
@@ -15,6 +16,25 @@ function memoryWithPaths(paths: string[]): Memory {
     body: "",
   };
 }
+
+describe("extractReferencedPaths (context grounding)", () => {
+  it("extracts file paths from backticks and bare text, requiring slash + extension", () => {
+    const text = "See `src/payments/stripe.ts` and packages/core/src/config.ts for details.";
+    const refs = extractReferencedPaths(text);
+    expect(refs).toContain("src/payments/stripe.ts");
+    expect(refs).toContain("packages/core/src/config.ts");
+  });
+
+  it("ignores domain terms and bare words without a slash or extension", () => {
+    const text = "The `PaymentService` handles transactions in the billing module.";
+    expect(extractReferencedPaths(text)).toEqual([]);
+  });
+
+  it("dedupes and strips a leading ./", () => {
+    const text = "`./src/a.ts` and src/a.ts again";
+    expect(extractReferencedPaths(text)).toEqual(["src/a.ts"]);
+  });
+});
 
 describe("memoryHasExcludedTag (briefing strategy filter)", () => {
   it("excludes a memory carrying a default meta tag (case-insensitive)", () => {

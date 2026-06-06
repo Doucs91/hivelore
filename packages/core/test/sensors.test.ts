@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   addedLinesFromDiff,
   compileRegexSensor,
+  extractSensorExamples,
   runRegexSensor,
   runSensors,
   selectCommandSensors,
   sensorAppliesToPath,
   sensorPatternBrittleness,
+  sensorSelfCheck,
   sensorTargetsFromDiff,
 } from "../src/sensors.js";
 import type { Memory, Sensor } from "../src/types.js";
@@ -254,5 +256,80 @@ describe("discriminating sensors (absent / correct-usage marker)", () => {
     const plain: Sensor = { ...discriminating, absent: undefined };
     const content = "stripe.paymentIntents.create({ a }, { idempotencyKey });";
     expect(runRegexSensor("m1", plain, { path: "src/payments/stripe.ts", content })).not.toBeNull();
+  });
+});
+
+describe("sensorSelfCheck (must discriminate before it can block)", () => {
+  const discriminating: Sensor = {
+    kind: "regex",
+    pattern: "stripe\\.paymentIntents\\.create",
+    absent: "idempotencyKey",
+    paths: ["src/payments/stripe.ts"],
+    message: "create without idempotencyKey",
+    severity: "block",
+    autogen: true,
+    last_fired: null,
+  };
+
+  it("passes: silent on correct current code, fires on the bad example", () => {
+    const check = sensorSelfCheck(discriminating, {
+      currentTargets: [{
+        path: "src/payments/stripe.ts",
+        content: "return stripe.paymentIntents.create({ a }, { idempotencyKey });",
+      }],
+      badExamples: ["stripe.paymentIntents.create({ amount: 1 });"],
+    });
+    expect(check.silent_on_current).toBe(true);
+    expect(check.fires_on_bad).toBe(true);
+    expect(check.passed).toBe(true);
+    expect(check.fired_on).toEqual([]);
+  });
+
+  it("fails: a broad sensor fires on the current (correct) code → false-positive risk", () => {
+    const broad: Sensor = { ...discriminating, absent: undefined };
+    const check = sensorSelfCheck(broad, {
+      currentTargets: [{
+        path: "src/payments/stripe.ts",
+        content: "return stripe.paymentIntents.create({ a }, { idempotencyKey });",
+      }],
+      badExamples: [],
+    });
+    expect(check.silent_on_current).toBe(false);
+    expect(check.fired_on).toEqual(["src/payments/stripe.ts"]);
+    expect(check.passed).toBe(false);
+  });
+
+  it("fires_on_bad is null when no example is available; passed mirrors silent_on_current", () => {
+    const check = sensorSelfCheck(discriminating, {
+      currentTargets: [{ path: "src/payments/stripe.ts", content: "const x = 1;" }],
+      badExamples: [],
+    });
+    expect(check.fires_on_bad).toBeNull();
+    expect(check.passed).toBe(true);
+  });
+
+  it("fails when it cannot fire on the documented bad example", () => {
+    const check = sensorSelfCheck(discriminating, {
+      currentTargets: [],
+      badExamples: ["totally unrelated code"],
+    });
+    expect(check.fires_on_bad).toBe(false);
+    expect(check.passed).toBe(false);
+  });
+});
+
+describe("extractSensorExamples", () => {
+  it("pulls fenced code blocks and code-like inline spans, ignoring prose backticks", () => {
+    const body = [
+      "# Bad",
+      "```ts",
+      "stripe.paymentIntents.create({ a });",
+      "```",
+      "Avoid calling `create()` here; the word `idempotency` alone is prose.",
+    ].join("\n");
+    const examples = extractSensorExamples(body);
+    expect(examples.some((e) => e.includes("paymentIntents.create"))).toBe(true);
+    expect(examples).toContain("create()");
+    expect(examples).not.toContain("idempotency");
   });
 });

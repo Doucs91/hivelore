@@ -37,6 +37,23 @@ export function isEnvWorkaroundMemory(fm: { tags?: string[] } | null | undefined
 }
 
 /**
+ * Extract file-path references from prose (e.g. a project-context or recap body): tokens that contain
+ * a `/` and end in a file extension, whether backtick-quoted or bare. Used to GROUND auto-generated
+ * artifacts — a caller checks these against disk so a context that cites files which don't exist
+ * (hallucinated / stale) can be flagged. Conservative on purpose (slash + extension) to avoid matching
+ * domain terms. Pure.
+ */
+const PATH_REFERENCE_RE = /(?:^|[\s`'"(\[])((?:\.\/)?[A-Za-z0-9_.-]+\/[A-Za-z0-9_./-]+\.[A-Za-z0-9]{1,8})(?=[\s`'".,;:)\]]|$)/gm;
+export function extractReferencedPaths(text: string): string[] {
+  const out = new Set<string>();
+  for (const match of text.matchAll(PATH_REFERENCE_RE)) {
+    const token = (match[1] ?? "").replace(/^\.\//, "").replace(/[.,;:]+$/, "");
+    if (token) out.add(token);
+  }
+  return [...out];
+}
+
+/**
  * True when a memory carries any tag in `excludeTags` (case-insensitive) — used to keep
  * strategy/positioning memories OUT of automatic briefing surfacing while leaving them searchable.
  * See `HaiveConfig.briefingExcludeTags`. Empty/undefined list ⇒ never excluded.

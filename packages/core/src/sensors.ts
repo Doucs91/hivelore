@@ -274,6 +274,73 @@ export function sensorTargetsFromDiff(diff: string): SensorTarget[] {
   return targets;
 }
 
+// ── Self-validation: a generated sensor must prove it discriminates before it can block ──────────
+
+export interface SensorSelfCheck {
+  /** The sensor stays SILENT on the current, presumed-correct code — i.e. it won't false-positive. */
+  silent_on_current: boolean;
+  /** Did it fire on a known-bad example from the lesson? null when no example was available. */
+  fires_on_bad: boolean | null;
+  /** Files whose CURRENT content the sensor matched — evidence of a false positive. */
+  fired_on: string[];
+  /**
+   * Safe to hard-block: silent on the current code AND (fires on the bad example, or there was no
+   * example to test). A sensor that fires on correct code is exactly what trains agents to ignore the
+   * gate — this is the gate that keeps the auto-generation layer honest.
+   */
+  passed: boolean;
+}
+
+/**
+ * Validate a sensor before it is trusted to hard-block. Pure: the caller supplies the CURRENT
+ * (presumed-correct) file contents and any bad examples lifted from the lesson body.
+ *
+ *   - silent_on_current: the sensor must NOT match the current code (else it false-positives).
+ *   - fires_on_bad: if the lesson carried a bad code example, the sensor SHOULD match it.
+ */
+export function sensorSelfCheck(
+  sensor: Sensor,
+  input: { currentTargets: SensorTarget[]; badExamples: string[] },
+): SensorSelfCheck {
+  const firedOn: string[] = [];
+  for (const target of input.currentTargets) {
+    if (runRegexSensor("self-check", sensor, target)) firedOn.push(target.path);
+  }
+  const silentOnCurrent = firedOn.length === 0;
+
+  let firesOnBad: boolean | null = null;
+  if (input.badExamples.length > 0) {
+    firesOnBad = input.badExamples.some(
+      (example) => runRegexSensor("self-check", sensor, { path: "<example>", content: example }) !== null,
+    );
+  }
+
+  return {
+    silent_on_current: silentOnCurrent,
+    fires_on_bad: firesOnBad,
+    fired_on: firedOn,
+    passed: silentOnCurrent && firesOnBad !== false,
+  };
+}
+
+/**
+ * Pull candidate bad-code examples from a lesson body: fenced code blocks and inline code spans that
+ * look like code (contain a call/dot/assignment). Used to confirm a generated sensor actually fires
+ * on the mistake it describes.
+ */
+export function extractSensorExamples(body: string): string[] {
+  const examples: string[] = [];
+  for (const match of body.matchAll(/```[^\n]*\n([\s\S]*?)```/g)) {
+    const code = (match[1] ?? "").trim();
+    if (code) examples.push(code);
+  }
+  for (const match of body.matchAll(/`([^`\n]{3,200})`/g)) {
+    const span = (match[1] ?? "").trim();
+    if (span && /[().=]/.test(span)) examples.push(span);
+  }
+  return examples;
+}
+
 /**
  * Extract the added lines from a unified diff (lines starting with a single `+`,
  * excluding the `+++` file header). Mirrors the diff-handling already used by the
