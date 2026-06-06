@@ -54,7 +54,19 @@ jobs:
           fi
           echo "Publishing version $PKG"
 
+      # Degrade gracefully: until the repo owner adds the NPM_TOKEN secret, this is a green no-op
+      # rather than a red failure — so adding the workflow never breaks the pipeline. Once the secret
+      # exists, the same tag push publishes for real.
+      - name: Check npm credentials
+        id: creds
+        run: |
+          if [ -n "${NPM_TOKEN}" ]; then echo "ready=true" >> "$GITHUB_OUTPUT";
+          else echo "ready=false" >> "$GITHUB_OUTPUT"; echo "::notice::NPM_TOKEN not set — skipping publish. Add the secret to enable release-on-tag."; fi
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Build, test, and publish all packages
+        if: steps.creds.outputs.ready == 'true'
         run: pnpm run publish:all
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
