@@ -185,3 +185,34 @@ describe("queryCodeMap", () => {
     expect(queryCodeMap(map, {}).files.length).toBe(2);
   });
 });
+
+describe("parseFile — CommonJS + same-line exports", () => {
+  let dir: string;
+  beforeEach(async () => { dir = await mkdtemp(path.join(tmpdir(), "haive-cjs-")); });
+  afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
+
+  const names = (map: Awaited<ReturnType<typeof buildCodeMap>>, p: string): string[] =>
+    (map.files[p]?.exports ?? []).map((e) => e.name).sort();
+
+  it("indexes CommonJS module.exports object, exports.prop, and module.exports = ident", async () => {
+    await writeFile(path.join(dir, "auth.js"), "function login(u,p){return u}\nfunction verify(t){return t}\nmodule.exports = { login, verify };\n");
+    await writeFile(path.join(dir, "server.js"), "const express = require(\"express\");\nconst app = express();\nmodule.exports = app;\n");
+    await writeFile(path.join(dir, "util.js"), "exports.slugify = (s) => s;\nmodule.exports.parse = (s) => s;\n");
+    const map = await buildCodeMap(dir);
+    expect(names(map, "auth.js")).toEqual(["login", "verify"]);
+    expect(names(map, "server.js")).toEqual(["app"]);
+    expect(names(map, "util.js")).toEqual(["parse", "slugify"]);
+  });
+
+  it("indexes module.exports = function/class name", async () => {
+    await writeFile(path.join(dir, "make.js"), "module.exports = function makeThing(){ return 1 }\n");
+    const map = await buildCodeMap(dir);
+    expect(map.files["make.js"]?.exports[0]).toMatchObject({ name: "makeThing", kind: "function" });
+  });
+
+  it("detects an ES export sharing a line with a preceding statement", async () => {
+    await writeFile(path.join(dir, "main.ts"), "import { App } from \"./App\"; export const x = App;\n");
+    const map = await buildCodeMap(dir);
+    expect(names(map, "main.ts")).toContain("x");
+  });
+});

@@ -255,10 +255,18 @@ function isIncludedSourcePath(
   return include.has(ext) && !TEST_FILE_RE.test(base);
 }
 
+// `(?:^|;)[ \t]*` so an export sharing a line with a preceding statement
+// (`import {App} from "./App"; export const x = App;`) is still detected, not only line-start exports.
 const EXPORT_RE =
-  /^export\s+(?:default\s+)?(async\s+)?(function|class|interface|type|const|let|var|enum)\s+(\*?)\s*([A-Za-z_$][\w$]*)/gm;
+  /(?:^|;)[ \t]*export\s+(?:default\s+)?(async\s+)?(function|class|interface|type|const|let|var|enum)\s+(\*?)\s*([A-Za-z_$][\w$]*)/gm;
 
-const NAMED_REEXPORT_RE = /^export\s*\{([^}]+)\}/gm;
+const NAMED_REEXPORT_RE = /(?:^|;)[ \t]*export\s*\{([^}]+)\}/gm;
+
+// CommonJS: module.exports = { a, b }, exports.foo = …, module.exports = ident|function|class.
+const CJS_OBJECT_RE = /module\.exports\s*=\s*\{([^}]*)\}/m;
+const CJS_PROP_RE = /(?:^|[;{\s])(?:module\.)?exports\.([A-Za-z_$][\w$]*)\s*=/gm;
+const CJS_DECL_RE = /module\.exports\s*=\s*(?:async\s+)?(function|class)\s+([A-Za-z_$][\w$]*)/m;
+const CJS_IDENT_RE = /module\.exports\s*=\s*([A-Za-z_$][\w$]*)\s*;?\s*$/m;
 
 const FILE_HEADER_COMMENT_RE = /^\/\*\*([\s\S]*?)\*\//;
 
@@ -318,8 +326,47 @@ function parseJsFile(source: string): CodeFileEntry {
     }
   }
 
+  parseCjsExports(source, lineOffsets, exports);
+
   const summary = extractFileSummary(source);
   return { ...(summary ? { summary } : {}), exports, loc: source.split("\n").length };
+}
+
+/**
+ * CommonJS exports — `module.exports = { a, b }`, `exports.foo = …`, `module.exports = ident`,
+ * `module.exports = function/class name`. Plain Node CJS files (no ES `export`) would otherwise index
+ * to ZERO exports and vanish from the code-map entirely. Appends to `exports`, deduped by name.
+ */
+function parseCjsExports(source: string, lineOffsets: number[], exports: CodeExport[]): void {
+  const add = (name: string, kind: CodeExportKind, index: number): void => {
+    const clean = name.trim();
+    if (!clean || /^\.\.\./.test(clean) || exports.some((e) => e.name === clean)) return;
+    exports.push({ name: clean, kind, line: byteToLine(index, lineOffsets) + 1 });
+  };
+
+  // module.exports = function foo / class Foo
+  const decl = CJS_DECL_RE.exec(source);
+  if (decl) add(decl[2] ?? "", decl[1] === "class" ? "class" : "function", decl.index);
+
+  // module.exports = { a, b: x, c }
+  const obj = CJS_OBJECT_RE.exec(source);
+  if (obj) {
+    for (const part of (obj[1] ?? "").split(",")) {
+      const key = part.split(":")[0]?.trim() ?? "";
+      if (/^[A-Za-z_$][\w$]*$/.test(key)) add(key, "const", obj.index);
+    }
+  }
+
+  // exports.foo = … / module.exports.foo = …
+  let m: RegExpExecArray | null;
+  CJS_PROP_RE.lastIndex = 0;
+  while ((m = CJS_PROP_RE.exec(source))) add(m[1] ?? "", "const", m.index);
+
+  // module.exports = ident;  (single re-export of a value) — only when no object/decl already matched
+  if (!obj && !decl) {
+    const ident = CJS_IDENT_RE.exec(source);
+    if (ident) add(ident[1] ?? "", "const", ident.index);
+  }
 }
 
 function parseJvmFile(source: string): CodeFileEntry {

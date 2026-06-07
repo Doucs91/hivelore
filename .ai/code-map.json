@@ -1,60 +1,8 @@
 {
   "version": 1,
-  "generated_at": "2026-06-06T03:00:49.729Z",
+  "generated_at": "2026-06-07T23:50:50.425Z",
   "root": "/home/sd/Documents/Dev/haive/New idea",
   "files": {
-    "benchmarks/manual-run/fixtures/order-haive/src/order.ts": {
-      "exports": [
-        {
-          "name": "createOrder",
-          "kind": "function",
-          "line": 3
-        }
-      ],
-      "loc": 11
-    },
-    "benchmarks/manual-run/fixtures/order-haive/src/schemas.ts": {
-      "exports": [
-        {
-          "name": "CreateOrderInputSchema",
-          "kind": "const",
-          "description": "Intentionally too permissive; tests require stricter business constraints on qty and sku.",
-          "line": 4
-        },
-        {
-          "name": "CreateOrderInput",
-          "kind": "type",
-          "line": 9
-        }
-      ],
-      "loc": 10
-    },
-    "benchmarks/manual-run/fixtures/order-plain/src/order.ts": {
-      "exports": [
-        {
-          "name": "createOrder",
-          "kind": "function",
-          "line": 3
-        }
-      ],
-      "loc": 11
-    },
-    "benchmarks/manual-run/fixtures/order-plain/src/schemas.ts": {
-      "exports": [
-        {
-          "name": "CreateOrderInputSchema",
-          "kind": "const",
-          "description": "Intentionally too permissive; tests require stricter business constraints on qty and sku.",
-          "line": 4
-        },
-        {
-          "name": "CreateOrderInput",
-          "kind": "type",
-          "line": 9
-        }
-      ],
-      "loc": 10
-    },
     "packages/cli/src/commands/agent.ts": {
       "exports": [
         {
@@ -110,10 +58,10 @@
         {
           "name": "registerBriefing",
           "kind": "function",
-          "line": 112
+          "line": 114
         }
       ],
-      "loc": 639
+      "loc": 648
     },
     "packages/cli/src/commands/coverage.ts": {
       "summary": "`haive coverage` — harness coverage-gap report.",
@@ -152,10 +100,10 @@
         {
           "name": "registerDoctor",
           "kind": "function",
-          "line": 66
+          "line": 71
         }
       ],
-      "loc": 1071
+      "loc": 1171
     },
     "packages/cli/src/commands/embeddings.ts": {
       "exports": [
@@ -172,25 +120,25 @@
         {
           "name": "registerEnforce",
           "kind": "function",
-          "line": 110
+          "line": 114
         },
         {
           "name": "runWithEnforcement",
           "kind": "function",
-          "line": 735
+          "line": 743
         }
       ],
-      "loc": 2329
+      "loc": 2410
     },
     "packages/cli/src/commands/eval.ts": {
       "exports": [
         {
           "name": "registerEval",
           "kind": "function",
-          "line": 74
+          "line": 75
         }
       ],
-      "loc": 512
+      "loc": 540
     },
     "packages/cli/src/commands/hub.ts": {
       "summary": "haive hub — shared team-knowledge hub operations.",
@@ -320,7 +268,7 @@
           "line": 235
         }
       ],
-      "loc": 898
+      "loc": 938
     },
     "packages/cli/src/commands/install-hooks.ts": {
       "exports": [
@@ -777,10 +725,10 @@
         {
           "name": "registerSensors",
           "kind": "function",
-          "line": 49
+          "line": 67
         }
       ],
-      "loc": 328
+      "loc": 499
     },
     "packages/cli/src/commands/session-end.ts": {
       "summary": "haive session end — save a structured end-of-session recap.",
@@ -788,16 +736,16 @@
         {
           "name": "registerSessionEnd",
           "kind": "function",
-          "line": 289
+          "line": 291
         },
         {
           "name": "normalizeAnchorPath",
           "kind": "function",
           "description": "Convert an absolute or home-relative path to a project-relative path.",
-          "line": 443
+          "line": 476
         }
       ],
-      "loc": 452
+      "loc": 485
     },
     "packages/cli/src/commands/snapshot.ts": {
       "summary": "haive snapshot — take or compare an API contract snapshot.",
@@ -818,7 +766,7 @@
           "line": 25
         }
       ],
-      "loc": 232
+      "loc": 231
     },
     "packages/cli/src/commands/sync.ts": {
       "exports": [
@@ -1051,6 +999,72 @@
       ],
       "loc": 35
     },
+    "packages/core/src/bootstrap-state.ts": {
+      "summary": "First-agent bootstrap state — is the repo's knowledge layer filled enough for later agents to rely on? The trigger for forcing a bootstrap is NOT an agent identity or a flag: it is the COLD STATE of the corpus itself.",
+      "exports": [
+        {
+          "name": "BootstrapGate",
+          "kind": "type",
+          "line": 25
+        },
+        {
+          "name": "BootstrapState",
+          "kind": "type",
+          "line": 26
+        },
+        {
+          "name": "BootstrapGap",
+          "kind": "interface",
+          "line": 28
+        },
+        {
+          "name": "BootstrapMetrics",
+          "kind": "interface",
+          "line": 38
+        },
+        {
+          "name": "BootstrapAssessment",
+          "kind": "interface",
+          "line": 50
+        },
+        {
+          "name": "BootstrapStateInput",
+          "kind": "interface",
+          "line": 57
+        },
+        {
+          "name": "isTemplateProjectContext",
+          "kind": "function",
+          "description": "project-context is still the auto-generated template / stub rather than real content.",
+          "line": 74
+        },
+        {
+          "name": "componentOf",
+          "kind": "function",
+          "description": "Derive the component (main code area) a file belongs to.",
+          "line": 91
+        },
+        {
+          "name": "moduleNameOf",
+          "kind": "function",
+          "description": "The module-context directory name for a component (its last path segment).",
+          "line": 98
+        },
+        {
+          "name": "assessBootstrapState",
+          "kind": "function",
+          "description": "Assess whether the repo knowledge layer is filled enough (the EXHAUSTIVE bar): 1.",
+          "line": 121
+        },
+        {
+          "name": "renderBootstrapChecklist",
+          "kind": "function",
+          "description": "Render the assessment's gaps as a numbered checklist for an agent (action_required / gate message).",
+          "line": 234
+        }
+      ],
+      "loc": 242
+    },
     "packages/core/src/bridges.ts": {
       "summary": "Native bridge generator — produces agent-harness-specific config files from the hAIve corpus (validated memories + block sensors).",
       "exports": [
@@ -1212,17 +1226,44 @@
           "line": 94
         },
         {
+          "name": "countSourceFilesOnDisk",
+          "kind": "function",
+          "description": "Count source files physically present on disk (FS walk, excluding node_modules/build/hidden dirs), regardless of git tracking.",
+          "line": 124
+        },
+        {
+          "name": "x",
+          "kind": "const",
+          "description": "`(?:^|;)[ \\t]*` so an export sharing a line with a preceding statement",
+          "line": 259
+        },
+        {
           "name": "CodeMapQueryOptions",
           "kind": "interface",
-          "line": 456
+          "line": 562
         },
         {
           "name": "queryCodeMap",
           "kind": "function",
-          "line": 461
+          "line": 567
+        },
+        {
+          "name": "foo",
+          "kind": "function",
+          "line": 347
+        },
+        {
+          "name": "a",
+          "kind": "const",
+          "line": 265
+        },
+        {
+          "name": "b",
+          "kind": "const",
+          "line": 265
         }
       ],
-      "loc": 477
+      "loc": 583
     },
     "packages/core/src/confidence.ts": {
       "exports": [
@@ -1291,49 +1332,55 @@
           "line": 52
         },
         {
+          "name": "DEFAULT_BRIEFING_EXCLUDE_TAGS",
+          "kind": "const",
+          "description": "Tags excluded from automatic briefing surfacing by default.",
+          "line": 283
+        },
+        {
           "name": "DEFAULT_CONFIG",
           "kind": "const",
-          "line": 240
+          "line": 291
         },
         {
           "name": "AUTOPILOT_DEFAULTS",
           "kind": "const",
-          "line": 270
+          "line": 325
         },
         {
           "name": "AntiPatternGate",
           "kind": "type",
           "description": "The pre-commit anti-pattern gate hardness levels.",
-          "line": 301
+          "line": 360
         },
         {
           "name": "antiPatternGateParams",
           "kind": "function",
           "description": "Single source of truth mapping a configured `antiPatternGate` to the `pre_commit_check` parameters that implement it.",
-          "line": 309
+          "line": 368
         },
         {
           "name": "configPath",
           "kind": "function",
-          "line": 325
+          "line": 384
         },
         {
           "name": "loadConfig",
           "kind": "function",
-          "line": 329
+          "line": 388
         },
         {
           "name": "loadConfigSync",
           "kind": "function",
-          "line": 346
+          "line": 405
         },
         {
           "name": "saveConfig",
           "kind": "function",
-          "line": 360
+          "line": 419
         }
       ],
-      "loc": 378
+      "loc": 437
     },
     "packages/core/src/conflict-candidates.ts": {
       "exports": [
@@ -2055,6 +2102,53 @@
       ],
       "loc": 143
     },
+    "packages/core/src/handoff.ts": {
+      "summary": "Ephemeral session handoff — a single, overwritten `NEXT.md` at the repo root.",
+      "exports": [
+        {
+          "name": "HANDOFF_FILENAME",
+          "kind": "const",
+          "description": "Filename of the ephemeral handoff at the repo root.",
+          "line": 16
+        },
+        {
+          "name": "handoffFilePath",
+          "kind": "function",
+          "description": "Absolute path to the handoff file for a given project root.",
+          "line": 19
+        },
+        {
+          "name": "SessionHandoffData",
+          "kind": "interface",
+          "line": 23
+        },
+        {
+          "name": "buildHandoffMarkdown",
+          "kind": "function",
+          "description": "Build the markdown body of the ephemeral handoff.",
+          "line": 44
+        },
+        {
+          "name": "writeSessionHandoff",
+          "kind": "function",
+          "description": "Write (overwrite) the ephemeral handoff.",
+          "line": 101
+        },
+        {
+          "name": "readSessionHandoff",
+          "kind": "function",
+          "description": "Read the handoff body if present, else null.",
+          "line": 108
+        },
+        {
+          "name": "handoffAgeMs",
+          "kind": "function",
+          "description": "Age of the handoff file in milliseconds (by mtime), or null if it does not exist.",
+          "line": 116
+        }
+      ],
+      "loc": 126
+    },
     "packages/core/src/impact.ts": {
       "exports": [
         {
@@ -2493,39 +2587,50 @@
           "line": 35
         },
         {
+          "name": "extractReferencedPaths",
+          "kind": "function",
+          "line": 47
+        },
+        {
+          "name": "memoryHasExcludedTag",
+          "kind": "function",
+          "description": "True when a memory carries any tag in `excludeTags` (case-insensitive) — used to keep strategy/positioning memories OUT of automatic briefing surfacing while leaving them searchable.",
+          "line": 61
+        },
+        {
           "name": "inferModulesFromPaths",
           "kind": "function",
           "description": "Best-effort inference: given a list of file paths, infer module names from conventional layouts (packages/X/, apps/X/, modules/X/, src/X/).",
-          "line": 55
+          "line": 86
         },
         {
           "name": "pathsOverlap",
           "kind": "function",
           "description": "Path overlap: returns true if `a` and `b` refer to the same path or one is a parent of the other.",
-          "line": 71
+          "line": 102
         },
         {
           "name": "memoryMatchesAnchorPaths",
           "kind": "function",
-          "line": 80
+          "line": 111
         },
         {
           "name": "isGlobPath",
           "kind": "function",
-          "line": 99
+          "line": 130
         },
         {
           "name": "globToRegExp",
           "kind": "function",
-          "line": 103
+          "line": 134
         },
         {
           "name": "relPathFrom",
           "kind": "function",
-          "line": 146
+          "line": 177
         }
       ],
-      "loc": 149
+      "loc": 180
     },
     "packages/core/src/resolve-project.ts": {
       "exports": [
@@ -2607,21 +2712,21 @@
           "name": "ActivationSchema",
           "kind": "const",
           "description": "Progressive-disclosure activation triggers for a `skill` memory.",
-          "line": 72
+          "line": 80
         },
         {
           "name": "MemoryFrontmatterSchema",
           "kind": "const",
-          "line": 86
+          "line": 94
         },
         {
           "name": "CrossRepoProvenanceSchema",
           "kind": "const",
           "description": "Additional fields for cross-repo provenance (stored in frontmatter of imported memories)",
-          "line": 123
+          "line": 131
         }
       ],
-      "loc": 129
+      "loc": 137
     },
     "packages/core/src/search.ts": {
       "exports": [
@@ -2711,81 +2816,127 @@
         {
           "name": "SensorSuggestionOptions",
           "kind": "interface",
-          "line": 15
+          "line": 19
         },
         {
           "name": "suggestSensorFromMemory",
           "kind": "function",
           "description": "Conservatively suggest a regex sensor from a gotcha/attempt body.",
-          "line": 26
+          "line": 30
         }
       ],
-      "loc": 174
+      "loc": 254
     },
     "packages/core/src/sensors.ts": {
       "exports": [
         {
+          "name": "sensorPatternBrittleness",
+          "kind": "function",
+          "description": "Is a regex sensor pattern brittle — over-fit to incident-specific literals that rot when code shifts (hardcoded line numbers / ranges like `1131-1186`)? High-precision by design: digits that live inside a character class (`[0-9]`) or quantifier (`{2,}`) generalize and are NOT flagged, so durable patterns like `v[0-9]+\\.[0-9]+` or `:\\s*any\\b` stay clean.",
+          "line": 11
+        },
+        {
           "name": "SensorHit",
           "kind": "interface",
           "description": "Sensors — the feedback *computational* layer of the harness.",
-          "line": 13
+          "line": 28
         },
         {
           "name": "SensorTarget",
           "kind": "interface",
           "description": "A unit of code to scan: a file path plus the text to match against.",
-          "line": 28
+          "line": 43
         },
         {
           "name": "sensorAppliesToPath",
           "kind": "function",
           "description": "Does this sensor apply to `path`? A sensor with no explicit `paths` (and whose memory has no anchor paths) applies everywhere.",
-          "line": 53
+          "line": 68
+        },
+        {
+          "name": "SENSOR_ABSENT_WINDOW",
+          "kind": "const",
+          "description": "Window (in added lines) searched for the `absent` (correct-usage) marker around a trigger match.",
+          "line": 92
+        },
+        {
+          "name": "SENSOR_ABSENT_LOOKBACK",
+          "kind": "const",
+          "line": 93
         },
         {
           "name": "compileRegexSensor",
           "kind": "function",
           "description": "Compile a regex sensor.",
-          "line": 72
+          "line": 99
         },
         {
           "name": "runRegexSensor",
           "kind": "function",
           "description": "Run a single regex sensor over one target.",
-          "line": 87
+          "line": 125
         },
         {
           "name": "runSensors",
           "kind": "function",
           "description": "Run every memory's regex sensor against every applicable target.",
-          "line": 117
+          "line": 174
         },
         {
           "name": "CommandSensorSpec",
           "kind": "interface",
           "description": "A shell/test sensor selected for execution — the feedback *computational* layer that a regex can't express.",
-          "line": 140
+          "line": 197
         },
         {
           "name": "selectCommandSensors",
           "kind": "function",
           "description": "Select the shell/test sensors that apply to `changedPaths`.",
-          "line": 156
+          "line": 213
         },
         {
           "name": "sensorTargetsFromDiff",
           "kind": "function",
           "description": "Split a unified diff into per-file targets containing only added lines.",
-          "line": 186
+          "line": 243
+        },
+        {
+          "name": "SensorSelfCheck",
+          "kind": "interface",
+          "description": "── Self-validation: a generated sensor must prove it discriminates before it can block ──────────",
+          "line": 279
+        },
+        {
+          "name": "sensorSelfCheck",
+          "kind": "function",
+          "description": "Validate a sensor before it is trusted to hard-block.",
+          "line": 301
+        },
+        {
+          "name": "ProposedSensorVerdict",
+          "kind": "interface",
+          "line": 326
+        },
+        {
+          "name": "judgeProposedSensor",
+          "kind": "function",
+          "description": "Decide whether a PROPOSED sensor may be trusted at its severity.",
+          "line": 342
+        },
+        {
+          "name": "extractSensorExamples",
+          "kind": "function",
+          "description": "Pull candidate bad-code examples from a lesson body: fenced code blocks and inline code spans that look like code (contain a call/dot/assignment).",
+          "line": 365
         },
         {
           "name": "addedLinesFromDiff",
           "kind": "function",
           "description": "Extract the added lines from a unified diff (lines starting with a single `+`, excluding the `+++` file header).",
-          "line": 225
+          "line": 383
         }
       ],
-      "loc": 234
+      "loc": 392
     },
     "packages/core/src/skill-activation.ts": {
       "exports": [
@@ -3495,6 +3646,26 @@
       ],
       "loc": 114
     },
+    "packages/mcp/src/prompts/bootstrap-repo.ts": {
+      "exports": [
+        {
+          "name": "BootstrapRepoArgsSchema",
+          "kind": "const",
+          "line": 13
+        },
+        {
+          "name": "BootstrapRepoArgs",
+          "kind": "type",
+          "line": 20
+        },
+        {
+          "name": "bootstrapRepoPrompt",
+          "kind": "function",
+          "line": 44
+        }
+      ],
+      "loc": 104
+    },
     "packages/mcp/src/prompts/import-docs.ts": {
       "exports": [
         {
@@ -3540,158 +3711,158 @@
         {
           "name": "SERVER_NAME",
           "kind": "const",
-          "line": 285
+          "line": 295
         },
         {
           "name": "SERVER_VERSION",
           "kind": "const",
-          "line": 286
+          "line": 296
         },
         {
           "name": "ToolProfile",
           "kind": "type",
-          "line": 287
+          "line": 297
         },
         {
           "name": "ENFORCEMENT_PROFILE_TOOLS",
           "kind": "const",
-          "line": 300
+          "line": 310
         },
         {
           "name": "MAINTENANCE_PROFILE_TOOLS",
           "kind": "const",
-          "line": 314
+          "line": 325
         },
         {
           "name": "EXPERIMENTAL_PROFILE_TOOLS",
           "kind": "const",
-          "line": 337
+          "line": 348
         },
         {
           "name": "TOOL_PROFILES",
           "kind": "const",
-          "line": 348
+          "line": 359
         },
         {
           "name": "getAllowedToolsForProfile",
           "kind": "function",
-          "line": 354
+          "line": 365
         },
         {
           "name": "createHaiveServer",
           "kind": "function",
-          "line": 377
+          "line": 389
         },
         {
           "name": "parseMcpCliArgs",
           "kind": "function",
           "description": "Parse argv for the standalone haive-mcp binary / CLI subprocess parity.",
-          "line": 1398
+          "line": 1458
         },
         {
           "name": "printHaiveMcpVersion",
           "kind": "function",
           "description": "Print MCP server version (same as haive CLI when bundled together).",
-          "line": 1421
+          "line": 1481
         },
         {
           "name": "runHaiveMcpStdio",
           "kind": "function",
           "description": "Run the MCP server over stdio.",
-          "line": 1429
+          "line": 1489
         },
         {
           "name": "getBriefing",
           "kind": "const",
-          "line": 198
+          "line": 208
         },
         {
           "name": "codeMapTool",
           "kind": "const",
-          "line": 203
+          "line": 213
         },
         {
           "name": "getRecap",
           "kind": "const",
-          "line": 208
+          "line": 218
         },
         {
           "name": "memRelevantTo",
           "kind": "const",
-          "line": 213
+          "line": 223
         },
         {
           "name": "codeSearch",
           "kind": "const",
-          "line": 218
+          "line": 228
         },
         {
           "name": "whyThisFile",
           "kind": "const",
-          "line": 223
+          "line": 233
         },
         {
           "name": "antiPatternsCheck",
           "kind": "const",
-          "line": 228
+          "line": 238
         },
         {
           "name": "memDistill",
           "kind": "const",
-          "line": 233
+          "line": 243
         },
         {
           "name": "whyThisDecision",
           "kind": "const",
-          "line": 238
+          "line": 248
         },
         {
           "name": "memConflicts",
           "kind": "const",
-          "line": 243
+          "line": 253
         },
         {
           "name": "preCommitCheck",
           "kind": "const",
-          "line": 248
+          "line": 258
         },
         {
           "name": "patternDetect",
           "kind": "const",
-          "line": 253
+          "line": 263
         },
         {
           "name": "memResolveProject",
           "kind": "const",
-          "line": 258
+          "line": 268
         },
         {
           "name": "memSuggestTopic",
           "kind": "const",
-          "line": 262
+          "line": 272
         },
         {
           "name": "memTimeline",
           "kind": "const",
-          "line": 266
+          "line": 276
         },
         {
           "name": "memConflictCandidates",
           "kind": "const",
-          "line": 270
+          "line": 280
         },
         {
           "name": "runtimeJournalAppend",
           "kind": "const",
-          "line": 274
+          "line": 284
         },
         {
           "name": "runtimeJournalTail",
           "kind": "const",
-          "line": 278
+          "line": 288
         }
       ],
-      "loc": 1436
+      "loc": 1496
     },
     "packages/mcp/src/session-tracker.ts": {
       "summary": "Auto-session tracker for autopilot mode.",
@@ -3699,33 +3870,33 @@
         {
           "name": "SessionEvent",
           "kind": "interface",
-          "line": 24
+          "line": 25
         },
         {
           "name": "PendingDistill",
           "kind": "interface",
           "description": "Written to .ai/.cache/pending-distill.json at session end.",
-          "line": 32
+          "line": 33
         },
         {
           "name": "pendingDistillPath",
           "kind": "function",
           "description": "Path to the pending distill marker file.",
-          "line": 49
+          "line": 50
         },
         {
           "name": "SessionTracker",
           "kind": "class",
-          "line": 53
+          "line": 54
         },
         {
           "name": "clearPendingDistill",
           "kind": "function",
           "description": "Delete the pending distill marker if it exists.",
-          "line": 188
+          "line": 223
         }
       ],
-      "loc": 205
+      "loc": 240
     },
     "packages/mcp/src/tools/anti-patterns-check.ts": {
       "exports": [
@@ -3768,7 +3939,7 @@
           "line": 205
         }
       ],
-      "loc": 391
+      "loc": 394
     },
     "packages/mcp/src/tools/bootstrap-project-save.ts": {
       "exports": [
@@ -3864,17 +4035,23 @@
           "line": 47
         },
         {
+          "name": "BriefingBreadcrumbItem",
+          "kind": "interface",
+          "description": "A single structured breadcrumb pointer (machine-readable twin of a `start_here` string).",
+          "line": 60
+        },
+        {
           "name": "BriefingBreadcrumbs",
           "kind": "interface",
-          "line": 59
+          "line": 75
         },
         {
           "name": "BriefingOutput",
           "kind": "interface",
-          "line": 74
+          "line": 95
         }
       ],
-      "loc": 123
+      "loc": 146
     },
     "packages/mcp/src/tools/code-map.ts": {
       "exports": [
@@ -3941,25 +4118,25 @@
         {
           "name": "GetBriefingInputSchema",
           "kind": "const",
-          "line": 72
+          "line": 77
         },
         {
           "name": "GetBriefingZod",
           "kind": "const",
-          "line": 153
+          "line": 158
         },
         {
           "name": "GetBriefingInput",
           "kind": "type",
-          "line": 154
+          "line": 159
         },
         {
           "name": "getBriefing",
           "kind": "function",
-          "line": 156
+          "line": 161
         }
       ],
-      "loc": 956
+      "loc": 1041
     },
     "packages/mcp/src/tools/get-project-context.ts": {
       "exports": [
@@ -4712,6 +4889,32 @@
         }
       ],
       "loc": 529
+    },
+    "packages/mcp/src/tools/propose-sensor.ts": {
+      "summary": "propose_sensor — the agent (LLM), which understands the code, PROPOSES a sensor; core VALIDATES it.",
+      "exports": [
+        {
+          "name": "ProposeSensorInputSchema",
+          "kind": "const",
+          "line": 27
+        },
+        {
+          "name": "ProposeSensorInput",
+          "kind": "type",
+          "line": 57
+        },
+        {
+          "name": "ProposeSensorOutput",
+          "kind": "interface",
+          "line": 61
+        },
+        {
+          "name": "proposeSensor",
+          "kind": "function",
+          "line": 89
+        }
+      ],
+      "loc": 186
     },
     "packages/mcp/src/tools/runtime-journal-append.ts": {
       "exports": [
