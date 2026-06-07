@@ -33,6 +33,6 @@
       "release"
     ],
     "releaseBranch": "main",
-    "bootstrapGate": "warn"
+    "bootstrapGate": "block"
   }
 }
