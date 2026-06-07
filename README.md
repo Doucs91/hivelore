@@ -204,6 +204,7 @@ them once: `haive memory save/search/get/delete` ↔ `mem_save`/`mem_search`/`me
 
 | Gate | What it checks |
 |---|---|
+| **First-agent bootstrap** | On a **cold corpus**, the first agent is forced to fill the knowledge layer before its commit/finish can pass: a filled project-context, a module context per component, an anchored memory per main code area, and a **sensor per main code area**. The trigger is corpus state — once the baseline exists the gate is silent for every later agent. Tunable via `enforcement.bootstrapGate` (`off` · `warn` · `block` (default)); only bites when production code is in play |
 | **Briefing loaded** | Agent loaded fresh context breadcrumbs before editing |
 | **Decision coverage** | Changed files are covered by relevant anchored decisions in the last briefing |
 | **Anti-pattern matching** | Anti-patterns relevant to the diff are surfaced; an anchored, diff-corroborated, high-confidence match **blocks** the commit. Hardness is tunable via `enforcement.antiPatternGate` (`off` · `review` · `anchored` (default) · `strict`) |
@@ -333,6 +334,7 @@ MCP profiles keep the product focused:
 | Prompt | Description |
 |---|---|
 | `post_task` | ⭐ Post-task checklist — capture learnings before closing every session |
+| `bootstrap_repo` | ⭐ First-agent bootstrap — fills the whole knowledge layer the bootstrap gate requires (project-context, module contexts, anchored memories, a validated sensor per main area). Tailors a concrete checklist from the current corpus state and drives `bootstrap_project_save` → `mem_save` → `propose_sensor` until ready |
 | `bootstrap_project` | Analyze the codebase and write `.ai/project-context.md` |
 
 ---

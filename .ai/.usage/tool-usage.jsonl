@@ -211,3 +211,6 @@
 {"tool":"mem_relevant_to","at":"2026-06-06T19:19:38.418Z","summary":"Disable auto-generation of session_recap memories and add an ephemeral NEXT.md h"}
 {"tool":"mem_relevant_to","at":"2026-06-06T19:46:24.067Z","summary":"Filter strategy/positioning memories out of get_briefing; count prevention only "}
 {"tool":"mem_relevant_to","at":"2026-06-06T20:20:26.331Z","summary":"Improve auto sensor generation to produce discriminating regex patterns that mat"}
+{"tool":"get_briefing","at":"2026-06-07T18:42:55.718Z","summary":"Fix sensor auto-generation defects in sensor-suggest.ts: (1) distinctive token picked from auto-added boilerplate Why section; (2) discriminating 'X without Y' sensor inverted because pickDistinctiveToken returns the required companion instead of the trigger"}
+{"tool":"mem_save","at":"2026-06-07T18:50:19.687Z","summary":"autogen-sensor-inverted-when-companion-longer-than-call"}
+{"tool":"mem_save","at":"2026-06-07T20:14:58.043Z","summary":"first-agent-bootstrap-gate"}

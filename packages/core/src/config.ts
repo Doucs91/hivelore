@@ -204,6 +204,18 @@ export interface HaiveConfig {
      */
     antiPatternGate?: "off" | "review" | "anchored" | "strict";
     /**
+     * First-agent bootstrap gate. The trigger is the COLD STATE of the corpus, not a command or flag:
+     * when the knowledge layer is empty, the very first agent is forced to fill the baseline — a filled
+     * project-context, a module context per component, an anchored memory per main code area, and a
+     * sensor per main code area — before its commit / `enforce finish` can pass. Once the baseline
+     * exists the gate is silent for every later agent, so only the first agent ever pays.
+     *   - off:   never gate on bootstrap completeness
+     *   - warn:  surface the missing baseline as a warning (advisory)
+     *   - block: hard-fail commit/finish until the baseline exists (default)
+     * Config/docs-only commits (no production code changed) are downgraded to a warning regardless.
+     */
+    bootstrapGate?: "off" | "warn" | "block";
+    /**
      * Pre-commit/pre-push decision-coverage behaviour. When true (default), the gate SURFACES the
      * relevant anchored decisions/policies itself and records them in the session marker at commit
      * time — no separate `haive briefing` step required. Set false for the strict legacy behaviour
@@ -301,6 +313,7 @@ export const DEFAULT_CONFIG: HaiveConfig = {
     blockStaleDecisionChanges: true,
     requireDecisionCoverage: true,
     antiPatternGate: "anchored",
+    bootstrapGate: "block",
     scoreThreshold: 80,
     cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",
@@ -334,6 +347,7 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
     blockStaleDecisionChanges: true,
     requireDecisionCoverage: true,
     antiPatternGate: "anchored",
+    bootstrapGate: "block",
     scoreThreshold: 85,
     cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",

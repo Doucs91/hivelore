@@ -1,8 +1,10 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   allocateBudget,
+  assessBootstrapState,
+  renderBootstrapChecklist,
   briefingProofLine,
   computeImpact,
   DEFAULT_AUTO_PROMOTE_RULE,
@@ -741,6 +743,50 @@ export async function getBriefing(
   const contextIsInferable = isTemplateContext || autoContextGenerated || bootstrapUnfilled;
   const adaptiveTrim =
     adaptiveConfig.adaptiveBriefing !== false && briefingValueLow && contextIsInferable;
+
+  // ── First-agent bootstrap directive (cold corpus → force the baseline) ─────
+  // The trigger is the corpus state, not an agent identity: while the knowledge layer is incomplete,
+  // every briefing surfaces a top-priority action_required so the first agent fills project-context,
+  // module contexts, anchored memories, and a sensor per main code area. The enforce gate
+  // (bootstrap-complete) blocks the commit/finish until then. Once ready, this goes silent forever.
+  const bootstrapGateMode = adaptiveConfig.enforcement?.bootstrapGate ?? "block";
+  if (bootstrapGateMode !== "off") {
+    try {
+      // Read project-context fresh — `projectContextRaw` may have been emptied by the dedupe token-saver.
+      let pcRaw = "";
+      try { pcRaw = await readFile(ctx.paths.projectContext, "utf8"); } catch { /* absent */ }
+      const allForBootstrap = existsSync(ctx.paths.memoriesDir)
+        ? await loadMemoriesFromDir(ctx.paths.memoriesDir)
+        : [];
+      const cmForBootstrap = await loadCodeMap(ctx.paths);
+      let existingModules: string[] = [];
+      try {
+        const entries = await readdir(ctx.paths.modulesContextDir, { withFileTypes: true });
+        existingModules = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+      } catch { /* no modules dir yet */ }
+      const bootstrap = assessBootstrapState({
+        projectContextRaw: pcRaw,
+        memories: allForBootstrap,
+        codeFiles: cmForBootstrap ? Object.keys(cmForBootstrap.files) : [],
+        existingModules,
+      });
+      // Surface the directive only when there are genuine main code areas — that is exactly when the
+      // enforce gate will block, so the "your commit will be blocked" message stays truthful.
+      if (bootstrap.state !== "ready" && bootstrap.metrics.mainAreas > 0) {
+        actionRequired.unshift({
+          id: "__bootstrap_required__",
+          summary: "First-agent bootstrap: fill the repo knowledge layer before substantive work",
+          developer_message:
+            `You are the first agent on this repo — its hAIve knowledge layer is ${bootstrap.state}. ` +
+            `Later agents (and the commit/enforce gates) will rely on it; with ` +
+            `enforcement.bootstrapGate=${bootstrapGateMode} your commit/finish will ` +
+            `${bootstrapGateMode === "block" ? "be BLOCKED" : "warn"} until it exists.\n\n` +
+            `Invoke the \`bootstrap_repo\` MCP prompt, or close these gaps directly:\n` +
+            renderBootstrapChecklist(bootstrap),
+        });
+      }
+    } catch { /* best-effort: never let the bootstrap probe break a briefing */ }
+  }
 
   const hints: string[] = [];
   if (isColdStart) {

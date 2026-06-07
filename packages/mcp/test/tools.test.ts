@@ -1094,4 +1094,80 @@ describe("hAIve MCP tools", () => {
       expect(teamFiles.length).toBeGreaterThan(0);
     });
   });
+
+  describe("first-agent bootstrap directive (get_briefing)", () => {
+    async function writeCodeMap(files: string[]): Promise<void> {
+      const map = {
+        version: 1,
+        generated_at: new Date().toISOString(),
+        root: workDir,
+        files: Object.fromEntries(files.map((f) => [f, { exports: [] }])),
+      };
+      await writeFile(path.join(ctx.paths.haiveDir, "code-map.json"), JSON.stringify(map), "utf8");
+    }
+
+    const briefingArgs = {
+      task: "do work", files: [], max_tokens: 4000, max_memories: 5,
+      include_project_context: false, include_module_contexts: false,
+      semantic: false, include_stale: false, track: false, format: "full" as const,
+      symbols: [], min_semantic_score: 0,
+    };
+
+    it("surfaces __bootstrap_required__ when the corpus is cold and the repo has main code areas", async () => {
+      await writeCodeMap(["packages/api/a.ts", "packages/api/b.ts", "packages/api/c.ts"]);
+      // project-context absent + no memories → cold.
+      const briefing = await getBriefing(briefingArgs, ctx);
+      const item = briefing.action_required.find((a) => a.id === "__bootstrap_required__");
+      expect(item).toBeDefined();
+      expect(item!.developer_message).toMatch(/first agent/i);
+      expect(item!.developer_message).toMatch(/packages\/api/);
+    });
+
+    it("does NOT surface the directive when there are no main code areas", async () => {
+      await writeCodeMap(["only/one.ts"]); // below the component floor
+      const briefing = await getBriefing(briefingArgs, ctx);
+      expect(briefing.action_required.find((a) => a.id === "__bootstrap_required__")).toBeUndefined();
+    });
+
+    it("goes silent once the knowledge layer is ready", async () => {
+      await writeCodeMap(["packages/api/a.ts", "packages/api/b.ts", "packages/api/c.ts"]);
+      await writeFile(
+        ctx.paths.projectContext,
+        "# Project context\n\n## Architecture\n" + "A real, filled overview of the api package. ".repeat(8),
+        "utf8",
+      );
+      // One anchored memory in packages/api carrying a sensor → memory + sensor coverage satisfied.
+      await writeFile(
+        path.join(ctx.paths.teamDir, "2026-01-01-gotcha-api.md"),
+        [
+          "---",
+          "id: 2026-01-01-gotcha-api",
+          "scope: team",
+          "type: gotcha",
+          "status: validated",
+          "created_at: '2026-01-01T00:00:00.000Z'",
+          "anchor:",
+          "  paths: [packages/api/a.ts]",
+          "  symbols: []",
+          "sensor:",
+          "  kind: regex",
+          "  pattern: getUser",
+          "  paths: [packages/api/a.ts]",
+          "  message: m",
+          "  severity: warn",
+          "  autogen: true",
+          "  last_fired: null",
+          "tags: []",
+          "---",
+          "# Api guard",
+          "",
+          "Repo-specific rule for the api package.",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+      const briefing = await getBriefing(briefingArgs, ctx);
+      expect(briefing.action_required.find((a) => a.id === "__bootstrap_required__")).toBeUndefined();
+    });
+  });
 });

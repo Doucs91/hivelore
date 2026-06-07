@@ -1345,6 +1345,58 @@ describe("hAIve CLI integration", () => {
     }
   });
 
+  it("bootstrap gate blocks a cold codebase, then clears once the knowledge layer is filled", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-bootstrap-gate-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await mkdir(path.join(repo, "packages/api"), { recursive: true });
+      for (const [f, body] of [["a", "getUser"], ["b", "listUsers"], ["c", "delUser"]]) {
+        await writeFile(path.join(repo, `packages/api/${f}.ts`), `export function ${body}(){ return 1 }\n`, "utf8");
+      }
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+      await run(repo, ["index", "code", "--dir", repo]);
+
+      // Stage a production-code change on a cold corpus → the gate must block.
+      await writeFile(path.join(repo, "packages/api/a.ts"), "export function getUser(){ return 2 }\n", "utf8");
+      await exec("git", ["add", "packages/api/a.ts"], { cwd: repo });
+      const cold = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { findings: Array<{ code: string; severity: string }> };
+      const coldFinding = cold.findings.find((f) => f.code === "bootstrap-incomplete");
+      expect(coldFinding?.severity).toBe("error");
+
+      // Fill the knowledge layer: real project-context + an anchored memory with a sensor on the area.
+      await writeFile(
+        path.join(repo, ".ai/project-context.md"),
+        "# Project context\n\n## Architecture\n" + "A real, filled overview of the api package. ".repeat(8),
+        "utf8",
+      );
+      await writeFile(
+        path.join(repo, ".ai/memories/team/2026-01-01-gotcha-api.md"),
+        [
+          "---", "id: 2026-01-01-gotcha-api", "scope: team", "type: gotcha", "status: validated",
+          "created_at: '2026-01-01T00:00:00.000Z'",
+          "anchor:", "  paths: [packages/api/a.ts]", "  symbols: []",
+          "sensor:", "  kind: regex", "  pattern: getUser", "  paths: [packages/api/a.ts]",
+          "  message: m", "  severity: warn", "  autogen: true", "  last_fired: null",
+          "tags: []", "---", "# Api guard", "", "Repo-specific rule.", "",
+        ].join("\n"),
+        "utf8",
+      );
+      const ready = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { findings: Array<{ code: string; severity: string }> };
+      expect(ready.findings.some((f) => f.code === "bootstrap-complete" && f.severity === "ok")).toBe(true);
+      expect(ready.findings.some((f) => f.code === "bootstrap-incomplete")).toBe(false);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("finish gate blocks shippable work left as an uncommitted local diff", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-finish-dirty-"));
     try {

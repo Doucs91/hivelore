@@ -6,8 +6,11 @@ import { promisify } from "node:util";
 import { Command } from "commander";
 import {
   antiPatternGateParams,
+  assessBootstrapState,
   BRIDGE_TARGET_PATH,
   findProjectRoot,
+  loadCodeMap,
+  renderBootstrapChecklist,
   findUncapturedFailures,
   handoffAgeMs,
   hasRecentBriefingMarker,
@@ -462,6 +465,10 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
   }
 
   findings.push(...await checkFailureCapture(paths, config));
+  // First-agent bootstrap: declaring the task done with a still-cold knowledge layer means the first
+  // agent never paid the baseline that later agents depend on. Evaluated as "code present" (true) so a
+  // codebase blocks; the assessment returns ready on its own for repos with no code areas.
+  findings.push(...await checkBootstrapComplete(paths, config, true));
 
   const status = await getGitSyncStatus(root);
   if (!status.available) {
@@ -841,6 +848,71 @@ async function writeWrapperBriefing(
   return file;
 }
 
+const PRODUCTION_CODE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|swift|rb|php|cs|cpp|cc|c|h|hpp|vue|svelte)$/i;
+/** A changed path that represents real product source (not .ai/, docs, config, or generated artifacts). */
+function looksLikeProductionCode(file: string): boolean {
+  const f = file.replace(/^\/+/, "");
+  if (f.startsWith(".ai/") || f.startsWith(".github/")) return false;
+  if (isGeneratedArtifact(f)) return false;
+  if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(f)) return false;
+  if (/(^|\/)(test|tests|__tests__|__mocks__|e2e|fixtures)(\/|$)/.test(f)) return false;
+  return PRODUCTION_CODE_EXT.test(f);
+}
+
+/**
+ * First-agent bootstrap gate. Forces the very first agent on a cold corpus to fill the knowledge layer
+ * (project-context, module contexts, anchored memories + a sensor per main code area) before its
+ * commit/finish can pass. The trigger is the corpus state (all committed artifacts → identical in CI),
+ * so it self-clears and is silent for every later agent. Block only bites when production code changes;
+ * docs/config-only commits are downgraded to a warning.
+ */
+async function checkBootstrapComplete(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  config: HaiveConfig,
+  productionCodeChanged: boolean,
+): Promise<EnforcementFinding[]> {
+  const gate = config.enforcement?.bootstrapGate ?? "block";
+  if (gate === "off") return [];
+
+  let projectContextRaw = "";
+  try { projectContextRaw = await readFile(paths.projectContext, "utf8"); } catch { /* absent */ }
+
+  const memories = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
+  const codeMap = await loadCodeMap(paths);
+  const codeFiles = codeMap ? Object.keys(codeMap.files) : [];
+
+  let existingModules: string[] = [];
+  try {
+    const entries = await readdir(paths.modulesContextDir, { withFileTypes: true });
+    existingModules = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+  } catch { /* no modules dir yet */ }
+
+  const assessment = assessBootstrapState({ projectContextRaw, memories, codeFiles, existingModules });
+
+  if (assessment.state === "ready") {
+    return [{
+      severity: "ok",
+      code: "bootstrap-complete",
+      message: `Repo knowledge layer is ready — ${assessment.metrics.mainAreas} main area(s) covered by memories and sensors.`,
+    }];
+  }
+
+  // Only enforce where there are genuine main code areas — otherwise (tiny / docs / config-only repo)
+  // there is nothing for later coding agents to rely on, so the gate is advisory (info, no score penalty).
+  const hasCodeAreas = assessment.metrics.mainAreas > 0;
+  const blocking = gate === "block" && hasCodeAreas && productionCodeChanged;
+  const severity: EnforcementFinding["severity"] = blocking ? "error" : hasCodeAreas ? "warn" : "info";
+  return [{
+    severity,
+    code: "bootstrap-incomplete",
+    message:
+      `First-agent bootstrap ${blocking ? "REQUIRED" : "pending"} — the repo knowledge layer is ${assessment.state}; ` +
+      `later agents will rely on it. Close these gaps:\n${renderBootstrapChecklist(assessment)}`,
+    fix: "Invoke the bootstrap_repo MCP prompt — it drives project-context, module contexts, anchored memories, and propose_sensor for each main area. (Override: enforcement.bootstrapGate, or `git commit --no-verify`.)",
+    impact: blocking ? 40 : severity === "warn" ? 5 : 0,
+  }];
+}
+
 async function buildEnforcementReport(
   dir: string | undefined,
   stage: "local" | "pre-commit" | "pre-push" | "ci",
@@ -939,6 +1011,11 @@ async function buildEnforcementReport(
 
   if (config.enforcement?.cleanupGeneratedArtifacts !== false) {
     findings.push(...await findGeneratedArtifacts(paths));
+  }
+
+  {
+    const changed = await getChangedFiles(root, stage).catch(() => [] as string[]);
+    findings.push(...await checkBootstrapComplete(paths, config, changed.some(looksLikeProductionCode)));
   }
 
   const score = buildScore(findings, config.enforcement?.scoreThreshold);

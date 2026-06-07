@@ -185,6 +185,11 @@ import {
   type BootstrapProjectArgs,
 } from "./prompts/bootstrap-project.js";
 import {
+  BootstrapRepoArgsSchema,
+  bootstrapRepoPrompt,
+  type BootstrapRepoArgs,
+} from "./prompts/bootstrap-repo.js";
+import {
   PostTaskArgsSchema,
   postTaskPrompt,
   type PostTaskArgs,
@@ -451,7 +456,7 @@ export function createHaiveServer(
   };
 
   const shouldRegisterPrompt = (name: string): boolean => {
-    if (name === "bootstrap_project" || name === "post_task") return true;
+    if (name === "bootstrap_project" || name === "bootstrap_repo" || name === "post_task") return true;
     if (name === "import_docs") return toolProfile !== "enforcement";
     return toolProfile === "experimental" || toolProfile === "full";
   };
@@ -1399,6 +1404,20 @@ export function createHaiveServer(
       ].join(" "),
       BootstrapProjectArgsSchema,
       (args: BootstrapProjectArgs) => bootstrapProjectPrompt(args, context),
+    );
+  }
+
+  if (shouldRegisterPrompt("bootstrap_repo")) {
+    server.prompt(
+      "bootstrap_repo",
+      [
+        "⭐ First-agent bootstrap — run once on a fresh repo to fill the knowledge layer the bootstrap",
+        "gate requires: project-context, a module context per component, anchored memories, and a",
+        "validated sensor per main code area. Tailors a concrete checklist from the current corpus state",
+        "and walks the agent through bootstrap_project_save, mem_save, and propose_sensor until READY.",
+      ].join(" "),
+      BootstrapRepoArgsSchema,
+      (args: BootstrapRepoArgs) => bootstrapRepoPrompt(args, context),
     );
   }
 
