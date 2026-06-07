@@ -32,6 +32,7 @@
       "domain",
       "release"
     ],
-    "releaseBranch": "main"
+    "releaseBranch": "main",
+    "bootstrapGate": "warn"
   }
 }

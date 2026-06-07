@@ -7,7 +7,7 @@ const SENSOR_STOPWORDS = new Set([
   "about", "after", "again", "agent", "always", "anchor", "approach", "because",
   "before", "break", "broken", "cannot", "change", "code", "commit", "correct",
   "could", "default", "detect", "direct", "directory", "does", "error", "failed",
-  "fails", "file", "files", "future", "instead", "memory", "never", "project",
+  "fails", "file", "files", "future", "haive", "instead", "memory", "never", "project",
   "recorded", "repo", "return", "should", "source", "string", "this",
   "tried", "true", "type", "undefined", "value", "when", "where", "which", "with",
   "without",
@@ -43,12 +43,17 @@ export function suggestSensorFromMemory(
   // look for a REQUIRED COMPANION ("create WITHOUT idempotencyKey", "must pass idempotencyKey") and
   // emit pattern=trigger (the risky call) + absent=companion (the correct-usage marker). The sensor
   // then fires on the faulty call ONLY — not on every call — which is what makes it safe to promote.
+  const required = !assignment && !lowercaseValue ? pickRequiredCompanion(body) : null;
+
   let companion: { trigger: string; required: string } | null = null;
-  if (!assignment && !lowercaseValue) {
-    const required = pickRequiredCompanion(body);
-    const trigger = pickDistinctiveToken(negativeText);
+  if (required) {
+    // Pick the trigger EXCLUDING the required companion. Otherwise, when the companion (Y) is a longer/
+    // more distinctive token than the call (X) — e.g. "createOrder without idempotencyKey" — the plain
+    // distinctive-token pick returns Y, the equality guard bails out, and the fallback below would emit
+    // a sensor whose pattern is Y. That sensor fires on CORRECT usage (Y present) and stays silent on
+    // the actual fault: an inverted, self-contradictory guardrail. Excluding Y keeps the trigger = X.
+    const trigger = pickDistinctiveToken(negativeText, [required]);
     if (
-      required &&
       trigger &&
       trigger.toLowerCase() !== required.toLowerCase() &&
       !trigger.toLowerCase().includes(required.toLowerCase()) &&
@@ -58,7 +63,11 @@ export function suggestSensorFromMemory(
     }
   }
 
-  const token = assignment?.label ?? lowercaseValue?.label ?? companion?.trigger ?? pickDistinctiveToken(negativeText);
+  // The fallback token must ALSO exclude the required companion: a "X without Y" memory whose trigger
+  // could not be isolated must yield no sensor rather than degrade into a plain `pattern=Y` (the
+  // inverted sensor above). Excluding Y here means an un-isolable case returns null — the safe default.
+  const fallbackToken = pickDistinctiveToken(negativeText, required ? [required] : []);
+  const token = assignment?.label ?? lowercaseValue?.label ?? companion?.trigger ?? fallbackToken;
   if (!token) return null;
 
   const pattern =
@@ -91,7 +100,10 @@ function pickRequiredCompanion(text: string): string | null {
     new RegExp(`\\bmissing\\s+(?:an?|the|its)?\\s*${tok}`, "i"),
     new RegExp(`\\bforgot(?:\\s+to\\s+\\w+)?\\s+(?:an?|the)?\\s*${tok}`, "i"),
     new RegExp(`\\b(?:must|should|always|need\\s+to|needs\\s+to)\\s+(?:pass|provide|include|set|add|receive|specify|supply)\\s+(?:an?|the)?\\s*${tok}`, "i"),
-    new RegExp(`\\bno\\s+${tok}\\b`, "i"),
+    // NOTE: `\bno\s+X` is intentionally NOT a required-companion signal. It is ambiguous: in an
+    // attempt/gotcha title "No BigInt" means *avoid* BigInt (X is the bad token), not "BigInt is
+    // required and missing". Treating it as required produced inverted sensors like "JSON without
+    // BigInt". The other forms above (without/missing/forgot/must-pass X) are unambiguous: X is desired.
   ];
   for (const re of patterns) {
     const candidate = cleanCompanionToken(text.match(re)?.[1]);
@@ -160,7 +172,8 @@ function assignmentSources(text: string): string[] {
   return [text];
 }
 
-function pickDistinctiveToken(text: string): string | null {
+function pickDistinctiveToken(text: string, exclude: string[] = []): string | null {
+  const excludeSet = new Set(exclude.map((t) => t.toLowerCase()));
   const candidates = new Map<string, { raw: string; score: number }>();
   for (const match of text.matchAll(CODE_TOKEN_RE)) {
     const raw = (match[1] ?? match[2] ?? match[3] ?? "").trim();
@@ -168,6 +181,7 @@ function pickDistinctiveToken(text: string): string | null {
     const isCodeLike = Boolean(match[1] ?? match[2]);
     if (!isDistinctiveToken(token, isCodeLike)) continue;
     const key = token.toLowerCase();
+    if (excludeSet.has(key)) continue;
     const codeSpanBonus = match[1] ? 20 : match[2] ? 8 : 0;
     const shapeBonus =
       /[-_.:]/.test(token) ? 3 :

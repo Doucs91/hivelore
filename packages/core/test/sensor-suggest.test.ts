@@ -113,6 +113,54 @@ describe("suggestSensorFromMemory — discriminating (X without Y)", () => {
     expect(sensor?.absent).toBe("idempotencyKey");
   });
 
+  it("keeps trigger=call when the companion token is LONGER than the call (no inverted sensor)", () => {
+    // Regression: "createOrder without idempotencyKey". The companion (idempotencyKey, 14 chars) is
+    // longer/more distinctive than the call (createOrder, 11 chars), so the plain distinctive-token
+    // pick used to return the companion, collapse the companion branch, and emit `pattern=idempotencyKey`
+    // — a sensor that fired on CORRECT usage with the self-contradictory message
+    // "Avoid idempotencyKey; always pass idempotencyKey". The trigger must exclude the companion.
+    const body = [
+      "# calling createOrder without idempotencyKey",
+      "",
+      "**Why it failed / do NOT use:** duplicate orders on retry; createOrder must receive an idempotencyKey",
+      "",
+      "**Instead, use:** always pass idempotencyKey to createOrder",
+    ].join("\n");
+    const sensor = suggestSensorFromMemory(body, ["src/orders.ts"]);
+    expect(sensor?.pattern).toBe("createOrder");
+    expect(sensor?.absent).toBe("idempotencyKey");
+    // The pattern must never BE the required companion (that is the inverted sensor).
+    expect(sensor?.pattern).not.toBe("idempotencyKey");
+    // And the message must not tell the reader to avoid the very thing they must always pass.
+    expect(sensor?.message).not.toMatch(/avoid idempotencyKey/i);
+  });
+
+  it("never emits the tool's own name (hAIve) lifted from auto-added provenance boilerplate", () => {
+    // Regression: mem_save appends a "## Why\nRecorded in hAIve …" provenance section. The generator
+    // scanned it and picked "hAIve" as the distinctive token, producing a sensor that only ever fires
+    // on diffs mentioning hAIve. The tool's own name must be a stopword; the real token wins instead.
+    const body = [
+      "# Avoid the legacyAdapter shim",
+      "",
+      "**Why it failed / do NOT use:** legacyAdapter breaks under load.",
+      "",
+      "## Why",
+      "Recorded in hAIve so future agents can apply this project rule consistently.",
+    ].join("\n");
+    const sensor = suggestSensorFromMemory(body, ["src/adapter.ts"]);
+    expect(sensor?.pattern).toBe("legacyAdapter");
+    expect(sensor?.pattern).not.toMatch(/haive/i);
+  });
+
+  it("treats a 'No X' title as avoid-X, not as a required-missing companion", () => {
+    // Regression: "No BigInt" means avoid BigInt (X is the bad token), NOT "BigInt is required".
+    // The ambiguous `no X` companion signal must not produce an inverted "<other> without BigInt" sensor.
+    const body = "# No BigInt\n\n`BigInt` broke JSON serialization. **Instead, use:** Decimal strings.";
+    const sensor = suggestSensorFromMemory(body, ["src/math.ts"]);
+    expect(sensor?.pattern).toBe("BigInt");
+    expect(sensor?.absent).toBeUndefined();
+  });
+
   it("does not set absent when there is no required companion", () => {
     const body = [
       "# BigInt broke serialization",
