@@ -137,12 +137,24 @@ describe("assessBootstrapState", () => {
     expect(a.state).toBe("ready");
   });
 
+  it("counts a declared container component (packages/x) even below the file floor", () => {
+    // A workspace package with only 1-2 files is still a real component and must not be hidden.
+    const a = assessBootstrapState({
+      projectContextRaw: FILLED_CONTEXT,
+      memories: [],
+      codeFiles: ["packages/utils/index.ts"], // single file under a container dir
+      existingModules: [],
+    });
+    expect(a.metrics.components).toContain("packages/utils");
+    expect(a.metrics.mainAreas).toBe(1);
+  });
+
   it("ignores test files when computing components", () => {
     const files = [
-      "packages/api/a.ts", "packages/api/b.ts",
-      "packages/api/a.test.ts", "packages/api/b.spec.ts", "packages/api/__tests__/c.ts",
+      "src/a.ts", "src/b.ts",
+      "src/a.test.ts", "src/b.spec.ts", "src/__tests__/c.ts",
     ];
-    // Only 2 production files in api → below the 3-file floor → not a main area.
+    // Bare dir (not a declared container): only 2 production files → below the 3-file floor → not a main area.
     const a = assessBootstrapState({
       projectContextRaw: FILLED_CONTEXT,
       memories: [],

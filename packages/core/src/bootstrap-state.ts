@@ -133,7 +133,10 @@ export function assessBootstrapState(input: BootstrapStateInput): BootstrapAsses
     fileCounts.set(c, (fileCounts.get(c) ?? 0) + 1);
   }
   const components = [...fileCounts.entries()]
-    .filter(([, n]) => n >= MIN_COMPONENT_FILES)
+    // A container-based component (packages/x, apps/x — has a "/") is a DECLARED component: it counts
+    // regardless of size. A bare top-level dir needs the file floor so trivial folders aren't treated
+    // as a main area. (Avoids silently hiding small-but-real workspace packages from the gate.)
+    .filter(([c, n]) => c.includes("/") || n >= MIN_COMPONENT_FILES)
     .map(([c]) => c)
     .sort();
 
