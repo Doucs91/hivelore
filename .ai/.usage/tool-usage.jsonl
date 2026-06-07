@@ -214,3 +214,4 @@
 {"tool":"get_briefing","at":"2026-06-07T18:42:55.718Z","summary":"Fix sensor auto-generation defects in sensor-suggest.ts: (1) distinctive token picked from auto-added boilerplate Why section; (2) discriminating 'X without Y' sensor inverted because pickDistinctiveToken returns the required companion instead of the trigger"}
 {"tool":"mem_save","at":"2026-06-07T18:50:19.687Z","summary":"autogen-sensor-inverted-when-companion-longer-than-call"}
 {"tool":"mem_save","at":"2026-06-07T20:14:58.043Z","summary":"first-agent-bootstrap-gate"}
+{"tool":"mem_save","at":"2026-06-07T23:04:51.819Z","summary":"vscode-cli-calls-through-runhaive"}
