@@ -39,7 +39,9 @@ describe("memTried — ratchet visibility", () => {
       ctx,
     );
     expect(out.sensor_generated).toBe(true);
-    expect(out.hint).toBeUndefined();
+    // A heuristic warn sensor was generated; the hint now nudges the agent to upgrade it to a
+    // reliable, validated block via propose_sensor.
+    expect(out.hint).toMatch(/propose_sensor/);
   });
 
   it("flags the loop as OPEN with a paths hint when no paths are given", async () => {

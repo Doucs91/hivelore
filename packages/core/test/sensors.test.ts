@@ -3,6 +3,7 @@ import {
   addedLinesFromDiff,
   compileRegexSensor,
   extractSensorExamples,
+  judgeProposedSensor,
   runRegexSensor,
   runSensors,
   selectCommandSensors,
@@ -315,6 +316,51 @@ describe("sensorSelfCheck (must discriminate before it can block)", () => {
     });
     expect(check.fires_on_bad).toBe(false);
     expect(check.passed).toBe(false);
+  });
+});
+
+describe("judgeProposedSensor (agent proposes, core validates)", () => {
+  const base: Sensor = {
+    kind: "regex",
+    pattern: "stripe\\.paymentIntents\\.create",
+    absent: "idempotencyKey",
+    paths: ["src/payments/stripe.ts"],
+    message: "create without idempotencyKey",
+    severity: "block",
+    autogen: false,
+    last_fired: null,
+  };
+  const correct = { path: "src/payments/stripe.ts", content: "create stripe.paymentIntents.create({ a }, { idempotencyKey });" };
+
+  it("accepts a discriminating block sensor: silent on current, fires on the bad example", () => {
+    const v = judgeProposedSensor(base, { currentTargets: [correct], badExamples: ["stripe.paymentIntents.create({ a });"] });
+    expect(v.accepted).toBe(true);
+  });
+
+  it("rejects a block sensor that fires on the current correct code", () => {
+    const broad: Sensor = { ...base, absent: undefined };
+    const v = judgeProposedSensor(broad, { currentTargets: [correct], badExamples: [] });
+    expect(v.accepted).toBe(false);
+    expect(v.reason).toBe("fires-on-current");
+  });
+
+  it("rejects a brittle block sensor", () => {
+    const brittle: Sensor = { ...base, pattern: "foo:1131-1186", absent: undefined };
+    const v = judgeProposedSensor(brittle, { currentTargets: [], badExamples: [] });
+    expect(v.accepted).toBe(false);
+    expect(v.reason).toBe("brittle");
+  });
+
+  it("rejects a block sensor that misses the documented bad example", () => {
+    const v = judgeProposedSensor(base, { currentTargets: [], badExamples: ["unrelated code"] });
+    expect(v.accepted).toBe(false);
+    expect(v.reason).toBe("missed-bad-example");
+  });
+
+  it("always accepts a warn sensor (advisory), even if it fires on current code", () => {
+    const warn: Sensor = { ...base, absent: undefined, severity: "warn" };
+    const v = judgeProposedSensor(warn, { currentTargets: [correct], badExamples: [] });
+    expect(v.accepted).toBe(true);
   });
 });
 

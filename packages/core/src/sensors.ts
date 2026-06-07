@@ -323,6 +323,40 @@ export function sensorSelfCheck(
   };
 }
 
+export interface ProposedSensorVerdict {
+  /** Safe to store at the requested severity. */
+  accepted: boolean;
+  /** Why a block proposal was rejected (so the agent can revise and re-propose). */
+  reason?: "fires-on-current" | "missed-bad-example" | "brittle";
+  self_check: SensorSelfCheck;
+  /** Brittleness reason (hardcoded line numbers, etc.) or null. */
+  brittle: string | null;
+}
+
+/**
+ * Decide whether a PROPOSED sensor may be trusted at its severity. This is the deterministic gate
+ * behind "the agent (LLM) proposes the sensor, core validates it": a `block` sensor is accepted only
+ * if it is NOT brittle, stays SILENT on the current (presumed-correct) code, and FIRES on the bad
+ * example (when one is available). A `warn` sensor is always accepted (advisory). Pure.
+ */
+export function judgeProposedSensor(
+  sensor: Sensor,
+  input: { currentTargets: SensorTarget[]; badExamples: string[] },
+): ProposedSensorVerdict {
+  const brittle = sensor.kind === "regex" && sensor.pattern ? sensorPatternBrittleness(sensor.pattern) : null;
+  const self_check = sensorSelfCheck(sensor, input);
+  if (sensor.severity === "block") {
+    if (brittle) return { accepted: false, reason: "brittle", self_check, brittle };
+    if (input.currentTargets.length > 0 && !self_check.silent_on_current) {
+      return { accepted: false, reason: "fires-on-current", self_check, brittle };
+    }
+    if (self_check.fires_on_bad === false) {
+      return { accepted: false, reason: "missed-bad-example", self_check, brittle };
+    }
+  }
+  return { accepted: true, self_check, brittle };
+}
+
 /**
  * Pull candidate bad-code examples from a lesson body: fenced code blocks and inline code spans that
  * look like code (contain a call/dot/assignment). Used to confirm a generated sensor actually fires

@@ -65,6 +65,11 @@ import {
   type MemTriedInput,
 } from "./tools/mem-tried.js";
 import {
+  ProposeSensorInputSchema,
+  proposeSensor,
+  type ProposeSensorInput,
+} from "./tools/propose-sensor.js";
+import {
   IngestFindingsInputSchema,
   ingestFindings,
   type IngestFindingsInput,
@@ -309,6 +314,7 @@ export const ENFORCEMENT_PROFILE_TOOLS = [
   "code_search",
   "pre_commit_check",
   "mem_session_end",
+  "propose_sensor",
 ] as const;
 
 export const MAINTENANCE_PROFILE_TOOLS = [
@@ -372,6 +378,7 @@ const MUTATING_TOOLS = new Set([
   "runtime_journal_append",
   "pattern_detect",
   "ingest_findings",
+  "propose_sensor",
 ]);
 
 export function createHaiveServer(
@@ -528,6 +535,40 @@ export function createHaiveServer(
     async (input: MemTriedInput) => {
       tracker.record("mem_tried", input.what.slice(0, 80));
       return jsonResult(await memTried(input, context));
+    },
+  );
+
+  registerTool(
+    "propose_sensor",
+    [
+      "Propose a discriminating sensor for a gotcha/attempt — YOU write the pattern (you understand the",
+      "code), hAIve validates it before trusting it to block. This is how a captured lesson becomes a",
+      "RELIABLE block instead of an advisory note.",
+      "",
+      "USE THIS right after mem_tried / mem_save on a gotcha whose mistake is detectable in code, to",
+      "upgrade the auto-suggested (warn) sensor into a precise, promotable one.",
+      "",
+      "Write a pattern that matches the FAULTY usage, and — crucially — an `absent` regex for the",
+      "CORRECT-usage marker so it fires on the bug only, not every call (e.g. pattern=the API call,",
+      "absent=the required option).",
+      "",
+      "VALIDATION (a `block` proposal is accepted ONLY if): the pattern is not brittle, stays SILENT on",
+      "the current (correct) anchored code, and FIRES on the bad example. A rejected proposal is NOT",
+      "written — the returned `reason`/`guidance` tells you how to revise; then call propose_sensor again.",
+      "",
+      "PARAMETERS:",
+      "  memory_id  — the gotcha/attempt to protect",
+      "  pattern    — regex matching the faulty usage",
+      "  absent     — regex for the correct-usage marker (makes it discriminate) — strongly recommended",
+      "  bad_example— a snippet that SHOULD match (else examples are read from the lesson)",
+      "  severity   — 'block' (default) | 'warn'",
+      "",
+      "RETURNS: { accepted, reason?, guidance?, self_check, file_path? }",
+    ].join("\n"),
+    ProposeSensorInputSchema,
+    async (input: ProposeSensorInput) => {
+      tracker.record("propose_sensor", input.memory_id);
+      return jsonResult(await proposeSensor(input, context));
     },
   );
 

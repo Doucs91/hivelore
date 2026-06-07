@@ -6,6 +6,32 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.29.0] — agent-proposed sensors (LLM generates, core validates)
+
+> The generation half of "make auto-generation excellent": the agent — which understands the code —
+> proposes the sensor; hAIve refuses to trust it as a block until it proves it discriminates. This
+> turns a captured lesson into a RELIABLE block instead of a heuristic guess.
+
+#### Added
+- **`propose_sensor` MCP tool** (enforcement profile) + **`haive sensors propose` CLI**: the agent
+  writes the `pattern` (faulty usage) and an `absent` companion (correct-usage marker); hAIve validates
+  the proposal with `judgeProposedSensor` and only writes it when accepted. A `block` proposal is
+  accepted ONLY if it is not brittle, stays SILENT on the current (correct) anchored code, and FIRES
+  on the bad example. A rejected proposal is NOT written — the returned `reason`/`guidance` tells the
+  agent how to revise and re-propose.
+- **core `judgeProposedSensor`**: the pure accept/reject policy behind both façades.
+- `mem_tried` now hints the agent to call `propose_sensor` to upgrade the auto-suggested warn sensor
+  into a validated block.
+
+#### Principle (completes the auto-generation overhaul)
+- Generation is delegated to the LLM-in-the-loop (it understands the code); core's job is to VALIDATE
+  and refuse to auto-trust what fails its own check. Recaps (post_task + anchor validation) and context
+  (bootstrap_project + grounding, v0.28.5) already follow this; sensors now do too.
+
+Verified end-to-end on a fresh non-hAIve repo: a broad block proposal is REJECTED (fires on the current
+correct code, with guidance to add `absent`); the discriminating proposal is ACCEPTED (silent on
+current, fires on the bad example).
+
 ## [0.28.5] — self-validating sensors + grounded context (generate → verify → trust)
 
 > Makes the auto-generation layer honest: an auto-artifact is trusted only after it passes a

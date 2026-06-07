@@ -8,6 +8,7 @@ import {
   extractSensorExamples,
   findProjectRoot,
   isRetiredMemory,
+  judgeProposedSensor,
   loadConfig,
   loadMemoriesFromDir,
   recordPreventionHits,
@@ -20,6 +21,7 @@ import {
   serializeMemory,
   type CommandSensorSpec,
   type Memory,
+  type Sensor,
   type SensorTarget,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
@@ -48,6 +50,17 @@ interface SensorsPromoteOptions {
   severity?: "warn" | "block";
   yes?: boolean;
   force?: boolean;
+  dir?: string;
+}
+
+interface SensorsProposeOptions {
+  pattern: string;
+  absent?: string;
+  badExample?: string;
+  severity?: string;
+  message?: string;
+  flags?: string;
+  paths?: string;
   dir?: string;
 }
 
@@ -279,6 +292,87 @@ export function registerSensors(program: Command): void {
     });
 
   sensors
+    .command("propose")
+    .description(
+      "Propose a discriminating sensor for a memory — you write the pattern, hAIve validates it before\n" +
+      "  trusting it to block. Mirrors the MCP `propose_sensor` tool (the agent-authored path).\n\n" +
+      "  A `block` proposal is accepted ONLY if it is not brittle, stays SILENT on the current code,\n" +
+      "  and FIRES on the bad example. Rejected proposals are not written — fix and re-run.\n\n" +
+      "  Example:\n" +
+      "    haive sensors propose <memory-id> \\\n" +
+      "      --pattern 'stripe\\.paymentIntents\\.create' --absent 'idempotencyKey' \\\n" +
+      "      --bad-example 'stripe.paymentIntents.create({ amount })'",
+    )
+    .argument("<memory-id>", "memory id to attach the sensor to")
+    .requiredOption("--pattern <regex>", "regex matching the FAULTY usage")
+    .option("--absent <regex>", "regex for the CORRECT-usage marker (makes it discriminate)")
+    .option("--bad-example <code>", "a snippet that SHOULD match (else examples are read from the lesson)")
+    .option("--severity <severity>", "block | warn", "block")
+    .option("--message <text>", "fix message shown when it fires")
+    .option("--flags <flags>", "regex flags (e.g. i)")
+    .option("--paths <csv>", "override scope paths (defaults to the memory anchors)")
+    .option("-d, --dir <dir>", "project root")
+    .action(async (id: string, opts: SensorsProposeOptions) => {
+      const severity = opts.severity === "warn" ? "warn" : "block";
+      try { new RegExp(opts.pattern, opts.flags ?? ""); if (opts.absent) new RegExp(opts.absent, opts.flags ?? ""); }
+      catch (err) { ui.error(`Invalid regex: ${String(err)}`); process.exitCode = 1; return; }
+
+      const root = findProjectRoot(opts.dir);
+      const paths = resolveHaivePaths(root);
+      const loaded = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
+      const found = loaded.find(({ memory }) => memory.frontmatter.id === id);
+      if (!found) { ui.error(`No memory found with id ${id}`); process.exitCode = 1; return; }
+
+      const anchorPaths = opts.paths
+        ? opts.paths.split(",").map((s) => s.trim()).filter(Boolean)
+        : found.memory.frontmatter.anchor.paths;
+      const currentTargets: SensorTarget[] = [];
+      for (const rel of anchorPaths) {
+        const abs = path.resolve(root, rel);
+        if (!existsSync(abs)) continue;
+        try { currentTargets.push({ path: rel, content: await readFile(abs, "utf8") }); } catch { /* skip */ }
+      }
+      const badExamples = [
+        ...(opts.badExample ? [opts.badExample] : []),
+        ...extractSensorExamples(found.memory.body),
+      ];
+
+      const sensor: Sensor = {
+        kind: "regex",
+        pattern: opts.pattern,
+        ...(opts.absent ? { absent: opts.absent } : {}),
+        ...(opts.flags ? { flags: opts.flags } : {}),
+        paths: anchorPaths,
+        message: opts.message?.trim() || deriveProposedMessage(found.memory.body, opts.pattern, opts.absent),
+        severity,
+        autogen: false,
+        last_fired: null,
+      };
+
+      const verdict = judgeProposedSensor(sensor, { currentTargets, badExamples });
+      if (!verdict.accepted) {
+        ui.error(`Rejected (${verdict.reason}).`);
+        if (verdict.reason === "fires-on-current") {
+          ui.warn(`Fires on the CURRENT correct code in: ${verdict.self_check.fired_on.join(", ")}. Add/tighten --absent, then re-run.`);
+        } else if (verdict.reason === "missed-bad-example") {
+          ui.warn("Did not match the bad example — the pattern won't catch the mistake. Adjust --pattern, then re-run.");
+        } else if (verdict.reason === "brittle") {
+          ui.warn(`Pattern is brittle (${verdict.brittle}). Use a durable pattern, then re-run.`);
+        }
+        process.exitCode = 1;
+        return;
+      }
+
+      await writeFile(found.filePath, serializeMemory({ frontmatter: { ...found.memory.frontmatter, sensor }, body: found.memory.body }), "utf8");
+      ui.success(`Sensor accepted (${severity}) on ${id}`);
+      ui.info(`pattern=${JSON.stringify(opts.pattern)}${opts.absent ? `  absent=${JSON.stringify(opts.absent)}` : ""}`);
+      ui.info(
+        `self-check: silent on current=${verdict.self_check.silent_on_current}` +
+        (verdict.self_check.fires_on_bad === null ? "; no bad example tested" : `; fires on bad=${verdict.self_check.fires_on_bad}`),
+      );
+    });
+
+  sensors
     .command("export")
     .description("Export regex sensors into .ai/generated for external toolchains")
     .option("--format <format>", "grep | eslint", "grep")
@@ -302,6 +396,20 @@ export function registerSensors(program: Command): void {
       if (format === "grep") await chmod(outPath, 0o755);
       ui.success(`Exported ${rows.length} sensor(s): ${path.relative(root, outPath)}`);
     });
+}
+
+/** Default sensor message for a CLI-proposed sensor when --message is omitted. */
+function deriveProposedMessage(body: string, pattern: string, absent?: string): string {
+  const instead = body.match(/\*\*Instead,\s*use:\*\*\s*([^\n]+)/i)?.[1]?.trim();
+  if (absent) {
+    const base = `${pattern} without ${absent}`;
+    return instead ? `${base} — ${instead}` : `${base} — add the required companion.`;
+  }
+  const heading = body
+    .split("\n")
+    .map((l) => l.replace(/^#+\s*/, "").trim())
+    .find((l) => l.length > 0 && !l.startsWith("---"));
+  return heading?.slice(0, 180) || `Avoid ${pattern}.`;
 }
 
 async function sensorRows(paths: ReturnType<typeof resolveHaivePaths>) {

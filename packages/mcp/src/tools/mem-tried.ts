@@ -43,7 +43,7 @@ export interface MemTriedOutput {
   file_path: string;
   /** True when a regex sensor was auto-generated → the loop can close (gate will block the repeat). */
   sensor_generated: boolean;
-  /** Present only when no sensor was generated: tells the agent the loop stays OPEN and how to close it. */
+  /** Next-step guidance: how to close the loop, or how to upgrade the warn sensor into a reliable block. */
   hint?: string;
 }
 
@@ -100,10 +100,10 @@ export async function memTried(
   // token was found. Surface that explicitly so the agent knows the lesson is advisory-only, not enforced.
   const sensorGenerated = Boolean(sensor);
   const hint = sensorGenerated
-    ? undefined
+    ? "A heuristic warn sensor was auto-suggested. For a RELIABLE block, call propose_sensor with a discriminating pattern (pattern = the faulty usage, absent = the correct-usage marker) — you understand the code; hAIve validates the proposal (silent on current code, fires on the bad example) before trusting it to block."
     : input.paths.length === 0
-      ? "No sensor was generated (no `paths` given), so this lesson is feedforward-only — it will be briefed but the gate cannot block the repeat. Re-run with `paths` set to the file(s) where the mistake lives to close the loop."
-      : "No sensor could be derived from the wording (no distinctive code token). The lesson is briefed but not enforced; add a concrete forbidden token/value, or attach a sensor manually, to make the gate block the repeat.";
+      ? "No sensor was generated (no `paths` given), so this lesson is feedforward-only — it will be briefed but the gate cannot block the repeat. Re-run with `paths` set to the file(s) where the mistake lives, then call propose_sensor to close the loop."
+      : "No sensor could be derived from the wording. Call propose_sensor with a discriminating pattern (pattern = faulty usage, absent = correct-usage marker) to make the gate block the repeat.";
 
   return {
     id: frontmatter.id,
