@@ -5,6 +5,7 @@ import path from "node:path";
 import { Command } from "commander";
 import {
   buildFrontmatter,
+  suggestSensorSeed,
   findProjectRoot,
   inferModulesFromPaths,
   loadConfig,
@@ -12,7 +13,6 @@ import {
   memoryFilePath,
   resolveHaivePaths,
   serializeMemory,
-  suggestSensorFromMemory,
   type MemoryFrontmatter,
   type MemoryScope,
   type MemoryType,
@@ -182,14 +182,10 @@ export function registerMemoryAdd(memory: Command): void {
               symbols: parseCsv(opts.symbols).length ? parseCsv(opts.symbols) : fm.anchor.symbols,
             },
           };
-          const suggestedSensor = !newFrontmatter.sensor
-            ? suggestSensorForCliMemory(opts.type, body, newFrontmatter.anchor.paths)
-            : null;
-          if (suggestedSensor) newFrontmatter.sensor = suggestedSensor;
           await writeFile(topicMatch.filePath, serializeMemory({ frontmatter: newFrontmatter, body }), "utf8");
           ui.success(`Updated (topic upsert) ${path.relative(root, topicMatch.filePath)}`);
           ui.info(`id=${fm.id}  revision=${revisionCount}`);
-          if (suggestedSensor) ui.info(`sensor=regex warn autogen pattern=${JSON.stringify(suggestedSensor.pattern)}`);
+          printSensorLoopHint(opts.type, body, newFrontmatter.anchor.paths, Boolean(newFrontmatter.sensor));
           await runPostMemoryAutopilot(root, paths, config);
           return;
         }
@@ -208,7 +204,6 @@ export function registerMemoryAdd(memory: Command): void {
         commit: opts.commit,
         topic: opts.topic,
         status: config.defaultStatus === "validated" ? "validated" : undefined,
-        sensor: suggestSensorForCliMemory(opts.type, body, anchorPaths) ?? undefined,
         activation,
       });
 
@@ -241,9 +236,7 @@ export function registerMemoryAdd(memory: Command): void {
       await writeFile(file, serializeMemory({ frontmatter, body }), "utf8");
       ui.success(`Created ${path.relative(root, file)}`);
       ui.info(`id=${frontmatter.id}  scope=${frontmatter.scope}  status=${frontmatter.status}`);
-      if (frontmatter.sensor?.autogen) {
-        ui.info(`sensor=regex warn autogen pattern=${JSON.stringify(frontmatter.sensor.pattern)}`);
-      }
+      printSensorLoopHint(opts.type, body, anchorPaths, Boolean(frontmatter.sensor));
       await runPostMemoryAutopilot(root, paths, config);
       if (inferredTags.length > 0) {
         ui.info(`auto-tagged: ${inferredTags.join(", ")}  (use --no-auto-tag to disable)`);
@@ -303,13 +296,40 @@ function parseCsv(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
-function suggestSensorForCliMemory(
+/**
+ * A gotcha/attempt no longer auto-writes a heuristic warn sensor. It closes its prevention loop only
+ * once a sensor is VALIDATED via propose_sensor. Print whether the loop is open and, when a candidate
+ * can be derived, a SEED to pre-fill that proposal. (Skip when the memory already carries a sensor.)
+ */
+function printSensorLoopHint(
   type: MemoryType,
   body: string,
   anchorPaths: string[],
-) {
-  if (type !== "gotcha" && type !== "attempt") return null;
-  return suggestSensorFromMemory(body, anchorPaths);
+  hasSensor: boolean,
+): void {
+  if (hasSensor) return;
+  if (type !== "gotcha" && type !== "attempt") return;
+  if (anchorPaths.length === 0) {
+    ui.warn(
+      "No --paths given — lesson is briefed but NOT enforced. Add --paths to the file(s) where the " +
+      "mistake lives, then call propose_sensor (MCP) to close the loop.",
+    );
+    return;
+  }
+  const seed = suggestSensorSeed(body, anchorPaths);
+  if (seed) {
+    ui.warn("Lesson NOT yet enforced — close the loop with a validated sensor via propose_sensor (MCP).");
+    ui.info(
+      `  candidate pattern=${JSON.stringify(seed.pattern)}` +
+      (seed.absent ? `  absent=${JSON.stringify(seed.absent)}` : "") +
+      "  — refine, then validate (silent on current code, fires on the bad example).",
+    );
+  } else {
+    ui.warn(
+      "Lesson NOT yet enforced and no candidate pattern could be derived from the wording. Author a " +
+      "discriminating sensor (pattern = faulty usage, absent = correct-usage marker) via propose_sensor.",
+    );
+  }
 }
 
 function normalizeBody(rawBody: string, title: string, titleExplicit: boolean): string {

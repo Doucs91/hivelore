@@ -215,3 +215,5 @@
 {"tool":"mem_save","at":"2026-06-07T18:50:19.687Z","summary":"autogen-sensor-inverted-when-companion-longer-than-call"}
 {"tool":"mem_save","at":"2026-06-07T20:14:58.043Z","summary":"first-agent-bootstrap-gate"}
 {"tool":"mem_save","at":"2026-06-07T23:04:51.819Z","summary":"vscode-cli-calls-through-runhaive"}
+{"tool":"get_briefing","at":"2026-06-08T13:06:49.492Z","summary":"Replace heuristic sensor autogen with the LLM-validated propose_sensor path, and replace the regex code-map parsers with a real AST parser (tree-sitter or TS compiler API). Architecture-level change across core/cli/mcp."}
+{"tool":"mem_save","at":"2026-06-08T13:24:41.315Z","summary":"sensors-seed-not-autogen-propose-sensor-sole-writer"}

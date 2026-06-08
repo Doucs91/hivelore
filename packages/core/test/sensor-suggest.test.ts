@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { suggestSensorFromMemory } from "../src/sensor-suggest.js";
+import { suggestSensorFromMemory, suggestSensorSeed } from "../src/sensor-suggest.js";
+
+describe("suggestSensorSeed — non-persisted candidate for propose_sensor", () => {
+  it("returns a bare seed (pattern/absent/message/paths) with no live-sensor fields", () => {
+    const body = [
+      "# Called stripe.paymentIntents.create without an idempotencyKey option",
+      "",
+      "**Why it failed / do NOT use:** A retried request double-charged the customer.",
+      "",
+      "**Instead, use:** Always pass { idempotencyKey } to paymentIntents.create",
+    ].join("\n");
+    const seed = suggestSensorSeed(body, ["src/payments/stripe.ts"]);
+    expect(seed?.pattern).toContain("paymentIntents");
+    expect(seed?.absent).toBe("idempotencyKey");
+    expect(seed?.paths).toEqual(["src/payments/stripe.ts"]);
+    expect(seed?.message).toMatch(/without idempotencyKey/);
+    // A seed is NOT a Sensor: it must not carry severity/autogen/kind/last_fired.
+    expect(seed as Record<string, unknown>).not.toHaveProperty("severity");
+    expect(seed as Record<string, unknown>).not.toHaveProperty("autogen");
+    expect(seed as Record<string, unknown>).not.toHaveProperty("kind");
+  });
+
+  it("returns null when no anchor paths are given", () => {
+    expect(suggestSensorSeed("# No BigInt\n\n`BigInt` broke serialization.", [])).toBeNull();
+  });
+});
 
 describe("suggestSensorFromMemory", () => {
   it("suggests a conservative warn regex sensor for anchored attempts", () => {

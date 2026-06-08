@@ -8,7 +8,8 @@ import {
   loadMemoriesFromDir,
   memoryFilePath,
   serializeMemory,
-  suggestSensorFromMemory,
+  suggestSensorSeed,
+  type Sensor,
 } from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
@@ -91,7 +92,67 @@ export interface MemSaveOutput {
   /** High textual overlap with existing memory (same scope+type); consider merging instead. */
   body_similar?: { id: string; score: number };
   invalid_paths?: string[];
-  suggested_sensor?: boolean;
+  /**
+   * A gotcha/attempt anchored to code only CLOSES its prevention loop (the gate can block the repeat)
+   * once a sensor is VALIDATED via propose_sensor. True until then — the lesson is briefed but not enforced.
+   */
+  loop_open?: boolean;
+  /**
+   * Heuristic candidate to PRE-FILL a propose_sensor call (refine, then call it). The agent owns the
+   * final pattern — this is a starting point, never a persisted sensor.
+   */
+  proposed_sensor_seed?: { pattern: string; absent?: string; message: string };
+  /** Directive describing how to close the loop (call propose_sensor). */
+  sensor_hint?: string;
+}
+
+/**
+ * Replace the old "auto-write a heuristic warn sensor" behavior: a saved gotcha/attempt no longer
+ * persists a sensor. Instead we report whether the prevention loop is still open and, when possible,
+ * a SEED to pre-fill propose_sensor — which validates the pattern (silent on current code, fires on
+ * the bad example) before it is trusted. propose_sensor is now the sole writer of live sensors.
+ */
+function sensorLoopState(
+  type: string,
+  body: string,
+  paths: string[],
+  existingSensor: Sensor | undefined,
+): Pick<MemSaveOutput, "loop_open" | "proposed_sensor_seed" | "sensor_hint"> {
+  if (type !== "gotcha" && type !== "attempt") return {};
+  // Already protected by a sensor (validated via propose_sensor, or a legacy one) → loop closed.
+  if (existingSensor) return {};
+  if (paths.length === 0) {
+    return {
+      loop_open: true,
+      sensor_hint:
+        "No `paths` given, so this lesson is feedforward-only — it will be briefed but the gate cannot " +
+        "block the repeat. Re-save with `paths` set to the file(s) where the mistake lives, then call " +
+        "propose_sensor to close the loop.",
+    };
+  }
+  const seed = suggestSensorSeed(body, paths);
+  if (seed) {
+    return {
+      loop_open: true,
+      proposed_sensor_seed: {
+        pattern: seed.pattern,
+        ...(seed.absent ? { absent: seed.absent } : {}),
+        message: seed.message,
+      },
+      sensor_hint:
+        "This lesson is NOT yet enforced. Call propose_sensor to turn it into a reliable block — a " +
+        "candidate is pre-filled in proposed_sensor_seed (refine it: pattern = the faulty usage, " +
+        "absent = the correct-usage marker). hAIve validates the proposal (silent on current code, " +
+        "fires on the bad example) before trusting it to block.",
+    };
+  }
+  return {
+    loop_open: true,
+    sensor_hint:
+      "This lesson is NOT yet enforced and no candidate pattern could be derived from the wording. Call " +
+      "propose_sensor with a discriminating pattern (pattern = faulty usage, absent = correct-usage " +
+      "marker) to close the loop.",
+  };
 }
 
 function bodyHash(body: string): string {
@@ -211,10 +272,6 @@ export async function memSave(
           symbols: input.symbols.length ? input.symbols : fm.anchor.symbols,
         },
       };
-      const suggestedSensor = !newFrontmatter.sensor
-        ? suggestSensorForSavedMemory(input.type, input.body, newFrontmatter.anchor.paths)
-        : null;
-      if (suggestedSensor) newFrontmatter.sensor = suggestedSensor;
       await writeFile(
         topicMatch.filePath,
         serializeMemory({ frontmatter: newFrontmatter, body: input.body }),
@@ -230,6 +287,8 @@ export async function memSave(
         .filter(Boolean)
         .join(" — ") || undefined;
 
+      const sensorState = sensorLoopState(input.type, input.body, newFrontmatter.anchor.paths, newFrontmatter.sensor);
+
       return {
         id: fm.id,
         scope: fm.scope,
@@ -239,7 +298,7 @@ export async function memSave(
         ...(mergedTw ? { warning: mergedTw } : {}),
         ...(bs ? { body_similar: bs } : {}),
         ...(invalidPaths.length > 0 ? { invalid_paths: invalidPaths } : {}),
-        ...(suggestedSensor ? { suggested_sensor: true } : {}),
+        ...sensorState,
       };
     }
   }
@@ -260,7 +319,6 @@ export async function memSave(
     commit: input.commit,
     topic: input.topic,
     status: haiveConfig.defaultStatus === "validated" ? "validated" : undefined,
-    sensor: suggestSensorForSavedMemory(input.type, input.body, input.paths) ?? undefined,
     activation: input.type === "skill" ? input.activation : undefined,
   });
 
@@ -317,17 +375,8 @@ export async function memSave(
     ...(similar_found ? { similar_found } : {}),
     ...(bsNew ? { body_similar: bsNew } : {}),
     ...(invalidPaths.length > 0 ? { invalid_paths: invalidPaths } : {}),
-    ...(frontmatter.sensor?.autogen ? { suggested_sensor: true } : {}),
+    ...sensorLoopState(input.type, input.body, input.paths, frontmatter.sensor),
   };
-}
-
-function suggestSensorForSavedMemory(
-  type: string,
-  body: string,
-  paths: string[],
-) {
-  if (type !== "gotcha" && type !== "attempt") return null;
-  return suggestSensorFromMemory(body, paths);
 }
 
 function criticalAnchorWarning(

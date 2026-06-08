@@ -571,6 +571,14 @@ describe("hAIve CLI integration", () => {
     const sensorFile = files.find((file) => file.includes("enabling-open-in-view"));
     expect(sensorFile).toBeDefined();
     const id = sensorFile!.replace(/\.md$/, "");
+    // The CLI no longer auto-writes a heuristic sensor on `memory tried`; author a validated warn
+    // sensor through the propose path (the CLI mirror of MCP propose_sensor) before promoting it.
+    await run(workDir, [
+      "sensors", "propose", id,
+      "--pattern", "open-in-view\\s*=\\s*[\"']?true[\"']?",
+      "--severity", "warn",
+      "--dir", workDir,
+    ]);
     let content = await readFile(path.join(teamDir, sensorFile!), "utf8");
     expect(content).toContain("sensor:");
     expect(content).toContain("severity: warn");
@@ -606,6 +614,13 @@ describe("hAIve CLI integration", () => {
       ]);
       const teamFiles = await readdir(path.join(repo, ".ai/memories/team"));
       const sensorId = teamFiles.find((file) => file.includes("bad-feature-flag"))!.replace(/\.md$/, "");
+      // The CLI no longer auto-writes a sensor; author a validated one via the propose path.
+      await run(repo, [
+        "sensors", "propose", sensorId,
+        "--pattern", "open-in-view\\s*=\\s*[\"']?true[\"']?",
+        "--severity", "warn",
+        "--dir", repo,
+      ]);
       await mkdir(path.join(repo, ".ai/eval"), { recursive: true });
       await writeFile(
         path.join(repo, ".ai/eval/spec.json"),

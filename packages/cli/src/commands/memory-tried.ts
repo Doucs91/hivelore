@@ -8,7 +8,7 @@ import {
   memoryFilePath,
   resolveHaivePaths,
   serializeMemory,
-  suggestSensorFromMemory,
+  suggestSensorSeed,
   type MemoryScope,
 } from "@hiveai/core";
 import { ui } from "../utils/ui.js";
@@ -86,10 +86,6 @@ export function registerMemoryTried(memory: Command): void {
         lines.push("", `**Instead, use:** ${opts.instead}`);
       }
       const body = lines.join("\n") + "\n";
-      const sensor = suggestSensorFromMemory(body, frontmatter.anchor.paths);
-      if (sensor) {
-        frontmatter.sensor = sensor;
-      }
 
       const file = memoryFilePath(paths, frontmatter.scope, frontmatter.id, frontmatter.module);
       await mkdir(path.dirname(file), { recursive: true });
@@ -103,14 +99,22 @@ export function registerMemoryTried(memory: Command): void {
       await writeFile(file, serializeMemory({ frontmatter, body }), "utf8");
       ui.success(`Recorded: ${path.relative(root, file)}`);
       ui.info(`id=${frontmatter.id}  type=attempt  status=validated (auto-approved)`);
-      if (sensor) {
-        ui.info(`sensor=regex warn autogen pattern=${JSON.stringify(sensor.pattern)}`);
+      // A captured attempt closes its loop only once a sensor is VALIDATED via propose_sensor. We no
+      // longer auto-write a heuristic warn sensor; surface a candidate SEED (when derivable) instead.
+      const seed = frontmatter.anchor.paths.length > 0 ? suggestSensorSeed(body, frontmatter.anchor.paths) : null;
+      if (frontmatter.anchor.paths.length === 0) {
+        ui.warn("No --paths — lesson is briefed but NOT enforced. Add --paths, then call propose_sensor (MCP) to close the loop.");
+      } else if (seed) {
+        ui.warn("Lesson NOT yet enforced — close the loop with a validated sensor via propose_sensor (MCP).");
+        ui.info(
+          `  candidate pattern=${JSON.stringify(seed.pattern)}` +
+          (seed.absent ? `  absent=${JSON.stringify(seed.absent)}` : "") +
+          "  — refine, then validate (silent on current code, fires on the bad example).",
+        );
       } else {
-        // Ratchet visibility: no sensor → the loop stays open (feedforward-only, the gate can't block the repeat).
         ui.warn(
-          frontmatter.anchor.paths.length === 0
-            ? "No sensor generated (no --paths) — lesson is briefed but NOT enforced. Add --paths to close the loop."
-            : "No sensor could be derived from the wording — lesson is briefed but NOT enforced. Use a concrete forbidden token to enable a gate block.",
+          "Lesson NOT yet enforced and no candidate pattern could be derived. Author a discriminating " +
+          "sensor (pattern = faulty usage, absent = correct-usage marker) via propose_sensor.",
         );
       }
     });
