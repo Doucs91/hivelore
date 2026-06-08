@@ -206,6 +206,8 @@ export function registerMemoryAdd(memory: Command): void {
         status: config.defaultStatus === "validated" ? "validated" : undefined,
         activation,
       });
+      // Created already-validated by config (defaultStatus), not by explicit review → mark "auto".
+      if (frontmatter.status === "validated") frontmatter.validated_by = "auto";
 
       const file = memoryFilePath(paths, frontmatter.scope, frontmatter.id, frontmatter.module);
       await mkdir(path.dirname(file), { recursive: true });

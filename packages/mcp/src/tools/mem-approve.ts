@@ -35,7 +35,8 @@ export async function memApprove(
 
   const previous = found.memory.frontmatter.status;
   const next = {
-    frontmatter: { ...found.memory.frontmatter, status: "validated" as const },
+    // MCP is the agent surface → record AI provenance so a human can tell it from human-approved knowledge.
+    frontmatter: { ...found.memory.frontmatter, status: "validated" as const, validated_by: "agent" as const },
     body: found.memory.body,
   };
   await writeFile(found.filePath, serializeMemory(next), "utf8");

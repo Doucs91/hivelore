@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { runHaive } from "./harnessHealth.js";
+import { InfoItem, VIEW_ROLES } from "./infoNode.js";
 
 type Severity = "error" | "warn" | "info";
 
@@ -195,8 +196,8 @@ export class ObservabilityItem extends vscode.TreeItem {
   children?: ObservabilityItem[];
 }
 
-export class ObservabilityProvider implements vscode.TreeDataProvider<ObservabilityItem> {
-  private readonly _onDidChangeTreeData = new vscode.EventEmitter<ObservabilityItem | undefined | null | void>();
+export class ObservabilityProvider implements vscode.TreeDataProvider<ObservabilityItem | InfoItem> {
+  private readonly _onDidChangeTreeData = new vscode.EventEmitter<ObservabilityItem | InfoItem | undefined | null | void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private snapshot: ObservabilitySnapshot | null = null;
@@ -254,16 +255,20 @@ export class ObservabilityProvider implements vscode.TreeDataProvider<Observabil
     return element;
   }
 
-  getChildren(element?: ObservabilityItem): ObservabilityItem[] {
-    if (element?.children) return element.children;
+  getChildren(element?: ObservabilityItem | InfoItem): (ObservabilityItem | InfoItem)[] {
+    if (element instanceof ObservabilityItem && element.children) return element.children;
     if (element) return [];
 
     if (this.loading) {
       return [new ObservabilityItem("Loading hAIve observability...", { icon: "loading~spin" })];
     }
 
+    const r = this.mode === "cockpit" ? VIEW_ROLES.cockpit : VIEW_ROLES.inbox;
+    const info = new InfoItem(this.mode === "cockpit" ? "Strategic Cockpit" : "Discipline Inbox", r.oneLiner, r.role);
+
     if (!this.snapshot) {
       return [
+        info,
         new ObservabilityItem(this.mode === "cockpit" ? "Run strategic check" : "Build discipline inbox", {
           icon: "play",
           command: {
@@ -274,9 +279,8 @@ export class ObservabilityProvider implements vscode.TreeDataProvider<Observabil
       ];
     }
 
-    return this.mode === "cockpit"
-      ? buildCockpitItems(this.snapshot)
-      : buildInboxItems(this.snapshot);
+    const items = this.mode === "cockpit" ? buildCockpitItems(this.snapshot) : buildInboxItems(this.snapshot);
+    return [info, ...items];
   }
 
   private async readEval(): Promise<EvalJson | { error: string } | null> {

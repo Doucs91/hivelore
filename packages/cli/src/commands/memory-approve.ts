@@ -48,7 +48,8 @@ export function registerMemoryApprove(memory: Command): void {
         let count = 0;
         for (const found of candidates) {
           const next = {
-            frontmatter: { ...found.memory.frontmatter, status: "validated" as const },
+            // CLI approval is the human surface → record human provenance.
+            frontmatter: { ...found.memory.frontmatter, status: "validated" as const, validated_by: "human" as const },
             body: found.memory.body,
           };
           await writeFile(found.filePath, serializeMemory(next), "utf8");
@@ -82,11 +83,11 @@ export function registerMemoryApprove(memory: Command): void {
       }
 
       const next = {
-        frontmatter: { ...found.memory.frontmatter, status: "validated" as const },
+        frontmatter: { ...found.memory.frontmatter, status: "validated" as const, validated_by: "human" as const },
         body: found.memory.body,
       };
       await writeFile(found.filePath, serializeMemory(next), "utf8");
-      ui.success(`Approved ${id} (status=validated)`);
+      ui.success(`Approved ${id} (status=validated, by=human)`);
       ui.info(path.relative(root, found.filePath));
     });
 }

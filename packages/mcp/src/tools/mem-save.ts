@@ -321,6 +321,8 @@ export async function memSave(
     status: haiveConfig.defaultStatus === "validated" ? "validated" : undefined,
     activation: input.type === "skill" ? input.activation : undefined,
   });
+  // Created already-validated by config (defaultStatus), not by explicit review → mark "auto".
+  if (frontmatter.status === "validated") frontmatter.validated_by = "auto";
 
   const file = memoryFilePath(
     ctx.paths,

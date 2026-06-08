@@ -106,6 +106,21 @@ body`;
     expect(parsed.frontmatter.tags).toEqual([]);
     expect(parsed.frontmatter.anchor.paths).toEqual([]);
     expect(parsed.frontmatter.expires_when).toBeNull();
+    // Provenance defaults to null on legacy memories that predate the field.
+    expect(parsed.frontmatter.validated_by).toBeNull();
+  });
+
+  it("round-trips validated_by provenance and rejects unknown values", () => {
+    const human = parseMemory(
+      "---\nid: 2026-06-08-decision-x\ntype: decision\ncreated_at: 2026-06-08T10:00:00.000Z\nstatus: validated\nvalidated_by: human\n---\nbody",
+    );
+    expect(human.frontmatter.validated_by).toBe("human");
+    expect(serializeMemory(human)).toContain("validated_by: human");
+    expect(() =>
+      parseMemory(
+        "---\nid: 2026-06-08-decision-y\ntype: decision\ncreated_at: 2026-06-08T10:00:00.000Z\nvalidated_by: robot\n---\nbody",
+      ),
+    ).toThrow();
   });
 });
 

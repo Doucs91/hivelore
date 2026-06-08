@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as cp from "child_process";
+import { InfoItem, VIEW_ROLES } from "./infoNode.js";
 
 export interface DoctorScores {
   protection_score: number;
@@ -158,6 +159,7 @@ export class HarnessHealthProvider implements vscode.TreeDataProvider<HealthItem
 
     const { scores, findings } = this.result;
     const items: HealthItem[] = [
+      new InfoItem("Harness Health", VIEW_ROLES.harness.oneLiner, VIEW_ROLES.harness.role) as HealthItem,
       new ScoreItem("Protection", scores.protection_score),
       new ScoreItem("Context Quality", scores.context_quality_score),
       new ScoreItem("Corpus Quality", scores.corpus_quality_score),

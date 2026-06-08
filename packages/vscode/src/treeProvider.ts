@@ -1,6 +1,26 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import type { Memory, MemoryStore } from "./memoryReader.js";
+import { InfoItem, VIEW_ROLES } from "./infoNode.js";
+
+// What each group/section in the Context Policy view is for — shown on hover (role tooltip).
+const GROUP_ROLE: Record<string, string> = {
+  action_required:
+    "Flagged `requires_human_approval` — the AI must NOT act on these alone. You confirm first (e.g. cross-repo breaking changes, dependency bumps).",
+  skill: "Reusable playbooks the agent should follow for recurring tasks (feedforward harness guides).",
+  pending: "Draft/proposed memories awaiting validation. Approve the good ones; reject the noise.",
+  seeds:
+    "Generic stack-pack seeds not yet anchored to your code — background priority until you curate them (anchor to a file or rewrite as a repo-specific note).",
+  "ai-validated":
+    "Validated by an AI agent (🤖) or an automatic rule (⚙), **not** by a human. Skim to confirm the knowledge is correct — auto-trust is not the same as reviewed.",
+  file: "Memories anchored to the file currently open in the editor.",
+  architecture: "Big-picture structure & boundaries — how the system fits together.",
+  convention: "How things are done here — patterns to follow for consistency.",
+  decision: "Choices made and the rationale (the why), so they aren't relitigated.",
+  gotcha: "Traps and surprising behaviors to avoid; each can carry a sensor that blocks the repeat.",
+  glossary: "Domain terms and what they mean in this codebase.",
+  attempt: "Approaches that failed and what to do instead — so the mistake isn't retried.",
+};
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -48,7 +68,12 @@ export class GroupItem extends vscode.TreeItem {
     this.contextValue = "group";
     if (icon) this.iconPath = new vscode.ThemeIcon(icon);
     this.description = `${memories.length}`;
-    this.tooltip = `${memories.length} ${memories.length === 1 ? "memory" : "memories"}`;
+    const count = `${memories.length} ${memories.length === 1 ? "memory" : "memories"}`;
+    const role = GROUP_ROLE[groupKey];
+    // Role tooltip: explain what this section is for, then the count.
+    this.tooltip = role
+      ? new vscode.MarkdownString(`**${label.trim()}**\n\n${role}\n\n_${count}_`)
+      : count;
   }
 }
 
@@ -62,13 +87,25 @@ export class MemoryItem extends vscode.TreeItem {
 
     const statusBadge = STATUS_BADGE[memory.status] ?? ` [${memory.status}]`;
     const seedBadge = needsCuration ? " 🌱 seed" : "";
-    this.description = `${memory.scope}${statusBadge}${seedBadge}`;
+    // Validation provenance: ✋ human-reviewed · 🤖 AI-approved · ⚙ auto (unreviewed).
+    const PROV_INLINE: Record<string, string> = { human: " ✋", agent: " 🤖", auto: " ⚙" };
+    const provBadge =
+      memory.status === "validated" && memory.validatedBy ? (PROV_INLINE[memory.validatedBy] ?? "") : "";
+    this.description = `${memory.scope}${statusBadge}${seedBadge}${provBadge}`;
 
     // Rich tooltip
     const lines: string[] = [
       `**${memory.type}** · ${memory.scope} · ${memory.status}`,
       "",
     ];
+    if (memory.status === "validated" && memory.validatedBy) {
+      const PROV_LABEL: Record<string, string> = {
+        human: "✋ human (reviewed)",
+        agent: "🤖 AI agent",
+        auto: "⚙ auto-rule — not human-reviewed",
+      };
+      lines.push(`Validated by: ${PROV_LABEL[memory.validatedBy] ?? memory.validatedBy}`, "");
+    }
     if (needsCuration) {
       lines.push(
         "🌱 _Generic stack-pack seed, not yet anchored._ Anchor it to a real file or replace it with a repo-specific note to raise it above background priority.",
@@ -107,11 +144,13 @@ export class MemoryItem extends vscode.TreeItem {
 
 // ── Provider ─────────────────────────────────────────────────────────────────
 
+type TreeNode = GroupItem | MemoryItem | InfoItem;
+
 export class HaiveTreeProvider
-  implements vscode.TreeDataProvider<GroupItem | MemoryItem>
+  implements vscode.TreeDataProvider<TreeNode>
 {
   private readonly _onDidChangeTreeData = new vscode.EventEmitter<
-    GroupItem | MemoryItem | undefined | null | void
+    TreeNode | undefined | null | void
   >();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -133,12 +172,12 @@ export class HaiveTreeProvider
     this.refresh();
   }
 
-  getTreeItem(element: GroupItem | MemoryItem): vscode.TreeItem {
+  getTreeItem(element: TreeNode): vscode.TreeItem {
     return element;
   }
 
-  getChildren(element?: GroupItem | MemoryItem): (GroupItem | MemoryItem)[] {
-    if (element instanceof MemoryItem) return [];
+  getChildren(element?: TreeNode): TreeNode[] {
+    if (element instanceof MemoryItem || element instanceof InfoItem) return [];
 
     if (element instanceof GroupItem) {
       return element.memories.map((m) => new MemoryItem(m));
@@ -177,6 +216,14 @@ export class HaiveTreeProvider
       groups.push(
         new GroupItem("🌱  Seeds — needs curation", seeds, "seeds", "sparkle", true),
       );
+    }
+
+    // ── AI-validated — review? (trusted by an agent or an auto-rule, not a human) ──
+    const aiValidated = all.filter(
+      (m) => m.status === "validated" && (m.validatedBy === "agent" || m.validatedBy === "auto"),
+    );
+    if (aiValidated.length > 0) {
+      groups.push(new GroupItem("🤖  AI-validated — review?", aiValidated, "ai-validated", "hubot", true));
     }
 
     // ── This File ──────────────────────────────────────────────────────────
@@ -229,6 +276,8 @@ export class HaiveTreeProvider
       }
     }
 
-    return groups;
+    // Lead with the self-describing info row so the section's purpose is one hover away.
+    const info = new InfoItem("Context Policy", VIEW_ROLES.memories.oneLiner, VIEW_ROLES.memories.role);
+    return [info, ...groups];
   }
 }

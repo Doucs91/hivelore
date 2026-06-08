@@ -118,7 +118,10 @@ export async function handoffAgeMs(root: string, now: Date = new Date()): Promis
   if (!existsSync(file)) return null;
   try {
     const s = await stat(file);
-    return now.getTime() - s.mtimeMs;
+    // An age is a duration — clamp to 0. The filesystem mtime can read a hair AHEAD of `now`
+    // (sub-millisecond clock skew / timestamp rounding), which otherwise yields a spurious
+    // negative age and a flaky `age >= 0` assertion right after writing the file.
+    return Math.max(0, now.getTime() - s.mtimeMs);
   } catch {
     return null;
   }

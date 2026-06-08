@@ -72,8 +72,14 @@ export function registerMemoryList(memory: Command): void {
         const tagStr = fm.tags.length ? ui.dim(` [${fm.tags.join(", ")}]`) : "";
         const moduleStr = fm.module ? ui.dim(` (${fm.module})`) : "";
         const statusBadge = ui.statusBadge(fm.status);
+        // Provenance of validation: who/what trusted this memory (human review vs AI vs auto-rule).
+        const provLabel: Record<string, string> = { human: "✋ human", agent: "🤖 AI", auto: "⚙ auto" };
+        const provStr =
+          fm.status === "validated" && fm.validated_by
+            ? ui.dim(` · ${provLabel[fm.validated_by] ?? fm.validated_by}`)
+            : "";
         console.log(
-          `${ui.bold(fm.id)} ${ui.dim(fm.scope)}/${ui.dim(fm.type)} ${statusBadge}${moduleStr}${tagStr}`,
+          `${ui.bold(fm.id)} ${ui.dim(fm.scope)}/${ui.dim(fm.type)} ${statusBadge}${provStr}${moduleStr}${tagStr}`,
         );
         const title = mem.body.match(/^#\s+(.+)$/m)?.[1]?.trim();
         if (title && title !== fm.id) console.log(`  ${title}`);

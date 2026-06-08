@@ -121,6 +121,16 @@ export const MemoryFrontmatterSchema = z
      * Used for cross-repo breaking changes, dependency bumps, contract diffs.
      */
     requires_human_approval: z.boolean().default(false),
+    /**
+     * Provenance of the memory's `validated` status — who/what last trusted it:
+     *   "human"  — a person explicitly approved it (CLI `memory approve`)
+     *   "agent"  — an AI agent explicitly approved it (MCP `mem_approve`)
+     *   "auto"   — an automatic rule trusted it without review (auto-promotion by read
+     *              count/time, or `defaultStatus: validated` on creation)
+     * null when the memory is not yet validated, or on legacy memories written before this field.
+     * Lets a human distinguish reviewed knowledge from AI/auto-trusted knowledge.
+     */
+    validated_by: z.enum(["human", "agent", "auto"]).nullable().default(null),
   })
   .refine(
     (data) => data.scope !== "module" || !!data.module,

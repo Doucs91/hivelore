@@ -69,7 +69,8 @@ export function registerMemoryAutoPromote(memory: Command): void {
         console.log(`             ${ui.dim(path.relative(root, filePath))}`);
         if (opts.apply) {
           const next = {
-            frontmatter: { ...mem.frontmatter, status: "validated" as const },
+            // Usage-driven promotion without review → "auto" provenance.
+            frontmatter: { ...mem.frontmatter, status: "validated" as const, validated_by: "auto" as const },
             body: mem.body,
           };
           await writeFile(filePath, serializeMemory(next), "utf8");

@@ -424,7 +424,8 @@ export async function getBriefing(
         if (!loaded) continue;
         const u = getUsage(freshUsage, m.id);
         if (!isAutoPromoteEligible(loaded.memory.frontmatter, u, rule)) continue;
-        const newFm = { ...loaded.memory.frontmatter, status: "validated" as const };
+        // Auto-promotion trusts a memory WITHOUT review → mark it "auto" so a human can audit it later.
+        const newFm = { ...loaded.memory.frontmatter, status: "validated" as const, validated_by: "auto" as const };
         try {
           await writeFile(loaded.filePath, serializeMemory({ frontmatter: newFm, body: loaded.memory.body }), "utf8");
           m.status = "validated";

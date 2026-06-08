@@ -32,6 +32,8 @@ export interface Memory {
   /** True when this is a generic stack-pack seed (tag `stack-pack`) — background until curated. */
   isSeed: boolean;
   requiresHumanApproval: boolean;
+  /** Who/what last validated this memory: "human" | "agent" | "auto" | null (not validated / legacy). */
+  validatedBy: "human" | "agent" | "auto" | null;
   body: string;
   filePath: string;
   createdAt: string;
@@ -139,6 +141,7 @@ function parseMemoryFile(filePath: string): Memory | null {
     anchored: anchorPaths.length > 0,
     isSeed: tags.includes("stack-pack"),
     requiresHumanApproval: fm["requires_human_approval"] === true,
+    validatedBy: parseValidatedBy(fm["validated_by"]),
     body,
     filePath,
     createdAt: String(fm["created_at"] ?? ""),
@@ -146,6 +149,10 @@ function parseMemoryFile(filePath: string): Memory | null {
     module: fm["module"] ? String(fm["module"]) : undefined,
     domain: fm["domain"] ? String(fm["domain"]) : undefined,
   };
+}
+
+function parseValidatedBy(raw: unknown): "human" | "agent" | "auto" | null {
+  return raw === "human" || raw === "agent" || raw === "auto" ? raw : null;
 }
 
 // ── Directory walker ────────────────────────────────────────────────────────
