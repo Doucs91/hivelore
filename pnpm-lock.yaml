@@ -60,6 +60,9 @@ importers:
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
+      web-tree-sitter:
+        specifier: 0.22.6
+        version: 0.22.6
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -2266,6 +2269,9 @@ packages:
         optional: true
       jsdom:
         optional: true
+
+  web-tree-sitter@0.22.6:
+    resolution: {integrity: sha512-hS87TH71Zd6mGAmYCvlgxeGDjqd9GTeqXNqTT+u0Gs51uIozNIaaq/kUAbV/Zf56jb2ZOyG8BxZs2GG9wbLi6Q==}
 
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
@@ -4480,6 +4486,8 @@ snapshots:
       - sugarss
       - supports-color
       - terser
+
+  web-tree-sitter@0.22.6: {}
 
   whatwg-encoding@3.1.1:
     dependencies:

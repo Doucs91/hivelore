@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import type { HaivePaths } from "./paths.js";
+import { parseFileAst, type AstExport } from "./ast-parser.js";
 
 export const CODE_MAP_FILE = "code-map.json";
 
@@ -104,7 +105,7 @@ export async function buildCodeMap(
     if (rel.startsWith(".ai/")) continue;
     const content = await readFile(abs, "utf8");
     const ext = path.extname(abs).toLowerCase();
-    const entry = parseFile(content, ext);
+    const entry = await parseFileEntry(content, ext);
     if (entry.exports.length > 0) files[rel] = entry;
   }
 
@@ -283,6 +284,40 @@ const GO_DECL_RE = /^func\s+(?:\(\w+\s+\*?[A-Za-z_][\w]*\)\s+)?([A-Za-z_][A-Za-z
 // Rust: pub fn / pub struct / pub enum / pub trait
 const RUST_DECL_RE =
   /^pub(?:\([^)]*\))?\s+(fn|struct|enum|trait|type|const|impl|mod)\s+([A-Za-z_][A-Za-z0-9_]*)/gm;
+
+/**
+ * Parse one file into a code-map entry, preferring a real AST (web-tree-sitter). Falls back to the
+ * legacy regex parser when AST parsing is unavailable (unsupported extension, WASM init failure, or a
+ * grammar that can't load) so indexing never regresses to zero on an environment without the runtime.
+ */
+async function parseFileEntry(source: string, ext: string): Promise<CodeFileEntry> {
+  const ast = await parseFileAst(source, ext);
+  if (ast) return decorateAstEntry(source, ext, ast);
+  return parseFile(source, ext);
+}
+
+/**
+ * Turn AST-extracted symbols (structure only) into a full entry by attaching the same descriptions
+ * (JSDoc-above / Python docstring) and file summary the regex parsers produce — keeping the output
+ * contract byte-stable for the embeddings indexer and symbol lookup.
+ */
+function decorateAstEntry(source: string, ext: string, astExports: AstExport[]): CodeFileEntry {
+  const lines = source.split("\n");
+  const exports: CodeExport[] = astExports.map((e) => {
+    const description =
+      ext === ".py" ? extractPythonDocstring(lines, e.line - 1) : extractJSDocAbove(lines, e.line - 1);
+    return { name: e.name, kind: e.kind, ...(description ? { description } : {}), line: e.line };
+  });
+  const summary = summarizeForExt(source, ext);
+  return { ...(summary ? { summary } : {}), exports, loc: lines.length };
+}
+
+function summarizeForExt(source: string, ext: string): string | undefined {
+  if (ext === ".py") return extractPythonModuleDocstring(source);
+  if (ext === ".java" || ext === ".kt") return extractJavaSummary(source);
+  if (ext === ".go" || ext === ".rs") return undefined; // matches the legacy Go/Rust parsers
+  return extractFileSummary(source); // JS/TS family
+}
 
 function parseFile(source: string, ext: string): CodeFileEntry {
   if (ext === ".java" || ext === ".kt") return parseJvmFile(source);

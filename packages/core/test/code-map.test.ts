@@ -84,6 +84,14 @@ const SECRET = 42;
     expect(map.files["src/math.ts"]!.summary).toBe("Numeric helpers.");
   });
 
+  it("falls back to the regex parser for a language with no vendored grammar (Kotlin)", async () => {
+    // .kt has no tree-sitter grammar vendored → parseFileAst returns null → the regex parser runs,
+    // so indexing never regresses for the long-tail languages the AST layer does not cover.
+    await writeFile(path.join(workDir, "src", "svc.kt"), "class KtService {\n    fun handle() {}\n}\n", "utf8");
+    const map = await buildCodeMap(workDir);
+    expect(map.files["src/svc.kt"]?.exports.map((e) => e.name)).toContain("KtService");
+  });
+
   it("excludes dirs via custom excludeDirs", async () => {
     await mkdir(path.join(workDir, "out"), { recursive: true });
     await writeFile(

@@ -17,6 +17,7 @@ export * from "./skill-activation.js";
 export * from "./specificity.js";
 export * from "./token-budget.js";
 export * from "./code-map.js";
+export * from "./ast-parser.js";
 export * from "./config.js";
 export * from "./cross-repo.js";
 export * from "./dep-tracker.js";
