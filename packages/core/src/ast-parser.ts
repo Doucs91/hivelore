@@ -276,10 +276,22 @@ function isPythonTopLevel(node: Parser.SyntaxNode): boolean {
 
 function collectGo(root: Parser.SyntaxNode, out: AstExport[]): void {
   walk(root, (node) => {
-    if (node.type !== "function_declaration" && node.type !== "method_declaration") return;
-    const name = node.childForFieldName("name")?.text;
-    if (!name || !/^[A-Z]/.test(name)) return; // only exported (uppercase) symbols in Go
-    out.push({ name, kind: "function", line: node.startPosition.row + 1 });
+    if (node.type === "function_declaration" || node.type === "method_declaration") {
+      const name = node.childForFieldName("name")?.text;
+      if (name && /^[A-Z]/.test(name)) out.push({ name, kind: "function", line: node.startPosition.row + 1 });
+      return;
+    }
+    // Exported type declarations: `type Config struct{}` / `type Reader interface{}` / `type Id = int`.
+    if (node.type === "type_spec" || node.type === "type_alias") {
+      const name = node.childForFieldName("name")?.text;
+      if (!name || !/^[A-Z]/.test(name)) return; // only exported (uppercase) types
+      const kind: CodeExportKind = firstChildOfType(node, "struct_type")
+        ? "class"
+        : firstChildOfType(node, "interface_type")
+          ? "interface"
+          : "type";
+      out.push({ name, kind, line: node.startPosition.row + 1 });
+    }
   });
 }
 
@@ -326,9 +338,15 @@ const JAVA_KIND: Record<string, CodeExportKind> = {
 function collectJava(root: Parser.SyntaxNode, out: AstExport[]): void {
   walk(root, (node) => {
     const kind = JAVA_KIND[node.type];
-    if (!kind) return;
-    const name = node.childForFieldName("name")?.text;
-    if (name) out.push({ name, kind, line: node.startPosition.row + 1 });
+    if (kind) {
+      pushNamed(node, kind, out, node.startPosition.row + 1);
+      return;
+    }
+    // Public methods — a `modifiers` child whose text carries the `public` keyword.
+    if (node.type === "method_declaration") {
+      const mods = firstChildOfType(node, "modifiers");
+      if (mods && /\bpublic\b/.test(mods.text)) pushNamed(node, "function", out, node.startPosition.row + 1);
+    }
   });
 }
 
@@ -359,7 +377,14 @@ const CSHARP_KIND: Record<string, CodeExportKind> = {
 function collectCSharp(root: Parser.SyntaxNode, out: AstExport[]): void {
   walk(root, (node) => {
     const kind = CSHARP_KIND[node.type];
-    if (kind) pushNamed(node, kind, out, node.startPosition.row + 1); // types live under namespaces — keep all
+    if (kind) {
+      pushNamed(node, kind, out, node.startPosition.row + 1); // types live under namespaces — keep all
+      return;
+    }
+    // Public methods — C# defaults to private, so require an explicit `public` modifier child.
+    if (node.type === "method_declaration" && hasChild(node, (c) => c.type === "modifier" && c.text === "public")) {
+      pushNamed(node, "function", out, node.startPosition.row + 1);
+    }
   });
 }
 
@@ -380,7 +405,13 @@ function collectPhp(root: Parser.SyntaxNode, out: AstExport[]): void {
       return;
     }
     if (node.type === "function_definition" && isTopLevelMember(node, PHP_CONTAINERS)) {
-      pushNamed(node, "function", out, node.startPosition.row + 1); // top-level functions, not class methods
+      pushNamed(node, "function", out, node.startPosition.row + 1); // top-level functions
+      return;
+    }
+    // Public methods — PHP defaults to public when no visibility_modifier is present.
+    if (node.type === "method_declaration") {
+      const vis = firstChildOfType(node, "visibility_modifier");
+      if (!vis || vis.text === "public") pushNamed(node, "function", out, node.startPosition.row + 1);
     }
   });
 }
@@ -414,6 +445,14 @@ function firstChildOfType(node: Parser.SyntaxNode, type: string): Parser.SyntaxN
     if (c?.type === type) return c;
   }
   return null;
+}
+
+function hasChild(node: Parser.SyntaxNode, pred: (c: Parser.SyntaxNode) => boolean): boolean {
+  for (let i = 0; i < node.childCount; i++) {
+    const c = node.child(i);
+    if (c && pred(c)) return true;
+  }
+  return false;
 }
 
 /** True when an unnamed `type` keyword appears directly under `node` (e.g. `export type { … }`). */

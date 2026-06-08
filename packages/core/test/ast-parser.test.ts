@@ -135,9 +135,11 @@ describe("parseFileAst — Ruby / C# / PHP (newly delivered, previously phantom)
       "  public record Pt(int X);",
       "}",
     ].join("\n");
-    expect(await names(src, ".cs")).toEqual(["CsFoo", "IBar", "Pt", "Status"]);
+    // M is a public method → now indexed alongside the types.
+    expect(await names(src, ".cs")).toEqual(["CsFoo", "IBar", "M", "Pt", "Status"]);
     expect(await kindOf(src, ".cs", "Status")).toBe("enum");
     expect(await kindOf(src, ".cs", "Pt")).toBe("class");
+    expect(await kindOf(src, ".cs", "M")).toBe("function");
   });
 
   it("PHP: top-level functions + class/interface/trait/enum, excluding methods", async () => {
@@ -149,8 +151,61 @@ describe("parseFileAst — Ruby / C# / PHP (newly delivered, previously phantom)
       "trait TMix {}",
       "enum Suit {}",
     ].join("\n");
-    expect(await names(src, ".php")).toEqual(["IFace", "PhpFoo", "Suit", "TMix", "topFn"]);
+    // `m` has no visibility modifier → public by default → indexed.
+    expect(await names(src, ".php")).toEqual(["IFace", "PhpFoo", "Suit", "TMix", "m", "topFn"]);
     expect(await kindOf(src, ".php", "TMix")).toBe("interface");
     expect(await kindOf(src, ".php", "topFn")).toBe("function");
+  });
+});
+
+describe("parseFileAst — public methods + Go types", () => {
+  it("Java: indexes public methods, excluding private/protected/package-private", async () => {
+    const src = [
+      "public class Foo {",
+      "  public void pub() {}",
+      "  private void priv() {}",
+      "  protected int prot() { return 1; }",
+      "  void pkg() {}",
+      "}",
+    ].join("\n");
+    expect(await names(src, ".java")).toEqual(["Foo", "pub"]);
+    expect(await kindOf(src, ".java", "pub")).toBe("function");
+  });
+
+  it("C#: only explicitly public methods (default-private is excluded)", async () => {
+    const src = [
+      "namespace N { public class Foo {",
+      "  public void Pub() {}",
+      "  private void Priv() {}",
+      "  void ImplicitPriv() {}",
+      "} }",
+    ].join("\n");
+    expect(await names(src, ".cs")).toEqual(["Foo", "Pub"]);
+  });
+
+  it("PHP: public + visibility-less methods, excluding private/protected", async () => {
+    const src = [
+      "<?php class Foo {",
+      "  public function pub() {}",
+      "  private function priv() {}",
+      "  function implicitPub() {}",
+      "}",
+    ].join("\n");
+    expect(await names(src, ".php")).toEqual(["Foo", "implicitPub", "pub"]);
+  });
+
+  it("Go: indexes exported structs, interfaces and aliases (not lowercase types)", async () => {
+    const src = [
+      "package m",
+      "type Config struct { X int }",
+      "type Reader interface { Read() }",
+      "type Id = int",
+      "type lower struct {}",
+      "func Exported() {}",
+    ].join("\n");
+    expect(await names(src, ".go")).toEqual(["Config", "Exported", "Id", "Reader"]);
+    expect(await kindOf(src, ".go", "Config")).toBe("class");
+    expect(await kindOf(src, ".go", "Reader")).toBe("interface");
+    expect(await kindOf(src, ".go", "Id")).toBe("type");
   });
 });
