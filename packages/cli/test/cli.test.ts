@@ -1258,6 +1258,15 @@ describe("hAIve CLI integration", () => {
           "anchor:",
           "  paths: [src/status.ts]",
           "  symbols: []",
+          // A deterministic block sensor is what hard-blocks under the anchored-gate policy: a
+          // sensor-less anti-pattern only surfaces as review (it's relevance, not proof of violation).
+          "sensor:",
+          "  kind: regex",
+          "  pattern: 'status\\s*=\\s*\"ok\"'",
+          "  message: return uppercase OK/KO",
+          "  severity: block",
+          "  paths: [src/status.ts]",
+          "  last_fired: null",
           "tags: []",
           "---",
           "# lowercase status",

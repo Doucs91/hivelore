@@ -171,6 +171,41 @@ export function isHaiveOwnedPath(p: string): boolean {
  * its bridges in one commit), self-matches and can hard-block or inflate prevention counts.
  * See gotcha 2026-06-03-gotcha-antipattern-self-match-on-memory-file-edit.
  */
+/** Test/spec files — they deliberately exercise the symbols & patterns gotchas warn about. */
+const TEST_PATH_RE = /(?:^|\/)(?:tests?|__tests__|__mocks__|e2e|fixtures)\/|\.(?:test|spec)\.[cm]?[jt]sx?$/i;
+export function isTestPath(p: string): boolean {
+  return TEST_PATH_RE.test(p);
+}
+
+/**
+ * Drop test/spec hunks from a diff before anti-pattern matching. A test that asserts on a documented
+ * gotcha (e.g. `expect(serializeMemory(x))…`, or `import lodash` in a "no lodash" test) legitimately
+ * contains the very token/pattern the gotcha describes — using it is not reintroducing the mistake.
+ * Letting test edits corroborate a literal/semantic match is a recurring false-positive source, so the
+ * scan ignores them (production-code blocking, incl. anchored gotchas, is unaffected).
+ */
+export function stripTestHunks(diff: string): string {
+  if (!diff.includes("diff --git")) return diff;
+  const out: string[] = [];
+  let block: string[] = [];
+  let keep = true;
+  const flush = (): void => {
+    if (keep) out.push(...block);
+    block = [];
+    keep = true;
+  };
+  for (const line of diff.split("\n")) {
+    if (line.startsWith("diff --git ")) {
+      flush();
+      const target = line.match(/ b\/(.+)$/)?.[1] ?? "";
+      keep = !isTestPath(target);
+    }
+    block.push(line);
+  }
+  flush();
+  return out.join("\n");
+}
+
 export function stripAiDirHunks(diff: string): string {
   if (!diff.includes("diff --git")) return diff; // no file headers to split on — leave as-is
   const out: string[] = [];
@@ -277,7 +312,7 @@ export async function antiPatternsCheck(
 
   // Code-only view of the diff: `.ai/` knowledge-base edits never corroborate "you reintroduced a
   // bad pattern in code" (they'd self-match the very memory that documents it).
-  const scanDiff = input.diff ? stripAiDirHunks(input.diff) : input.diff;
+  const scanDiff = input.diff ? stripTestHunks(stripAiDirHunks(input.diff)) : input.diff;
 
   // 2. Literal token overlap from diff
   if (scanDiff) {
@@ -332,7 +367,15 @@ export async function antiPatternsCheck(
   if (input.semantic && scanDiff) {
     try {
       const mod = await import("@hiveai/embeddings");
-      const result = await mod.semanticSearch(ctx.paths, scanDiff, { limit: input.limit * 2 });
+      // Embed the ADDED lines only — "what you INTRODUCED" — not the raw diff. The raw diff carries
+      // context lines, removed lines and file headers; embedding that whole blob blurs the query and
+      // inflates cosine similarity against broadly-related memories (a big release matches *some*
+      // high-confidence gotcha at ≥0.75 and hard-blocks even though no added hunk reintroduces it).
+      // This mirrors the literal + sensor layers, which already match on added lines, and tightens
+      // the only layer that could hard-block on topical resemblance alone.
+      const added = addedLinesFromDiff(scanDiff);
+      const semanticQuery = added.trim().length > 0 ? added : scanDiff;
+      const result = await mod.semanticSearch(ctx.paths, semanticQuery, { limit: input.limit * 2 });
       if (result) {
         const negativeIds = new Set(negative.map(({ memory }) => memory.frontmatter.id));
         for (const hit of result.hits) {

@@ -303,6 +303,26 @@ function classifyWarning(
       };
     }
 
+    // Sensor-less gotcha: anchor + a distinctive shared token (or moderate semantic) proves you are
+    // editing the documented file with RELATED terms — NOT that you reintroduced the specific mistake.
+    // A distinctive token can be the gotcha's SUBJECT used correctly (e.g. the gotcha "serializeMemory
+    // crashes on undefined" says *always use serializeMemory()* — a diff that calls it is fine), so
+    // token co-occurrence on an edited file is too noisy to hard-block without a deterministic check.
+    // Only a STRONG semantic match (>= 0.75) hard-blocks a sensor-less gotcha here; weaker relevance
+    // signals surface as review. Add a sensor (propose_sensor) to make such a gotcha block reliably.
+    if (!warning.has_sensor && !(hasSemantic && semanticScore >= 0.75)) {
+      return {
+        ...warning,
+        level: "review",
+        rationale:
+          "sensor-less anti-pattern anchored to a touched file, corroborated only by relevance signals " +
+          "(shared distinctive token / moderate semantic < 0.75) — surfaced for review, not blocked. " +
+          "Add a sensor via propose_sensor to make it block deterministically.",
+        affected_files: affectedFiles,
+        repair_command: repairCommand,
+      };
+    }
+
     return {
       ...warning,
       level: "blocking",

@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadPreventionEvents, resolveHaivePaths } from "@hiveai/core";
 import type { HaiveContext } from "../src/context.js";
-import { antiPatternsCheck, isHaiveOwnedPath, stripAiDirHunks } from "../src/tools/anti-patterns-check.js";
+import { antiPatternsCheck, isHaiveOwnedPath, isTestPath, stripAiDirHunks, stripTestHunks } from "../src/tools/anti-patterns-check.js";
 import { classifyAntiPatternWarningForTest, preCommitCheck } from "../src/tools/precommit-check.js";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -49,6 +49,32 @@ async function writeMemory(
 }
 
 // ─── antiPatternsCheck ──────────────────────────────────────────────────────
+
+describe("stripTestHunks / isTestPath", () => {
+  it("identifies test/spec paths", () => {
+    expect(isTestPath("packages/core/test/parser.test.ts")).toBe(true);
+    expect(isTestPath("src/foo.spec.tsx")).toBe(true);
+    expect(isTestPath("app/__tests__/x.ts")).toBe(true);
+    expect(isTestPath("packages/core/src/parser.ts")).toBe(false);
+    expect(isTestPath("src/testing-utils.ts")).toBe(false); // "testing" is not a test dir/suffix
+  });
+
+  it("drops test-file hunks but keeps production hunks (tests exercise gotcha symbols by design)", () => {
+    const diff = [
+      "diff --git a/packages/core/test/parser.test.ts b/packages/core/test/parser.test.ts",
+      "--- a/packages/core/test/parser.test.ts",
+      "+++ b/packages/core/test/parser.test.ts",
+      "+expect(serializeMemory(x)).toContain('y');",
+      "diff --git a/packages/core/src/parser.ts b/packages/core/src/parser.ts",
+      "--- a/packages/core/src/parser.ts",
+      "+++ b/packages/core/src/parser.ts",
+      "+export function parseMemory() {}",
+    ].join("\n");
+    const stripped = stripTestHunks(diff);
+    expect(stripped).not.toContain("serializeMemory");
+    expect(stripped).toContain("parseMemory");
+  });
+});
 
 describe("antiPatternsCheck", () => {
   let workDir: string;
@@ -608,7 +634,10 @@ describe("preCommitCheck", () => {
 
   // ── anchored gate (honest blocking) ─────────────────────────────────────
 
-  it("anchored gate blocks an anchored + literal high-confidence anti-pattern", () => {
+  it("anchored gate surfaces a SENSOR-LESS anchored anti-pattern as review (add a sensor to block)", () => {
+    // A distinctive shared token can be the gotcha's SUBJECT used correctly (editing the type a
+    // gotcha is anchored to, or calling a recommended helper) — co-occurrence ≠ reintroduction.
+    // Without a deterministic sensor (or a strong semantic match), this is review, not a hard block.
     const warning = classifyAntiPatternWarningForTest({
       id: "2024-01-01-attempt-no-bigint",
       type: "attempt",
@@ -616,12 +645,45 @@ describe("preCommitCheck", () => {
       confidence: "trusted",
       body_preview: "BigInt broke serialization in math — do not use BigInt.",
       reasons: ["anchor", "literal"],
-      distinctive_literal: true, // the diff reintroduced the distinctive token (BigInt)
+      distinctive_literal: true,
+      anchor_paths: ["src/math.ts"],
+    }, ["src/math.ts"], true);
+
+    expect(warning.level).toBe("review");
+    expect(warning.rationale).toContain("propose_sensor");
+  });
+
+  it("anchored gate HARD-BLOCKS a sensor-less anti-pattern on a STRONG semantic match (>=0.75)", () => {
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-attempt-no-bigint",
+      type: "attempt",
+      scope: "team",
+      confidence: "trusted",
+      body_preview: "BigInt broke serialization — do not use BigInt.",
+      reasons: ["anchor", "literal", "semantic"],
+      distinctive_literal: true,
+      semantic_score: 0.82,
       anchor_paths: ["src/math.ts"],
     }, ["src/math.ts"], true);
 
     expect(warning.level).toBe("blocking");
-    expect(warning.rationale).toContain("anchored gate");
+  });
+
+  it("anchored gate HARD-BLOCKS when a deterministic block-severity sensor fires", () => {
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-attempt-no-bigint",
+      type: "attempt",
+      scope: "team",
+      confidence: "trusted",
+      body_preview: "BigInt broke serialization — do not use BigInt.",
+      reasons: ["anchor", "literal", "sensor"],
+      has_sensor: true,
+      sensor_severity: "block",
+      distinctive_literal: true,
+      anchor_paths: ["src/math.ts"],
+    }, ["src/math.ts"], true);
+
+    expect(warning.level).toBe("blocking");
   });
 
   it("anchored gate does NOT block on a non-distinctive literal overlap (false-positive guard)", () => {
@@ -732,17 +794,23 @@ describe("preCommitCheck", () => {
     expect(warning.level).toBe("info");
   });
 
-  it("anchored gate blocks via end-to-end preCommitCheck when anchored_blocks is set", async () => {
+  it("anchored gate blocks an anchored anti-pattern that carries a firing block sensor", async () => {
+    // New policy: a sensor-less anchored anti-pattern surfaces as review (anchor + a shared token is
+    // relevance, not proof of reintroduction). Deterministic hard-blocking comes from a sensor — so a
+    // gotcha that DOES carry a block sensor matching the diff still hard-blocks end-to-end.
     await writeMemory(
       ctx.paths.teamDir!,
       "2024-01-01-attempt-no-lodash-service",
       "attempt",
       "# Never import lodash in service files\n\nAlways use native array methods instead of lodash.",
-      { paths: ["src/service.ts"] },
+      {
+        paths: ["src/service.ts"],
+        sensor: { pattern: "import\\s+lodash", message: "no lodash in service files", severity: "block" },
+      },
     );
 
     const result = await preCommitCheck({
-      diff: "import lodash from lodash",
+      diff: "+import lodash from 'lodash'",
       paths: ["src/service.ts"],
       block_on: "high-confidence",
       anchored_blocks: true,
@@ -750,8 +818,34 @@ describe("preCommitCheck", () => {
     }, ctx);
 
     const warning = result.warnings.find((w) => w.id === "2024-01-01-attempt-no-lodash-service");
+    expect(warning?.reasons).toContain("sensor");
     expect(warning?.level).toBe("blocking");
     expect(result.should_block).toBe(true);
+  });
+
+  it("surfaces a SENSOR-LESS anchored anti-pattern as review (not a hard block)", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!,
+      "2024-01-01-attempt-no-lodash-sensorless",
+      "attempt",
+      "# Never import lodash in service files\n\nAlways use native array methods instead of lodash.",
+      { paths: ["src/service.ts"] },
+    );
+
+    const result = await preCommitCheck({
+      diff: "+import lodash from 'lodash'",
+      paths: ["src/service.ts"],
+      block_on: "high-confidence",
+      anchored_blocks: true,
+      semantic: false,
+    }, ctx);
+
+    const warning = result.warnings.find((w) => w.id === "2024-01-01-attempt-no-lodash-sensorless");
+    // The anti-pattern itself is downgraded to review (no sensor, no strong semantic) — it no longer
+    // contributes a blocking warning. (should_block is not asserted here: the anchored file is absent
+    // in this temp repo, so a stale-anchor signal would independently set it.)
+    expect(warning?.level).toBe("review");
+    expect(warning?.rationale).toContain("propose_sensor");
   });
 
   it("uses the anchored source file, not .ai artifacts, in repair commands", async () => {
@@ -824,7 +918,11 @@ describe("preCommitCheck", () => {
       "2024-01-01-attempt-no-bigint-math",
       "attempt",
       "# No BigInt in math\n\nBigInt broke serialization — never use BigInt in math.ts.",
-      { paths: ["src/math.ts"] },
+      {
+        paths: ["src/math.ts"],
+        // A block sensor is the deterministic check that makes this hard-block under the new policy.
+        sensor: { pattern: "BigInt\\s*\\(", message: "no BigInt in math", severity: "block" },
+      },
     );
 
     const result = await preCommitCheck({
@@ -836,7 +934,9 @@ describe("preCommitCheck", () => {
     }, ctx);
 
     const warning = result.warnings.find((w) => w.id === "2024-01-01-attempt-no-bigint-math");
+    // The code-aware tokenizer still produces a literal reason (BigInt has no surrounding spaces)…
     expect(warning?.reasons).toContain("literal");
+    // …and the firing block sensor makes it hard-block deterministically.
     expect(warning?.level).toBe("blocking");
     expect(result.should_block).toBe(true);
   });
