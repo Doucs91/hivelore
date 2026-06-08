@@ -161,6 +161,27 @@ describe("suggestSensorFromMemory — discriminating (X without Y)", () => {
     expect(sensor?.absent).toBeUndefined();
   });
 
+  it("builds a word-bounded plain-trigger sensor when gated by a distinctive companion", () => {
+    // "charge" is a plain verb (not code-shaped) so the strict pick yields nothing; but the companion
+    // idempotencyKey is distinctive and gates the sensor, so a \bcharge\b + absent sensor is built.
+    const body = [
+      "# calling charge without idempotencyKey",
+      "",
+      "**Why it failed / do NOT use:** double charge on retry; must pass idempotencyKey",
+      "",
+      "**Instead, use:** always pass idempotencyKey to charge",
+    ].join("\n");
+    const s = suggestSensorFromMemory(body, ["src/billing.ts"]);
+    expect(s?.pattern).toBe("\\bcharge\\b");
+    expect(s?.absent).toBe("idempotencyKey");
+  });
+
+  it("emits NO sensor when BOTH the call and the companion are plain words", () => {
+    // "token" is not distinctive, so there is no safe companion to gate the plain "charge" trigger.
+    const body = "# calling charge without token\n\n**Why it failed / do NOT use:** x\n\n**Instead, use:** y";
+    expect(suggestSensorFromMemory(body, ["src/billing.ts"])).toBeNull();
+  });
+
   it("does not set absent when there is no required companion", () => {
     const body = [
       "# BigInt broke serialization",

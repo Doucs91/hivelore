@@ -45,21 +45,31 @@ export function suggestSensorFromMemory(
   // then fires on the faulty call ONLY — not on every call — which is what makes it safe to promote.
   const required = !assignment && !lowercaseValue ? pickRequiredCompanion(body) : null;
 
-  let companion: { trigger: string; required: string } | null = null;
+  let companion: { trigger: string; required: string; plain: boolean } | null = null;
   if (required) {
     // Pick the trigger EXCLUDING the required companion. Otherwise, when the companion (Y) is a longer/
     // more distinctive token than the call (X) — e.g. "createOrder without idempotencyKey" — the plain
     // distinctive-token pick returns Y, the equality guard bails out, and the fallback below would emit
     // a sensor whose pattern is Y. That sensor fires on CORRECT usage (Y present) and stays silent on
     // the actual fault: an inverted, self-contradictory guardrail. Excluding Y keeps the trigger = X.
-    const trigger = pickDistinctiveToken(negativeText, [required]);
+    let trigger = pickDistinctiveToken(negativeText, [required]);
+    let plain = false;
+    // Plain-word call ("calling charge without idempotencyKey"): the trigger isn't code-shaped, so the
+    // strict pick returns null. Because `required` is always a DISTINCTIVE token (pickRequiredCompanion
+    // enforces it) and the sensor only fires when it is ABSENT, a word-bounded plain trigger gated by
+    // that companion is safe enough as a warn sensor. Without this, common "doX without <key>" lessons
+    // (verbs like charge/login/create) produce no guardrail at all.
+    if (!trigger) {
+      const word = pickPlainTrigger(body, required);
+      if (word) { trigger = word; plain = true; }
+    }
     if (
       trigger &&
       trigger.toLowerCase() !== required.toLowerCase() &&
       !trigger.toLowerCase().includes(required.toLowerCase()) &&
       !sensorPatternBrittleness(escapeRegExp(trigger))
     ) {
-      companion = { trigger, required };
+      companion = { trigger, required, plain };
     }
   }
 
@@ -71,7 +81,10 @@ export function suggestSensorFromMemory(
   if (!token) return null;
 
   const pattern =
-    assignment?.pattern ?? lowercaseValue?.pattern ?? escapeRegExp(companion?.trigger ?? token);
+    assignment?.pattern ?? lowercaseValue?.pattern ??
+    (companion?.plain
+      ? `\\b${escapeRegExp(companion.trigger)}\\b` // word-bound a plain-word call to limit false matches
+      : escapeRegExp(companion?.trigger ?? token));
   // Belt-and-suspenders: never emit a pattern that is already known to be brittle (line numbers, etc.).
   if (sensorPatternBrittleness(pattern)) return null;
 
@@ -110,6 +123,20 @@ function pickRequiredCompanion(text: string): string | null {
     if (candidate && isDistinctiveToken(candidate, false)) return candidate;
   }
   return null;
+}
+
+/**
+ * The plain-word call immediately before a "without/missing" clause ("calling charge without …",
+ * "create without …"). Used only as the trigger of a discriminating sensor that is ALREADY gated by a
+ * distinctive `absent` companion, so a bare verb is acceptable. Requires >=5 chars and not a stopword.
+ */
+const PLAIN_TRIGGER_RE = /\b([A-Za-z][A-Za-z0-9_]{4,40})\s+(?:without|missing)\b/i;
+function pickPlainTrigger(text: string, required: string): string | null {
+  const tok = PLAIN_TRIGGER_RE.exec(text)?.[1];
+  if (!tok) return null;
+  const lower = tok.toLowerCase();
+  if (lower === required.toLowerCase() || SENSOR_STOPWORDS.has(lower)) return null;
+  return tok;
 }
 
 function cleanCompanionToken(raw: string | undefined | null): string {
