@@ -17,9 +17,9 @@ const GROUP_ROLE: Record<string, string> = {
   architecture: "Big-picture structure & boundaries — how the system fits together.",
   convention: "How things are done here — patterns to follow for consistency.",
   decision: "Choices made and the rationale (the why), so they aren't relitigated.",
-  gotcha: "Traps and surprising behaviors to avoid; each can carry a sensor that blocks the repeat.",
+  gotcha: "Known traps and surprising behaviors in this codebase; each can carry a sensor that catches a recurrence.",
   glossary: "Domain terms and what they mean in this codebase.",
-  attempt: "Approaches that failed and what to do instead — so the mistake isn't retried.",
+  attempt: "Approaches that did not work out, each with the recommended alternative.",
 };
 
 // ── Icons ────────────────────────────────────────────────────────────────────
