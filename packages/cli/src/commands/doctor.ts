@@ -887,6 +887,11 @@ async function collectInstallFindings(root: string, expectedVersion: string): Pr
     ".cursor/mcp.json",
     ".vscode/mcp.json",
   ];
+  // Dedupe by binary: the same broken/stale path is usually referenced by several integration files
+  // (pre-commit, pre-push, .mcp.json…). Emit ONE finding per unique binary that lists the files,
+  // instead of one per occurrence (which produced 3× identical warnings).
+  const missingBins = new Map<string, Set<string>>();
+  const staleBins = new Map<string, { version: string; files: Set<string> }>();
   for (const rel of integrationFiles) {
     const file = path.join(root, rel);
     if (!existsSync(file)) continue;
@@ -894,21 +899,28 @@ async function collectInstallFindings(root: string, expectedVersion: string): Pr
     for (const bin of extractAbsoluteHaiveBins(text)) {
       const version = versionForBinary(bin);
       if (!version) {
-        findings.push({
-          severity: "warn",
-          code: "integration-haive-binary-missing",
-          message: `${rel} references ${bin}, but it could not be executed.`,
-          fix: "Run `haive agent setup --no-global` or `haive enforce install` to rewrite project integrations.",
-        });
+        (missingBins.get(bin) ?? missingBins.set(bin, new Set()).get(bin)!).add(rel);
       } else if (version !== expectedVersion) {
-        findings.push({
-          severity: "warn",
-          code: "integration-haive-version-mismatch",
-          message: `${rel} references ${bin} (${version}), but current hAIve is ${expectedVersion}.`,
-          fix: "Run `haive agent setup --no-global` and `haive enforce install` to refresh stale paths.",
-        });
+        const entry = staleBins.get(bin) ?? staleBins.set(bin, { version, files: new Set() }).get(bin)!;
+        entry.files.add(rel);
       }
     }
+  }
+  for (const [bin, files] of missingBins) {
+    findings.push({
+      severity: "warn",
+      code: "integration-haive-binary-missing",
+      message: `${[...files].join(", ")} reference ${bin}, but it could not be executed.`,
+      fix: "Run `haive agent setup --no-global` or `haive enforce install` to rewrite project integrations.",
+    });
+  }
+  for (const [bin, { version, files }] of staleBins) {
+    findings.push({
+      severity: "warn",
+      code: "integration-haive-version-mismatch",
+      message: `${[...files].join(", ")} reference ${bin} (${version}), but current hAIve is ${expectedVersion}.`,
+      fix: "Run `haive agent setup --no-global` and `haive enforce install` to refresh stale paths.",
+    });
   }
 
   return findings;
