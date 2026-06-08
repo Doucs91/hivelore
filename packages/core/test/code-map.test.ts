@@ -84,6 +84,14 @@ const SECRET = 42;
     expect(map.files["src/math.ts"]!.summary).toBe("Numeric helpers.");
   });
 
+  it("indexes TypeScript .cts/.mts module files (regression: were absent from the include list)", async () => {
+    await writeFile(path.join(workDir, "src", "legacy.cts"), "export const fromCts = 1;\n", "utf8");
+    await writeFile(path.join(workDir, "src", "modern.mts"), "export function fromMts() {}\n", "utf8");
+    const map = await buildCodeMap(workDir);
+    expect(map.files["src/legacy.cts"]?.exports.map((e) => e.name)).toEqual(["fromCts"]);
+    expect(map.files["src/modern.mts"]?.exports.map((e) => e.name)).toEqual(["fromMts"]);
+  });
+
   it("falls back to the regex parser for a language with no vendored grammar (Kotlin)", async () => {
     // .kt has no tree-sitter grammar vendored → parseFileAst returns null → the regex parser runs,
     // so indexing never regresses for the long-tail languages the AST layer does not cover.

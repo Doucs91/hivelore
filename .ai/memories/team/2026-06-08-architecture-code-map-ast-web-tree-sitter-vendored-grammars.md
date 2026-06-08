@@ -25,7 +25,7 @@ The code-map now extracts exports from a **real AST** (web-tree-sitter, WASM/off
 
 **Key decisions:**
 - **web-tree-sitter pinned EXACT to 0.22.6** — the grammar `.wasm` ABI is coupled to the runtime version; a mismatch throws a dylink-metadata error. Do NOT bump web-tree-sitter without re-vendoring ABI-matched grammars (and vice-versa).
-- **Grammars are VENDORED** in `packages/core/grammars/*.wasm` (~7 MB, 6 langs) and shipped via package.json `files`, rather than depending on `tree-sitter-wasms` (~50 MB, 36 langs). web-tree-sitter is a tsup `external`.
+- **Grammars are VENDORED** in `packages/core/grammars/*.wasm` (~14 MB, 9 langs: ts/tsx/js/py/go/rust/java/ruby/c_sharp/php; `.ts/.mts/.cts` share the typescript grammar) and shipped via package.json `files`, rather than depending on `tree-sitter-wasms` (~50 MB, 36 langs). web-tree-sitter is a tsup `external`.
 - **Resolved at runtime** via `new URL("../grammars/tree-sitter-<name>.wasm", import.meta.url)` — works from both `src/` (tests) and `dist/` (published), since both sit one level under `packages/core/`.
 - **Regex parsers are RETAINED as a fallback**: if `Parser.init()` or a grammar load fails (or the ext has no vendored grammar, e.g. `.kt`), `parseFileEntry` falls back to the legacy regex `parseFile` — indexing never hard-fails. `buildCodeMap`/`parseFileEntry` are now async.
 

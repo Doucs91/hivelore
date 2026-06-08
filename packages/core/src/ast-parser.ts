@@ -34,6 +34,9 @@ const GRAMMAR_BY_EXT: Record<string, string> = {
   ".go": "go",
   ".rs": "rust",
   ".java": "java",
+  ".rb": "ruby",
+  ".cs": "c_sharp",
+  ".php": "php",
 };
 
 let initPromise: Promise<boolean> | null = null;
@@ -106,6 +109,15 @@ export async function parseFileAst(source: string, ext: string): Promise<AstExpo
       break;
     case "java":
       collectJava(root, exports);
+      break;
+    case "ruby":
+      collectRuby(root, exports);
+      break;
+    case "c_sharp":
+      collectCSharp(root, exports);
+      break;
+    case "php":
+      collectPhp(root, exports);
       break;
   }
 
@@ -320,7 +332,76 @@ function collectJava(root: Parser.SyntaxNode, out: AstExport[]): void {
   });
 }
 
+// ── Ruby ─────────────────────────────────────────────────────────────────────────────────────────
+
+function collectRuby(root: Parser.SyntaxNode, out: AstExport[]): void {
+  walk(root, (node) => {
+    if (node.type === "class" || node.type === "module") {
+      pushNamed(node, "class", out, node.startPosition.row + 1); // types/namespaces — kept even when nested
+    } else if (node.type === "method" || node.type === "singleton_method") {
+      // Top-level defs only (a method inside a class/module is an instance method, not a public symbol).
+      if (isTopLevelMember(node, RUBY_CONTAINERS)) pushNamed(node, "function", out, node.startPosition.row + 1);
+    }
+  });
+}
+const RUBY_CONTAINERS = new Set(["class", "module", "method", "singleton_method"]);
+
+// ── C# ───────────────────────────────────────────────────────────────────────────────────────────
+
+const CSHARP_KIND: Record<string, CodeExportKind> = {
+  class_declaration: "class",
+  struct_declaration: "class",
+  record_declaration: "class",
+  interface_declaration: "interface",
+  enum_declaration: "enum",
+};
+
+function collectCSharp(root: Parser.SyntaxNode, out: AstExport[]): void {
+  walk(root, (node) => {
+    const kind = CSHARP_KIND[node.type];
+    if (kind) pushNamed(node, kind, out, node.startPosition.row + 1); // types live under namespaces — keep all
+  });
+}
+
+// ── PHP ──────────────────────────────────────────────────────────────────────────────────────────
+
+const PHP_TYPE_KIND: Record<string, CodeExportKind> = {
+  class_declaration: "class",
+  interface_declaration: "interface",
+  trait_declaration: "interface",
+  enum_declaration: "enum",
+};
+
+function collectPhp(root: Parser.SyntaxNode, out: AstExport[]): void {
+  walk(root, (node) => {
+    const kind = PHP_TYPE_KIND[node.type];
+    if (kind) {
+      pushNamed(node, kind, out, node.startPosition.row + 1);
+      return;
+    }
+    if (node.type === "function_definition" && isTopLevelMember(node, PHP_CONTAINERS)) {
+      pushNamed(node, "function", out, node.startPosition.row + 1); // top-level functions, not class methods
+    }
+  });
+}
+const PHP_CONTAINERS = new Set([
+  "class_declaration",
+  "interface_declaration",
+  "trait_declaration",
+  "enum_declaration",
+]);
+
 // ── shared helpers ───────────────────────────────────────────────────────────────────────────────
+
+/** True when no ancestor of `node` is one of the given container types (i.e. it is not a nested member). */
+function isTopLevelMember(node: Parser.SyntaxNode, containers: Set<string>): boolean {
+  let p = node.parent;
+  while (p) {
+    if (containers.has(p.type)) return false;
+    p = p.parent;
+  }
+  return true;
+}
 
 function pushNamed(node: Parser.SyntaxNode, kind: CodeExportKind, out: AstExport[], line: number): void {
   const name = node.childForFieldName("name")?.text;

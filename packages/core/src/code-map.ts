@@ -44,7 +44,7 @@ export interface BuildCodeMapOptions {
 }
 
 const DEFAULT_INCLUDE = [
-  ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
+  ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts",
   ".java", ".kt",
   ".py",
   ".go",

@@ -117,3 +117,40 @@ describe("parseFileAst — Python / Go / Rust / Java", () => {
     expect(await kindOf(src, ".java", "Baz")).toBe("enum");
   });
 });
+
+describe("parseFileAst — Ruby / C# / PHP (newly delivered, previously phantom)", () => {
+  it("Ruby: top-level defs + classes/modules, excluding instance methods", async () => {
+    const src = ["def top_func", "end", "class Foo", "  def m", "  end", "end", "module Bar", "end"].join("\n");
+    expect(await names(src, ".rb")).toEqual(["Bar", "Foo", "top_func"]);
+    expect(await kindOf(src, ".rb", "Foo")).toBe("class");
+    expect(await kindOf(src, ".rb", "top_func")).toBe("function");
+  });
+
+  it("C#: type declarations regardless of namespace nesting", async () => {
+    const src = [
+      "namespace N {",
+      "  public class CsFoo { public void M(){} }",
+      "  interface IBar {}",
+      "  public enum Status { OK }",
+      "  public record Pt(int X);",
+      "}",
+    ].join("\n");
+    expect(await names(src, ".cs")).toEqual(["CsFoo", "IBar", "Pt", "Status"]);
+    expect(await kindOf(src, ".cs", "Status")).toBe("enum");
+    expect(await kindOf(src, ".cs", "Pt")).toBe("class");
+  });
+
+  it("PHP: top-level functions + class/interface/trait/enum, excluding methods", async () => {
+    const src = [
+      "<?php",
+      "function topFn() {}",
+      "class PhpFoo { function m(){} }",
+      "interface IFace {}",
+      "trait TMix {}",
+      "enum Suit {}",
+    ].join("\n");
+    expect(await names(src, ".php")).toEqual(["IFace", "PhpFoo", "Suit", "TMix", "topFn"]);
+    expect(await kindOf(src, ".php", "TMix")).toBe("interface");
+    expect(await kindOf(src, ".php", "topFn")).toBe("function");
+  });
+});
