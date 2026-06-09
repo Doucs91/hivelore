@@ -67,6 +67,31 @@ Harness engineering is about the environment around the model: feedforward guida
 
 The narrow positioning is intentional: hAIve is not a general memory database or an agent dashboard. It is the control layer that helps coding agents act with the validated, non-obvious knowledge of the team.
 
+### Scope & boundaries — the three harnesses
+
+Harness engineering regulates three different things about agent-written code. hAIve deliberately
+covers two of them and **treats the third as out of scope, for now.**
+
+| Harness dimension | Question it answers | hAIve today |
+|---|---|---|
+| **Maintainability** | Is the code clean? (patterns, footguns, conventions) | ✅ **Covered** — executable sensors + anti-pattern gate |
+| **Architecture fitness** | Does it respect the team's structural decisions? | 🟡 **Partly** — anchored `decision`/`architecture` memories + decision-coverage gate |
+| **Behaviour** | Does the code do the *functionally correct* thing? | ⛔ **Out of scope (planned)** — see below |
+
+**Why no behaviour harness yet.** Verifying functional correctness needs an *oracle* — an independent
+source of truth for what the code *should* do — and that oracle problem (plus the trap of an agent
+grading its own work) is the least-mature part of the field. That territory belongs to your tests,
+property-based checks, and LLM-evals; hAIve does not try to replace them. What hAIve *does* do is carry
+the **unguessable intent** a behaviour test would otherwise have to encode (`status must be OK/KO`,
+`public ids = id + 100000`) as feedforward context and deterministic sensors — a partial, static slice
+of behaviour control, not a runtime functional oracle.
+
+A future, opt-in **command/test sensor** lane (already scaffolded behind
+`enforcement.runCommandSensors`) is the planned bridge toward real behaviour feedback without diluting
+the narrow scope. Until then, treat the behaviour harness as your responsibility, not hAIve's.
+
+> See [`STABILITY.md`](./STABILITY.md) for the frozen 1.0 surface and [`CONTRIBUTING.md`](./CONTRIBUTING.md) to extend hAIve.
+
 ### Executable memory sensors
 
 Some `gotcha` and `attempt` memories can now carry a `sensor` block: a deterministic regex guardrail
@@ -199,6 +224,26 @@ them once: `haive memory save/search/get/delete` ↔ `mem_save`/`mem_search`/`me
 (the older `add`/`query`/`show`/`rm` still work as aliases).
 
 ---
+
+## Try it on your repo (5 minutes, reversible)
+
+Want to evaluate hAIve on a real codebase that isn't a toy? It is non-destructive — everything it
+writes lives under `.ai/` plus a few bridge files, all removable.
+
+```bash
+cd your-project
+npm install -g @hiveai/cli
+haive init -y            # seeds stack packs + git-history scars; writes .ai/ and bridges
+haive briefing --task "the change you're about to make" --files path/to/file
+haive doctor             # health + coverage report
+haive sensors check      # scan your staged diff against documented lessons
+haive eval --fail-under 50   # retrieval + sensor quality on your own corpus
+```
+
+To remove everything hAIve added: `rm -rf .ai CLAUDE.md AGENTS.md GEMINI.md .cursorrules .clinerules
+.continuerules .windsurfrules .rules CONVENTIONS.md .github/copilot-instructions.md` and drop the
+`.github/workflows/haive-*.yml` files. Feedback from a repo that isn't ours is the most valuable thing
+you can send — please [open an issue](https://github.com/Doucs91/hAIve/issues) with what worked and what didn't.
 
 ## What hAIve enforces
 

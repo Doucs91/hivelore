@@ -11,6 +11,8 @@ import {
   sensorPatternBrittleness,
   sensorSelfCheck,
   sensorTargetsFromDiff,
+  isSensorScannablePath,
+  scannableSensorTargets,
 } from "../src/sensors.js";
 import type { Memory, Sensor } from "../src/types.js";
 
@@ -361,6 +363,58 @@ describe("judgeProposedSensor (agent proposes, core validates)", () => {
     const warn: Sensor = { ...base, absent: undefined, severity: "warn" };
     const v = judgeProposedSensor(warn, { currentTargets: [correct], badExamples: [] });
     expect(v.accepted).toBe(true);
+  });
+});
+
+describe("isSensorScannablePath", () => {
+  it("rejects the .ai/ knowledge base (memory bodies quote the patterns they document)", () => {
+    expect(isSensorScannablePath(".ai/memories/team/2026-06-09-gotcha-x.md")).toBe(false);
+    expect(isSensorScannablePath(".ai/project-context.md")).toBe(false);
+  });
+
+  it("rejects hAIve-owned bridge/config files", () => {
+    expect(isSensorScannablePath("CLAUDE.md")).toBe(false);
+    expect(isSensorScannablePath(".cursorrules")).toBe(false);
+    expect(isSensorScannablePath(".mcp.json")).toBe(false);
+  });
+
+  it("rejects empty/anonymous paths", () => {
+    expect(isSensorScannablePath("")).toBe(false);
+  });
+
+  it("accepts real source files", () => {
+    expect(isSensorScannablePath("src/payments.ts")).toBe(true);
+    expect(isSensorScannablePath("packages/core/src/sensors.ts")).toBe(true);
+  });
+});
+
+describe("scannableSensorTargets", () => {
+  const diff = (p: string, line: string): string =>
+    `diff --git a/${p} b/${p}\n--- a/${p}\n+++ b/${p}\n@@ -0,0 +1 @@\n+${line}\n`;
+
+  it("drops .ai/ targets so a staged memory file cannot self-fire", () => {
+    const d = diff(".ai/memories/team/g.md", "await prisma.$disconnect();");
+    expect(scannableSensorTargets(d)).toEqual([]);
+  });
+
+  it("keeps real source targets", () => {
+    const d = diff("src/db.ts", "await prisma.$disconnect();");
+    const targets = scannableSensorTargets(d);
+    expect(targets).toHaveLength(1);
+    expect(targets[0]!.path).toBe("src/db.ts");
+  });
+
+  it("only mixes: a code+memory diff keeps just the code target", () => {
+    const d = diff("src/db.ts", "process.env.NEXT_PUBLIC_API_SECRET") +
+      diff(".ai/memories/team/g.md", "process.env.NEXT_PUBLIC_API_SECRET");
+    const targets = scannableSensorTargets(d);
+    expect(targets.map((t) => t.path)).toEqual(["src/db.ts"]);
+  });
+
+  it("falls back to a single blob only when the diff has no file headers", () => {
+    const targets = scannableSensorTargets("+ raw line with no header\n");
+    expect(targets).toHaveLength(1);
+    expect(targets[0]!.path).toBe("");
   });
 });
 

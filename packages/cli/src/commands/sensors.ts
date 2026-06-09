@@ -17,7 +17,7 @@ import {
   selectCommandSensors,
   sensorPatternBrittleness,
   sensorSelfCheck,
-  sensorTargetsFromDiff,
+  scannableSensorTargets,
   serializeMemory,
   type CommandSensorSpec,
   type Memory,
@@ -122,8 +122,10 @@ export function registerSensors(program: Command): void {
       const diff = opts.diffFile
         ? await readFile(path.resolve(root, opts.diffFile), "utf8")
         : await stagedDiff(root);
-      const targets = sensorTargetsFromDiff(diff);
-      const hits = runSensors(memories, targets.length > 0 ? targets : [{ path: "", content: diff }]);
+      // Never scan `.ai/` or hAIve-owned files — a memory body quotes the very pattern it
+      // documents and would self-fire (mirrors the git-hook gate in enforce.ts).
+      const targets = scannableSensorTargets(diff);
+      const hits = runSensors(memories, targets);
 
       // ── Command (shell/test) sensors — the deterministic check a regex can't express ──
       // OFF by default: they execute arbitrary repo-authored commands. Opt in per-run with

@@ -1,4 +1,5 @@
 import type { Memory, Sensor } from "./types.js";
+import { BRIDGE_TARGET_PATH } from "./bridges.js";
 
 /**
  * Is a regex sensor pattern brittle — over-fit to incident-specific literals that rot when code
@@ -272,6 +273,46 @@ export function sensorTargetsFromDiff(diff: string): SensorTarget[] {
   }
   flush();
   return targets;
+}
+
+/**
+ * Files hAIve itself owns/generates — scanning them with sensors self-matches the very memories
+ * they mirror (a memory body documenting a bad pattern literally contains that pattern, and a
+ * generated bridge re-states the block sensors). Mirrors `isHaiveOwnedPath` in the MCP
+ * anti-pattern check; centralized here so the git-hook gate (`enforce check`) and the standalone
+ * `sensors check` CLI can never drift apart on what counts as scannable code.
+ */
+export const HAIVE_OWNED_FILES: ReadonlySet<string> = new Set<string>([
+  ...Object.values(BRIDGE_TARGET_PATH),
+  "CLAUDE.md",
+  ".cursorrules",
+  ".gitignore",
+  ".mcp.json",
+  ".cursor/mcp.json",
+  ".vscode/mcp.json",
+  ".cursor/rules/haive-mcp-required.mdc",
+]);
+
+/**
+ * A diff target is scannable by sensors only when it is real source — never the `.ai/` knowledge
+ * base or a hAIve-generated bridge/config file. Without this guard, staging an `.ai/memories/*.md`
+ * file (whose body quotes the bad pattern) makes the sensor fire on itself — a false positive.
+ */
+export function isSensorScannablePath(p: string): boolean {
+  if (!p) return false;
+  if (p.startsWith(".ai/")) return false;
+  return !HAIVE_OWNED_FILES.has(p);
+}
+
+/**
+ * Filter raw diff targets down to scannable source files. Falls back to scanning the whole diff as
+ * one anonymous blob ONLY when the diff carried no file headers at all (e.g. a hand-fed `--diff-file`
+ * with bare content) — never when every header was a hAIve-owned path, so `.ai/`-only diffs scan nothing.
+ */
+export function scannableSensorTargets(diff: string): SensorTarget[] {
+  const all = sensorTargetsFromDiff(diff);
+  if (all.length === 0) return [{ path: "", content: diff }];
+  return all.filter((t) => isSensorScannablePath(t.path));
 }
 
 // ── Self-validation: a generated sensor must prove it discriminates before it can block ──────────

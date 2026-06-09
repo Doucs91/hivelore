@@ -7,7 +7,7 @@ import { Command } from "commander";
 import {
   antiPatternGateParams,
   assessBootstrapState,
-  BRIDGE_TARGET_PATH,
+  isSensorScannablePath,
   findProjectRoot,
   loadCodeMap,
   renderBootstrapChecklist,
@@ -1007,6 +1007,19 @@ async function buildEnforcementReport(
 
   if (stage === "pre-commit" || stage === "ci") {
     findings.push(...await runPrecommitPolicy(paths, config.enforcement?.antiPatternGate ?? "anchored", stage));
+  } else if (stage === "local") {
+    // The diff-scan layer (anti-pattern matcher + regex/command sensors) runs only at
+    // pre-commit/ci — by design, so a bare `enforce check` preview stays fast and quiet on
+    // config/docs work. Say so explicitly: otherwise a clean `local` run reads as "your diff
+    // passed the sensor gate", which it did not evaluate. The installed git hook uses pre-commit.
+    findings.push({
+      severity: "info",
+      code: "antipattern-gate-deferred",
+      message:
+        "Anti-pattern + sensor diff scan is NOT evaluated in --stage local (this is a preview). " +
+        "It runs in the installed git hook (--stage pre-commit) and in CI (--stage ci).",
+      fix: "To scan the staged diff now: `haive sensors check`, or `haive enforce check --stage pre-commit`.",
+    });
   }
 
   if (config.enforcement?.cleanupGeneratedArtifacts !== false) {
@@ -1270,28 +1283,6 @@ async function runPrecommitPolicy(
     },
     ...sensorFindings,
   ];
-}
-
-/**
- * Files hAIve itself owns/generates — scanning them with sensors self-matches the very
- * memories they mirror (a memory body documenting a bad pattern contains that pattern).
- * Mirrors `isHaiveOwnedPath` in the MCP anti-pattern check, kept local to avoid a new export.
- */
-const SENSOR_OWNED_FILES = new Set<string>([
-  ...Object.values(BRIDGE_TARGET_PATH),
-  "CLAUDE.md",
-  ".cursorrules",
-  ".gitignore",
-  ".mcp.json",
-  ".cursor/mcp.json",
-  ".vscode/mcp.json",
-  ".cursor/rules/haive-mcp-required.mdc",
-]);
-
-function isSensorScannablePath(p: string): boolean {
-  if (!p) return false;
-  if (p.startsWith(".ai/")) return false;
-  return !SENSOR_OWNED_FILES.has(p);
 }
 
 /**
