@@ -222,3 +222,5 @@
 {"tool":"pre_commit_check","at":"2026-06-08T19:50:32.800Z","summary":"1p"}
 {"tool":"pre_commit_check","at":"2026-06-08T19:56:05.138Z","summary":"2p"}
 {"tool":"mem_save","at":"2026-06-08T21:32:20.956Z","summary":"semantic-gate-false-positive-reduction-sensorless-review-test-strip"}
+{"tool":"mem_save","at":"2026-06-09T17:54:15.746Z","summary":"sensors-check-self-match-on-ai-files"}
+{"tool":"mem_session_end","at":"2026-06-09T17:54:37.966Z","summary":"Audit hAIve, raise it toward 1.0 maturity: freeze the stable core, harden periph"}
