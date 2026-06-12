@@ -9,6 +9,14 @@
   Never let your AI agent forget what your team knows.
 </p>
 
+## Getting started
+
+1. **Install the extension** (from the Marketplace, or a local `.vsix` — see [Installation](#installation)).
+2. **Initialize hAIve in your repo** — open the Command Palette and run **`hAIve: Initialize in This Workspace`** (or `haive init` in a terminal). This creates `.ai/memories/`.
+3. **Open any file** — anchored team knowledge appears inline (CodeLens at the top of the file), in the **hAIve** sidebar (Activity Bar), and in the status bar. Press `Ctrl/Cmd+Shift+B` to get a briefing for the current file, or `Ctrl/Cmd+Shift+H` to search memories.
+
+> The extension reads `.ai/memories/**` directly, so it works even without the `haive` CLI on your PATH. Cockpit/eval/sensor/doctor features call the CLI — set `haive.cliPath` if `haive` isn't on PATH.
+
 ## Features
 
 ### Strategic Cockpit
@@ -36,6 +44,12 @@ The **Discipline Inbox** is the human review queue for keeping context healthy:
 
 Right-click items to open the memory, mark it **Applied** or **Rejected**, run a suggested fix,
 approve/reject memories, or promote a vetted sensor to `block`.
+
+### Harness Health
+The **Harness Health** view surfaces `haive doctor` scores — protection, context quality, corpus
+quality, and harness coverage — so you can see at a glance whether the agent harness is healthy
+before handing work to an agent. Use **hAIve: Run Health Check** to (re)compute the scores, and
+**hAIve: Sync Memories** to pull the latest shared corpus.
 
 ### 🧠 Inline CodeLens
 Files with anchored memories show a count at the top:
@@ -106,36 +120,79 @@ code --install-extension haive-vscode-*.vsix
 ```
 
 ### From Marketplace
-> Coming soon — `ext install hiveai.haive-vscode`
+Search **hAIve** in the Extensions view, or run:
+
+```
+ext install hiveai.haive-vscode
+```
+
+Then initialize hAIve in your repo (see [Getting started](#getting-started)).
 
 ## Settings
 
 | Setting | Default | Description |
 |---|---|---|
-| `haive.showCodeLens` | `true` | Show inline memory count |
-| `haive.showStatusBar` | `true` | Show status bar item |
-| `haive.memoriesDir` | `.ai/memories` | Memories directory path |
-| `haive.highlightActionRequired` | `true` | Warning decoration on files with action_required |
+| `haive.showCodeLens` | `true` | Show inline context-record count (CodeLens) at the top of files with anchored records |
+| `haive.showStatusBar` | `true` | Show the hAIve memory count in the status bar |
+| `haive.memoriesDir` | `.ai/memories` | Path to the context-records directory, relative to the workspace root |
+| `haive.highlightActionRequired` | `true` | Warning decoration on files with `action_required` records |
+| `haive.cliPath` | `haive` | Path to the `haive` CLI binary. Use an absolute path if `haive` is not on PATH (e.g. `/usr/local/bin/haive`) |
+| `haive.briefingBudget` | `default` | Token budget for the briefing: `default`, `deep` (more thorough, more tokens), or `minimal` |
+
+## Keybindings
+
+| Shortcut (Win/Linux) | Shortcut (macOS) | Command |
+|---|---|---|
+| `Ctrl+Shift+H` | `Cmd+Shift+H` | hAIve: Search Memories… |
+| `Ctrl+Shift+B` | `Cmd+Shift+B` | hAIve: Get Briefing for This File *(when the editor is focused)* |
 
 ## Commands
+
+All commands are available from the Command Palette (`Ctrl/Cmd+Shift+P`).
+
+**Browse & search**
 
 | Command | Description |
 |---|---|
 | `hAIve: Refresh Memories` | Reload memories from disk |
-| `hAIve: Show Memories for This File` | Filter sidebar to current file |
+| `hAIve: Show All Memories` | Show every memory in the sidebar |
+| `hAIve: Show Memories for This File` | Filter the sidebar to the current file |
+| `hAIve: Search Memories…` | Fuzzy-search the corpus (`Ctrl/Cmd+Shift+H`) |
+| `hAIve: Get Briefing for This File` | Ranked, file-scoped briefing for the active file (`Ctrl/Cmd+Shift+B`) |
+| `hAIve: Copy Memory Content` | Copy a memory's body to the clipboard |
+
+**Author & curate**
+
+| Command | Description |
+|---|---|
 | `hAIve: Add Memory…` | Quick-add a memory via guided input |
+| `hAIve: Record Failed Attempt…` | Capture a dead end (`mem tried`) so agents don't repeat it |
 | `hAIve: Add Starter Memories (Stack Pack)…` | Seed a stack pack of starter memories (auto-detected stacks first) |
 | `hAIve: Anchor Memory to File…` | Anchor a memory/seed to the active or a chosen file — turns a background seed into high-signal context |
 | `hAIve: Promote Memory to Team` | Promote a personal memory to the shared team scope |
+| `hAIve: Mark Memory Applied` | Record that a memory demonstrably steered work |
+| `hAIve: Mark Memory Rejected` | Record that a memory was noisy, wrong, or unhelpful |
+| `hAIve: Sync Memories` | Sync the corpus (regenerate bridges / shared state) |
+
+**Observability & quality**
+
+| Command | Description |
+|---|---|
+| `hAIve: Run Health Check` | Run `haive doctor` and refresh the Harness Health view |
 | `hAIve: Refresh Observability` | Rebuild Strategic Cockpit + Discipline Inbox from CLI stats |
 | `hAIve: Run Eval` | Run retrieval + sensor quality eval |
 | `hAIve: Save Eval Baseline` | Save the current eval report as the regression baseline |
 | `hAIve: Compare Eval to Baseline` | Compare current eval to the saved baseline |
 | `hAIve: Run Sensors Check` | Run executable memory sensors against the staged diff |
 | `hAIve: Run Memory Lint` | Review corpus quality and suggested fixes |
-| `hAIve: Mark Memory Applied` | Record that a memory demonstrably steered work |
-| `hAIve: Mark Memory Rejected` | Record that a memory was noisy, wrong, or unhelpful |
-| `hAIve: Promote Sensor to Block` | Promote a vetted sensor from warn to block |
-| `hAIve: Initialize in This Workspace` | Run `haive init` in terminal |
+| `hAIve: Run Suggested Fix` | Apply a fix suggested by a Discipline Inbox item |
+| `hAIve: Promote Sensor to Block` | Promote a vetted sensor from `warn` to `block` |
+
+**Setup**
+
+| Command | Description |
+|---|---|
+| `hAIve: Initialize in This Workspace` | Run `haive init` in the terminal |
+| `hAIve: Show Output` | Open the hAIve output channel (logs/diagnostics) |
 
 > 🌱 **Curating seeds:** stack-pack seeds are generic starter knowledge kept at *background* priority. The sidebar groups unanchored seeds under **Seeds — needs curation**; anchor one to a real file (or replace it with a repo-specific note) to make it high-signal for agents.
