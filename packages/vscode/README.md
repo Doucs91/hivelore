@@ -123,7 +123,7 @@ code --install-extension haive-vscode-*.vsix
 Search **hAIve** in the Extensions view, or run:
 
 ```
-ext install hiveai.haive-vscode
+ext install hAIve.haive-vscode
 ```
 
 Then initialize hAIve in your repo (see [Getting started](#getting-started)).
