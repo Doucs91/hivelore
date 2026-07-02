@@ -9,6 +9,6 @@
     <path d="M67 50 L58.5 35.28 L41.5 35.28 L33 50 L41.5 64.72 L58.5 64.72 Z" fill="#F5A623" filter="url(#wmGlow)"></path>
   </g>
   <text x="116" y="74" font-family="'Space Grotesk', system-ui, sans-serif" font-size="64" font-weight="600" letter-spacing="-1">
-    <tspan fill="#1A1A1A">hive</tspan><tspan fill="#F5A623">lore</tspan>
+    <tspan fill="#F5A623">hive</tspan><tspan fill="#1A1A1A">lore</tspan>
   </text>
 </svg>
