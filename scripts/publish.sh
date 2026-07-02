@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# publish.sh — publish all hAIve packages to npm safely.
+# publish.sh — publish all Hivelore packages to npm safely.
 #
 # Usage:
 #   ./scripts/publish.sh           # publish current version
@@ -21,7 +21,7 @@ cd "$ROOT"
 CURRENT=$(node -p "require('./packages/core/package.json').version")
 TARGET="${1:-$CURRENT}"
 
-echo "📦 hAIve publish — v$TARGET"
+echo "📦 Hivelore publish — v$TARGET"
 echo ""
 
 # ── Bump versions if different ─────────────────────────────────────────────
@@ -45,7 +45,7 @@ for pkg in cli mcp; do
     const fs = require('fs');
     const p = './packages/$pkg/package.json';
     const j = JSON.parse(fs.readFileSync(p, 'utf8'));
-    const names = ['@hiveai/core','@hiveai/mcp','@hiveai/embeddings'];
+    const names = ['@hivelore/core','@hivelore/mcp','@hivelore/embeddings'];
     // Update in all dependency sections (dependencies, optionalDependencies, peerDependencies)
     for (const section of ['dependencies','optionalDependencies','peerDependencies']) {
       const deps = j[section] || {};
@@ -57,24 +57,24 @@ for pkg in cli mcp; do
 done
 
 echo "   Deps synced:"
-grep '"@hiveai' packages/cli/package.json | grep -v '"name"'
-grep '"@hiveai' packages/mcp/package.json | grep -v '"name"'
+grep '"@hivelore' packages/cli/package.json | grep -v '"name"'
+grep '"@hivelore' packages/mcp/package.json | grep -v '"name"'
 
 # ── Build ──────────────────────────────────────────────────────────────────
 echo ""
 echo "🔨 Building all packages..."
-pnpm --filter @hiveai/core build
-pnpm --filter @hiveai/embeddings build
-pnpm --filter @hiveai/mcp build
-pnpm --filter @hiveai/cli build
+pnpm --filter @hivelore/core build
+pnpm --filter @hivelore/embeddings build
+pnpm --filter @hivelore/mcp build
+pnpm --filter @hivelore/cli build
 echo "   Build complete."
 
 # ── Publish ────────────────────────────────────────────────────────────────
 echo ""
 echo "🚀 Publishing to npm..."
 for pkg in core embeddings mcp cli; do
-  echo "   Publishing @hiveai/$pkg@$TARGET..."
-  pnpm --filter "@hiveai/$pkg" publish --access public --no-git-checks 2>&1 | \
+  echo "   Publishing @hivelore/$pkg@$TARGET..."
+  pnpm --filter "@hivelore/$pkg" publish --access public --no-git-checks 2>&1 | \
     grep -v "^npm warn" | grep -v "^npm notice" || true
 done
 
@@ -94,13 +94,13 @@ fi
 git push origin "v$TARGET" 2>/dev/null || echo "ℹ  Tag already on remote"
 
 echo ""
-echo "✅ Published @hiveai/* v$TARGET"
-echo "   Install with: npm install -g @hiveai/cli@$TARGET"
+echo "✅ Published @hivelore/* v$TARGET"
+echo "   Install with: npm install -g @hivelore/cli@$TARGET"
 
 # ── Also build github-action ───────────────────────────────────────────────
 if [ -d "packages/github-action" ]; then
   echo ""
   echo "🔨 Building github-action..."
-  pnpm --filter "@hiveai/github-action" build 2>/dev/null || \
+  pnpm --filter "@hivelore/github-action" build 2>/dev/null || \
     (cd packages/github-action && node_modules/.bin/tsup src/run.ts --format cjs --out-dir dist --no-splitting)
 fi

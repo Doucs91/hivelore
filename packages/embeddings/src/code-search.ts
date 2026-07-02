@@ -1,4 +1,4 @@
-import type { HaivePaths } from "@hiveai/core";
+import type { HaivePaths } from "@hivelore/core";
 import { cosine, Embedder, type EmbedderLike } from "./embedder.js";
 import { loadCodeIndex, type CodeEmbeddingIndex } from "./code-index-cache.js";
 
@@ -27,7 +27,7 @@ export async function codeSemanticSearch(
   const embedder = options.embedder ?? (await Embedder.create(index.model));
   if (embedder.dimension !== index.dimension) {
     throw new Error(
-      `Embedder dimension (${embedder.dimension}) differs from code index (${index.dimension}). Re-run \`haive index code-search\`.`,
+      `Embedder dimension (${embedder.dimension}) differs from code index (${index.dimension}). Re-run \`hivelore index code-search\`.`,
     );
   }
 

@@ -6,7 +6,7 @@ import {
   memoryFilePath,
   serializeMemory,
   suggestSensorSeed,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -57,7 +57,7 @@ export async function memTried(
   ctx: HaiveContext,
 ): Promise<MemTriedOutput> {
   if (!existsSync(ctx.paths.haiveDir)) {
-    throw new Error(`No .ai/ directory at ${ctx.paths.root}. Run 'haive init' first.`);
+    throw new Error(`No .ai/ directory at ${ctx.paths.root}. Run 'hivelore init' first.`);
   }
 
   const slug = input.what
@@ -104,7 +104,7 @@ export async function memTried(
     input.paths.length === 0
       ? "No `paths` given, so this attempt is feedforward-only — it will be briefed but the gate cannot block the repeat. Re-run with `paths` set to the file(s) where the mistake lives, then call propose_sensor to close the loop."
       : seed
-        ? "This attempt is NOT yet enforced. Call propose_sensor to turn it into a reliable block — a candidate is pre-filled in proposed_sensor_seed (refine it: pattern = the faulty usage, absent = the correct-usage marker). hAIve validates the proposal (silent on current code, fires on the bad example) before trusting it to block."
+        ? "This attempt is NOT yet enforced. Call propose_sensor to turn it into a reliable block — a candidate is pre-filled in proposed_sensor_seed (refine it: pattern = the faulty usage, absent = the correct-usage marker). Hivelore validates the proposal (silent on current code, fires on the bad example) before trusting it to block."
         : "This attempt is NOT yet enforced and no candidate pattern could be derived from the wording. Call propose_sensor with a discriminating pattern (pattern = faulty usage, absent = correct-usage marker) to close the loop.";
 
   return {

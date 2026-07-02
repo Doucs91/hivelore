@@ -14,7 +14,7 @@ import {
   loadMemoriesFromDir,
   memoryFilePath,
   serializeMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 import { clearPendingDistill } from "../session-tracker.js";
@@ -95,7 +95,7 @@ export async function memSessionEnd(
   ctx: HaiveContext,
 ): Promise<MemSessionEndOutput> {
   if (!existsSync(ctx.paths.haiveDir)) {
-    throw new Error(`No .ai/ directory at ${ctx.paths.root}. Run 'haive init' first.`);
+    throw new Error(`No .ai/ directory at ${ctx.paths.root}. Run 'hivelore init' first.`);
   }
 
   const body = buildBody(input);

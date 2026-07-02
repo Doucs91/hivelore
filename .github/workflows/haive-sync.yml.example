@@ -1,12 +1,12 @@
-# hAIve sync — example workflow
+# Hivelore sync — example workflow
 #
 # Copy this file to .github/workflows/haive-sync.yml in YOUR project to keep
 # memory anchors fresh after every merge to main/develop, and to comment on
 # PRs when their changes would invalidate existing memories.
 #
-# Requires: Node 20+, @hiveai/cli installed (or via npx).
+# Requires: Node 20+, @hivelore/cli installed (or via npx).
 
-name: hAIve sync
+name: Hivelore sync
 
 on:
   push:
@@ -29,11 +29,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install hAIve
-        run: npm install -g @hiveai/cli
+      - name: Install Hivelore
+        run: npm install -g @hivelore/cli
       - name: Refresh memory state
         run: |
-          haive sync --since HEAD~1 || true
+          hivelore sync --since HEAD~1 || true
       - name: Commit updates if any
         run: |
           if [[ -n "$(git status --porcelain .ai/)" ]]; then
@@ -54,13 +54,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install hAIve
-        run: npm install -g @hiveai/cli
+      - name: Install Hivelore
+        run: npm install -g @hivelore/cli
       - name: Verify anchors that touch this PR
         id: verify
         run: |
           # Run verify (no --update so we just see the report) and capture output.
-          haive memory verify --all --dir . > verify.txt 2>&1 || true
+          hivelore memory verify --all --dir . > verify.txt 2>&1 || true
           echo "report<<EOF" >> $GITHUB_OUTPUT
           cat verify.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -74,7 +74,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `### hAIve PR check\n\nSome memories anchored in this PR will become stale after merge:\n\n\`\`\`\n${report}\n\`\`\`\n\nUpdate or remove the affected memories before merging, or accept that \`haive sync\` will mark them stale on main.`,
+              body: `### Hivelore PR check\n\nSome memories anchored in this PR will become stale after merge:\n\n\`\`\`\n${report}\n\`\`\`\n\nUpdate or remove the affected memories before merging, or accept that \`hivelore sync\` will mark them stale on main.`,
             });
         env:
           REPORT: ${{ steps.verify.outputs.report }}
@@ -85,7 +85,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: Doucs91/hAIve/packages/github-action@main
+      - uses: Doucs91/hivelore/packages/github-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # post-if-empty: 'true'   # uncomment to always post (even when no memories found)

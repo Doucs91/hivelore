@@ -1,15 +1,15 @@
 {
-  "name": "haive-monorepo",
+  "name": "hivelore-monorepo",
   "private": true,
-  "version": "0.29.13",
-  "description": "hAIve - repo-native memory and context policy for coding-agent harnesses",
+  "version": "0.30.0",
+  "description": "Hivelore - repo-native memory and context policy for coding-agent harnesses",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Doucs91/hAIve.git"
+    "url": "git+https://github.com/Doucs91/hivelore.git"
   },
-  "bugs": "https://github.com/Doucs91/hAIve/issues",
-  "homepage": "https://github.com/Doucs91/hAIve#readme",
+  "bugs": "https://github.com/Doucs91/hivelore/issues",
+  "homepage": "https://github.com/Doucs91/hivelore#readme",
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
@@ -17,7 +17,7 @@
     "typecheck": "pnpm -r typecheck",
     "check:artifacts": "node scripts/verify-build-artifacts.mjs",
     "clean": "pnpm -r clean",
-    "publish:all": "pnpm -r build && pnpm -r test && pnpm --filter @hiveai/core publish --access public --no-git-checks && pnpm --filter @hiveai/embeddings publish --access public --no-git-checks && pnpm --filter @hiveai/mcp publish --access public --no-git-checks && pnpm --filter @hiveai/cli publish --access public --no-git-checks"
+    "publish:all": "pnpm -r build && pnpm -r test && pnpm --filter @hivelore/core publish --access public --no-git-checks && pnpm --filter @hivelore/embeddings publish --access public --no-git-checks && pnpm --filter @hivelore/mcp publish --access public --no-git-checks && pnpm --filter @hivelore/cli publish --access public --no-git-checks"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

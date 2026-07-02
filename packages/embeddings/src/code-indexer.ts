@@ -1,4 +1,4 @@
-import { loadCodeMap, type HaivePaths } from "@hiveai/core";
+import { loadCodeMap, type HaivePaths } from "@hivelore/core";
 import { createHash } from "node:crypto";
 import type { EmbedderLike } from "./embedder.js";
 import {
@@ -37,7 +37,7 @@ export async function rebuildCodeIndex(
   const codeMap = await loadCodeMap(paths);
   if (!codeMap) {
     throw new Error(
-      "No code-map found. Run `haive index code` to generate `.ai/code-map.json` first.",
+      "No code-map found. Run `hivelore index code` to generate `.ai/code-map.json` first.",
     );
   }
 

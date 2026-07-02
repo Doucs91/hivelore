@@ -10,8 +10,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: hAIve version
-      placeholder: "e.g. 0.9.11 (run: haive --version)"
+      label: Hivelore version
+      placeholder: "e.g. 0.9.11 (run: hivelore --version)"
     validations:
       required: true
 

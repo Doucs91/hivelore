@@ -8,15 +8,15 @@ coverage
 .vitest-cache
 .tsbuildinfo
 
-# hAIve local cache (embeddings index, model weights, etc.)
+# Hivelore local cache (embeddings index, model weights, etc.)
 .ai/.cache/
 .ai/.runtime/
 .ai/memories/personal/
 
-# hAIve ephemeral session handoff (overwritten each session, local-only)
+# Hivelore ephemeral session handoff (overwritten each session, local-only)
 NEXT.md
 
-# hAIve project-level MCP configs generated per machine (absolute paths)
+# Hivelore project-level MCP configs generated per machine (absolute paths)
 .cursor/mcp.json
 .vscode/mcp.json
 .mcp.json
@@ -30,7 +30,7 @@ engram/
 # SonarQube MCP (secrets + certificats locaux)
 sonar-mcp.local.env
 sonar-mcp-ca/
-# hAIve project-level MCP configs (machine-specific absolute paths)
+# Hivelore project-level MCP configs (machine-specific absolute paths)
 .ai/.cache/*
 !.ai/.cache/.gitignore
 .ai/.runtime/*
@@ -42,5 +42,5 @@ benchmarks/.tpl/
 benchmarks/.accept/
 benchmarks/RESULTS.md
 benchmarks/manual-run/fixtures/**/package-lock.json
-# Untracked exploratory POC (ctx -> hAIve bridge); kept local, not shipped
+# Untracked exploratory POC (ctx -> Hivelore bridge); kept local, not shipped
 ctx-haive-poc/

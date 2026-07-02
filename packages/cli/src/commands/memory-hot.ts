@@ -6,7 +6,7 @@ import {
   getUsage,
   loadUsageIndex,
   resolveHaivePaths,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
@@ -21,7 +21,7 @@ export function registerMemoryHot(memory: Command): void {
     .command("hot")
     .description(
       "List unvalidated memories with high read_count — proven-useful promotion candidates.\n\n" +
-      "  Unlike `haive memory pending` (which lists ALL draft/proposed by status),\n" +
+      "  Unlike `hivelore memory pending` (which lists ALL draft/proposed by status),\n" +
       "  `hot` filters by usage: only memories read ≥N times qualify.\n" +
       "  Use it to quickly find memories that agents are already relying on\n" +
       "  but that haven't been formally validated yet.",
@@ -70,8 +70,8 @@ export function registerMemoryHot(memory: Command): void {
         console.log(`  ${ui.dim(path.relative(root, filePath))}`);
       }
       ui.info(
-        `${candidates.length} hot (read ≥${threshold}×) — agents rely on these; promote with \`haive memory promote <id>\`.\n` +
-        `  Tip: \`haive memory pending\` lists ALL unvalidated memories regardless of read count.`,
+        `${candidates.length} hot (read ≥${threshold}×) — agents rely on these; promote with \`hivelore memory promote <id>\`.\n` +
+        `  Tip: \`hivelore memory pending\` lists ALL unvalidated memories regardless of read count.`,
       );
     });
 }

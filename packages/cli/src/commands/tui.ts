@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { findProjectRoot } from "@hiveai/core";
+import { findProjectRoot } from "@hivelore/core";
 
 export function registerTui(program: Command): void {
   program
@@ -22,7 +22,7 @@ export function registerTui(program: Command): void {
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: { dir?: string }) => {
       if (!process.stdout.isTTY) {
-        console.error("haive tui requires an interactive terminal (TTY).");
+        console.error("hivelore tui requires an interactive terminal (TTY).");
         process.exitCode = 1;
         return;
       }

@@ -1,9 +1,9 @@
 /**
- * haive memory import --from-changelog CHANGELOG.md [--package <name>]
+ * hivelore memory import --from-changelog CHANGELOG.md [--package <name>]
  *
  * Parses a CHANGELOG.md file (Keep-a-Changelog format or common variants),
  * extracts breaking changes and notable gotchas from recent versions,
- * and saves them as hAIve memories.
+ * and saves them as Hivelore memories.
  *
  * Supports:
  *   - Keep a Changelog (https://keepachangelog.com)
@@ -19,7 +19,7 @@ import {
   findProjectRoot,
   resolveHaivePaths,
   serializeMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface ImportChangelogOptions {
@@ -123,14 +123,14 @@ export function registerMemoryImportChangelog(memory: Command): void {
   memory
     .command("import-changelog")
     .description(
-      "Import breaking changes from a CHANGELOG.md as hAIve memories.\n\n" +
+      "Import breaking changes from a CHANGELOG.md as Hivelore memories.\n\n" +
       "  Parses Keep-a-Changelog and Angular commit format changelogs,\n" +
       "  extracts breaking changes, deprecations, and removals,\n" +
       "  and saves each version's changes as a gotcha memory.\n\n" +
       "  Examples:\n" +
-      "    haive memory import-changelog --from node_modules/@company/sdk/CHANGELOG.md --package @company/sdk\n" +
-      "    haive memory import-changelog --from CHANGELOG.md\n" +
-      "    haive memory import-changelog --from CHANGELOG.md --versions 2.0.0,2.1.0\n",
+      "    hivelore memory import-changelog --from node_modules/@company/sdk/CHANGELOG.md --package @company/sdk\n" +
+      "    hivelore memory import-changelog --from CHANGELOG.md\n" +
+      "    hivelore memory import-changelog --from CHANGELOG.md --versions 2.0.0,2.1.0\n",
     )
     .requiredOption("--from <file>", "path to the CHANGELOG.md file")
     .option("--package <name>", "name of the package (used in memory title and tags)")
@@ -234,7 +234,7 @@ export function registerMemoryImportChangelog(memory: Command): void {
           ui.dim(`  Memories saved to .ai/memories/${scope}/`),
         );
         console.log(
-          ui.dim(`  Run \`haive briefing --task "update ${pkgName}"\` to see them in context.`),
+          ui.dim(`  Run \`hivelore briefing --task "update ${pkgName}"\` to see them in context.`),
         );
       }
     });

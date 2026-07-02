@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import {
   loadMemoriesFromDir,
   serializeMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 

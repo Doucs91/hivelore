@@ -8,7 +8,7 @@
  *     - Claude Code (~/.claude.json mcpServers field)
  *     - Windsurf (~/.codeium/windsurf/mcp_config.json)
  *
- *   Project-level (per project, written at haive init, includes HAIVE_PROJECT_ROOT):
+ *   Project-level (per project, written at hivelore init, includes HAIVE_PROJECT_ROOT):
  *     - Cursor  (<root>/.cursor/mcp.json)
  *     - VS Code (<root>/.vscode/mcp.json)
  *     - Claude Code (<root>/.mcp.json)
@@ -24,13 +24,13 @@ import os from "node:os";
 
 const HOME = os.homedir();
 const HAIVE_MCP_ENTRY = {
-  command: "haive",
+  command: "hivelore",
   args: ["mcp", "--stdio"],
 };
 
 function projectMcpEntry(root: string) {
   return {
-    command: "haive",
+    command: "hivelore",
     args: ["mcp", "--stdio"],
     env: { HAIVE_PROJECT_ROOT: root },
   };
@@ -52,9 +52,9 @@ async function configureCursor(): Promise<ConfigureResult> {
     try { config = JSON.parse(await readFile(mcpPath, "utf8")); } catch { /* ignore malformed */ }
   }
   config.mcpServers ??= {};
-  if (config.mcpServers["haive"]) return { client: "Cursor", status: "already_configured" };
+  if (config.mcpServers["hivelore"] || config.mcpServers["haive"]) return { client: "Cursor", status: "already_configured" };
 
-  config.mcpServers["haive"] = HAIVE_MCP_ENTRY;
+  config.mcpServers["hivelore"] = HAIVE_MCP_ENTRY;
   await mkdir(cursorDir, { recursive: true });
   await writeFile(mcpPath, JSON.stringify(config, null, 2), "utf8");
   return { client: "Cursor", status: "configured", path: mcpPath };
@@ -85,9 +85,9 @@ async function configureVSCode(): Promise<ConfigureResult> {
     try { config = JSON.parse(await readFile(mcpPath, "utf8")); } catch { /* ignore */ }
   }
   config.servers ??= {};
-  if (config.servers["haive"]) return { client: "VS Code", status: "already_configured" };
+  if (config.servers["hivelore"] || config.servers["haive"]) return { client: "VS Code", status: "already_configured" };
 
-  config.servers["haive"] = { ...HAIVE_MCP_ENTRY, type: "stdio" };
+  config.servers["hivelore"] = { ...HAIVE_MCP_ENTRY, type: "stdio" };
   await mkdir(path.dirname(mcpPath), { recursive: true });
   await writeFile(mcpPath, JSON.stringify(config, null, 2), "utf8");
   return { client: "VS Code", status: "configured", path: mcpPath };
@@ -116,9 +116,9 @@ async function configureClaude(): Promise<ConfigureResult> {
     try { config = JSON.parse(await readFile(cfgPath, "utf8")); } catch { /* ignore */ }
   }
   config.mcpServers ??= {};
-  if (config.mcpServers["haive"]) return { client: "Claude Code", status: "already_configured" };
+  if (config.mcpServers["hivelore"] || config.mcpServers["haive"]) return { client: "Claude Code", status: "already_configured" };
 
-  config.mcpServers["haive"] = { ...HAIVE_MCP_ENTRY, type: "stdio" };
+  config.mcpServers["hivelore"] = { ...HAIVE_MCP_ENTRY, type: "stdio" };
   await writeFile(cfgPath, JSON.stringify(config, null, 2), "utf8");
   return { client: "Claude Code", status: "configured", path: cfgPath };
 }
@@ -145,9 +145,9 @@ async function configureWindsurf(): Promise<ConfigureResult> {
     try { config = JSON.parse(await readFile(mcpPath, "utf8")); } catch { /* ignore */ }
   }
   config.mcpServers ??= {};
-  if (config.mcpServers["haive"]) return { client: "Windsurf", status: "already_configured" };
+  if (config.mcpServers["hivelore"] || config.mcpServers["haive"]) return { client: "Windsurf", status: "already_configured" };
 
-  config.mcpServers["haive"] = HAIVE_MCP_ENTRY;
+  config.mcpServers["hivelore"] = HAIVE_MCP_ENTRY;
   await mkdir(path.dirname(mcpPath), { recursive: true });
   await writeFile(mcpPath, JSON.stringify(config, null, 2), "utf8");
   return { client: "Windsurf", status: "configured", path: mcpPath };
@@ -181,7 +181,7 @@ export async function autoConfigureMcpClients(): Promise<ConfigureResult[]> {
  * each AI client uses the correct project root regardless of the server's CWD.
  *
  * These files are machine-specific (absolute paths) and should be gitignored.
- * haive init appends them to .gitignore automatically.
+ * hivelore init appends them to .gitignore automatically.
  *
  * Project-level configs take precedence over user-level configs in Cursor and
  * VS Code when the workspace is opened. This is the canonical fix for the
@@ -199,7 +199,8 @@ export async function configureProjectMcpClients(root: string): Promise<Configur
       try { config = JSON.parse(await readFile(cursorPath, "utf8")); } catch { /* keep empty */ }
     }
     config.mcpServers ??= {};
-    config.mcpServers["haive"] = entry;
+    delete config.mcpServers["haive"]; // legacy key superseded by "hivelore"
+    config.mcpServers["hivelore"] = entry;
     await mkdir(path.dirname(cursorPath), { recursive: true });
     await writeFile(cursorPath, JSON.stringify(config, null, 2) + "\n", "utf8");
     results.push({ client: "Cursor (project)", status: "configured", path: cursorPath });
@@ -215,7 +216,8 @@ export async function configureProjectMcpClients(root: string): Promise<Configur
       try { config = JSON.parse(await readFile(vscodePath, "utf8")); } catch { /* keep empty */ }
     }
     config.servers ??= {};
-    config.servers["haive"] = { ...entry, type: "stdio" };
+    delete config.servers["haive"]; // legacy key superseded by "hivelore"
+    config.servers["hivelore"] = { ...entry, type: "stdio" };
     await mkdir(path.dirname(vscodePath), { recursive: true });
     await writeFile(vscodePath, JSON.stringify(config, null, 2) + "\n", "utf8");
     results.push({ client: "VS Code (workspace)", status: "configured", path: vscodePath });
@@ -231,7 +233,8 @@ export async function configureProjectMcpClients(root: string): Promise<Configur
       try { config = JSON.parse(await readFile(mcpPath, "utf8")); } catch { /* keep empty */ }
     }
     config.mcpServers ??= {};
-    config.mcpServers["haive"] = { ...entry, type: "stdio" };
+    delete config.mcpServers["haive"]; // legacy key superseded by "hivelore"
+    config.mcpServers["hivelore"] = { ...entry, type: "stdio" };
     await writeFile(mcpPath, JSON.stringify(config, null, 2) + "\n", "utf8");
     results.push({ client: "Claude Code (project)", status: "configured", path: mcpPath });
   } catch (err) {

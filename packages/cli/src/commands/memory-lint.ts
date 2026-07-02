@@ -18,7 +18,7 @@ import {
   serializeMemory,
   specificityScore,
   type LoadedMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 export type LintSeverity = "error" | "warn" | "info";
@@ -118,7 +118,7 @@ export async function lintMemoriesAsync(
       });
     }
 
-    // Low-value / likely-guessable: hAIve earns its keep on UNGUESSABLE team knowledge. A memory
+    // Low-value / likely-guessable: Hivelore earns its keep on UNGUESSABLE team knowledge. A memory
     // that reads like generic best practice (no concrete literals/identifiers/values) is something
     // a capable model already does by default — surfacing it is mostly token overhead.
     if (
@@ -136,7 +136,7 @@ export async function lintMemoriesAsync(
         severity: "info",
         code: "LOW_VALUE_GUESSABLE",
         message:
-          "Reads like generic best practice a capable model already follows. hAIve's value is " +
+          "Reads like generic best practice a capable model already follows. Hivelore's value is " +
           "UNGUESSABLE team knowledge — add the concrete, arbitrary specifics (exact names, values, " +
           "formats, magic numbers) or consider removing it to keep briefings high-signal.",
       });
@@ -145,7 +145,7 @@ export async function lintMemoriesAsync(
     const suggestedAnchors = suggestAnchors(root, { filePath, memory }, codeMap, trackedFiles);
     // Stack-pack seeds are framework-level guidance with no natural file anchor; they already
     // carry `needs_anchor` and their bodies say to anchor-or-replace when they become repo policy.
-    // Flagging them on the very first `haive memory lint` run buries real findings in seed noise.
+    // Flagging them on the very first `hivelore memory lint` run buries real findings in seed noise.
     const isUnanchoredSeed = fm.tags.includes("stack-pack") && fm.tags.includes("needs_anchor");
     if (ANCHOR_TYPES.has(fm.type) && fm.anchor.paths.length === 0 && fm.status === "validated" && !isUnanchoredSeed) {
       out.push({
@@ -154,7 +154,7 @@ export async function lintMemoriesAsync(
         severity: "warn",
         code: "MISSING_ANCHOR",
         message:
-          `${fm.type} is validated without anchor paths — add anchor.paths so haive sync can flag staleness.`,
+          `${fm.type} is validated without anchor paths — add anchor.paths so hivelore sync can flag staleness.`,
         ...(suggestedAnchors.paths.length > 0 || suggestedAnchors.symbols.length > 0
           ? { suggested_anchors: suggestedAnchors }
           : {}),

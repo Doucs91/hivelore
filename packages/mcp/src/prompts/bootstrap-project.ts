@@ -75,7 +75,7 @@ export function bootstrapProjectPrompt(
     ? `\nEmphasis area for this analysis: **${args.focus}**.\n`
     : "";
 
-  const text = `You are bootstrapping a hAIve shared project context for the team.
+  const text = `You are bootstrapping a Hivelore shared project context for the team.
 
 Project root: \`${ctx.paths.root}\`
 Target file: ${target}

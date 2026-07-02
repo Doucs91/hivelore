@@ -1,6 +1,6 @@
 # API stability & the 1.0 stable core
 
-hAIve is still `0.x`. This document declares the **surface we intend to freeze for 1.0** — the
+Hivelore is still `0.x`. This document declares the **surface we intend to freeze for 1.0** — the
 commands, MCP tools, and on-disk formats a user or agent can depend on — versus the surface that
 stays **experimental** and may change in any release.
 
@@ -22,22 +22,22 @@ If those constants and this file ever disagree, the code wins — please open a 
 
 These are covered by SemVer once 1.0 ships: a breaking change requires a major version bump.
 
-### CLI — the golden path (`haive --help`)
+### CLI — the golden path (`hivelore --help`)
 
 | Command | Stable subcommands |
 |---|---|
-| `haive init` | — |
-| `haive doctor` | — |
-| `haive agent` | `setup`, `status` |
-| `haive briefing` | — |
-| `haive bridges` | `list`, `sync` |
-| `haive enforce` | `install`, `status`, `check`, `ci`, `finish`, `commit-msg` |
-| `haive run` | — |
-| `haive sensors` | `list`, `check`, `export`, `promote` |
-| `haive sync` | — |
-| `haive mcp` | — |
-| `haive memory` | `save`, `list`, `search`, `get`, `verify`, `lint`, `tried`, `delete` |
-| `haive session` | `end` |
+| `hivelore init` | — |
+| `hivelore doctor` | — |
+| `hivelore agent` | `setup`, `status` |
+| `hivelore briefing` | — |
+| `hivelore bridges` | `list`, `sync` |
+| `hivelore enforce` | `install`, `status`, `check`, `ci`, `finish`, `commit-msg` |
+| `hivelore run` | — |
+| `hivelore sensors` | `list`, `check`, `export`, `promote` |
+| `hivelore sync` | — |
+| `hivelore mcp` | — |
+| `hivelore memory` | `save`, `list`, `search`, `get`, `verify`, `lint`, `tried`, `delete` |
+| `hivelore session` | `end` |
 
 Old memory verbs (`add`/`query`/`show`/`rm`) remain as **permanent aliases** of
 `save`/`search`/`get`/`delete` — scripts that use them keep working.
@@ -58,7 +58,7 @@ Old memory verbs (`add`/`query`/`show`/`rm`) remain as **permanent aliases** of
 
 ## Tier 2 — Experimental (no stability guarantee)
 
-Everything reachable only via `haive --advanced` or the `maintenance` / `experimental` MCP profiles.
+Everything reachable only via `hivelore --advanced` or the `maintenance` / `experimental` MCP profiles.
 These exist, are useful, and are tested — but their names, flags, output shape, and existence may
 change in any release, including a patch. Examples: `tui`, `dashboard`, `stats`, `playback`, `eval`,
 `benchmark`, `observe`, `snapshot`, `runtime`, `ingest`, `hub`, the review/import/digest/timeline/
@@ -77,4 +77,4 @@ this file, with a test that exercises it.
 | **Now (`0.x`)** | Patch by default; minor for features. The core surface is stable in practice but not yet contractually frozen. |
 | **`1.0` onward** | Tier 1 follows SemVer: breaking change → major. Tier 2 may change in any minor/patch. |
 
-All four publishable packages (`@hiveai/core`, `cli`, `mcp`, `embeddings`) are versioned in lockstep.
+All four publishable packages (`@hivelore/core`, `cli`, `mcp`, `embeddings`) are versioned in lockstep.

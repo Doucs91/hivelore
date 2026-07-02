@@ -7,7 +7,7 @@ import {
   BRIDGE_TARGET_PATH,
   BRIDGE_TARGETS,
   type BridgeTarget,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 import { getBridgeFileStatuses, writeBridgeFiles } from "../utils/bridge-files.js";
 
@@ -28,15 +28,15 @@ export function registerBridges(program: Command): void {
   const bridges = program
     .command("bridges")
     .description(
-      "Generate native agent bridge files from the hAIve corpus.\n" +
+      "Generate native agent bridge files from the Hivelore corpus.\n" +
       "  Bridges inject top validated memories and block sensors into agent-harness-specific\n" +
       "  config files (.cursor/rules/haive-memories.mdc, .clinerules, .windsurfrules,\n" +
       "  .continuerules, .sourcegraph/cody-rules.md, .rules, AGENTS.md,\n" +
       "  .github/copilot-instructions.md).\n" +
       "  This is the reach differentiator vs memories.sh: our bridges carry enforcement, not just injection.\n\n" +
       "  Example:\n" +
-      "    haive bridges sync --all\n" +
-      "    haive bridges sync --only cline,windsurf\n",
+      "    hivelore bridges sync --all\n" +
+      "    hivelore bridges sync --only cline,windsurf\n",
     );
 
   bridges
@@ -59,7 +59,7 @@ export function registerBridges(program: Command): void {
       const dryRun = opts.dryRun === true;
 
       if (!existsSync(paths.memoriesDir)) {
-        ui.warn(`No .ai/memories at ${root}. Run \`haive init\` first.`);
+        ui.warn(`No .ai/memories at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -121,7 +121,7 @@ export function registerBridges(program: Command): void {
   bridges
     .command("status")
     .alias("list")
-    .description("List bridge targets and whether their hAIve-managed blocks are current")
+    .description("List bridge targets and whether their Hivelore-managed blocks are current")
     .option("-d, --dir <dir>", "project root")
     .option("--max-memories <n>", "max memories expected in generated bridge blocks", "8")
     .action(async (opts: BridgesStatusOptions) => {
@@ -131,7 +131,7 @@ export function registerBridges(program: Command): void {
         targets: BRIDGE_TARGETS,
         maxMemories: Math.max(1, Number(opts.maxMemories ?? 8)),
       });
-      console.log(ui.bold("hAIve bridge targets:"));
+      console.log(ui.bold("Hivelore bridge targets:"));
       for (const status of statuses) {
         const marker =
           status.state === "invalid" ? ui.yellow("!") :
@@ -146,6 +146,6 @@ export function registerBridges(program: Command): void {
         console.log(`  ${marker} ${status.target.padEnd(10)} ${status.path}  (${note})`);
       }
       console.log("");
-      console.log(ui.dim("Run `haive bridges sync --all` to create missing targets and refresh stale managed blocks."));
+      console.log(ui.dim("Run `hivelore bridges sync --all` to create missing targets and refresh stale managed blocks."));
     });
 }

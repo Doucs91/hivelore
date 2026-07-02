@@ -23,13 +23,13 @@ importers:
 
   packages/cli:
     dependencies:
-      '@hiveai/core':
+      '@hivelore/core':
         specifier: workspace:*
         version: link:../core
-      '@hiveai/embeddings':
+      '@hivelore/embeddings':
         specifier: workspace:*
         version: link:../embeddings
-      '@hiveai/mcp':
+      '@hivelore/mcp':
         specifier: workspace:*
         version: link:../mcp
       '@modelcontextprotocol/sdk':
@@ -69,7 +69,7 @@ importers:
 
   packages/embeddings:
     dependencies:
-      '@hiveai/core':
+      '@hivelore/core':
         specifier: workspace:*
         version: link:../core
       '@xenova/transformers':
@@ -97,10 +97,10 @@ importers:
 
   packages/mcp:
     dependencies:
-      '@hiveai/core':
+      '@hivelore/core':
         specifier: workspace:*
         version: link:../core
-      '@hiveai/embeddings':
+      '@hivelore/embeddings':
         specifier: workspace:*
         version: link:../embeddings
       '@modelcontextprotocol/sdk':

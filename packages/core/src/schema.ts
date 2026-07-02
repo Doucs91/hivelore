@@ -61,7 +61,7 @@ export const SensorSchema = z.object({
   message: z.string().min(1),
   /** `warn` surfaces in review; `block` can hard-block the commit (only when the gate opts in). */
   severity: z.enum(["warn", "block"]).default("warn"),
-  /** True when hAIve generated this sensor automatically (vs. hand-authored). */
+  /** True when Hivelore generated this sensor automatically (vs. hand-authored). */
   autogen: z.boolean().default(false),
   /** ISO timestamp of the last time this sensor matched a diff. */
   last_fired: z.string().nullable().default(null),

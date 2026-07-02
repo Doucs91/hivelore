@@ -1,7 +1,7 @@
 /**
- * `haive memory resolve-conflict <id_a> <id_b>` — turn a detected contradiction into a resolution.
+ * `hivelore memory resolve-conflict <id_a> <id_b>` — turn a detected contradiction into a resolution.
  *
- * `haive memory conflict-candidates` finds pairs that contradict each other; this APPLIES the fix:
+ * `hivelore memory conflict-candidates` finds pairs that contradict each other; this APPLIES the fix:
  * it deprecates the losing memory (by the deterministic order in `planConflictResolution`) and
  * stamps it with a stale_reason pointing at the winner. Keeps the corpus coherent as it grows —
  * Fowler's "incoherence at scale" challenge.
@@ -15,7 +15,7 @@ import {
   planConflictResolution,
   resolveHaivePaths,
   serializeMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 

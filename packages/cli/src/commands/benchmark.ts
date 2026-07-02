@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
-import { estimateTokens, findProjectRoot } from "@hiveai/core";
+import { estimateTokens, findProjectRoot } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface BenchmarkOptions {
@@ -27,11 +27,11 @@ interface AgentBenchmarkRow {
 export function registerBenchmark(program: Command): void {
   const benchmark = program
     .command("benchmark")
-    .description("Measure hAIve's VALUE: paired hAIve-vs-plain agent runs (correctness, tokens, tools). Different from `selftest` (which only checks local install latency).");
+    .description("Measure Hivelore's VALUE: paired Hivelore-vs-plain agent runs (correctness, tokens, tools). Different from `selftest` (which only checks local install latency).");
 
   benchmark
     .command("report")
-    .description("Summarize BENCHMARK_AGENT_REPORT.md files from a paired hAIve/plain agent benchmark.")
+    .description("Summarize BENCHMARK_AGENT_REPORT.md files from a paired Hivelore/plain agent benchmark.")
     .option("-d, --dir <dir>", "benchmark root", "benchmarks/agent-benchmark")
     .option("--out <file>", "write a Markdown report")
     .option("--json", "emit JSON", false)
@@ -57,19 +57,19 @@ export function registerBenchmark(program: Command): void {
 
   benchmark
     .command("demo")
-    .description("Print the recommended protocol for running a hAIve vs plain agent benchmark.")
+    .description("Print the recommended protocol for running a Hivelore vs plain agent benchmark.")
     .action(() => {
       console.log([
-        "# hAIve Agent Benchmark Demo",
+        "# Hivelore Agent Benchmark Demo",
         "",
         "1. Create paired fixtures: one `*-haive`, one `*-plain`.",
         "2. Put the same failing tests in both fixtures.",
-        "3. Add precise `.ai/memories/team/*.md` policy memories only to the hAIve fixture.",
+        "3. Add precise `.ai/memories/team/*.md` policy memories only to the Hivelore fixture.",
         "4. Run equal agents in parallel:",
-        "   - hAIve agents must run `haive briefing --files ... --task ...` first.",
-        "   - Plain agents must not read `.ai` or call hAIve.",
+        "   - Hivelore agents must run `hivelore briefing --files ... --task ...` first.",
+        "   - Plain agents must not read `.ai` or call Hivelore.",
         "5. Require every agent to write `BENCHMARK_AGENT_REPORT.md`.",
-        "6. Run `haive benchmark report --dir <benchmark-root> --out RESULTS.md`.",
+        "6. Run `hivelore benchmark report --dir <benchmark-root> --out RESULTS.md`.",
         "",
         "Recommended metrics: pass rate, test iterations, files read, files changed, visible artifacts, decision quality, and token proxy.",
       ].join("\n"));
@@ -110,7 +110,7 @@ function parseAgentReport(fixture: string, report: string): AgentBenchmarkRow {
     terminal_failures: countMatches(section(report, "Terminal Errors"), /fail|error|not raised|exited with code 1/gi),
     decision_mentions: sectionBulletCount(report, "Key Decisions"),
     report_tokens_est: estimateTokens(report),
-    haive_impact: /hAIve Memory Impact[\s\S]*?\b(yes|directly|changed|shaped|confirmed)\b/i.test(report),
+    haive_impact: /Hivelore Memory Impact[\s\S]*?\b(yes|directly|changed|shaped|confirmed)\b/i.test(report),
   };
 }
 
@@ -145,20 +145,20 @@ function renderMarkdown(
   rows: AgentBenchmarkRow[],
 ): string {
   const lines = [
-    "# hAIve Agent Benchmark Report",
+    "# Hivelore Agent Benchmark Report",
     "",
     `Benchmark root: \`${root}\``,
     "",
     "## Summary",
     "",
-    "| Group | Fixtures | Commands | Files read | Files modified | Test iterations | Terminal failures | Decision mentions | Report tokens (est, report only) | hAIve impact |",
+    "| Group | Fixtures | Commands | Files read | Files modified | Test iterations | Terminal failures | Decision mentions | Report tokens (est, report only) | Hivelore impact |",
     "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
-    groupLine("hAIve", summary.haive),
+    groupLine("Hivelore", summary.haive),
     groupLine("Plain", summary.plain),
     "",
     "## Fixtures",
     "",
-    "| Fixture | Group | Commands | Files read | Files modified | Test iterations | Terminal failures | Decisions | Report tokens (est, report only) | hAIve impact |",
+    "| Fixture | Group | Commands | Files read | Files modified | Test iterations | Terminal failures | Decisions | Report tokens (est, report only) | Hivelore impact |",
     "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ...rows.map((row) =>
       `| \`${row.fixture}\` | ${row.group} | ${row.commands} | ${row.files_read} | ${row.files_modified} | ${row.test_iterations} | ${row.terminal_failures} | ${row.decision_mentions} | ${row.report_tokens_est} | ${row.haive_impact ? "yes" : "no"} |`,

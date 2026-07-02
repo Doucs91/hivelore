@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveHaivePaths, type HaivePaths } from "@hiveai/core";
+import { resolveHaivePaths, type HaivePaths } from "@hivelore/core";
 import {
   buildEntryText,
   emptyIndex,

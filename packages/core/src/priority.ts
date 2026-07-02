@@ -2,7 +2,7 @@
  * THE single source of truth for briefing memory priority — must_read / useful / background.
  *
  * This tier decides what an agent reads first. It used to be implemented TWICE: once in the MCP
- * `get_briefing` tool (briefing-helpers) and once in the `haive briefing` CLI command, each on its
+ * `get_briefing` tool (briefing-helpers) and once in the `hivelore briefing` CLI command, each on its
  * own data shape. The two drifted (the stack-pack down-rank, then the env-workaround down-rank, both
  * had to be applied in two places, and one was missed). This module is the shared classifier: both
  * call sites map their available evidence into {@link PrioritySignals} and call {@link classifyMemoryPriority}

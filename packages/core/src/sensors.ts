@@ -276,7 +276,7 @@ export function sensorTargetsFromDiff(diff: string): SensorTarget[] {
 }
 
 /**
- * Files hAIve itself owns/generates — scanning them with sensors self-matches the very memories
+ * Files Hivelore itself owns/generates — scanning them with sensors self-matches the very memories
  * they mirror (a memory body documenting a bad pattern literally contains that pattern, and a
  * generated bridge re-states the block sensors). Mirrors `isHaiveOwnedPath` in the MCP
  * anti-pattern check; centralized here so the git-hook gate (`enforce check`) and the standalone
@@ -295,7 +295,7 @@ export const HAIVE_OWNED_FILES: ReadonlySet<string> = new Set<string>([
 
 /**
  * A diff target is scannable by sensors only when it is real source — never the `.ai/` knowledge
- * base or a hAIve-generated bridge/config file. Without this guard, staging an `.ai/memories/*.md`
+ * base or a Hivelore-generated bridge/config file. Without this guard, staging an `.ai/memories/*.md`
  * file (whose body quotes the bad pattern) makes the sensor fire on itself — a false positive.
  */
 export function isSensorScannablePath(p: string): boolean {
@@ -307,7 +307,7 @@ export function isSensorScannablePath(p: string): boolean {
 /**
  * Filter raw diff targets down to scannable source files. Falls back to scanning the whole diff as
  * one anonymous blob ONLY when the diff carried no file headers at all (e.g. a hand-fed `--diff-file`
- * with bare content) — never when every header was a hAIve-owned path, so `.ai/`-only diffs scan nothing.
+ * with bare content) — never when every header was a Hivelore-owned path, so `.ai/`-only diffs scan nothing.
  */
 export function scannableSensorTargets(diff: string): SensorTarget[] {
   const all = sensorTargetsFromDiff(diff);

@@ -7,7 +7,7 @@ import {
   readRuntimeJournalTail,
   resolveHaivePaths,
   type RuntimeJournalEntry,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface JournalAppendOpts {
@@ -53,7 +53,7 @@ export function registerRuntime(program: Command): void {
       const paths = resolveHaivePaths(findProjectRoot(root));
       const limit = Math.min(500, Math.max(1, parseInt(opts.limit, 10) || 30));
       if (!existsSync(paths.haiveDir)) {
-        ui.error("No .ai/ — run `haive init` first.");
+        ui.error("No .ai/ — run `hivelore init` first.");
         process.exitCode = 1;
         return;
       }

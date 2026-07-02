@@ -7,7 +7,7 @@ import {
   resolveHaivePaths,
   serializeMemory,
   type HaivePaths,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import type { EmbedderLike } from "../src/embedder.js";
 import { rebuildIndex } from "../src/indexer.js";
 import { loadIndex } from "../src/index-cache.js";

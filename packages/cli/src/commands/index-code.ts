@@ -8,7 +8,7 @@ import {
   loadCodeMap,
   resolveHaivePaths,
   saveCodeMap,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface IndexCodeOptions {
@@ -23,7 +23,7 @@ export function registerIndexCode(program: Command): void {
     .command("index")
     .description(
       "Build local indexes that let AIs look up symbols instead of grepping.\n\n" +
-      "  Run once after init, then haive sync refreshes it automatically when source changes.",
+      "  Run once after init, then hivelore sync refreshes it automatically when source changes.",
     );
   idx.action(() => idx.help());
   idx
@@ -34,12 +34,12 @@ export function registerIndexCode(program: Command): void {
       "  The map is used by:\n" +
       "    • get_briefing (symbol_locations) — look up where a class/function lives\n" +
       "    • code_map MCP tool — browse exports without grepping\n" +
-      "    • haive briefing --symbols — look up symbols from the CLI\n\n" +
-      "  Run automatically by haive init (autopilot mode) and haive sync (if source changed).\n\n" +
+      "    • hivelore briefing --symbols — look up symbols from the CLI\n\n" +
+      "  Run automatically by hivelore init (autopilot mode) and hivelore sync (if source changed).\n\n" +
       "  Example:\n" +
-      "    haive index code\n" +
-      "    haive index code --status        # report freshness without rebuilding\n" +
-      "    haive index code --exclude generated,proto\n",
+      "    hivelore index code\n" +
+      "    hivelore index code --status        # report freshness without rebuilding\n" +
+      "    hivelore index code --exclude generated,proto\n",
     )
     .option("-d, --dir <dir>", "project root")
     .option(
@@ -92,7 +92,7 @@ export function registerIndexCode(program: Command): void {
     .command("code-search")
     .description(
       "Build the semantic-search embeddings index for code (powers the code_search MCP tool).\n\n" +
-      "  Reads .ai/code-map.json (run `haive index code` first) and embeds each exported\n" +
+      "  Reads .ai/code-map.json (run `hivelore index code` first) and embeds each exported\n" +
       "  symbol's metadata (filename + name + kind + description).\n\n" +
       "  Re-runs are incremental: unchanged entries keep their cached vectors, only the\n" +
       "  diff is re-embedded. First run downloads the bge-small-en-v1.5 model (~110MB).\n",
@@ -102,13 +102,13 @@ export function registerIndexCode(program: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
 
-      let mod: typeof import("@hiveai/embeddings");
+      let mod: typeof import("@hivelore/embeddings");
       try {
-        mod = await import("@hiveai/embeddings");
+        mod = await import("@hivelore/embeddings");
       } catch {
         ui.error(
-          "@hiveai/embeddings is not installed. Install it (`pnpm add @hiveai/embeddings`) " +
-          "or run `haive embeddings install`.",
+          "@hivelore/embeddings is not installed. Install it (`pnpm add @hivelore/embeddings`) " +
+          "or run `hivelore embeddings install`.",
         );
         process.exit(1);
       }
@@ -153,7 +153,7 @@ async function reportIndexStatus(
   let searchIndexStale: boolean | null = null;
   if (searchIndexPresent && map) {
     try {
-      const mod = await import("@hiveai/embeddings");
+      const mod = await import("@hivelore/embeddings");
       const idx = await mod.loadCodeIndex(paths);
       if (idx) searchIndexStale = mod.isCodeIndexStale(idx.source_generated_at, map.generated_at);
     } catch {
@@ -185,20 +185,20 @@ async function reportIndexStatus(
   }
 
   if (!status.code_map.present) {
-    ui.warn(`No code-map at ${status.code_map.path}. Run \`haive index code\`.`);
+    ui.warn(`No code-map at ${status.code_map.path}. Run \`hivelore index code\`.`);
     process.exitCode = 1;
     return;
   }
   ui.info(
     `code-map: ${fileCount} file(s), ${exportCount} export(s) · generated ${status.code_map.generated_at ?? "?"}` +
-      (codeMapStale ? " · ⚠ STALE — source changed since generation; run `haive index code`" : " · fresh"),
+      (codeMapStale ? " · ⚠ STALE — source changed since generation; run `hivelore index code`" : " · fresh"),
   );
   if (!searchIndexPresent) {
-    ui.info("code-search index: missing — run `haive index code-search` for semantic code lookup.");
+    ui.info("code-search index: missing — run `hivelore index code-search` for semantic code lookup.");
   } else if (searchIndexStale) {
     ui.info(
       `code-search index: present (${status.code_search_index.path}) · ⚠ STALE — built from an older ` +
-        "code-map; run `haive index code-search`",
+        "code-map; run `hivelore index code-search`",
     );
   } else {
     ui.info(`code-search index: present (${status.code_search_index.path})` + (searchIndexStale === false ? " · fresh" : ""));

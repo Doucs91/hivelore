@@ -1,10 +1,10 @@
 /**
- * `haive coverage` — harness coverage-gap report.
+ * `hivelore coverage` — harness coverage-gap report.
  *
  * Crosses the repo's hottest files (git churn) with the memory corpus to surface the
  * frequently-edited files that carry NO covering decision/convention/gotcha/architecture memory.
  * Those blind spots are where a confident agent is most likely to break an unwritten rule. The
- * inverse of `haive eval` (which checks the memories that exist surface correctly).
+ * inverse of `hivelore eval` (which checks the memories that exist surface correctly).
  */
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -17,7 +17,7 @@ import {
   resolveHaivePaths,
   tallyHotFiles,
   type HotFile,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { buildRadar } from "../utils/briefing-radar.js";
 import { ui } from "../utils/ui.js";
@@ -32,7 +32,7 @@ interface CoverageOptions {
 }
 
 /**
- * Agent-edit heat: files touched by Edit/Write/Bash, captured by the `haive observe` PostToolUse hook
+ * Agent-edit heat: files touched by Edit/Write/Bash, captured by the `hivelore observe` PostToolUse hook
  * into `.ai/.cache/observations.jsonl`. Complements committed git churn — surfaces files agents work
  * on heavily that may not yet show up in git history (new work, uncommitted churn).
  */
@@ -143,7 +143,7 @@ export function registerCoverage(program: Command): void {
         ui.success(`No coverage gaps: every file changed ≥${minChanges}× is covered by a team memory.`);
         return;
       }
-      console.log(ui.bold(`hAIve coverage — ${gaps.length} blind spot(s) (hot files with no covering memory)`));
+      console.log(ui.bold(`Hivelore coverage — ${gaps.length} blind spot(s) (hot files with no covering memory)`));
       for (const gap of gaps) {
         const src = gap.source ? ui.dim(` [${gap.source}]`) : "";
         console.log(`  ${ui.yellow("○")} ${gap.path} ${ui.dim(`(${gap.changes} change${gap.changes === 1 ? "" : "s"})`)}${src}`);

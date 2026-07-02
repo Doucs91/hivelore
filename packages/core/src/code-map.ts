@@ -119,7 +119,7 @@ export async function buildCodeMap(
 
 /**
  * Count source files physically present on disk (FS walk, excluding node_modules/build/hidden dirs),
- * regardless of git tracking. Used by `haive doctor` to detect a code-map that captured far fewer
+ * regardless of git tracking. Used by `hivelore doctor` to detect a code-map that captured far fewer
  * files than the repo actually holds (untracked source, or a structure the indexer missed).
  */
 export async function countSourceFilesOnDisk(

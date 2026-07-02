@@ -1,4 +1,4 @@
-import { estimateTokens, loadCodeMap, queryCodeMap } from "@hiveai/core";
+import { estimateTokens, loadCodeMap, queryCodeMap } from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -65,7 +65,7 @@ export async function codeMapTool(
     return {
       available: false,
       files: [],
-      notice: "No code map found. Run `haive index code` to generate `.ai/code-map.json`.",
+      notice: "No code map found. Run `hivelore index code` to generate `.ai/code-map.json`.",
     };
   }
   const { files: matched } = queryCodeMap(map, { file: input.file, symbol: input.symbol });

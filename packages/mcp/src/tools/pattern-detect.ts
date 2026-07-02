@@ -28,7 +28,7 @@ import {
   memoryFilePath,
   readUsageEvents,
   serializeMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -104,7 +104,7 @@ export async function patternDetect(
   if (!existsSync(ctx.paths.haiveDir)) {
     return {
       scanned_events: 0, matches: [], saved: 0, saved_ids: [],
-      notice: "No .ai/ directory found. Run 'haive init' first.",
+      notice: "No .ai/ directory found. Run 'hivelore init' first.",
     };
   }
 

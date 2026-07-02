@@ -69,8 +69,8 @@ const program = new Command();
 declare const __HAIVE_VERSION__: string;
 
 program
-  .name("haive")
-  .description("hAIve - repo-native memory and context policy for coding-agent harnesses")
+  .name("hivelore")
+  .description("Hivelore - repo-native memory and context policy for coding-agent harnesses")
   .version(__HAIVE_VERSION__)
   .option("--advanced", "show maintenance and experimental commands in help")
   // Agents guess flags by analogy (`--content` for `--body`, `--summary` for `--goal`) and a
@@ -137,9 +137,9 @@ registerMemoryLint(memory);
 
 const session = program.command("session").description(
   "Manage session lifecycle.\n\n" +
-  "  Session start is automatic — hAIve loads context via `get_briefing` at the start\n" +
+  "  Session start is automatic — Hivelore loads context via `get_briefing` at the start\n" +
   "  of each agent session (Claude Code SessionStart hook or MCP first call).\n" +
-  "  Use `haive session end` to save a rich end-of-session recap for the next session.",
+  "  Use `hivelore session end` to save a rich end-of-session recap for the next session.",
 );
 registerSessionEnd(session);
 
@@ -156,7 +156,7 @@ registerPrecommit(program);
 // The core harness loop only — what a developer actually types day to day. Everything else
 // (tui dashboard, welcome onboarding, the manual `precommit` variant of `enforce check`, plus the
 // maintenance/experimental families) stays one `--advanced` away. A focused surface is part of the
-// positioning: hAIve is repo context policy for coding-agent harnesses, not a 54-command Swiss army knife.
+// positioning: Hivelore is repo context policy for coding-agent harnesses, not a 54-command Swiss army knife.
 const CORE_ROOT_COMMANDS = new Set([
   "init",
   "doctor",
@@ -231,7 +231,7 @@ function applySurfaceVisibility(root: Command): void {
       "(old verbs add/query/show/rm still work as aliases).",
       ...familiesBlock,
       "",
-      "Run `haive --advanced --help` or set HAIVE_SHOW_ADVANCED=1 to show maintenance and experimental commands.",
+      "Run `hivelore --advanced --help` or set HAIVE_SHOW_ADVANCED=1 to show maintenance and experimental commands.",
     ].join("\n"),
   );
   const memoryCommand = root.commands.find((cmd) => cmd.name() === "memory");
@@ -240,7 +240,7 @@ function applySurfaceVisibility(root: Command): void {
     [
       "",
       "Default help shows the memory commands that support the core harness workflow.",
-      "Run `haive --advanced memory --help` or set HAIVE_SHOW_ADVANCED=1 to show review, import, digest, timeline, and conflict tools.",
+      "Run `hivelore --advanced memory --help` or set HAIVE_SHOW_ADVANCED=1 to show review, import, digest, timeline, and conflict tools.",
     ].join("\n"),
   );
 }
@@ -257,7 +257,7 @@ function hideNonCoreCommands(command: Command): void {
 function isCoreCommand(parent: Command, child: Command): boolean {
   const parentName = parent.name();
   const childName = child.name();
-  if (parentName === "haive") return CORE_ROOT_COMMANDS.has(childName);
+  if (parentName === "hivelore") return CORE_ROOT_COMMANDS.has(childName);
   if (parentName === "memory") return CORE_MEMORY_COMMANDS.has(childName);
   if (parentName === "session") return CORE_SESSION_COMMANDS.has(childName);
   return true;

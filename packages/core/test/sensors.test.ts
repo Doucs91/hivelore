@@ -372,7 +372,7 @@ describe("isSensorScannablePath", () => {
     expect(isSensorScannablePath(".ai/project-context.md")).toBe(false);
   });
 
-  it("rejects hAIve-owned bridge/config files", () => {
+  it("rejects Hivelore-owned bridge/config files", () => {
     expect(isSensorScannablePath("CLAUDE.md")).toBe(false);
     expect(isSensorScannablePath(".cursorrules")).toBe(false);
     expect(isSensorScannablePath(".mcp.json")).toBe(false);

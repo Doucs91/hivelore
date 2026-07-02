@@ -6,7 +6,7 @@ import {
   loadMemoriesFromDir,
   renderBootstrapChecklist,
   type BootstrapAssessment,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -53,10 +53,10 @@ export async function bootstrapRepoPrompt(
       : `Current state: **${assessment.state}**. Outstanding gaps:\n\n${renderBootstrapChecklist(assessment)}`;
   const areas = assessment.metrics.components.length > 0
     ? assessment.metrics.components.join(", ")
-    : "(no code-map yet — run `haive index code` first)";
+    : "(no code-map yet — run `hivelore index code` first)";
 
   const text = `You are the FIRST agent on this repository. Your job before any substantive coding is to fill
-hAIve's knowledge layer so every later agent (and the commit/enforce gates) can rely on it. This is
+Hivelore's knowledge layer so every later agent (and the commit/enforce gates) can rely on it. This is
 forced by the bootstrap gate: while the layer is incomplete, commits/finish are blocked.
 ${focusLine}
 Project root: \`${ctx.paths.root}\`
@@ -80,7 +80,7 @@ Main code areas detected: ${areas}
 
 4. **Sensors (the exhaustive bar)** — for each main area, turn at least one lesson into an enforceable
    guardrail with **\`propose_sensor\`**: \`pattern\` = the faulty usage, \`absent\` = the correct-usage
-   marker for "X without Y" lessons. hAIve VALIDATES your proposal (must be silent on the current
+   marker for "X without Y" lessons. Hivelore VALIDATES your proposal (must be silent on the current
    correct code and fire on the bad example) before trusting it to block — if rejected, the verdict
    tells you how to revise, then propose again.
 

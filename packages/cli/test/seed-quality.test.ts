@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { meetsSeedQualityFloor, specificityScore, SEED_QUALITY_FLOOR } from "@hiveai/core";
+import { meetsSeedQualityFloor, specificityScore, SEED_QUALITY_FLOOR } from "@hivelore/core";
 import { PACKS } from "../src/commands/init-stack-packs.js";
 
 /**

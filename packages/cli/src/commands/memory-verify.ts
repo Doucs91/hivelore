@@ -7,7 +7,7 @@ import {
   resolveHaivePaths,
   serializeMemory,
   verifyAnchor,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
@@ -34,13 +34,13 @@ export function registerMemoryVerify(memory: Command): void {
       "Check that memory anchor paths still exist in the current codebase.\n\n" +
       "  A memory is 'stale' when its anchored file or symbol was moved, deleted, or renamed.\n" +
       "  Stale memories are shown with a warning in get_briefing and should be updated or deleted.\n\n" +
-      "  haive sync runs this automatically. Use this command for on-demand checks or in CI.\n\n" +
-      "  CI recommendation: add 'haive memory verify' to your haive-sync.yml PR check job\n" +
+      "  hivelore sync runs this automatically. Use this command for on-demand checks or in CI.\n\n" +
+      "  CI recommendation: add 'hivelore memory verify' to your haive-sync.yml PR check job\n" +
       "  to catch stale memories before they reach main.\n\n" +
       "  Examples:\n" +
-      "    haive memory verify                          # check all, report only\n" +
-      "    haive memory verify --update                 # mark stale/fresh on disk\n" +
-      "    haive memory verify --id 2026-04-28-gotcha-x # check one memory\n",
+      "    hivelore memory verify                          # check all, report only\n" +
+      "    hivelore memory verify --update                 # mark stale/fresh on disk\n" +
+      "    hivelore memory verify --id 2026-04-28-gotcha-x # check one memory\n",
     )
     .option("--id <id>", "verify a single memory by id")
     .option("--all", "verify every memory (default if --id is omitted)")
@@ -54,7 +54,7 @@ export function registerMemoryVerify(memory: Command): void {
         if (opts.json) {
           console.log(JSON.stringify({ error: "not-initialized", root }, null, 2));
         } else {
-          ui.error(`No .ai/memories at ${root}. Run \`haive init\` first.`);
+          ui.error(`No .ai/memories at ${root}. Run \`hivelore init\` first.`);
         }
         process.exitCode = 1;
         return;
@@ -151,7 +151,7 @@ export function registerMemoryVerify(memory: Command): void {
           ui.dim(
             `Anchorless memories (no paths/symbols — staleness cannot be detected):\n` +
             anchorlessIds.map((id) => `  ${id}`).join("\n") +
-            `\nTip: use \`haive memory update <id> --paths <files>\` to add anchors.`,
+            `\nTip: use \`hivelore memory update <id> --paths <files>\` to add anchors.`,
           ),
         );
       }

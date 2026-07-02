@@ -1,7 +1,7 @@
 /**
- * Failure-capture coverage — the gate behind hAIve's "never silently fix the same mistake" loop.
+ * Failure-capture coverage — the gate behind Hivelore's "never silently fix the same mistake" loop.
  *
- * `haive observe` (the PostToolUse hook) appends an observation per tool call to
+ * `hivelore observe` (the PostToolUse hook) appends an observation per tool call to
  * `.ai/.cache/observations.jsonl`, tagging hard failures with `failure_hint: true`
  * (non-zero Bash exit, `error TSxxxx`, ENOENT, …). Those failures are exactly the
  * `mem_tried` candidates the harness wants captured — otherwise the next session repeats them.

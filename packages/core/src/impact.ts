@@ -4,13 +4,13 @@ import type { MemoryUsage } from "./usage.js";
 /**
  * Closed-loop memory-utility scoring — the "did this memory actually help?" layer.
  *
- * hAIve already tracks reads ({@link ./usage.js}) and derives a trust level from
+ * Hivelore already tracks reads ({@link ./usage.js}) and derives a trust level from
  * status + read_count ({@link ./confidence.js}). But a read only means a memory was
  * *surfaced*, not that it *helped* — a memory can be injected on every briefing and
  * silently ignored. Harness engineering's core loop (Fowler / LangChain) is to
  * measure what demonstrably steers work and let that feed back into recall.
  *
- * `computeImpact` combines the signals hAIve already records but never correlated:
+ * `computeImpact` combines the signals Hivelore already records but never correlated:
  *   POSITIVE  reads · applied outcomes (mem_feedback) · a sensor that actually fired
  *   NEGATIVE  rejections · stale/deprecated/rejected status · dormancy
  * into a single 0..1 utility score, a tier, and a prune-candidate flag. It is a pure

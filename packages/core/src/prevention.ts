@@ -1,5 +1,5 @@
 /**
- * Prevention event log — the time-series behind hAIve's OUTCOME metric.
+ * Prevention event log — the time-series behind Hivelore's OUTCOME metric.
  *
  * `usage.json` keeps a cumulative `prevented_count` per memory (cheap, drives impact). This log
  * keeps one append-only record PER catch, with a timestamp, so we can answer questions a counter
@@ -44,7 +44,7 @@ export async function appendPreventionEvent(paths: HaivePaths, event: Prevention
 
 /**
  * THE single recorder for "a documented lesson intercepted a real mistake". Every gate path —
- * the installed git-hook gate (`enforce check`), the standalone `haive sensors check`, and the
+ * the installed git-hook gate (`enforce check`), the standalone `hivelore sensors check`, and the
  * `anti_patterns_check` MCP tool — funnels its fired memory ids through here so prevention is
  * recorded once and identically, not bolted onto each entry point (it used to leak: the git-hook
  * gate blocked but never recorded — see the harness-positioning gotcha).

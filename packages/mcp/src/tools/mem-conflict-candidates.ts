@@ -5,7 +5,7 @@ import {
   loadMemoriesFromDir,
   planConflictResolution,
   type LoadedMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -34,7 +34,7 @@ function suggestResolution(
     keep_id: plan.keep_id,
     supersede_id: plan.supersede_id,
     reason: plan.reason,
-    command: `haive memory resolve-conflict ${plan.keep_id} ${plan.supersede_id} --yes`,
+    command: `hivelore memory resolve-conflict ${plan.keep_id} ${plan.supersede_id} --yes`,
   };
 }
 

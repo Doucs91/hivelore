@@ -1,5 +1,5 @@
 /**
- * haive session end — save a structured end-of-session recap.
+ * hivelore session end — save a structured end-of-session recap.
  *
  * Uses topic-upsert: one recap per scope is kept and updated in-place.
  * get_briefing automatically surfaces the latest recap at the next session start.
@@ -24,7 +24,7 @@ import {
   writeSessionHandoff,
   type MemoryFrontmatter,
   type MemoryScope,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface SessionEndOptions {
@@ -294,11 +294,11 @@ export function registerSessionEnd(session: Command): void {
     .description(
       "Save an end-of-session recap so the NEXT session starts with fresh context.\n\n" +
       "  One recap per scope is kept and updated in-place (topic-upsert). The next\n" +
-      "  session's get_briefing (or haive briefing) shows it at the very top.\n\n" +
+      "  session's get_briefing (or hivelore briefing) shows it at the very top.\n\n" +
       "  In autopilot mode, a minimal recap saves automatically on MCP server exit.\n" +
       "  Calling this manually produces a richer, more actionable recap.\n\n" +
       "  Example:\n" +
-      "    haive session end \\\\\n" +
+      "    hivelore session end \\\\\n" +
       "      --goal \"Add Stripe webhook handler\" \\\\\n" +
       "      --accomplished \"Implemented webhook endpoint, added idempotency key\" \\\\\n" +
       "      --discoveries \"Missing .env.example entry for STRIPE_WEBHOOK_SECRET\" \\\\\n" +
@@ -324,7 +324,7 @@ export function registerSessionEnd(session: Command): void {
 
       if (!existsSync(paths.haiveDir)) {
         if (opts.auto || opts.quiet) return; // hook context — silently no-op
-        ui.error(`No .ai/ found at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/ found at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -378,7 +378,7 @@ export function registerSessionEnd(session: Command): void {
       // ── Auto mode honoring config ───────────────────────────────────
       // When autoSessionRecap=false, an automatic (hook-driven) session end does NOT persist a
       // recap memory into the corpus; it writes an ephemeral NEXT.md handoff instead (if enabled).
-      // A manual `haive session end --goal ...` is unaffected (explicit recaps are always honored).
+      // A manual `hivelore session end --goal ...` is unaffected (explicit recaps are always honored).
       const config = await loadConfig(paths);
       if (opts.auto && config.autoSessionRecap === false) {
         if (config.sessionHandoff) {
@@ -433,7 +433,7 @@ export function registerSessionEnd(session: Command): void {
             ui.success(`Session recap updated (revision #${revisionCount})`);
             ui.info(`id=${fm.id}  file=${path.relative(root, topicMatch.filePath)}`);
             await printCaughtForYou(paths, caughtSince, opts.quiet);
-            ui.info("Tip: `haive stats --export-report` generates a usage JSON suitable for dashboards.");
+            ui.info("Tip: `hivelore stats --export-report` generates a usage JSON suitable for dashboards.");
           }
           return;
         }
@@ -461,7 +461,7 @@ export function registerSessionEnd(session: Command): void {
         ui.info(`id=${frontmatter.id}  scope=${scope}  file=${path.relative(root, file)}`);
         await printCaughtForYou(paths, caughtSince, opts.quiet);
         ui.info("Next session: call `get_briefing` — the recap will be surfaced automatically.");
-        ui.info("Tip: export a local MCP usage rollup with `haive stats --export-report .ai/tool-usage-roi-report.json`.");
+        ui.info("Tip: export a local MCP usage rollup with `hivelore stats --export-report .ai/tool-usage-roi-report.json`.");
       }
     });
 }

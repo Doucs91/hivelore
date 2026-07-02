@@ -1,27 +1,27 @@
 <p align="center">
-  <a href="https://github.com/Doucs91/hAIve">
-    <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/logo.svg" alt="hAIve logo" width="96" />
+  <a href="https://github.com/Doucs91/hivelore">
+    <img src="https://raw.githubusercontent.com/Doucs91/hivelore/main/packages/vscode/media/logo.svg" alt="Hivelore logo" width="96" />
   </a>
 </p>
 
-# @hiveai/embeddings
+# @hivelore/embeddings
 
-> **Optional add-on for hAIve** — local semantic ranking for hAIve briefings and memory search. No data leaves your machine.
+> **Optional add-on for Hivelore** — local semantic ranking for Hivelore briefings and memory search. No data leaves your machine.
 
-When installed alongside `@hiveai/cli`, this package helps hAIve surface the right policy context even when the agent's task wording does not match your memories exactly. It improves `get_briefing`, `mem_relevant_to`, and `mem_search`; it is not required for enforcement.
+When installed alongside `@hivelore/cli`, this package helps Hivelore surface the right policy context even when the agent's task wording does not match your memories exactly. It improves `get_briefing`, `mem_relevant_to`, and `mem_search`; it is not required for enforcement.
 
 ---
 
 ## Why optional?
 
-This package pulls in heavy ML dependencies (`@xenova/transformers`, `onnxruntime-node`, `sharp`) and downloads a ~110MB model on first use. It is **not installed by default** so that the core hAIve experience stays lightweight.
+This package pulls in heavy ML dependencies (`@xenova/transformers`, `onnxruntime-node`, `sharp`) and downloads a ~110MB model on first use. It is **not installed by default** so that the core Hivelore experience stays lightweight.
 
 Install it explicitly when you want semantic search:
 
 ```bash
-npm install -g @hiveai/embeddings
+npm install -g @hivelore/embeddings
 # or alongside the CLI:
-npm install -g @hiveai/cli @hiveai/embeddings
+npm install -g @hivelore/cli @hivelore/embeddings
 ```
 
 ---
@@ -30,13 +30,13 @@ npm install -g @hiveai/cli @hiveai/embeddings
 
 ```bash
 # Build (or refresh) the index. First run downloads the model (~110MB, cached locally).
-haive embeddings index
+hivelore embeddings index
 
 # Check index status
-haive embeddings status
+hivelore embeddings status
 
 # Run a semantic search from the terminal
-haive embeddings query "how do we handle retries on payment failures"
+hivelore embeddings query "how do we handle retries on payment failures"
 ```
 
 From an MCP client, pass `semantic: true` to `mem_search` or `get_briefing`:
@@ -49,24 +49,24 @@ From an MCP client, pass `semantic: true` to `mem_search` or `get_briefing`:
 
 ## Commands
 
-### `haive embeddings index`
+### `hivelore embeddings index`
 
 Build or refresh the embeddings index for all memories.
 
 ```bash
-haive embeddings index              # Index all memories in the current project
-haive embeddings index --dir /path  # Specify project root
-haive embeddings index --force      # Force full rebuild (ignore content hashes)
+hivelore embeddings index              # Index all memories in the current project
+hivelore embeddings index --dir /path  # Specify project root
+hivelore embeddings index --force      # Force full rebuild (ignore content hashes)
 ```
 
 The index is stored at `.ai/.cache/embeddings/embeddings-index.json`. Each entry is keyed by content hash, so only changed memories are re-embedded on subsequent runs.
 
-### `haive embeddings status`
+### `hivelore embeddings status`
 
 Show the current state of the embeddings index.
 
 ```bash
-haive embeddings status
+hivelore embeddings status
 # Output:
 # Index: .ai/.cache/embeddings/embeddings-index.json
 # Entries: 24
@@ -74,14 +74,14 @@ haive embeddings status
 # Last updated: 2025-01-20T14:32:00Z
 ```
 
-### `haive embeddings query`
+### `hivelore embeddings query`
 
 Run a semantic query against the local index.
 
 ```bash
-haive embeddings query "payment retry logic"
-haive embeddings query "JWT expiration handling" --limit 5
-haive embeddings query "database migration" --dir /path/to/project
+hivelore embeddings query "payment retry logic"
+hivelore embeddings query "JWT expiration handling" --limit 5
+hivelore embeddings query "database migration" --dir /path/to/project
 ```
 
 ---
@@ -94,19 +94,19 @@ haive embeddings query "database migration" --dir /path/to/project
 
 3. **Search**: At query time, the query text is embedded and cosine similarity is computed against all indexed memories. The top-k results are returned ranked by score.
 
-4. **Integration**: When `@hiveai/embeddings` is installed and the index exists, `get_briefing` and `mem_search` automatically use semantic ranking. If the package is missing or the index is empty, they fall back to literal (keyword) search transparently.
+4. **Integration**: When `@hivelore/embeddings` is installed and the index exists, `get_briefing` and `mem_search` automatically use semantic ranking. If the package is missing or the index is empty, they fall back to literal (keyword) search transparently.
 
 ---
 
 ## Auto-rebuild on sync
 
-Add `--embed` to `haive sync` to automatically rebuild the index after every sync:
+Add `--embed` to `hivelore sync` to automatically rebuild the index after every sync:
 
 ```bash
-haive sync --embed
+hivelore sync --embed
 
 # Or in your git hook / CI:
-haive sync --quiet --embed
+hivelore sync --quiet --embed
 ```
 
 ---
@@ -114,8 +114,8 @@ haive sync --quiet --embed
 ## Programmatic API
 
 ```typescript
-import { rebuildIndex, semanticSearch } from "@hiveai/embeddings";
-import { resolveHaivePaths, findProjectRoot } from "@hiveai/core";
+import { rebuildIndex, semanticSearch } from "@hivelore/embeddings";
+import { resolveHaivePaths, findProjectRoot } from "@hivelore/core";
 
 const paths = resolveHaivePaths(findProjectRoot());
 
@@ -132,7 +132,7 @@ if (result) {
 }
 
 // Custom embedder (for testing or alternative models)
-import { Embedder, type EmbedderLike } from "@hiveai/embeddings";
+import { Embedder, type EmbedderLike } from "@hivelore/embeddings";
 
 const embedder: EmbedderLike = {
   model: "Xenova/bge-small-en-v1.5",

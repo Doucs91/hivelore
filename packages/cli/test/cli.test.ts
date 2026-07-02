@@ -67,7 +67,7 @@ async function writeLockstepPackageJsons(root: string, version: string): Promise
   }
 }
 
-describe("hAIve CLI integration", () => {
+describe("Hivelore CLI integration", () => {
   let workDir: string;
 
   beforeAll(async () => {
@@ -105,15 +105,15 @@ describe("hAIve CLI integration", () => {
     const claudeSettings = path.join(workDir, ".claude/settings.local.json");
     expect(existsSync(claudeSettings)).toBe(true);
     const hooks = await readFile(claudeSettings, "utf8");
-    expect(hooks).toContain("haive enforce session-start");
-    expect(hooks).toContain("haive enforce pre-tool-use");
+    expect(hooks).toContain("hivelore enforce session-start");
+    expect(hooks).toContain("hivelore enforce pre-tool-use");
     expect(existsSync(path.join(workDir, ".github/workflows/haive-enforcement.yml"))).toBe(true);
     const syncWorkflow = await readFile(path.join(workDir, ".github/workflows/haive-sync.yml"), "utf8");
-    expect(syncWorkflow).toContain("Doucs91/hAIve/packages/github-action@v");
-    expect(syncWorkflow).not.toContain("Doucs91/hAIve/packages/github-action@main");
+    expect(syncWorkflow).toContain("Doucs91/hivelore/packages/github-action@v");
+    expect(syncWorkflow).not.toContain("Doucs91/hivelore/packages/github-action@main");
     // No-op-safe harness quality regression gate is wired into the generated CI.
     expect(syncWorkflow).toContain("pr-eval-gate");
-    expect(syncWorkflow).toContain("haive eval --regression-gate");
+    expect(syncWorkflow).toContain("hivelore eval --regression-gate");
     const enforcementWorkflow = await readFile(path.join(workDir, ".github/workflows/haive-enforcement.yml"), "utf8");
     expect(enforcementWorkflow).toContain("HAIVE_BASE_SHA");
     expect(enforcementWorkflow).toContain("HAIVE_HEAD_SHA");
@@ -207,16 +207,16 @@ describe("hAIve CLI integration", () => {
 
       expect(agents).toContain("Keep this root guidance.");
       expect(agents).toContain("haive:bridge-start");
-      expect(agents).toContain("Working through hAIve");
+      expect(agents).toContain("Working through Hivelore");
       expect(copilot).toContain("Keep this Copilot guidance.");
       expect(copilot).toContain("haive:bridge-start");
-      expect(copilot).toContain("Working through hAIve");
+      expect(copilot).toContain("Working through Hivelore");
     } finally {
       await rm(bridgeDir, { recursive: true, force: true });
     }
   });
 
-  it("bridges sync skips native files with broken hAIve markers instead of overwriting them", async () => {
+  it("bridges sync skips native files with broken Hivelore markers instead of overwriting them", async () => {
     const bridgeDir = await mkdtemp(path.join(tmpdir(), "haive-native-invalid-"));
     try {
       await run(bridgeDir, ["init", "--no-bootstrap", "--stack", "none", "--no-bridges", "-y", "--dir", bridgeDir]);
@@ -306,7 +306,7 @@ describe("hAIve CLI integration", () => {
         const err = e as { stdout?: string; stderr?: string };
         out = (err.stdout ?? "") + (err.stderr ?? "");
       }
-      // Clear, actionable message — never a crash/stack trace; the rest of hAIve is unaffected.
+      // Clear, actionable message — never a crash/stack trace; the rest of Hivelore is unaffected.
       expect(out).toMatch(/sonar-url|SONAR_HOST_URL/);
       expect(out).not.toMatch(/at Object\.|node:internal/);
     } finally {
@@ -344,7 +344,7 @@ describe("hAIve CLI integration", () => {
   });
 
   it("init writes project-level MCP configs with HAIVE_PROJECT_ROOT", async () => {
-    // These files are written by haive init to fix the multi-project CWD bug.
+    // These files are written by hivelore init to fix the multi-project CWD bug.
     const cursorMcp = path.join(workDir, ".cursor", "mcp.json");
     const vscodeMcp = path.join(workDir, ".vscode", "mcp.json");
     const claudeMcp = path.join(workDir, ".mcp.json");
@@ -356,13 +356,13 @@ describe("hAIve CLI integration", () => {
     const cursorConfig = JSON.parse(await readFile(cursorMcp, "utf8")) as {
       mcpServers: Record<string, { command: string; env?: Record<string, string> }>;
     };
-    expect(cursorConfig.mcpServers["haive"]).toBeDefined();
-    expect(cursorConfig.mcpServers["haive"]!.command).toBe("haive");
-    expect(cursorConfig.mcpServers["haive"]!.args).toEqual(["mcp", "--stdio"]);
-    expect(cursorConfig.mcpServers["haive"]!.env?.["HAIVE_PROJECT_ROOT"]).toBe(workDir);
+    expect(cursorConfig.mcpServers["hivelore"]).toBeDefined();
+    expect(cursorConfig.mcpServers["hivelore"]!.command).toBe("hivelore");
+    expect(cursorConfig.mcpServers["hivelore"]!.args).toEqual(["mcp", "--stdio"]);
+    expect(cursorConfig.mcpServers["hivelore"]!.env?.["HAIVE_PROJECT_ROOT"]).toBe(workDir);
   });
 
-  it("agent status reports the selected hAIve mode", async () => {
+  it("agent status reports the selected Hivelore mode", async () => {
     const { stdout } = await run(workDir, ["agent", "status", "--json", "--dir", workDir]);
     const report = JSON.parse(stdout) as {
       initialized: boolean;
@@ -864,7 +864,7 @@ describe("hAIve CLI integration", () => {
     try {
       await exec("git", ["init"], { cwd: repo });
       await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
-      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
       await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
       // A validated decision anchored to the generated artifact (worst case for the old behaviour).
       await run(repo, [
@@ -876,7 +876,7 @@ describe("hAIve CLI integration", () => {
       await exec("git", ["commit", "-m", "base", "--no-verify"], { cwd: repo });
 
       // Stage a change to ONLY the generated artifact.
-      await writeFile(path.join(repo, ".ai/project-context.md"), "# Project context — hAIve\n\nedited\n", "utf8");
+      await writeFile(path.join(repo, ".ai/project-context.md"), "# Project context — Hivelore\n\nedited\n", "utf8");
       await exec("git", ["add", ".ai/project-context.md"], { cwd: repo });
 
       const res = await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo]);
@@ -1029,14 +1029,14 @@ describe("hAIve CLI integration", () => {
     try {
       await exec("git", ["init"], { cwd: repo });
       await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
-      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
       await writeFile(path.join(repo, "package.json"), JSON.stringify({ name: "x", version: "9.9.9" }), "utf8");
       await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
 
       // Force a stale version header, commit it as the baseline (mimics a release whose
       // bump landed in package.json but not yet in project-context.md).
       const ctx = path.join(repo, ".ai/project-context.md");
-      await writeFile(ctx, "# Project context — hAIve (v0.0.1)\n\n> **Current version**: 0.0.1 — x\n\nbody\n", "utf8");
+      await writeFile(ctx, "# Project context — Hivelore (v0.0.1)\n\n> **Current version**: 0.0.1 — x\n\nbody\n", "utf8");
       await exec("git", ["add", "-A"], { cwd: repo });
       await exec("git", ["commit", "-m", "base", "--no-verify"], { cwd: repo });
 
@@ -1056,12 +1056,12 @@ describe("hAIve CLI integration", () => {
     }
   });
 
-  it("haive briefing --files records anchored policy ids so the decision-coverage gate unblocks (fix A)", async () => {
+  it("hivelore briefing --files records anchored policy ids so the decision-coverage gate unblocks (fix A)", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-briefing-marker-"));
     try {
       await exec("git", ["init"], { cwd: repo });
       await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
-      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
       await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
 
       await mkdir(path.join(repo, "src"), { recursive: true });
@@ -1099,7 +1099,7 @@ describe("hAIve CLI integration", () => {
     try {
       await exec("git", ["init"], { cwd: repo });
       await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
-      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
       await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
       const msgFile = path.join(repo, "COMMIT_MSG.txt");
 
@@ -1119,7 +1119,7 @@ describe("hAIve CLI integration", () => {
       await exec("git", ["reset"], { cwd: repo });
       await writeFile(path.join(repo, ".ai/note.md"), "note\n", "utf8");
       await exec("git", ["add", ".ai/note.md"], { cwd: repo });
-      await writeFile(msgFile, "chore: haive sync [skip ci]\n", "utf8");
+      await writeFile(msgFile, "chore: hivelore sync [skip ci]\n", "utf8");
       const aiOnly = await runAllowFailure(repo, ["enforce", "commit-msg", msgFile, "--dir", repo]);
       expect(aiOnly.code).toBe(0);
 
@@ -1239,7 +1239,7 @@ describe("hAIve CLI integration", () => {
     try {
       await exec("git", ["init"], { cwd: repo });
       await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
-      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
       await mkdir(path.join(repo, "src"), { recursive: true });
       await writeFile(path.join(repo, "src/status.ts"), "export const status = \"OK\";\n", "utf8");
       await exec("git", ["add", "."], { cwd: repo });
@@ -1281,7 +1281,7 @@ describe("hAIve CLI integration", () => {
       await exec("git", ["commit", "--no-verify", "-m", "introduce lowercase status"], { cwd: repo });
 
       // Isolate from the ambient GitHub Actions env: on the CI runner GITHUB_SHA /
-      // GITHUB_BASE_REF / GITHUB_EVENT_PATH point at the hAIve CI commit (absent from
+      // GITHUB_BASE_REF / GITHUB_EVENT_PATH point at the Hivelore CI commit (absent from
       // this temp repo), which made `enforce ci` diff an unknown SHA → empty diff →
       // exit 0. Clearing them makes it diff this repo's own HEAD~1..HEAD as intended.
       const result = await runAllowFailure(repo, ["enforce", "ci", "--json", "--dir", repo], {
@@ -1312,7 +1312,7 @@ describe("hAIve CLI integration", () => {
     try {
       await exec("git", ["init"], { cwd: repo });
       await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
-      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
       await mkdir(path.join(repo, "src"), { recursive: true });
       await writeFile(path.join(repo, "src/guarded.ts"), "export const guarded = true;\n", "utf8");
       await exec("git", ["add", "."], { cwd: repo });
@@ -1374,7 +1374,7 @@ describe("hAIve CLI integration", () => {
     try {
       await exec("git", ["init"], { cwd: repo });
       await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
-      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
       await mkdir(path.join(repo, "packages/api"), { recursive: true });
       for (const [f, body] of [["a", "getUser"], ["b", "listUsers"], ["c", "delUser"]]) {
         await writeFile(path.join(repo, `packages/api/${f}.ts`), `export function ${body}(){ return 1 }\n`, "utf8");
@@ -1426,7 +1426,7 @@ describe("hAIve CLI integration", () => {
     try {
       await exec("git", ["init", "-b", "main"], { cwd: repo });
       await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
-      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
       await writeLockstepPackageJsons(repo, "0.1.0");
       await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
       await exec("git", ["add", "."], { cwd: repo });
@@ -1456,7 +1456,7 @@ describe("hAIve CLI integration", () => {
       await exec("git", ["init", "--bare"], { cwd: remote });
       await exec("git", ["init", "-b", "main"], { cwd: repo });
       await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
-      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
       await writeLockstepPackageJsons(repo, "0.1.0");
       await mkdir(path.join(repo, "packages/cli/src"), { recursive: true });
       await writeFile(path.join(repo, "packages/cli/src/index.ts"), "export const initial = true;\n", "utf8");
@@ -1493,7 +1493,7 @@ describe("hAIve CLI integration", () => {
       await exec("git", ["init", "--bare"], { cwd: remote });
       await exec("git", ["init", "-b", "main"], { cwd: repo });
       await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
-      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
       await writeLockstepPackageJsons(repo, "0.1.0");
       await mkdir(path.join(repo, "packages/cli/src"), { recursive: true });
       await writeFile(path.join(repo, "packages/cli/src/index.ts"), "export const initial = true;\n", "utf8");
@@ -1532,7 +1532,7 @@ describe("hAIve CLI integration", () => {
       await exec("git", ["init", "--bare"], { cwd: remote });
       await exec("git", ["init", "-b", "main"], { cwd: repo });
       await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
-      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
       await writeLockstepPackageJsons(repo, "0.1.0");
       await writeFile(path.join(repo, "README.md"), "Initial docs.\n", "utf8");
       await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
@@ -1579,7 +1579,7 @@ describe("hAIve CLI integration", () => {
       await exec("git", ["init", "--bare"], { cwd: remote });
       await exec("git", ["init", "-b", "main"], { cwd: repo });
       await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
-      await exec("git", ["config", "user.name", "hAIve Test"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
       await writeLockstepPackageJsons(repo, "0.1.0");
       await writeFile(path.join(repo, "README.md"), "Initial docs.\n", "utf8");
       await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
@@ -1618,7 +1618,7 @@ describe("hAIve CLI integration", () => {
     }
   });
 
-  it("run wraps arbitrary agent commands with a hAIve session marker", async () => {
+  it("run wraps arbitrary agent commands with a Hivelore session marker", async () => {
     const { stdout } = await run(workDir, ["run", "--dir", workDir, "--", "node", "-e", "console.log(process.env.HAIVE_ENFORCEMENT)"]);
     expect(stdout).toContain("strict");
   });
@@ -1632,7 +1632,7 @@ describe("hAIve CLI integration", () => {
         "# Benchmark Agent Report",
         "",
         "## Commands Run",
-        "- `haive briefing`",
+        "- `hivelore briefing`",
         "- `npm test`",
         "",
         "## Files Read",
@@ -1647,16 +1647,16 @@ describe("hAIve CLI integration", () => {
         "## Key Decisions Made",
         "- followed policy",
         "",
-        "## hAIve Memory Impact",
+        "## Hivelore Memory Impact",
         "Yes, directly shaped the fix.",
         "",
       ].join("\n"), "utf8");
     });
 
     const { stdout } = await run(workDir, ["benchmark", "report", "--dir", benchDir]);
-    expect(stdout).toContain("hAIve Agent Benchmark Report");
+    expect(stdout).toContain("Hivelore Agent Benchmark Report");
     expect(stdout).toContain("sample-haive");
-    expect(stdout).toContain("hAIve impact");
+    expect(stdout).toContain("Hivelore impact");
   });
 
   it("doctor --json reports stale-draft-memories when a draft is older than 30 days", async () => {

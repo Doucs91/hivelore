@@ -1,7 +1,7 @@
 /**
  * Specificity ("surprise") scoring for memories.
  *
- * hAIve's measured value is preventing agents from reinventing — wrongly — the team's
+ * Hivelore's measured value is preventing agents from reinventing — wrongly — the team's
  * NON-OBVIOUS, arbitrary decisions (e.g. "public ids are internal id + 100000 prefixed AC-",
  * "the status field must be 'OK'/'KO'"). A capable model already knows generic best practice
  * ("use Decimal for money", "validate input"), so surfacing that is pure token overhead.

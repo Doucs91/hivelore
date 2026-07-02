@@ -1,10 +1,10 @@
 /**
- * hAIve GitHub Action — PR memory enrichment script.
+ * Hivelore GitHub Action — PR memory enrichment script.
  *
  * Reads the .ai/memories/ directory, finds memories relevant to the PR's
  * changed files, and posts/updates a single comment on the PR.
  *
- * Runs entirely from the checked-out repo — no haive CLI needed at runtime.
+ * Runs entirely from the checked-out repo — no hivelore CLI needed at runtime.
  */
 import * as fs from "fs";
 import * as path from "path";
@@ -13,7 +13,7 @@ import { getOctokit } from "@actions/github";
 // ── Environment ───────────────────────────────────────────────────────────────
 
 const CHANGED_FILES_RAW = process.env["CHANGED_FILES"] ?? "";
-const COMMENT_HEADER = process.env["COMMENT_HEADER"] ?? "## 🧠 hAIve — Team Memory Check";
+const COMMENT_HEADER = process.env["COMMENT_HEADER"] ?? "## 🧠 Hivelore — Team Memory Check";
 const POST_IF_EMPTY = process.env["POST_IF_EMPTY"] === "true";
 const MAX_MEMORIES = parseInt(process.env["MAX_MEMORIES"] ?? "10", 10);
 const MEMORIES_DIR_REL = process.env["MEMORIES_DIR"] ?? ".ai/memories";
@@ -24,7 +24,7 @@ const WORKSPACE = process.env["GITHUB_WORKSPACE"] ?? process.cwd();
 
 const COMMENT_MARKER = "<!-- haive-pr-memory-check -->";
 
-// ── Memory parser (self-contained, no @hiveai/core dep) ──────────────────────
+// ── Memory parser (self-contained, no @hivelore/core dep) ──────────────────────
 
 interface Memory {
   id: string;
@@ -259,7 +259,7 @@ function formatComment(
     }
     if (brokenAnchors.length > 12) {
       lines.push(
-        `- *…+${brokenAnchors.length - 12} more — inspect locally with \`haive memory verify\`*`,
+        `- *…+${brokenAnchors.length - 12} more — inspect locally with \`hivelore memory verify\`*`,
       );
     }
     lines.push("\n");
@@ -292,24 +292,24 @@ function formatComment(
         lines.push(`\n</details>\n`);
       }
       if (mems.length > MAX_MEMORIES) {
-        lines.push(`*+${mems.length - MAX_MEMORIES} more — run \`haive memory for-files ${file}\`*\n`);
+        lines.push(`*+${mems.length - MAX_MEMORIES} more — run \`hivelore memory for-files ${file}\`*\n`);
       }
     }
   } else {
     lines.push("✅ **No memories found for the changed files.** The code appears well-understood by the team.");
-    lines.push("\n> Tip: run `haive memory for-files <file>` locally to check, or `haive briefing` for the full context.\n");
+    lines.push("\n> Tip: run `hivelore memory for-files <file>` locally to check, or `hivelore briefing` for the full context.\n");
   }
 
   // ── Footer ───────────────────────────────────────────────────────────────
   lines.push("---");
   lines.push("");
   lines.push(
-    "**Next steps**: run `haive memory verify --update stale` locally after refactoring paths, " +
-    "or `haive memory lint` inside CI.",
+    "**Next steps**: run `hivelore memory verify --update stale` locally after refactoring paths, " +
+    "or `hivelore memory lint` inside CI.",
   );
   lines.push("");
   lines.push(
-    `<sub>🧠 Powered by [hAIve](https://github.com/Doucs91/hAIve) · ${changedFiles.length} file${changedFiles.length > 1 ? "s" : ""} scanned · ${new Date().toUTCString()}</sub>`,
+    `<sub>🧠 Powered by [Hivelore](https://github.com/Doucs91/hivelore) · ${changedFiles.length} file${changedFiles.length > 1 ? "s" : ""} scanned · ${new Date().toUTCString()}</sub>`,
   );
 
   return lines.join("\n");
@@ -354,12 +354,12 @@ async function main(): Promise<void> {
       .map((f) => f.trim())
       .filter(Boolean);
 
-    console.log(`hAIve: scanning ${changedFiles.length} changed file(s)…`);
+    console.log(`Hivelore: scanning ${changedFiles.length} changed file(s)…`);
 
     const memoriesDir = path.join(WORKSPACE, MEMORIES_DIR_REL);
 
     if (!fs.existsSync(memoriesDir)) {
-      console.log(`hAIve: memories directory not found at ${memoriesDir}. Skipping.`);
+      console.log(`Hivelore: memories directory not found at ${memoriesDir}. Skipping.`);
       setOutput("memories_found", "0");
       setOutput("action_required_count", "0");
       setOutput("comment_url", "");
@@ -367,7 +367,7 @@ async function main(): Promise<void> {
     }
 
     const allMemories = loadMemories(memoriesDir);
-    console.log(`hAIve: loaded ${allMemories.length} memories`);
+    console.log(`Hivelore: loaded ${allMemories.length} memories`);
 
     const changedNorm = changedFiles.map((f) => f.replace(/\\/g, "/"));
     const anchorRelated = allMemories.filter((m) =>
@@ -383,12 +383,12 @@ async function main(): Promise<void> {
     );
 
     console.log(
-      `hAIve: ${uniqueIds.size} unique memories found across ${fileMemories.size} files ` +
+      `Hivelore: ${uniqueIds.size} unique memories found across ${fileMemories.size} files ` +
       `(${actionRequired.length} action required)`,
     );
 
     if (uniqueIds.size === 0 && brokenAnchors.length === 0 && !POST_IF_EMPTY) {
-      console.log("hAIve: no memories found, skipping comment.");
+      console.log("Hivelore: no memories found, skipping comment.");
       setOutput("memories_found", "0");
       setOutput("action_required_count", "0");
       setOutput("comment_url", "");
@@ -419,7 +419,7 @@ async function main(): Promise<void> {
         body,
       });
       commentUrl = data.html_url;
-      console.log(`hAIve: updated existing comment → ${commentUrl}`);
+      console.log(`Hivelore: updated existing comment → ${commentUrl}`);
     } else {
       const { data } = await octokit.rest.issues.createComment({
         owner,
@@ -428,7 +428,7 @@ async function main(): Promise<void> {
         body,
       });
       commentUrl = data.html_url;
-      console.log(`hAIve: posted new comment → ${commentUrl}`);
+      console.log(`Hivelore: posted new comment → ${commentUrl}`);
     }
 
     setOutput("memories_found", String(uniqueIds.size));
@@ -438,12 +438,12 @@ async function main(): Promise<void> {
     // Fail the check if there are action_required memories (optional — decided by workflow)
     if (actionRequired.length > 0) {
       console.log(
-        `::warning::hAIve: ${actionRequired.length} memory(ies) require human confirmation. Review the PR comment.`,
+        `::warning::Hivelore: ${actionRequired.length} memory(ies) require human confirmation. Review the PR comment.`,
       );
     }
 
   } catch (err) {
-    console.error("hAIve action error:", err);
+    console.error("Hivelore action error:", err);
     process.exit(1);
   }
 }

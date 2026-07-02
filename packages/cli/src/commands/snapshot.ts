@@ -1,10 +1,10 @@
 /**
- * haive snapshot — take or compare an API contract snapshot.
+ * hivelore snapshot — take or compare an API contract snapshot.
  *
- *   haive snapshot --contract openapi.yaml --name payment-api
- *   haive snapshot --contract schema.graphql --format graphql
- *   haive snapshot --diff --name payment-api
- *   haive snapshot --list
+ *   hivelore snapshot --contract openapi.yaml --name payment-api
+ *   hivelore snapshot --contract schema.graphql --format graphql
+ *   hivelore snapshot --diff --name payment-api
+ *   hivelore snapshot --list
  */
 import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
@@ -16,8 +16,8 @@ import {
   loadConfig,
   resolveHaivePaths,
   snapshotContract,
-} from "@hiveai/core";
-import type { ContractFile } from "@hiveai/core";
+} from "@hivelore/core";
+import type { ContractFile } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface SnapshotOptions {
@@ -35,14 +35,14 @@ export function registerSnapshot(program: Command): void {
     .description(
       "Take or compare an API contract snapshot to detect breaking changes.\n\n" +
       "  A snapshot captures the structure of a contract file (endpoints, types, fields).\n" +
-      "  Running 'haive sync' automatically checks all configured contracts.\n" +
+      "  Running 'hivelore sync' automatically checks all configured contracts.\n" +
       "  This command lets you snapshot or diff a single contract on demand.\n\n" +
       "  Supported formats: openapi, graphql, proto, typescript, json-schema\n\n" +
       "  Examples:\n" +
-      "    haive snapshot --contract docs/openapi.yaml --name payment-api\n" +
-      "    haive snapshot --diff --name payment-api\n" +
-      "    haive snapshot --list\n\n" +
-      "  To monitor contracts automatically on haive sync, add them to haive.config.json:\n" +
+      "    hivelore snapshot --contract docs/openapi.yaml --name payment-api\n" +
+      "    hivelore snapshot --diff --name payment-api\n" +
+      "    hivelore snapshot --list\n\n" +
+      "  To monitor contracts automatically on hivelore sync, add them to haive.config.json:\n" +
       "    { \"contractFiles\": [{ \"name\": \"payment-api\", \"path\": \"docs/openapi.yaml\", \"format\": \"openapi\" }] }\n",
     )
     .option("--contract <file>", "path to the contract file to snapshot (relative to project root)")
@@ -59,12 +59,12 @@ export function registerSnapshot(program: Command): void {
       const paths = resolveHaivePaths(root);
 
       if (!existsSync(paths.haiveDir)) {
-        ui.error("No .ai/ found. Run `haive init` first.");
+        ui.error("No .ai/ found. Run `hivelore init` first.");
         process.exitCode = 1;
         return;
       }
 
-      // haive snapshot --list
+      // hivelore snapshot --list
       if (opts.list) {
         const contractsDir = path.join(paths.haiveDir, "contracts");
         if (!existsSync(contractsDir)) {
@@ -86,7 +86,7 @@ export function registerSnapshot(program: Command): void {
         return;
       }
 
-      // haive snapshot --diff --name <name>
+      // hivelore snapshot --diff --name <name>
       if (opts.diff) {
         if (!opts.name) {
           // Try all configured contracts
@@ -122,7 +122,7 @@ export function registerSnapshot(program: Command): void {
         return;
       }
 
-      // haive snapshot --contract <file> [--name <name>] [--format <format>]
+      // hivelore snapshot --contract <file> [--name <name>] [--format <format>]
       if (!opts.contract) {
         ui.error("Provide --contract <file> or use --diff / --list.");
         process.exitCode = 1;
@@ -145,7 +145,7 @@ export function registerSnapshot(program: Command): void {
           console.log(ui.dim(`  ${snapshot.types.length} type(s) captured`));
         }
         console.log(ui.dim(`  lock: .ai/contracts/${name}.lock`));
-        console.log(ui.dim("  Next haive sync will detect changes automatically."));
+        console.log(ui.dim("  Next hivelore sync will detect changes automatically."));
         console.log(
           ui.dim(
             `  Tip: add to haive.config.json → contractFiles to monitor automatically:\n` +
@@ -185,7 +185,7 @@ async function runDiff(
     if (breaking.length > 0) {
       console.log(
         ui.yellow(
-          "\n  ⚠ Breaking changes detected — run `haive sync` to create a gotcha memory for your team.",
+          "\n  ⚠ Breaking changes detected — run `hivelore sync` to create a gotcha memory for your team.",
         ),
       );
     }

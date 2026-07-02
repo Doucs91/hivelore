@@ -1,10 +1,10 @@
 /**
  * Gate signal-quality — is the inferential (anti-pattern) gate earning trust or crying wolf?
  *
- * hAIve's anti-pattern gate is probabilistic and warmup-sensitive, so it is deliberately calibrated
+ * Hivelore's anti-pattern gate is probabilistic and warmup-sensitive, so it is deliberately calibrated
  * NOT to hard-block on weak matches. But a team needs to SEE whether the gate's signal is precise:
  * are its catches turning out to be real (prevented mistakes, applied lessons) or noise (rejected by
- * humans via `mem_feedback`)? This module turns the signals hAIve already records — prevention events
+ * humans via `mem_feedback`)? This module turns the signals Hivelore already records — prevention events
  * (by source) and per-memory rejection counts — into a precision indicator and an actionable tuning
  * suggestion for `enforcement.antiPatternGate`. Pure: no I/O.
  */

@@ -1,4 +1,4 @@
-import type { ConfidenceLevel, ImpactTier } from "@hiveai/core";
+import type { ConfidenceLevel, ImpactTier } from "@hivelore/core";
 
 export type BriefingMemoryPriority = "must_read" | "useful" | "background";
 
@@ -94,7 +94,7 @@ export interface BriefingBreadcrumbs {
 
 export interface BriefingOutput {
   task?: string;
-  /** Version of the hAIve MCP server answering this briefing — lets the agent/human spot a stale server vs the repo. */
+  /** Version of the Hivelore MCP server answering this briefing — lets the agent/human spot a stale server vs the repo. */
   server_version: string;
   search_mode: "semantic" | "literal_fallback" | "literal";
   match_quality_note?: string;

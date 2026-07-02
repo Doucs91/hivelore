@@ -40,7 +40,7 @@ function readRegisteredTools(server: unknown): string[] {
   return Object.keys(inner).sort();
 }
 
-describe("hAIve MCP server — registered tools", () => {
+describe("Hivelore MCP server — registered tools", () => {
   it("registers the enforcement tool profile by default", () => {
     const { server } = createHaiveServer({ root: process.cwd() });
     const registered = readRegisteredTools(server);

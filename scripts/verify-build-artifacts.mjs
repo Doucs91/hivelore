@@ -48,9 +48,9 @@ if (mcp.SERVER_VERSION !== rootPkg.version) {
 }
 
 if (failures.length > 0) {
-  console.error("hAIve build artifact verification failed:");
+  console.error("Hivelore build artifact verification failed:");
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log(`hAIve build artifacts OK (${rootPkg.version})`);
+console.log(`Hivelore build artifacts OK (${rootPkg.version})`);

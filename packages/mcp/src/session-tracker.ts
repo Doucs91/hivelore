@@ -14,7 +14,7 @@ import {
   loadConfig,
   writeSessionHandoff,
   type HaiveConfig,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -72,7 +72,7 @@ export class SessionTracker {
   record(tool: string, summary?: string): void {
     const event: SessionEvent = { tool, at: new Date().toISOString(), summary };
     this.events.push(event);
-    // Persist to .ai/.usage/tool-usage.jsonl for cross-session stats (haive stats).
+    // Persist to .ai/.usage/tool-usage.jsonl for cross-session stats (hivelore stats).
     // Best-effort: never blocks the tool execution, never throws.
     void appendUsageEvent(this.ctx.paths, event);
   }

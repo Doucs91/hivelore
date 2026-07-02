@@ -1,11 +1,11 @@
 ---
-description: Require hAIve MCP (get_briefing / mem_relevant_to) before substantive repo edits
+description: Require Hivelore MCP (get_briefing / mem_relevant_to) before substantive repo edits
 alwaysApply: true
 ---
 
-# hAIve — required for agents
+# Hivelore — required for agents
 
-This repository uses **hAIve**. Running `haive init` means the team expects agents to **use the haive MCP server by default**, not skip it.
+This repository uses **Hivelore**. Running `hivelore init` means the team expects agents to **use the haive MCP server by default**, not skip it.
 
 ## Before you change the repo
 
@@ -19,4 +19,4 @@ This repository uses **hAIve**. Running `haive init` means the team expects agen
 
 ## If haive MCP is missing
 
-Tell the developer to enable the **haive** server (e.g. `haive mcp --stdio` in client config) and restart the client. Do not silently ignore hAIve.
+Tell the developer to enable the **haive** server (e.g. `hivelore mcp --stdio` in client config) and restart the client. Do not silently ignore Hivelore.

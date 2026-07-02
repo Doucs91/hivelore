@@ -1,4 +1,4 @@
-import { pathsOverlap } from "@hiveai/core";
+import { pathsOverlap } from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 import { antiPatternsCheck, isHaiveOwnedPath, type AntiPatternsWarning } from "./anti-patterns-check.js";
@@ -97,7 +97,7 @@ export interface ClassifiedAntiPatternsWarning extends AntiPatternsWarning {
  *   3. mem_verify — memories whose anchors are stale (knowledge may be wrong)
  *
  * Returns should_block per the configured threshold, plus the raw findings so
- * the caller can render them. CLI wrapper: `haive precommit`.
+ * the caller can render them. CLI wrapper: `hivelore precommit`.
  */
 export async function preCommitCheck(
   input: PreCommitCheckInput,
@@ -194,7 +194,7 @@ function classifyWarning(
   paths: string[],
   anchoredBlocks = false,
 ): ClassifiedAntiPatternsWarning {
-  // "Which files is this warning about?" — the changed CODE files, never hAIve's own
+  // "Which files is this warning about?" — the changed CODE files, never Hivelore's own
   // knowledge/bridge files (a post-init commit stages `.ai/` + bridges alongside the code,
   // and listing `.ai/code-map.json` as the affected file sends the repair command to the
   // wrong place). When the memory is anchored, narrow further to the changed files its
@@ -222,7 +222,7 @@ function classifyWarning(
       return {
         ...warning,
         level: "blocking",
-        rationale: "deterministic hAIve sensor with block severity matched the added diff",
+        rationale: "deterministic Hivelore sensor with block severity matched the added diff",
         affected_files: affectedFiles,
         repair_command: repairCommand,
       };
@@ -230,7 +230,7 @@ function classifyWarning(
     return {
       ...warning,
       level: "review",
-      rationale: "deterministic hAIve sensor with warn severity matched the added diff",
+      rationale: "deterministic Hivelore sensor with warn severity matched the added diff",
       affected_files: affectedFiles,
       repair_command: repairCommand,
     };
@@ -433,7 +433,7 @@ function fileTypeDowngradeReason(
   const configOnly = paths.every(isPackageOrConfigPath);
   // Any non-anchored, non-strongly-semantic warning is suppressed on config/workflow-only commits.
   // Gotchas that happen to share tokens with config file names (npm, install, package.json,
-  // haive init, workspace:*) would otherwise fire on every dependency bump or workflow change.
+  // hivelore init, workspace:*) would otherwise fire on every dependency bump or workflow change.
   if (configOnly && !warning.reasons.includes("anchor") && !hasStrongSemantic(warning)) {
     return "package/config-only change; warning has no anchor on these files and no strong semantic match — downgraded to info.";
   }
@@ -543,8 +543,8 @@ function isJsonConfigFile(base: string): boolean {
 function repairCommandForWarning(warning: AntiPatternsWarning, paths: string[]): string {
   const targetPath = repairTargetPathForWarning(warning, paths);
   return targetPath
-    ? `haive briefing --files "${targetPath}" --task "review ${warning.id}"`
-    : `haive memory show ${warning.id}`;
+    ? `hivelore briefing --files "${targetPath}" --task "review ${warning.id}"`
+    : `hivelore memory show ${warning.id}`;
 }
 
 function repairTargetPathForWarning(warning: AntiPatternsWarning, paths: string[]): string | undefined {

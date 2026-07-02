@@ -6,7 +6,7 @@ import {
   getUsage,
   loadUsageIndex,
   resolveHaivePaths,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
@@ -42,7 +42,7 @@ export function registerMemoryPending(memory: Command): void {
 
       if (pending.length === 0) {
         ui.info("No draft or proposed memories awaiting review.");
-        ui.info("Drafts are created by `haive memory save` without `--status validated`.");
+        ui.info("Drafts are created by `hivelore memory save` without `--status validated`.");
         return;
       }
 
@@ -68,7 +68,7 @@ export function registerMemoryPending(memory: Command): void {
           );
           console.log(`    ${ui.dim(path.relative(root, filePath))}`);
         }
-        if (proposed.length > 0) console.log(ui.dim(`  → haive memory approve <id>  or  haive memory auto-promote`));
+        if (proposed.length > 0) console.log(ui.dim(`  → hivelore memory approve <id>  or  hivelore memory auto-promote`));
         console.log();
       }
 
@@ -84,7 +84,7 @@ export function registerMemoryPending(memory: Command): void {
           );
           console.log(`    ${ui.dim(path.relative(root, filePath))}`);
         }
-        console.log(ui.dim(`  → haive memory approve <id>   (activate)  |  haive memory promote <id>  (share with team)`));
+        console.log(ui.dim(`  → hivelore memory approve <id>   (activate)  |  hivelore memory promote <id>  (share with team)`));
       }
 
       ui.info(`${pending.length} total pending (${proposed.length} proposed · ${drafts.length} draft)`);

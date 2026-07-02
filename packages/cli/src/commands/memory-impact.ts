@@ -10,7 +10,7 @@ import {
   summarizeImpact,
   type ImpactScore,
   type ImpactTier,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
@@ -46,7 +46,7 @@ export function registerMemoryImpact(memory: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
-        ui.error(`No .ai/memories at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/memories at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -86,7 +86,7 @@ export function registerMemoryImpact(memory: Command): void {
         return;
       }
 
-      console.log(ui.bold(`hAIve memory impact — ${root}`));
+      console.log(ui.bold(`Hivelore memory impact — ${root}`));
       console.log(
         ui.dim(
           `${summary.total} memories · ${summary.high} high · ${summary.medium} medium · ` +
@@ -105,7 +105,7 @@ export function registerMemoryImpact(memory: Command): void {
 
       if (!opts.prune && summary.prune_candidates > 0) {
         console.log();
-        console.log(ui.dim(`Tip: \`haive memory impact --prune\` lists the ${summary.prune_candidates} prune candidate(s).`));
+        console.log(ui.dim(`Tip: \`hivelore memory impact --prune\` lists the ${summary.prune_candidates} prune candidate(s).`));
       }
     });
 }

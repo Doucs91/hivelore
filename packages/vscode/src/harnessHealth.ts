@@ -103,7 +103,7 @@ export class HarnessHealthProvider implements vscode.TreeDataProvider<HealthItem
 
     try {
       const raw = await runHaive(this.workspaceRoot, ["doctor", "--json"]);
-      this.outputChannel.appendLine(`\n[haive doctor] ${new Date().toLocaleTimeString()}`);
+      this.outputChannel.appendLine(`\n[hivelore doctor] ${new Date().toLocaleTimeString()}`);
       this.outputChannel.appendLine(raw);
 
       const json = JSON.parse(raw) as {
@@ -121,7 +121,7 @@ export class HarnessHealthProvider implements vscode.TreeDataProvider<HealthItem
         findings: [],
         error: msg,
       };
-      this.outputChannel.appendLine(`[haive doctor error] ${msg}`);
+      this.outputChannel.appendLine(`[hivelore doctor error] ${msg}`);
     } finally {
       this.loading = false;
       this.refresh();
@@ -139,7 +139,7 @@ export class HarnessHealthProvider implements vscode.TreeDataProvider<HealthItem
     if (element) return [];
 
     if (this.loading) {
-      const item = new vscode.TreeItem("Running haive doctor…");
+      const item = new vscode.TreeItem("Running hivelore doctor…");
       item.iconPath = new vscode.ThemeIcon("loading~spin");
       return [item as HealthItem];
     }
@@ -147,7 +147,7 @@ export class HarnessHealthProvider implements vscode.TreeDataProvider<HealthItem
     if (!this.result) {
       const item = new vscode.TreeItem("Click ▶ to run health check");
       item.iconPath = new vscode.ThemeIcon("play");
-      item.command = { command: "haive.runDoctor", title: "Run Doctor" };
+      item.command = { command: "hivelore.runDoctor", title: "Run Doctor" };
       return [item as HealthItem];
     }
 
@@ -200,8 +200,8 @@ export class HarnessHealthProvider implements vscode.TreeDataProvider<HealthItem
 
 export function runHaive(cwd: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    const cfg = vscode.workspace.getConfiguration("haive");
-    const binary = cfg.get<string>("cliPath") || "haive";
+    const cfg = vscode.workspace.getConfiguration("hivelore");
+    const binary = cfg.get<string>("cliPath") || "hivelore";
 
     cp.execFile(binary, args, { cwd, maxBuffer: 1024 * 1024 * 4 }, (err, stdout, stderr) => {
       if (err && !stdout) {

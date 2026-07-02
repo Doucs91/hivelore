@@ -30,8 +30,8 @@ import {
   type RetrievalCaseResult,
   type SensorCase,
   type SensorCaseResult,
-} from "@hiveai/core";
-import { antiPatternsCheck, getBriefing } from "@hiveai/mcp";
+} from "@hivelore/core";
+import { antiPatternsCheck, getBriefing } from "@hivelore/mcp";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
@@ -101,7 +101,7 @@ export function registerEval(program: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
-        ui.error(`No .ai/memories at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/memories at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -114,12 +114,12 @@ export function registerEval(program: Command): void {
           return;
         }
         if (trend.runs === 0) {
-          ui.info("No eval history yet. Run `haive eval --record` to start trending the harness.");
+          ui.info("No eval history yet. Run `hivelore eval --record` to start trending the harness.");
           return;
         }
         const spark = trend.recent.map((s) => "▁▂▃▄▅▆▇█"[Math.min(7, Math.round((s / 100) * 7))]).join("");
         const arrow = trend.regressed ? ui.red("▼") : (trend.delta ?? 0) > 0 ? ui.green("▲") : ui.dim("=");
-        console.log(ui.bold("hAIve eval trend"));
+        console.log(ui.bold("Hivelore eval trend"));
         console.log(`  ${spark}  latest ${arrow} ${trend.latest}/100  ${ui.dim(`(best ${trend.best}, ${trend.runs} run${trend.runs === 1 ? "" : "s"})`)}`);
         return;
       }
@@ -216,9 +216,9 @@ export function registerEval(program: Command): void {
       if (opts.compare || opts.regressionGate) {
         if (!existsSync(baselineFile)) {
           if (opts.regressionGate) {
-            if (!opts.json) ui.info(`No baseline at ${path.relative(root, baselineFile)} — regression gate skipped. Run \`haive eval --baseline\` to enable it.`);
+            if (!opts.json) ui.info(`No baseline at ${path.relative(root, baselineFile)} — regression gate skipped. Run \`hivelore eval --baseline\` to enable it.`);
           } else {
-            ui.error(`No baseline at ${path.relative(root, baselineFile)}. Run \`haive eval --baseline\` first.`);
+            ui.error(`No baseline at ${path.relative(root, baselineFile)}. Run \`hivelore eval --baseline\` first.`);
             process.exitCode = 1;
             return;
           }
@@ -256,7 +256,7 @@ export function registerEval(program: Command): void {
       if (resolvedSpec.authored === 0 && resolvedSpec.synthesized > 0) {
         ui.warn(
           `All ${resolvedSpec.synthesized} case(s) are self-synthesized from your own memories (self-referential). ` +
-          "Add hand-labeled cases in .ai/eval/spec.json, or run `haive eval --spec <file>`, for an independent score.",
+          "Add hand-labeled cases in .ai/eval/spec.json, or run `hivelore eval --spec <file>`, for an independent score.",
         );
       }
 
@@ -463,7 +463,7 @@ function renderMarkdown(
         ? `${resolved.authored} authored (independent ground truth)`
         : `${resolved.authored} authored (independent) + ${resolved.synthesized} synthesized (self-referential)`;
   const lines = [
-    "# hAIve eval report",
+    "# Hivelore eval report",
     "",
     `Project: \`${root}\` · top-k: ${k}`,
     `Spec: ${resolved.source}`,

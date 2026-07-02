@@ -5,8 +5,8 @@ import {
   findProjectRoot,
   loadConfig,
   resolveHaivePaths,
-} from "@hiveai/core";
-import { preCommitCheck } from "@hiveai/mcp";
+} from "@hivelore/core";
+import { preCommitCheck } from "@hivelore/mcp";
 import { ui } from "../utils/ui.js";
 
 interface PrecommitOptions {
@@ -22,14 +22,14 @@ export function registerPrecommit(program: Command): void {
   program
     .command("precommit")
     .description(
-      "Run a pre-commit safety check (manual variant of `haive enforce check --stage pre-commit`):\n" +
+      "Run a pre-commit safety check (manual variant of `hivelore enforce check --stage pre-commit`):\n" +
       "  scans `git diff --cached` against known anti-patterns,\n" +
       "  surfaces conventions/decisions anchored to touched files, and warns about stale anchored memories.\n\n" +
-      "  Wire it into git as: `.git/hooks/pre-commit` running `haive precommit` (exit 1 = block).\n\n" +
+      "  Wire it into git as: `.git/hooks/pre-commit` running `hivelore precommit` (exit 1 = block).\n\n" +
       "  Examples:\n" +
-      "    haive precommit                                # auto-detects staged diff\n" +
-      "    haive precommit --block-on any                 # block on any warning, not just high-confidence\n" +
-      "    haive precommit --paths src/auth.ts src/db.ts  # explicit paths instead of git diff",
+      "    hivelore precommit                                # auto-detects staged diff\n" +
+      "    hivelore precommit --block-on any                 # block on any warning, not just high-confidence\n" +
+      "    hivelore precommit --paths src/auth.ts src/db.ts  # explicit paths instead of git diff",
     )
     .option(
       "--block-on <mode>",
@@ -49,7 +49,7 @@ export function registerPrecommit(program: Command): void {
       const ctx = { paths };
 
       // Derive the gate behavior from project config so this command matches the
-      // installed git hook (`haive enforce check`). Explicit flags still override:
+      // installed git hook (`hivelore enforce check`). Explicit flags still override:
       //   --block-on <mode>     overrides the gate's block_on
       //   --no-anchored-blocks  forces anchored_blocks off (the only explicit opt-out)
       const config = await loadConfig(paths);
@@ -108,7 +108,7 @@ export function registerPrecommit(program: Command): void {
         process.exit(result.should_block ? 1 : 0);
       }
 
-      console.log(ui.bold(`hAIve precommit — ${touchedPaths.length} file(s)`));
+      console.log(ui.bold(`Hivelore precommit — ${touchedPaths.length} file(s)`));
       console.log(
         ui.dim(
           `  anti-patterns: ${result.summary.anti_patterns}  ` +

@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 /**
- * A small, non-actionable header row that explains the role of a hAIve view.
+ * A small, non-actionable header row that explains the role of a Hivelore view.
  * Shows a one-line summary inline and the full explanation on hover (tooltip) — so every
  * section in the sidebar is self-describing without leaving the UI.
  */
@@ -17,7 +17,7 @@ export class InfoItem extends vscode.TreeItem {
   }
 }
 
-/** One-liner + full role text for each hAIve view, keyed for reuse across providers. */
+/** One-liner + full role text for each Hivelore view, keyed for reuse across providers. */
 export const VIEW_ROLES = {
   memories: {
     oneLiner: "the repo's living knowledge",
@@ -40,9 +40,9 @@ export const VIEW_ROLES = {
       "and sensors needing promotion. Work the list to keep the corpus healthy and the gate trustworthy.",
   },
   harness: {
-    oneLiner: "maturity scores from haive doctor",
+    oneLiner: "maturity scores from hivelore doctor",
     role:
-      "Per-dimension scores from `haive doctor` — protection, context, corpus and coverage — and the " +
+      "Per-dimension scores from `hivelore doctor` — protection, context, corpus and coverage — and the " +
       "findings behind them. A quick gauge of how mature and trustworthy your harness is.",
   },
 } as const;

@@ -13,7 +13,7 @@ import {
   resolveHaivePaths,
   saveUsageIndex,
   serializeMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
@@ -31,7 +31,7 @@ export function registerMemoryFeedback(memory: Command): void {
     .description(
       "Record whether a memory actually helped — the closed-loop utility signal " +
         "(mirror of the mem_feedback MCP tool). 'applied' = it steered your work; " +
-        "'rejected' = it was wrong/unhelpful. Feeds `haive memory impact`.",
+        "'rejected' = it was wrong/unhelpful. Feeds `hivelore memory impact`.",
     )
     .option("--applied", "the memory changed what you did (positive signal)", false)
     .option("--rejected", "the memory was wrong/outdated/unhelpful (negative signal)", false)
@@ -47,7 +47,7 @@ export function registerMemoryFeedback(memory: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
-        ui.error(`No .ai/memories at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/memories at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }

@@ -7,7 +7,7 @@ import {
   pathsOverlap,
   tokenizeQuery,
   type LoadedMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -217,9 +217,9 @@ async function trySemanticSimilarities(
   target: LoadedMemory,
   others: LoadedMemory[],
 ): Promise<Map<string, number> | null> {
-  let mod: typeof import("@hiveai/embeddings");
+  let mod: typeof import("@hivelore/embeddings");
   try {
-    mod = await import("@hiveai/embeddings");
+    mod = await import("@hivelore/embeddings");
   } catch {
     return null;
   }

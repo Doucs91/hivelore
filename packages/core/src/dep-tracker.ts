@@ -1,7 +1,7 @@
 /**
  * Dependency version tracker.
  *
- * During `haive sync`, parse the project's dependency manifest files
+ * During `hivelore sync`, parse the project's dependency manifest files
  * (package.json, pom.xml, go.mod, Cargo.toml, requirements.txt, etc.),
  * compare against a snapshot stored at `.ai/contracts/deps-<name>.lock`,
  * and return memories that should be marked stale because a dependency

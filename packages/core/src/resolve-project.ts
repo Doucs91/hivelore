@@ -25,7 +25,7 @@ function markersAtRoot(root: string): string[] {
 }
 
 /**
- * Resolve the hAIve project root for diagnostics (MCP / CLI). Never throws.
+ * Resolve the Hivelore project root for diagnostics (MCP / CLI). Never throws.
  */
 export function resolveProjectInfo(opts: {
   cwd?: string;

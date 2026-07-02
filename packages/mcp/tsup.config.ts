@@ -6,8 +6,8 @@ const { version } = JSON.parse(
 ) as { version: string };
 
 const sharedExternal = [
-  "@hiveai/core",
-  "@hiveai/embeddings",
+  "@hivelore/core",
+  "@hivelore/embeddings",
   "@xenova/transformers",
   "@modelcontextprotocol/sdk",
   "zod",

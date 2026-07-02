@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
-import { findProjectRoot, resolveHaivePaths } from "@hiveai/core";
+import { findProjectRoot, resolveHaivePaths } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface EmbeddingsOptions {
@@ -26,7 +26,7 @@ export function registerEmbeddings(program: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
-        ui.error(`No .ai/memories at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/memories at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -55,7 +55,7 @@ export function registerEmbeddings(program: Command): void {
         minScore: Number(opts.minScore ?? 0),
       });
       if (!result) {
-        ui.error("No embeddings index found. Run `haive embeddings index` first.");
+        ui.error("No embeddings index found. Run `hivelore embeddings index` first.");
         process.exitCode = 1;
         return;
       }
@@ -80,7 +80,7 @@ export function registerEmbeddings(program: Command): void {
       const { indexStat } = await loadEmbeddings();
       const stat = await indexStat(paths);
       if (!stat.exists) {
-        ui.warn("No embeddings index. Run `haive embeddings index` to create one.");
+        ui.warn("No embeddings index. Run `hivelore embeddings index` to create one.");
         return;
       }
       console.log(`${ui.bold("entries:")}    ${stat.count}`);
@@ -92,10 +92,10 @@ export function registerEmbeddings(program: Command): void {
 
 async function loadEmbeddings() {
   try {
-    return await import("@hiveai/embeddings");
+    return await import("@hivelore/embeddings");
   } catch {
     ui.error(
-      "Could not load @hiveai/embeddings. Run: npm install -g @hiveai/embeddings  (or `pnpm build` in the monorepo)",
+      "Could not load @hivelore/embeddings. Run: npm install -g @hivelore/embeddings  (or `pnpm build` in the monorepo)",
     );
     process.exit(1);
   }

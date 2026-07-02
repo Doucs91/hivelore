@@ -1,12 +1,12 @@
 /**
- * haive memory digest — generate a Markdown report of memories added/updated
+ * hivelore memory digest — generate a Markdown report of memories added/updated
  * within the last N days for bulk review.
  *
  * Usage:
- *   haive memory digest              # last 7 days, team scope
- *   haive memory digest --days 14    # last 14 days
- *   haive memory digest --scope all  # all scopes
- *   haive memory digest --out digest.md  # write to file instead of stdout
+ *   hivelore memory digest              # last 7 days, team scope
+ *   hivelore memory digest --days 14    # last 14 days
+ *   hivelore memory digest --scope all  # all scopes
+ *   hivelore memory digest --out digest.md  # write to file instead of stdout
  */
 import { existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
@@ -19,7 +19,7 @@ import {
   loadMemoriesFromDir,
   loadUsageIndex,
   resolveHaivePaths,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface DigestOptions {
@@ -47,9 +47,9 @@ export function registerMemoryDigest(program: Command): void {
       "  Use this to do a bulk weekly review of team memories, or share with teammates\n" +
       "  as a pull-request attachment so humans can validate what the AI captured.\n\n" +
       "  Examples:\n" +
-      "    haive memory digest                         # last 7 days, team scope\n" +
-      "    haive memory digest --days 30 --scope all   # last 30 days, all scopes\n" +
-      "    haive memory digest --out review.md         # write to file\n",
+      "    hivelore memory digest                         # last 7 days, team scope\n" +
+      "    hivelore memory digest --days 30 --scope all   # last 30 days, all scopes\n" +
+      "    hivelore memory digest --out review.md         # write to file\n",
     )
     .option("--days <n>", "look-back window in days (default: 7)", "7")
     .option("--scope <scope>", "personal | team | module | all (default: team)", "team")
@@ -60,7 +60,7 @@ export function registerMemoryDigest(program: Command): void {
       const paths = resolveHaivePaths(root);
 
       if (!existsSync(paths.memoriesDir)) {
-        ui.error("No .ai/memories found. Run `haive init` first.");
+        ui.error("No .ai/memories found. Run `hivelore init` first.");
         process.exitCode = 1;
         return;
       }
@@ -82,7 +82,7 @@ export function registerMemoryDigest(program: Command): void {
 
       const now = new Date().toISOString().slice(0, 10);
       const lines: string[] = [
-        `# hAIve Memory Digest — ${now}`,
+        `# Hivelore Memory Digest — ${now}`,
         ``,
         `> **Period:** last ${days} day${days > 1 ? "s" : ""}  |  **Scope:** ${scopeFilter}  |  **Total:** ${recent.length} memor${recent.length === 1 ? "y" : "ies"}`,
         ``,
@@ -140,7 +140,7 @@ export function registerMemoryDigest(program: Command): void {
 
       lines.push(``);
       lines.push(
-        `> _To take action: \`haive memory approve <id>\`, \`haive memory reject <id>\`, or open \`haive tui\` for interactive review._`,
+        `> _To take action: \`hivelore memory approve <id>\`, \`hivelore memory reject <id>\`, or open \`hivelore tui\` for interactive review._`,
       );
 
       const digest = lines.join("\n");

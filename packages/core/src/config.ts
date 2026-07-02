@@ -1,16 +1,16 @@
 /**
- * hAIve project configuration — .ai/haive.config.json
+ * Hivelore project configuration — .ai/haive.config.json
  *
- * In autopilot mode, hAIve operates with zero human intervention:
+ * In autopilot mode, Hivelore operates with zero human intervention:
  *   - Memories go directly to `validated` (no approval cycle)
- *   - `haive sync` auto-approves proposed memories after the delay
+ *   - `hivelore sync` auto-approves proposed memories after the delay
  *   - The MCP server saves a session recap automatically on exit
  *   - `get_briefing` auto-generates a minimal project context if none exists
- *   - `haive sync` applies safe self-maintenance repairs (context version, headings,
+ *   - `hivelore sync` applies safe self-maintenance repairs (context version, headings,
  *     needs_anchor tags, code-map refresh) without human intervention
  *
  * Multi-repo support:
- *   - crossRepoSources: pull shared memories from other repos on haive sync
+ *   - crossRepoSources: pull shared memories from other repos on hivelore sync
  *   - contractFiles: watch API contract files for breaking changes
  *   - hubPath: local path to a shared team-knowledge hub repo
  */
@@ -98,7 +98,7 @@ export interface HaiveConfig {
    * session end (MCP exit / SessionEnd hook). Default: true (preserves historical behavior).
    * Set false to stop the low-signal recap dump from accumulating in — and biasing — the corpus;
    * pair with `sessionHandoff` for an ephemeral NEXT.md handoff instead. Has no effect on a
-   * manual `haive session end --goal ...` (an explicit recap is always honored).
+   * manual `hivelore session end --goal ...` (an explicit recap is always honored).
    */
   autoSessionRecap?: boolean;
 
@@ -128,14 +128,14 @@ export interface HaiveConfig {
     corpus?: boolean;
     /** Refresh .ai/code-map.json during sync when needed. */
     codeMap?: boolean;
-    /** Best-effort build of code-search embeddings when @hiveai/embeddings is available. */
+    /** Best-effort build of code-search embeddings when @hivelore/embeddings is available. */
     codeSearch?: boolean;
   };
 
   // ── Multi-repo support ──────────────────────────────────────────────────
 
   /**
-   * Other repos to pull `shared`-scoped memories from during `haive sync`.
+   * Other repos to pull `shared`-scoped memories from during `hivelore sync`.
    * Each source must have either `path` (local) or `git` (remote URL).
    *
    * Example:
@@ -145,7 +145,7 @@ export interface HaiveConfig {
 
   /**
    * API contract files to snapshot and watch for breaking changes.
-   * `haive sync` compares the current file against `.ai/contracts/<name>.lock`
+   * `hivelore sync` compares the current file against `.ai/contracts/<name>.lock`
    * and creates a `gotcha` memory if a breaking change is detected.
    *
    * Example:
@@ -155,7 +155,7 @@ export interface HaiveConfig {
 
   /**
    * Local path to a shared team-knowledge hub repo.
-   * Used by `haive hub pull` and `haive hub push`.
+   * Used by `hivelore hub pull` and `hivelore hub push`.
    * Can be relative (resolved from project root) or absolute.
    */
   hubPath?: string;
@@ -169,7 +169,7 @@ export interface HaiveConfig {
 
   /**
    * Agent-enforcement settings. Enabled by default so initialized projects
-   * treat hAIve as infrastructure, not an optional convention.
+   * treat Hivelore as infrastructure, not an optional convention.
    */
   enforcement?: {
     /** Enforcement posture: advisory reports only, warn in hooks, or block workflow gates. */
@@ -218,18 +218,18 @@ export interface HaiveConfig {
     /**
      * Pre-commit/pre-push decision-coverage behaviour. When true (default), the gate SURFACES the
      * relevant anchored decisions/policies itself and records them in the session marker at commit
-     * time — no separate `haive briefing` step required. Set false for the strict legacy behaviour
+     * time — no separate `hivelore briefing` step required. Set false for the strict legacy behaviour
      * where the commit is blocked until a prior briefing covered those decisions.
      */
     autoBrief?: boolean;
     /**
-     * Execute `kind: "shell" | "test"` memory sensors during `haive sensors check`.
+     * Execute `kind: "shell" | "test"` memory sensors during `hivelore sensors check`.
      * These run arbitrary repo-authored commands, so they are OFF by default; turn on per repo
      * (or pass `--commands`) once the team trusts the sensors. Regex sensors always run. Default false.
      */
     runCommandSensors?: boolean;
     /**
-     * How `haive enforce finish` reacts to hard failures observed this session that were never
+     * How `hivelore enforce finish` reacts to hard failures observed this session that were never
      * captured as a lesson (`mem_tried`):
      *   - off:   ignore
      *   - warn:  surface them as an info finding (default — failure detection has false positives)
@@ -238,7 +238,7 @@ export interface HaiveConfig {
      */
     failureCaptureGate?: "off" | "warn" | "block";
     /**
-     * How `haive eval --ci` reacts to a harness-quality regression vs the recorded baseline:
+     * How `hivelore eval --ci` reacts to a harness-quality regression vs the recorded baseline:
      *   - off:   never block
      *   - warn:  report the drop (default)
      *   - block: exit non-zero on any score drop
@@ -246,14 +246,14 @@ export interface HaiveConfig {
      */
     evalRegressionGate?: "off" | "warn" | "block";
     /**
-     * Default unread-age window (in days) for `haive memory archive` corpus decay.
+     * Default unread-age window (in days) for `hivelore memory archive` corpus decay.
      * A noisy or stale corpus is actively harmful — it makes the agent follow outdated policy.
      * Default: 180.
      */
     decayAfterDays?: number;
     /** Minimum score required for strict enforcement gates. */
     scoreThreshold?: number;
-    /** Remove generated hAIve runtime/cache files during cleanup gates. */
+    /** Remove generated Hivelore runtime/cache files during cleanup gates. */
     cleanupGeneratedArtifacts?: boolean;
     /**
      * MCP tool surface:
@@ -362,7 +362,7 @@ export type AntiPatternGate = "off" | "review" | "anchored" | "strict";
 /**
  * Single source of truth mapping a configured `antiPatternGate` to the
  * `pre_commit_check` parameters that implement it. Both the git-hook path
- * (`haive enforce check`) and the standalone `haive precommit` command derive
+ * (`hivelore enforce check`) and the standalone `hivelore precommit` command derive
  * their behavior from this so the two surfaces can never drift apart.
  */
 export function antiPatternGateParams(

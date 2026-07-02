@@ -1,4 +1,4 @@
-import { resolveProjectInfo } from "@hiveai/core";
+import { resolveProjectInfo } from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 

@@ -32,7 +32,7 @@ export function importDocsPrompt(
     ? "\n> **DRY RUN** — describe what you would save but do not call any tools."
     : "";
 
-  const text = `You are given documentation to analyze and import into the hAIve memory system.
+  const text = `You are given documentation to analyze and import into the Hivelore memory system.
 ${sourceLine}
 Scope: **${args.scope}**
 Project root: \`${ctx.paths.root}\`
@@ -80,7 +80,7 @@ When done, respond with: "Imported N memories: [list of IDs]" or "Nothing action
 `;
 
   return {
-    description: "Import documentation as hAIve memories",
+    description: "Import documentation as Hivelore memories",
     messages: [
       {
         role: "user",

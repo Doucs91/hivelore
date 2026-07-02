@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import type { HaivePaths } from "@hiveai/core";
+import type { HaivePaths } from "@hivelore/core";
 import { DEFAULT_DIMENSION, DEFAULT_MODEL } from "./embedder.js";
 import { cacheDir } from "./index-cache.js";
 

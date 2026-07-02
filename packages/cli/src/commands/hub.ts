@@ -1,10 +1,10 @@
 /**
- * haive hub — shared team-knowledge hub operations.
+ * hivelore hub — shared team-knowledge hub operations.
  *
- *   haive hub pull          — import shared memories from the hub into this project
- *   haive hub push          — export this project's shared memories to the hub
- *   haive hub status        — show hub sync status (last pull/push, counts)
- *   haive hub init <path>   — initialize a new hub repo at <path>
+ *   hivelore hub pull          — import shared memories from the hub into this project
+ *   hivelore hub push          — export this project's shared memories to the hub
+ *   hivelore hub status        — show hub sync status (last pull/push, counts)
+ *   hivelore hub init <path>   — initialize a new hub repo at <path>
  *
  * The hub is a plain git repo with a .ai/ directory.
  * Set hubPath in haive.config.json (relative or absolute path to the hub).
@@ -30,7 +30,7 @@ import {
   resolveHaivePaths,
   saveConfig,
   serializeMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface HubOptions {
@@ -47,23 +47,23 @@ export function registerHub(program: Command): void {
       "  The hub is a plain git repo with a .ai/ directory. Each project pushes its\n" +
       "  `shared`-scoped memories to the hub and pulls from all other projects.\n\n" +
       "  Setup:\n" +
-      "    1. haive hub init /path/to/team-hub\n" +
+      "    1. hivelore hub init /path/to/team-hub\n" +
       "    2. Add hubPath to .ai/haive.config.json: { \"hubPath\": \"../team-hub\" }\n" +
-      "    3. haive hub push    — publish your shared memories\n" +
-      "    4. haive hub pull    — import other projects' shared memories\n\n" +
-      "  Or configure in haive.config.json and haive sync handles it automatically.\n",
+      "    3. hivelore hub push    — publish your shared memories\n" +
+      "    4. hivelore hub pull    — import other projects' shared memories\n\n" +
+      "  Or configure in haive.config.json and hivelore sync handles it automatically.\n",
     );
   hub.action(() => hub.help());
 
-  // haive hub init <path>
+  // hivelore hub init <path>
   hub
     .command("init <hubPath>")
     .description(
       "Initialize a new team-knowledge hub repo at <hubPath>.\n\n" +
       "  Creates a git repo with a .ai/ directory structure ready for shared memories.\n\n" +
       "  Example:\n" +
-      "    haive hub init ../team-hub\n" +
-      "    haive hub init /srv/git/team-knowledge\n",
+      "    hivelore hub init ../team-hub\n" +
+      "    hivelore hub init /srv/git/team-knowledge\n",
     )
     .action(async (hubPath: string) => {
       const absPath = path.resolve(hubPath);
@@ -83,16 +83,16 @@ export function registerHub(program: Command): void {
       await mkdir(sharedDir, { recursive: true });
       await writeFile(
         path.join(absPath, ".ai", "README.md"),
-        `# hAIve Team Knowledge Hub\n\n` +
-        `This repo is a shared knowledge hub for hAIve.\n\n` +
+        `# Hivelore Team Knowledge Hub\n\n` +
+        `This repo is a shared knowledge hub for Hivelore.\n\n` +
         `Each project contributes its \`shared\`-scoped memories here.\n` +
-        `Other projects pull from it via \`haive hub pull\`.\n\n` +
+        `Other projects pull from it via \`hivelore hub pull\`.\n\n` +
         `## Structure\n\n` +
         "`" + "`.ai/memories/shared/<project-name>/`\n\n" +
         `## Usage\n\n` +
         "```bash\n" +
-        "haive hub push   # publish from a project\n" +
-        "haive hub pull   # import into a project\n" +
+        "hivelore hub push   # publish from a project\n" +
+        "hivelore hub pull   # import into a project\n" +
         "```\n",
         "utf8",
       );
@@ -103,7 +103,7 @@ export function registerHub(program: Command): void {
       );
 
       spawnSync("git", ["add", "."], { cwd: absPath });
-      spawnSync("git", ["commit", "-m", "chore: initialize hAIve team-knowledge hub"], {
+      spawnSync("git", ["commit", "-m", "chore: initialize Hivelore team-knowledge hub"], {
         cwd: absPath,
         encoding: "utf8",
       });
@@ -114,13 +114,13 @@ export function registerHub(program: Command): void {
           `\nNext steps:\n` +
           `  1. Add hubPath to your project's .ai/haive.config.json:\n` +
           `       { "hubPath": "${path.relative(process.cwd(), absPath)}" }\n` +
-          `  2. Run \`haive hub push\` to publish your shared memories\n` +
+          `  2. Run \`hivelore hub push\` to publish your shared memories\n` +
           `  3. Share ${absPath} with teammates (git remote, NFS, etc.)\n`,
         ),
       );
     });
 
-  // haive hub push
+  // hivelore hub push
   hub
     .command("push")
     .description(
@@ -128,9 +128,9 @@ export function registerHub(program: Command): void {
       "  Copies all memories with scope=shared to hub/.ai/memories/shared/<project-name>/.\n" +
       "  Optionally commits to the hub repo.\n\n" +
       "  Examples:\n" +
-      "    haive hub push\n" +
-      "    haive hub push --commit\n" +
-      "    haive hub push --commit --message \"feat: add payment API contract memories\"\n",
+      "    hivelore hub push\n" +
+      "    hivelore hub push --commit\n" +
+      "    hivelore hub push --commit --message \"feat: add payment API contract memories\"\n",
     )
     .option("-d, --dir <dir>", "project root")
     .option("--commit", "auto-commit to the hub repo after pushing")
@@ -144,7 +144,7 @@ export function registerHub(program: Command): void {
         ui.error(
           "hubPath not configured in .ai/haive.config.json.\n" +
           "  Add: { \"hubPath\": \"../team-hub\" }\n" +
-          "  Or run: haive hub init <path> first.",
+          "  Or run: hivelore hub init <path> first.",
         );
         process.exitCode = 1;
         return;
@@ -152,7 +152,7 @@ export function registerHub(program: Command): void {
 
       const hubRoot = path.resolve(root, config.hubPath);
       if (!existsSync(hubRoot)) {
-        ui.error(`Hub not found at ${hubRoot}. Run \`haive hub init ${config.hubPath}\` first.`);
+        ui.error(`Hub not found at ${hubRoot}. Run \`hivelore hub init ${config.hubPath}\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -176,7 +176,7 @@ export function registerHub(program: Command): void {
       if (shared.length === 0) {
         ui.warn(
           "No shared-scoped memories found. Create memories with scope=shared to push to the hub.\n" +
-          "  Example: haive memory add --type architecture --slug my-api --scope shared --body \"...\"\n" +
+          "  Example: hivelore memory add --type architecture --slug my-api --scope shared --body \"...\"\n" +
           "  Or with MCP: mem_save({ scope: 'shared', ... })",
         );
         return;
@@ -220,7 +220,7 @@ export function registerHub(program: Command): void {
       }
     });
 
-  // haive hub pull
+  // hivelore hub pull
   hub
     .command("pull")
     .description(
@@ -228,7 +228,7 @@ export function registerHub(program: Command): void {
       "  Imports all memories from hub/.ai/memories/shared/ EXCEPT this project's own.\n" +
       "  Imported memories land in .ai/memories/shared/<source-project-name>/.\n\n" +
       "  Examples:\n" +
-      "    haive hub pull\n",
+      "    hivelore hub pull\n",
     )
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: { dir?: string }) => {
@@ -240,7 +240,7 @@ export function registerHub(program: Command): void {
         ui.error(
           "hubPath not configured in .ai/haive.config.json.\n" +
           "  Add: { \"hubPath\": \"../team-hub\" }\n" +
-          "  Or run: haive hub init <path> first.",
+          "  Or run: hivelore hub init <path> first.",
         );
         process.exitCode = 1;
         return;
@@ -250,7 +250,7 @@ export function registerHub(program: Command): void {
       const hubSharedDir = path.join(hubRoot, ".ai", "memories", "shared");
 
       if (!existsSync(hubSharedDir)) {
-        ui.warn("Hub has no shared memories yet. Run `haive hub push` from other projects first.");
+        ui.warn("Hub has no shared memories yet. Run `hivelore hub push` from other projects first.");
         return;
       }
 
@@ -274,7 +274,7 @@ export function registerHub(program: Command): void {
         await mkdir(destDir, { recursive: true });
 
         const sourceFiles = (await readdir(sourceDir)).filter((f) => f.endsWith(".md"));
-        const { loadMemoriesFromDir: loadDir } = await import("@hiveai/core");
+        const { loadMemoriesFromDir: loadDir } = await import("@hivelore/core");
         const existingInDest = await loadDir(destDir);
         const existingIds = new Set(existingInDest.map(({ memory }) => memory.frontmatter.id));
 
@@ -311,7 +311,7 @@ export function registerHub(program: Command): void {
       );
     });
 
-  // haive hub status
+  // hivelore hub status
   hub
     .command("status")
     .description("Show hub sync status.")
@@ -350,7 +350,7 @@ export function registerHub(program: Command): void {
       );
       console.log(`\n  This project's shared memories (ready to push): ${outgoing.length}`);
       if (outgoing.length > 0) {
-        console.log(ui.dim("  Run `haive hub push` to publish them to the hub."));
+        console.log(ui.dim("  Run `hivelore hub push` to publish them to the hub."));
       }
 
       void readFile; void writeFile; void saveConfig; // imported for side effects

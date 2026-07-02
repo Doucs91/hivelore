@@ -6,8 +6,8 @@ import {
   isGlobPath,
   pathsOverlap,
   priorityRank as corePriorityRank,
-} from "@hiveai/core";
-import type { LoadedMemory } from "@hiveai/core";
+} from "@hivelore/core";
+import type { LoadedMemory } from "@hivelore/core";
 import type { HaiveContext } from "../context.js";
 import type {
   BriefingMemory,
@@ -26,7 +26,7 @@ export function compactSummary(body: string): string {
 
 /**
  * Map the MCP briefing's evidence into the shared core classifier. Behavior is identical to the old
- * inline logic — the single source of truth now lives in `@hiveai/core` so the CLI cannot drift.
+ * inline logic — the single source of truth now lives in `@hivelore/core` so the CLI cannot drift.
  */
 export function classifyMemoryPriority(
   memory: BriefingMemory,
@@ -173,9 +173,9 @@ export async function trySemanticHits(
   task: string,
   limit: number,
 ): Promise<Array<{ id: string; score: number }> | null> {
-  let mod: typeof import("@hiveai/embeddings");
+  let mod: typeof import("@hivelore/embeddings");
   try {
-    mod = await import("@hiveai/embeddings");
+    mod = await import("@hivelore/embeddings");
   } catch {
     return null;
   }

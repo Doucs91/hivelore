@@ -9,7 +9,7 @@ import {
   loadUsageIndex,
   resolveHaivePaths,
   type DashboardReport,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface DashboardOptions {
@@ -24,7 +24,7 @@ export function registerDashboard(program: Command): void {
     .command("dashboard")
     .description(
       "Non-interactive observability snapshot of the memory corpus.\n\n" +
-      "  One-shot rollup an agent or CI can read (unlike `haive tui`, no TTY needed):\n" +
+      "  One-shot rollup an agent or CI can read (unlike `hivelore tui`, no TTY needed):\n" +
       "  inventory, impact tiers + top memories, sensors (and which ones fired),\n" +
       "  health (stale / anchorless / pending / prune candidates), decay, and corpus weight.\n" +
       "  Use --json to pipe it into other tooling.",
@@ -37,7 +37,7 @@ export function registerDashboard(program: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) {
-        ui.error(`No .ai/ found at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/ found at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -67,7 +67,7 @@ export function registerDashboard(program: Command): void {
 function renderDashboard(r: DashboardReport): void {
   const { inventory: inv, impact, sensors, health, decay, corpus, prevention, gate_precision: gate } = r;
 
-  console.log(ui.bold("hAIve dashboard"));
+  console.log(ui.bold("Hivelore dashboard"));
   console.log(
     `  ${ui.dim("corpus:")} ${inv.total} policy memor${inv.total === 1 ? "y" : "ies"} ` +
     `(${inv.active} active, ${inv.retired} retired) · ${inv.session_recaps} recap(s) · ` +
@@ -76,9 +76,9 @@ function renderDashboard(r: DashboardReport): void {
   console.log(`  ${ui.dim("scopes:")} ${formatCounts(inv.by_scope)}`);
   console.log(`  ${ui.dim("types: ")} ${formatCounts(inv.by_type)}`);
 
-  // ── Value vs cost (the honest one-line answer to "is hAIve earning its keep?") ──
+  // ── Value vs cost (the honest one-line answer to "is Hivelore earning its keep?") ──
   console.log();
-  console.log(ui.bold("Value") + ui.dim("  (what hAIve demonstrably earned — vs its per-task cost)"));
+  console.log(ui.bold("Value") + ui.dim("  (what Hivelore demonstrably earned — vs its per-task cost)"));
   const blocked = prevention.trend.last_30d;
   const demonstrated = impact.high;
   console.log(
@@ -185,7 +185,7 @@ function renderDashboard(r: DashboardReport): void {
   }
   if (health.prune_candidates > 0 || decay.decaying > 0) {
     console.log();
-    ui.info("Review low-value memories with `haive memory impact` and `haive memory lint`.");
+    ui.info("Review low-value memories with `hivelore memory impact` and `hivelore memory lint`.");
   }
 }
 

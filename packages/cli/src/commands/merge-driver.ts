@@ -1,32 +1,32 @@
 /**
- * `haive merge-driver` — deterministic git merge driver for hAIve memory files.
+ * `hivelore merge-driver` — deterministic git merge driver for Hivelore memory files.
  *
  * Several agents + the human edit `.ai/` in parallel with manual pull/push, so memory files
  * (especially the topic-upsert session recap) regularly collide and leave `<<<<<<<` markers. A
  * memory has a total order in its frontmatter (revision_count → created_at), so the conflict is
  * mechanically resolvable. This registers as a git merge driver via `.gitattributes`.
  *
- *   haive merge-driver install      # one-time: git config + .gitattributes block
- *   haive merge-driver run %O %A %B # invoked by git (writes the winner into %A, exits 0)
+ *   hivelore merge-driver install   # one-time: git config + .gitattributes block
+ *   hivelore merge-driver run %O %A %B # invoked by git (writes the winner into %A, exits 0)
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
-import { findProjectRoot, mergeMemoryVersions } from "@hiveai/core";
+import { findProjectRoot, mergeMemoryVersions } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
-const GITATTRIBUTES_MARK = "# hAIve merge driver";
+const GITATTRIBUTES_MARK = "# Hivelore merge driver";
 const GITATTRIBUTES_BLOCK = [
   GITATTRIBUTES_MARK,
   ".ai/memories/**/*.md merge=haive",
-  "# hAIve merge driver end",
+  "# Hivelore merge driver end",
 ].join("\n");
 
 export function registerMergeDriver(program: Command): void {
   const cmd = program
     .command("merge-driver")
-    .description("Deterministic git merge driver for hAIve memory files (kills .ai/ conflict markers)");
+    .description("Deterministic git merge driver for Hivelore memory files (kills .ai/ conflict markers)");
 
   cmd
     .command("run <base> <ours> <theirs>")
@@ -54,8 +54,8 @@ export function registerMergeDriver(program: Command): void {
     .action((opts: { dir?: string }) => {
       const root = findProjectRoot(opts.dir);
       try {
-        execFileSync("git", ["config", "merge.haive.name", "hAIve memory merge driver"], { cwd: root });
-        execFileSync("git", ["config", "merge.haive.driver", "haive merge-driver run %O %A %B"], { cwd: root });
+        execFileSync("git", ["config", "merge.haive.name", "Hivelore memory merge driver"], { cwd: root });
+        execFileSync("git", ["config", "merge.haive.driver", "hivelore merge-driver run %O %A %B"], { cwd: root });
       } catch {
         ui.error("Could not set git config — is this a git repository?");
         process.exitCode = 1;
@@ -68,9 +68,9 @@ export function registerMergeDriver(program: Command): void {
         if (content.length > 0 && !content.endsWith("\n")) content += "\n";
         content += GITATTRIBUTES_BLOCK + "\n";
         writeFileSync(gaPath, content, "utf8");
-        ui.success("Installed hAIve merge driver (git config + .gitattributes).");
+        ui.success("Installed Hivelore merge driver (git config + .gitattributes).");
       } else {
-        ui.info("hAIve merge driver already present in .gitattributes — refreshed git config.");
+        ui.info("Hivelore merge driver already present in .gitattributes — refreshed git config.");
       }
       ui.info("Memory-file conflicts under .ai/memories/ now resolve by revision_count → created_at.");
     });

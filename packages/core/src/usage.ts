@@ -21,8 +21,8 @@ export interface MemoryUsage {
   /**
    * Number of *prevention* events — times this memory's sensor actually fired on a scanned diff,
    * intercepting a known mistake before it landed. This is an OUTCOME signal (defect prevented),
-   * the closest proxy hAIve has to "did the knowledge stop a real problem?", distinct from
-   * retrieval (read) and self-reported usefulness (applied). Recorded by `haive sensors check`.
+   * the closest proxy Hivelore has to "did the knowledge stop a real problem?", distinct from
+   * retrieval (read) and self-reported usefulness (applied). Recorded by `hivelore sensors check`.
    */
   prevented_count: number;
   last_prevented_at: string | null;

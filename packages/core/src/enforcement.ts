@@ -43,7 +43,7 @@ export async function writeBriefingMarker(
     /**
      * Accumulate memory_ids/files with the existing fresh marker for THIS session instead of
      * overwriting (default true). This is what lets decision-coverage build up as the agent works:
-     * every get_briefing call, every pre-edit injection, every `haive briefing` ADDS to the
+     * every get_briefing call, every pre-edit injection, every `hivelore briefing` ADDS to the
      * session's consulted set — so a broad commit no longer requires one giant briefing covering
      * every relevant decision at once. Pass false to replace (e.g. starting a brand-new session).
      */

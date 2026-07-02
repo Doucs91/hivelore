@@ -1,17 +1,17 @@
 <p align="center">
-  <a href="https://github.com/Doucs91/hAIve">
-    <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/logo.svg" alt="hAIve logo" width="96" />
+  <a href="https://github.com/Doucs91/hivelore">
+    <img src="https://raw.githubusercontent.com/Doucs91/hivelore/main/packages/vscode/media/logo.svg" alt="Hivelore logo" width="96" />
   </a>
 </p>
 
-# hAIve PR Memory Check — GitHub Action
+# Hivelore PR Memory Check — GitHub Action
 
 Automatically surfaces relevant team memories, gotchas, and conventions in every pull request. Posts a structured comment so reviewers and AI agents never miss non-obvious constraints.
 
 ## What it looks like
 
 ```
-## 🧠 hAIve — Team Memory Check
+## 🧠 Hivelore — Team Memory Check
 
 > ⚠️ 2 memory(ies) require human confirmation before AI agents can act on them.
 
@@ -39,10 +39,10 @@ Use gen_random_uuid() for all tables...
 
 ## Setup
 
-Add to `.github/workflows/haive-pr-check.yml` in your project:
+Add to `.github/workflows/hivelore-pr-check.yml` in your project:
 
 ```yaml
-name: hAIve PR Memory Check
+name: Hivelore PR Memory Check
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -57,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: Doucs91/hAIve/packages/github-action@main
+      - uses: Doucs91/hivelore/packages/github-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -67,8 +67,8 @@ jobs:
 | Input | Required | Default | Description |
 |---|---|---|---|
 | `github-token` | ✅ | — | GitHub token (`secrets.GITHUB_TOKEN`) |
-| `haive-version` | | `latest` | Version of `@hiveai/cli` to install |
-| `comment-header` | | `## 🧠 hAIve — Team Memory Check` | Comment header text |
+| `haive-version` | | `latest` | Version of `@hivelore/cli` to install |
+| `comment-header` | | `## 🧠 Hivelore — Team Memory Check` | Comment header text |
 | `post-if-empty` | | `false` | Post comment even when no memories found |
 | `max-memories` | | `10` | Max memories shown per file |
 | `memories-dir` | | `.ai/memories` | Path to memories directory |
@@ -84,14 +84,14 @@ jobs:
 ## Advanced: fail PR on action_required
 
 ```yaml
-- uses: Doucs91/hAIve/packages/github-action@main
-  id: haive
+- uses: Doucs91/hivelore/packages/github-action@main
+  id: hivelore
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
 
 - name: Block merge if action required
-  if: steps.haive.outputs.action-required-count > 0
+  if: steps.hivelore.outputs.action-required-count > 0
   run: |
-    echo "::error::${{ steps.haive.outputs.action-required-count }} memory(ies) require human review before merging."
+    echo "::error::${{ steps.hivelore.outputs.action-required-count }} memory(ies) require human review before merging."
     exit 1
 ```

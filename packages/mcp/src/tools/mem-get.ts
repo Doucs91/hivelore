@@ -5,7 +5,7 @@ import {
   loadMemoriesFromDir,
   loadUsageIndex,
   type ConfidenceLevel,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 

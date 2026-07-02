@@ -6,7 +6,7 @@ import {
   isLikelyGuessable,
   memoryFilePath,
   serializeMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -69,10 +69,10 @@ export async function memObserve(
   ctx: HaiveContext,
 ): Promise<MemObserveOutput> {
   if (!existsSync(ctx.paths.haiveDir)) {
-    throw new Error(`No .ai/ directory at ${ctx.paths.root}. Run 'haive init' first.`);
+    throw new Error(`No .ai/ directory at ${ctx.paths.root}. Run 'hivelore init' first.`);
   }
 
-  // Capture filter: hAIve only earns its keep on UNGUESSABLE, team-specific knowledge.
+  // Capture filter: Hivelore only earns its keep on UNGUESSABLE, team-specific knowledge.
   // Skip generic observations a capable model already makes by default — they only add noise
   // and token cost to future briefings. The caller can override with force=true.
   const signalText = [input.what, input.impact, input.fix ?? ""].join(" ");

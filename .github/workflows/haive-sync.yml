@@ -22,18 +22,18 @@ jobs:
         with:
           node-version: '20'
 
-      - name: install haive
-        run: npm install -g @hiveai/cli
+      - name: install hivelore
+        run: npm install -g @hivelore/cli
 
       - name: refresh memory anchors + auto-promote
-        run: haive sync --since HEAD~1 || true
+        run: hivelore sync --since HEAD~1 || true
 
       - name: commit updated memories (if any)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .ai/
-          git diff --cached --quiet || git commit -m "chore: haive sync [skip ci]"
+          git diff --cached --quiet || git commit -m "chore: hivelore sync [skip ci]"
           git push
 
   # On pull request: warn if PR touches files that would invalidate memories
@@ -51,13 +51,13 @@ jobs:
         with:
           node-version: '20'
 
-      - name: install haive
-        run: npm install -g @hiveai/cli
+      - name: install hivelore
+        run: npm install -g @hivelore/cli
 
       - name: verify memory anchors touched by this PR
         id: verify
         run: |
-          haive memory verify 2>&1 | tee /tmp/haive-verify.txt || true
+          hivelore memory verify 2>&1 | tee /tmp/haive-verify.txt || true
           STALE=$(grep -c 'stale' /tmp/haive-verify.txt || echo 0)
           echo "stale_count=$STALE" >> "$GITHUB_OUTPUT"
 
@@ -72,10 +72,10 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `### haive — Stale memories detected\n\nSome memories anchored to code modified in this PR may be outdated:\n\n\`\`\`\n${report}\n\`\`\`\n\nRun \`haive memory verify --update\` locally to refresh them before merging.`
+              body: `### haive — Stale memories detected\n\nSome memories anchored to code modified in this PR may be outdated:\n\n\`\`\`\n${report}\n\`\`\`\n\nRun \`hivelore memory verify --update\` locally to refresh them before merging.`
             });
 
-  # ── hAIve PR Memory Check ─────────────────────────────────────────────────
+  # ── Hivelore PR Memory Check ─────────────────────────────────────────────────
   # Posts a comment on every PR surfacing memories relevant to the changed files.
   # Reviewers and AI agents see gotchas, conventions, and action_required items
   # before they start coding.
@@ -88,7 +88,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: Doucs91/hAIve/packages/github-action@main
+      - uses: Doucs91/hivelore/packages/github-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # post-if-empty: 'true'   # uncomment to always post (even when no memories found)
@@ -110,7 +110,7 @@ jobs:
   #       with:
   #         node-version: '20'
   #     - name: install haive
-  #       run: npm install -g @hiveai/cli
+  #       run: npm install -g @hivelore/cli
   #     - name: push shared memories to hub
-  #       run: haive hub push --commit
+  #       run: hivelore hub push --commit
   #       # Requires hubPath in .ai/haive.config.json pointing to a cloned hub repo.

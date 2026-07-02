@@ -1,5 +1,5 @@
 /**
- * `haive observe` — passive-capture endpoint for Claude Code's PostToolUse hook.
+ * `hivelore observe` — passive-capture endpoint for Claude Code's PostToolUse hook.
  *
  * Reads a single JSON payload on stdin (Claude Code's hook protocol) and appends
  * a compact observation record to `.ai/.cache/observations.jsonl`. The session-end
@@ -14,7 +14,7 @@ import { appendFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
-import { findProjectRoot, resolveHaivePaths } from "@hiveai/core";
+import { findProjectRoot, resolveHaivePaths } from "@hivelore/core";
 
 const MAX_STDIN_BYTES = 256 * 1024; // 256 KB cap
 const TRUNCATE_FIELD = 800;
@@ -160,7 +160,7 @@ export function registerObserve(program: Command): void {
       "Passive-capture endpoint for Claude Code PostToolUse hooks.\n\n" +
       "  Reads a JSON payload on stdin and appends an observation record to\n" +
       "  .ai/.cache/observations.jsonl. Always exits 0; never blocks the agent.\n" +
-      "  Wired up automatically by `haive install-hooks claude`.",
+      "  Wired up automatically by `hivelore install-hooks claude`.",
     )
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: { dir?: string }) => {

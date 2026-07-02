@@ -1,9 +1,9 @@
 /**
- * Deterministic 3-way merge for hAIve memory files — kills the `.ai/` conflict-marker pain.
+ * Deterministic 3-way merge for Hivelore memory files — kills the `.ai/` conflict-marker pain.
  *
  * Several agents + the human edit this repo in parallel with manual pull/push, so the same memory
  * file (especially the topic-upsert session recap, which churns every session) regularly collides
- * and leaves `<<<<<<<` markers under `.ai/`. A normal text merge can't resolve that; but a hAIve
+ * and leaves `<<<<<<<` markers under `.ai/`. A normal text merge can't resolve that; but a Hivelore
  * memory has a total order baked into its frontmatter, so we CAN pick a winner deterministically:
  *
  *   1. higher `revision_count` (more topic-upsert refinements) wins

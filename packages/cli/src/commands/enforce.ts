@@ -34,8 +34,8 @@ import {
   type CommandSensorSpec,
   type LoadedMemory,
   type HaiveConfig,
-} from "@hiveai/core";
-import { getBriefing, preCommitCheck } from "@hiveai/mcp";
+} from "@hivelore/core";
+import { getBriefing, preCommitCheck } from "@hivelore/mcp";
 import { ui } from "../utils/ui.js";
 import { installClaudeHooksAtPath, defaultClaudeSettingsPath } from "../utils/claude-hooks.js";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
@@ -45,7 +45,7 @@ declare const __HAIVE_VERSION__: string;
 const execFileAsync = promisify(execFile);
 
 const MAX_STDIN_BYTES = 256 * 1024;
-const ENFORCE_HOOK_MARKER = "# hAIve enforcement hook";
+const ENFORCE_HOOK_MARKER = "# Hivelore enforcement hook";
 
 interface HookPayload {
   cwd?: string;
@@ -120,7 +120,7 @@ export function registerEnforce(program: Command): void {
 
   enforce
     .command("install")
-    .description("Install hAIve enforcement across MCP config, git hooks, CI template, and supported client hooks.")
+    .description("Install Hivelore enforcement across MCP config, git hooks, CI template, and supported client hooks.")
     .option("-d, --dir <dir>", "project root")
     .option("--no-git", "skip git pre-commit/pre-push enforcement hooks")
     .option("--no-claude", "skip Claude Code hooks")
@@ -146,7 +146,7 @@ export function registerEnforce(program: Command): void {
           policyPacks: ["architecture", "gotchas", "security", "domain", "release"],
         },
       });
-      ui.success("hAIve strict enforcement enabled in .ai/haive.config.json");
+      ui.success("Hivelore strict enforcement enabled in .ai/haive.config.json");
 
       if (opts.git !== false) await installGitEnforcement(root);
       if (opts.ci !== false) await installCiEnforcement(root);
@@ -160,12 +160,12 @@ export function registerEnforce(program: Command): void {
       }
 
       ui.info("Agent-agnostic gates are now active at workflow level: MCP, git, CI, and optional client hooks.");
-      ui.info("Use `haive run -- <agent command>` for agents that do not expose blocking hooks.");
+      ui.info("Use `hivelore run -- <agent command>` for agents that do not expose blocking hooks.");
     });
 
   enforce
     .command("status")
-    .description("Show whether this project has agent-agnostic hAIve enforcement installed.")
+    .description("Show whether this project has agent-agnostic Hivelore enforcement installed.")
     .option("-d, --dir <dir>", "project root")
     .option("--explain", "group findings by blocking/review/info and show repair commands", false)
     .option("--json", "emit JSON", false)
@@ -177,7 +177,7 @@ export function registerEnforce(program: Command): void {
 
   enforce
     .command("check")
-    .description("Run the hAIve policy gate. Intended for pre-commit, pre-push, wrappers, and any agent client.")
+    .description("Run the Hivelore policy gate. Intended for pre-commit, pre-push, wrappers, and any agent client.")
     .option("-d, --dir <dir>", "project root")
     .option("--stage <stage>", "local | pre-commit | pre-push | ci", "local")
     .option("--explain", "group findings by blocking/review/info and show repair commands", false)
@@ -190,7 +190,7 @@ export function registerEnforce(program: Command): void {
 
   enforce
     .command("cleanup")
-    .description("Remove generated hAIve runtime/cache artifacts that should not appear in commits.")
+    .description("Remove generated Hivelore runtime/cache artifacts that should not appear in commits.")
     .option("-d, --dir <dir>", "project root")
     .option("--dry-run", "print what would be removed without deleting", false)
     .action(async (opts: EnforceOptions & { dryRun?: boolean }) => {
@@ -215,7 +215,7 @@ export function registerEnforce(program: Command): void {
 
   enforce
     .command("ci")
-    .description("CI entrypoint: fail if the repository violates hAIve enforcement policy.")
+    .description("CI entrypoint: fail if the repository violates Hivelore enforcement policy.")
     .option("-d, --dir <dir>", "project root")
     .option("--explain", "group findings by blocking/review/info and show repair commands", false)
     .option("--json", "emit JSON", false)
@@ -274,7 +274,7 @@ export function registerEnforce(program: Command): void {
       if (!existsSync(paths.haiveDir)) return;
       await mkdir(paths.runtimeDir, { recursive: true });
       const sessionId = opts.sessionId ?? payload.session_id;
-      const task = opts.task ?? payload.prompt ?? "Start an AI coding session in this hAIve-initialized project.";
+      const task = opts.task ?? payload.prompt ?? "Start an AI coding session in this Hivelore-initialized project.";
       await applyLightweightRepairs(root, paths);
 
       const budget = resolveBriefingBudget("quick", {
@@ -307,7 +307,7 @@ export function registerEnforce(program: Command): void {
         memoryIds: briefing.memories.map((m) => m.id),
       });
 
-      console.log("hAIve briefing loaded. Agents must consult this before editing.");
+      console.log("Hivelore briefing loaded. Agents must consult this before editing.");
       if (briefing.last_session) {
         console.log(`\n## Last session\n${briefing.last_session.body.slice(0, 1200)}`);
       }
@@ -353,7 +353,7 @@ export function registerEnforce(program: Command): void {
 
       // Auto-resolve: record the relevant policy for the touched files into the briefing marker so
       // the agent gets credit for it AND the commit-time decision-coverage gate accumulates coverage
-      // as the agent edits — no separate `haive briefing` command needed.
+      // as the agent edits — no separate `hivelore briefing` command needed.
       if (targetFiles.length > 0) {
         await recordFilesIntoBriefingMarker(paths, targetFiles, missing, payload.session_id)
           .catch(() => { /* best-effort */ });
@@ -367,7 +367,7 @@ export function registerEnforce(program: Command): void {
         console.error(
           contextText +
           "\n\nThe relevant context is now recorded — re-issue the same edit to proceed " +
-          "(no `haive briefing` command needed). To make this advisory instead of blocking, set " +
+          "(no `hivelore briefing` command needed). To make this advisory instead of blocking, set " +
           '`{ "enforcement": { "preEditGate": "advise" } }` in .ai/haive.config.json.',
         );
         process.exit(2);
@@ -381,7 +381,7 @@ export function registerEnforce(program: Command): void {
 
 /**
  * Record the validated policy memories anchored to the touched files into the briefing marker,
- * unioned with whatever is already there. Mirrors what `haive briefing --files` records, so the
+ * unioned with whatever is already there. Mirrors what `hivelore briefing --files` records, so the
  * commit-time decision-coverage gate accumulates coverage as the agent edits (no broad re-briefing).
  */
 async function recordFilesIntoBriefingMarker(
@@ -409,7 +409,7 @@ function buildPreEditContext(
   missing: LoadedMemory[],
   hasMarker: boolean,
 ): string {
-  const lines: string[] = ["hAIve — relevant team policy for this edit", `Tool: ${tool}`];
+  const lines: string[] = ["Hivelore — relevant team policy for this edit", `Tool: ${tool}`];
   if (files.length > 0) lines.push(`Files: ${files.slice(0, 6).join(", ")}`);
   if (missing.length > 0) {
     lines.push("", "Consult these before editing (anchored to the files you are touching):");
@@ -457,8 +457,8 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
       findings: [{
         severity: "error",
         code: "not-initialized",
-        message: "This repository is not initialized with hAIve.",
-        fix: "Run `haive init` or `haive enforce install`.",
+        message: "This repository is not initialized with Hivelore.",
+        fix: "Run `hivelore init` or `hivelore enforce install`.",
         impact: 100,
       }],
     });
@@ -475,8 +475,8 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
     findings.push({
       severity: "error",
       code: "git-unavailable",
-      message: "Git status could not be inspected, so hAIve cannot verify the exit protocol.",
-      fix: "Run `git status` manually, then commit/push according to the hAIve git-sync protocol.",
+      message: "Git status could not be inspected, so Hivelore cannot verify the exit protocol.",
+      fix: "Run `git status` manually, then commit/push according to the Hivelore git-sync protocol.",
       impact: 100,
     });
     return finishReport(root, initialized, mode, findings, config);
@@ -510,7 +510,7 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
     findings.push({
       severity: "warn",
       code: "git-sync-no-upstream",
-      message: "This branch has no upstream, so hAIve cannot verify that commits/tags were pushed.",
+      message: "This branch has no upstream, so Hivelore cannot verify that commits/tags were pushed.",
       fix: "Set an upstream with `git push -u origin <branch>`.",
       impact: 15,
     });
@@ -664,7 +664,7 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
 }
 
 /**
- * Failure-capture gate: hard failures observed this session (`haive observe` tagged them
+ * Failure-capture gate: hard failures observed this session (`hivelore observe` tagged them
  * `failure_hint`) that were never written down as a lesson are a silent-repeat risk. Surface them
  * (gate=warn, default) or block finish (gate=block). A failure is "captured" once an attempt/gotcha
  * lesson was recorded after it. Off by config opt-out — the signal has false positives (a `grep`
@@ -714,7 +714,7 @@ async function checkFailureCapture(
     severity: gate === "block" ? "error" : "info",
     code: "uncaptured-failures",
     message: `${uncaptured.length} hard failure(s) this session were never captured as a lesson (mem_tried).`,
-    fix: "Call `mem_tried` (or `haive memory tried`) for each real failure so the next session doesn't repeat it. False positives (e.g. a grep that found nothing) can be ignored.",
+    fix: "Call `mem_tried` (or `hivelore memory tried`) for each real failure so the next session doesn't repeat it. False positives (e.g. a grep that found nothing) can be ignored.",
     reason: "Harness ratchet: a mistake that isn't written down gets re-introduced. Set enforcement.failureCaptureGate to 'off' to disable, or 'block' to hard-fail.",
     affected_files: uncaptured.slice(0, 8).map((f) => `${f.tool}: ${f.summary}`.slice(0, 100)),
     ...(gate === "block" ? { impact: 30 } : {}),
@@ -748,7 +748,7 @@ export async function runWithEnforcement(
   const root = findProjectRoot(opts.dir);
   const paths = resolveHaivePaths(root);
   if (!existsSync(paths.haiveDir)) {
-    ui.error(`No .ai/ found at ${root}. Run \`haive init\` first.`);
+    ui.error(`No .ai/ found at ${root}. Run \`hivelore init\` first.`);
     process.exit(1);
   }
 
@@ -768,7 +768,7 @@ export async function runWithEnforcement(
     process.exit(2);
   }
 
-  ui.info(`hAIve briefing marker created for wrapped agent session: ${sessionId}`);
+  ui.info(`Hivelore briefing marker created for wrapped agent session: ${sessionId}`);
   ui.info(`Briefing written to ${path.relative(root, briefingFile)} and exported as HAIVE_BRIEFING_FILE`);
   const child = spawn(command, args, {
     cwd: root,
@@ -828,7 +828,7 @@ async function writeWrapperBriefing(
   await mkdir(dir, { recursive: true });
   const file = path.join(dir, `${sessionId}.md`);
   const parts = [
-    "# hAIve Briefing",
+    "# Hivelore Briefing",
     "",
     `Task: ${task}`,
     "",
@@ -926,7 +926,7 @@ async function buildEnforcementReport(
     await applyLightweightRepairs(root, paths);
     // Atomic release commit: when the repair re-syncs the project-context version
     // header to package.json, stage it so it lands in THIS commit instead of drifting
-    // into a later `chore: haive sync [skip ci]` tip — which would skip CI for the whole
+    // into a later `chore: hivelore sync [skip ci]` tip — which would skip CI for the whole
     // push (decision 2026-06-02-decision-atomic-release-commit-and-skip-ci-tip).
     if (stage === "pre-commit") await stageResyncedArtifacts(root, paths);
   }
@@ -943,8 +943,8 @@ async function buildEnforcementReport(
       findings: [{
         severity: "error",
         code: "not-initialized",
-        message: "This repository is not initialized with hAIve.",
-        fix: "Run `haive init` or `haive enforce install`.",
+        message: "This repository is not initialized with Hivelore.",
+        fix: "Run `hivelore init` or `hivelore enforce install`.",
         impact: 100,
       }],
     });
@@ -957,7 +957,7 @@ async function buildEnforcementReport(
       mode,
       score: buildScore([], config.enforcement?.scoreThreshold),
       should_block: false,
-      findings: [{ severity: "info", code: "enforcement-off", message: "hAIve enforcement is disabled." }],
+      findings: [{ severity: "info", code: "enforcement-off", message: "Hivelore enforcement is disabled." }],
     });
   }
 
@@ -966,12 +966,12 @@ async function buildEnforcementReport(
   if (config.enforcement?.requireBriefingFirst !== false && stage !== "ci") {
     const hasBriefing = await hasRecentBriefingMarker(paths, sessionId);
     findings.push(hasBriefing
-      ? { severity: "ok", code: "briefing-loaded", message: "A recent hAIve briefing marker exists." }
+      ? { severity: "ok", code: "briefing-loaded", message: "A recent Hivelore briefing marker exists." }
       : {
           severity: "error",
           code: "briefing-missing",
-          message: "No recent hAIve briefing marker was found for this workflow.",
-          fix: "Run `haive briefing --task \"...\"`, `haive enforce session-start`, or wrap the agent with `haive run -- <agent>`.",
+          message: "No recent Hivelore briefing marker was found for this workflow.",
+          fix: "Run `hivelore briefing --task \"...\"`, `hivelore enforce session-start`, or wrap the agent with `hivelore run -- <agent>`.",
           impact: 35,
         });
   }
@@ -985,14 +985,14 @@ async function buildEnforcementReport(
             severity: "warn",
             code: "session-recap-missing",
             message: "No recent session_recap memory was found. CI reports this as a warning because personal recaps are usually not committed.",
-            fix: "Run `haive session end --scope team --goal ... --accomplished ...` if you want a team recap visible in CI.",
+            fix: "Run `hivelore session end --scope team --goal ... --accomplished ...` if you want a team recap visible in CI.",
             impact: 5,
           }
         : {
             severity: "error",
             code: "session-recap-missing",
             message: "No recent session_recap memory was found.",
-            fix: "Run `haive session end --goal ... --accomplished ...` before pushing.",
+            fix: "Run `hivelore session end --goal ... --accomplished ...` before pushing.",
             impact: 20,
           });
   }
@@ -1018,7 +1018,7 @@ async function buildEnforcementReport(
       message:
         "Anti-pattern + sensor diff scan is NOT evaluated in --stage local (this is a preview). " +
         "It runs in the installed git hook (--stage pre-commit) and in CI (--stage ci).",
-      fix: "To scan the staged diff now: `haive sensors check`, or `haive enforce check --stage pre-commit`.",
+      fix: "To scan the staged diff now: `hivelore sensors check`, or `hivelore enforce check --stage pre-commit`.",
     });
   }
 
@@ -1037,7 +1037,7 @@ async function buildEnforcementReport(
       severity: "error",
       code: "enforcement-score-below-threshold",
       message: `Enforcement score ${score.score}% is below required threshold ${score.threshold}%.`,
-      fix: "Load the relevant briefing, address policy findings, then rerun `haive enforce check`.",
+      fix: "Load the relevant briefing, address policy findings, then rerun `hivelore enforce check`.",
       impact: 0,
     });
   }
@@ -1117,7 +1117,7 @@ async function verifyMemoryPolicy(
       severity: "error",
       code: "stale-important-memories",
       message: `${staleImportant.length} important anchored memories are stale: ${staleImportant.slice(0, 8).join(", ")}`,
-      fix: "Run `haive memory verify --update`, then update or delete stale decisions/gotchas before merging.",
+      fix: "Run `hivelore memory verify --update`, then update or delete stale decisions/gotchas before merging.",
       impact: 40,
     });
   }
@@ -1130,7 +1130,7 @@ async function verifyDecisionCoverage(
   sessionId?: string,
 ): Promise<EnforcementFinding[]> {
   if (!existsSync(paths.memoriesDir)) return [];
-  // Exclude hAIve-generated artifacts: the agent doesn't author them, so requiring decision
+  // Exclude Hivelore-generated artifacts: the agent doesn't author them, so requiring decision
   // coverage for them is pure friction (and blocked release commits over repair-touched files).
   const changedFiles = (await getChangedFiles(paths.root, stage)).filter((f) => !isGeneratedArtifact(f));
   if (changedFiles.length === 0) {
@@ -1220,7 +1220,7 @@ async function verifyDecisionCoverage(
     severity: stage === "local" ? "warn" : "error",
     code: "decision-coverage-missing",
     message: `${missing.length}/${relevant.length} relevant anchored decisions/policies were not present in the latest briefing: ${missing.slice(0, 6).map((m) => m.frontmatter.id).join(", ")}`,
-    fix: `Run \`haive briefing --files "${changedFiles.slice(0, 12).join(",")}" --max-memories 60 --task "..."\` before committing (briefings now accumulate, so several smaller briefings also work).`,
+    fix: `Run \`hivelore briefing --files "${changedFiles.slice(0, 12).join(",")}" --max-memories 60 --task "..."\` before committing (briefings now accumulate, so several smaller briefings also work).`,
     reason: "Changed files overlap validated anchored policy memories that were not recorded in the latest briefing marker.",
     affected_files: changedFiles.slice(0, 10),
     memory_ids: missing.slice(0, 10).map((m) => m.frontmatter.id),
@@ -1245,8 +1245,8 @@ async function runPrecommitPolicy(
       : "No staged changes found for pre-commit policy.";
     return [{ severity: "info", code, message }];
   }
-  // The gate→params mapping lives in @hiveai/core so the git-hook path and the
-  // standalone `haive precommit` command can never drift apart.
+  // The gate→params mapping lives in @hivelore/core so the git-hook path and the
+  // standalone `hivelore precommit` command can never drift apart.
   const { block_on, anchored_blocks } = antiPatternGateParams(gate);
   const result = await preCommitCheck({
     diff: snapshot.diff,
@@ -1257,7 +1257,7 @@ async function runPrecommitPolicy(
   }, { paths });
 
   // Deterministic regex sensors — the precise/computational layer. Previously these
-  // only ran via the standalone `haive sensors check` and never on a real commit
+  // only ran via the standalone `hivelore sensors check` and never on a real commit
   // (see 2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate). Run them here
   // so a promoted block sensor actually blocks and warn sensors surface in the gate,
   // covering convention/architecture sensors the fuzzy anti-pattern matcher skips.
@@ -1266,9 +1266,9 @@ async function runPrecommitPolicy(
   // Review-level anti-patterns must stay VISIBLE in the gate output even when nothing blocks.
   // History (see 2026-05-07-attempt-strict-precommit-gate-on-haive): making them block spammed
   // config-only commits — so they were silenced entirely, and `enforce check` reported a clean
-  // pass while `haive precommit` showed "you are about to repeat a documented failed approach".
+  // pass while `hivelore precommit` showed "you are about to repeat a documented failed approach".
   // Middle ground: ONE aggregated warn finding (bounded score impact, never blocks) that points
-  // at `haive precommit` for the full detail. Sensor-driven review warnings are excluded — the
+  // at `hivelore precommit` for the full detail. Sensor-driven review warnings are excluded — the
   // sensor gate below already emits a dedicated finding per sensor hit.
   const reviewWarnings = result.warnings.filter(
     (w) => w.level === "review" && !w.reasons.includes("sensor"),
@@ -1284,7 +1284,7 @@ async function runPrecommitPolicy(
             .map((w) => `${w.id} (${w.reasons.join("+")})`)
             .join(", ") +
           (reviewWarnings.length > 3 ? ", …" : ""),
-        fix: "Run `haive precommit` for the matched lines and repair commands; update the code, or retire the memory if it no longer applies.",
+        fix: "Run `hivelore precommit` for the matched lines and repair commands; update the code, or retire the memory if it no longer applies.",
         memory_ids: reviewWarnings.slice(0, 10).map((w) => w.id),
         impact: 5,
       }]
@@ -1316,7 +1316,7 @@ async function runPrecommitPolicy(
         `Pre-commit policy matched ${result.summary.blocking_warnings ?? result.summary.anti_patterns} blocking anti-pattern(s), ${result.summary.stale_anchors} stale anchor(s)` +
         (blockingDetail ? `: ${blockingDetail}` : "") +
         (result.stale_anchors.length > 0 ? ` — stale: ${result.stale_anchors.slice(0, 5).map((s) => s.id).join(", ")}` : "") + ".",
-      fix: "Review the hAIve warnings, then update the code or the relevant memories.",
+      fix: "Review the Hivelore warnings, then update the code or the relevant memories.",
       memory_ids: blockingWarnings.slice(0, 10).map((w) => w.id),
       impact: 45,
     },
@@ -1342,7 +1342,7 @@ async function runSensorGate(
       .filter((m) => Boolean(m.frontmatter.sensor) && !isRetiredMemory(m.frontmatter, m.body));
     if (scannable.length === 0) return [];
 
-    // Only scan real code targets — never hAIve-owned/`.ai/` files (self-match guard).
+    // Only scan real code targets — never Hivelore-owned/`.ai/` files (self-match guard).
     const targets = sensorTargetsFromDiff(diff).filter((t) => isSensorScannablePath(t.path));
     if (targets.length === 0) return [];
 
@@ -1363,7 +1363,7 @@ async function runSensorGate(
           severity: "error",
           code: "sensor-block",
           message: `Block sensor fired — ${hit.memory_id}: ${hit.message}${where}`,
-          fix: "Remove the flagged pattern, or run `haive sensors check` to inspect the match.",
+          fix: "Remove the flagged pattern, or run `hivelore sensors check` to inspect the match.",
           impact: 45,
         });
       } else {
@@ -1371,7 +1371,7 @@ async function runSensorGate(
           severity: "warn",
           code: "sensor-warn",
           message: `Sensor flagged ${hit.memory_id}: ${hit.message}${where}`,
-          fix: "Review the flagged line; `haive sensors check` shows the matched code.",
+          fix: "Review the flagged line; `hivelore sensors check` shows the matched code.",
           impact: 5,
         });
       }
@@ -1379,7 +1379,7 @@ async function runSensorGate(
 
     // ── Computational layer 2: shell/test command sensors (a regex can't express) ──
     // OFF by default — they execute arbitrary repo-authored commands. Opt in per-repo with
-    // enforcement.runCommandSensors=true (mirrors `haive sensors check --commands`).
+    // enforcement.runCommandSensors=true (mirrors `hivelore sensors check --commands`).
     const config = await loadConfig(paths).catch(() => null);
     if (config?.enforcement?.runCommandSensors === true) {
       const changedPaths = targets.map((t) => t.path).filter(Boolean);
@@ -1394,7 +1394,7 @@ async function runSensorGate(
             severity: "error",
             code: "sensor-block",
             message: `Block command sensor fired — ${spec.memory_id}: ${spec.message} (command: ${spec.command})`,
-            fix: "Fix the condition the command checks, or run `haive sensors check --commands` to inspect it.",
+            fix: "Fix the condition the command checks, or run `hivelore sensors check --commands` to inspect it.",
             impact: 45,
           });
         } else {
@@ -1402,7 +1402,7 @@ async function runSensorGate(
             severity: "warn",
             code: "sensor-warn",
             message: `Command sensor flagged ${spec.memory_id}: ${spec.message}`,
-            fix: "Review the failing command; `haive sensors check --commands` re-runs it.",
+            fix: "Review the failing command; `hivelore sensors check --commands` re-runs it.",
             impact: 5,
           });
         }
@@ -1455,7 +1455,7 @@ async function findGeneratedArtifacts(paths: ReturnType<typeof resolveHaivePaths
     severity: "warn",
     code: "generated-artifacts-visible",
     message: `${generated.length} generated artifact(s) are visible in git status.`,
-    fix: "Run `haive enforce cleanup`, update .gitignore, or remove test/runtime outputs before committing.",
+    fix: "Run `hivelore enforce cleanup`, update .gitignore, or remove test/runtime outputs before committing.",
     impact: 10,
   }];
 }
@@ -1485,7 +1485,7 @@ async function cleanupRuntimeDir(runtimeDir: string): Promise<number> {
   if (!existsSync(path.join(runtimeDir, "README.md"))) {
     await writeFile(
       path.join(runtimeDir, "README.md"),
-      "# .ai/.runtime — disposable local layer\n\nRuntime data is local. hAIve cleanup preserves briefing markers so enforcement state remains valid.\n",
+      "# .ai/.runtime — disposable local layer\n\nRuntime data is local. Hivelore cleanup preserves briefing markers so enforcement state remains valid.\n",
       "utf8",
     );
   }
@@ -1552,7 +1552,7 @@ async function inspectIntegrationVersions(
       severity: "warn",
       code: "integration-haive-binary-missing",
       message: `${[...fileSet].join(", ")} reference ${bin}, but that binary could not be executed.`,
-      fix: "Run `haive agent setup --no-global` or `haive enforce install` to refresh project integrations.",
+      fix: "Run `hivelore agent setup --no-global` or `hivelore enforce install` to refresh project integrations.",
       impact: 0,
     });
   }
@@ -1560,8 +1560,8 @@ async function inspectIntegrationVersions(
     findings.push({
       severity: "warn",
       code: "integration-haive-version-mismatch",
-      message: `${[...fileSet].join(", ")} reference hAIve ${version} at ${bin}; current hAIve is ${expectedVersion}.`,
-      fix: "Run `haive agent setup --no-global` and `haive enforce install` to repair stale hooks/configs.",
+      message: `${[...fileSet].join(", ")} reference Hivelore ${version} at ${bin}; current Hivelore is ${expectedVersion}.`,
+      fix: "Run `hivelore agent setup --no-global` and `hivelore enforce install` to repair stale hooks/configs.",
       impact: 0,
     });
   }
@@ -1569,7 +1569,7 @@ async function inspectIntegrationVersions(
     return [{
       severity: "ok",
       code: "integration-version-check",
-      message: "No stale absolute hAIve binary paths were found in project hooks/MCP configs.",
+      message: "No stale absolute Hivelore binary paths were found in project hooks/MCP configs.",
     }];
   }
   return findings;
@@ -2001,7 +2001,7 @@ async function verifyGithubActionsForHead(
       code: "github-actions-unverified",
       message: "Could not verify GitHub Actions runs for HEAD.",
       fix: "Install/authenticate GitHub CLI, then run `gh run list --commit $(git rev-parse HEAD)` and ensure every workflow is successful before finishing.",
-      reason: `Detected GitHub remote ${remote}, but hAIve could not query workflow runs.`,
+      reason: `Detected GitHub remote ${remote}, but Hivelore could not query workflow runs.`,
       impact: 50,
     }];
   }
@@ -2024,7 +2024,7 @@ async function verifyGithubActionsForHead(
       severity: "error",
       code: "github-actions-runs-missing",
       message: "No GitHub Actions runs were found for HEAD.",
-      fix: "Wait for GitHub to create the workflow runs, or verify that the push was not skipped by a skip-ci head commit; rerun `haive enforce finish` after the runs appear.",
+      fix: "Wait for GitHub to create the workflow runs, or verify that the push was not skipped by a skip-ci head commit; rerun `hivelore enforce finish` after the runs appear.",
       impact: 50,
     }];
   }
@@ -2035,7 +2035,7 @@ async function verifyGithubActionsForHead(
       severity: "error",
       code: "github-actions-pending",
       message: `${pending.length}/${runs.length} GitHub Actions workflow run(s) for HEAD are still pending: ${formatGithubRunNames(pending)}.`,
-      fix: "Wait for the runs to finish (`gh run watch <run-id> --exit-status`), then rerun `haive enforce finish`.",
+      fix: "Wait for the runs to finish (`gh run watch <run-id> --exit-status`), then rerun `hivelore enforce finish`.",
       impact: 50,
     }];
   }
@@ -2049,14 +2049,14 @@ async function verifyGithubActionsForHead(
       severity: "error",
       code: "github-actions-failed",
       message: `${failedCore.length}/${runs.length} GitHub Actions workflow run(s) for HEAD did not pass: ${formatGithubRunNames(failedCore)}.`,
-      fix: "Inspect the failed run logs with `gh run view <run-id> --log`, fix the issue, push the fix, then rerun `haive enforce finish`.",
+      fix: "Inspect the failed run logs with `gh run view <run-id> --log`, fix the issue, push the fix, then rerun `hivelore enforce finish`.",
       impact: 80,
     }];
   }
 
   if (failedExternal.length > 0) {
     // Don't let a flaky external integration (e.g. SonarQube network/timeout) masquerade as a
-    // product regression. hAIve's principle is zero hard dependency on the user's environment, so
+    // product regression. Hivelore's principle is zero hard dependency on the user's environment, so
     // external workflows are advisory: surfaced as info, never blocking `finish`.
     return [{
       severity: "info",
@@ -2131,26 +2131,37 @@ async function installGitEnforcement(root: string): Promise<void> {
     return;
   }
   await mkdir(hooksDir, { recursive: true });
+  // Resolve the CLI with a legacy fallback: developers with an older global install only have
+  // the `haive` alias on PATH; the hook must not silently no-op for them.
+  const resolveCli = `_hivelore() {
+  if command -v hivelore >/dev/null 2>&1; then hivelore "$@"
+  elif command -v haive >/dev/null 2>&1; then haive "$@"
+  else return 0
+  fi
+}`;
   const hooks = [
     {
       name: "pre-commit",
       body: `#!/bin/sh
 ${ENFORCE_HOOK_MARKER}
-haive enforce check --stage pre-commit --dir . || exit $?
+${resolveCli}
+_hivelore enforce check --stage pre-commit --dir . || exit $?
 `,
     },
     {
       name: "pre-push",
       body: `#!/bin/sh
 ${ENFORCE_HOOK_MARKER}
-haive enforce check --stage pre-push --dir . || exit $?
+${resolveCli}
+_hivelore enforce check --stage pre-push --dir . || exit $?
 `,
     },
     {
       name: "commit-msg",
       body: `#!/bin/sh
 ${ENFORCE_HOOK_MARKER}
-haive enforce commit-msg "$1" --dir . || exit $?
+${resolveCli}
+_hivelore enforce commit-msg "$1" --dir . || exit $?
 `,
     },
   ];
@@ -2197,13 +2208,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install hAIve
-        run: npm install -g @hiveai/cli
-      - name: Enforce hAIve policy
+      - name: Install Hivelore
+        run: npm install -g @hivelore/cli
+      - name: Enforce Hivelore policy
         env:
           HAIVE_BASE_SHA: \${{ github.event.pull_request.base.sha || github.event.before }}
           HAIVE_HEAD_SHA: \${{ github.event.pull_request.head.sha || github.sha }}
-        run: haive enforce ci
+        run: hivelore enforce ci
 `, "utf8");
   ui.success(`Created ${path.relative(root, workflowPath)}`);
 }
@@ -2213,7 +2224,7 @@ function printReport(report: EnforcementReport, json: boolean, explain = false):
     console.log(JSON.stringify(report, null, 2));
     return;
   }
-  console.log(ui.bold(`hAIve enforcement — ${report.mode}`));
+  console.log(ui.bold(`Hivelore enforcement — ${report.mode}`));
   console.log(ui.dim(`  root: ${report.root}`));
   console.log(ui.dim(`  score: ${report.score.score}% / threshold ${report.score.threshold}%`));
 
@@ -2224,8 +2235,8 @@ function printReport(report: EnforcementReport, json: boolean, explain = false):
   } else {
     for (const finding of report.findings) printFinding(finding);
   }
-  if (report.should_block) ui.error("hAIve enforcement gate failed.");
-  else ui.success("hAIve enforcement gate passed.");
+  if (report.should_block) ui.error("Hivelore enforcement gate failed.");
+  else ui.success("Hivelore enforcement gate passed.");
 }
 
 function printFindingGroup(
@@ -2367,7 +2378,7 @@ async function missingRequiredMemoriesForFiles(
 }
 
 /**
- * hAIve-generated `.ai/` artifacts that the agent never authors — they are re-synced by the
+ * Hivelore-generated `.ai/` artifacts that the agent never authors — they are re-synced by the
  * lightweight repair (version header, code-map) or are pure telemetry. Requiring a human-reviewed
  * "decision" to cover them is friction with no value, and it caused the gate to block release
  * commits whose only "uncovered" change was a repair-touched artifact. Excluded from
@@ -2412,7 +2423,7 @@ async function readStdin(maxBytes: number): Promise<string> {
  * not sweep in telemetry churn (e.g. the tool-usage log) that belongs in a later sync.
  */
 /** Machine-local `.ai/` subtrees that must NOT enter the release commit — they belong in a
- *  separate later `chore: haive sync` push (telemetry, runtime markers, derived caches). */
+ *  separate later `chore: hivelore sync` push (telemetry, runtime markers, derived caches). */
 const ATOMIC_STAGE_EXCLUDE = ["/.usage/", "/.runtime/", "/.cache/"];
 
 async function stageResyncedArtifacts(

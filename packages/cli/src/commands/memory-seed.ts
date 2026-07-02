@@ -6,7 +6,7 @@ import {
   findProjectRoot,
   loadConfig,
   resolveHaivePaths,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import {
   SUPPORTED_STACKS,
   autoDetectStacks,
@@ -46,10 +46,10 @@ export function registerMemorySeed(memory: Command): void {
       "  in briefings until you anchor them to a real file or replace them with a\n" +
       "  repo-specific note — so they never crowd out your own knowledge.\n\n" +
       "  Examples:\n" +
-      "    haive memory seed              # auto-detect stacks from package.json and seed them\n" +
-      "    haive memory seed nestjs       # seed a specific stack\n" +
-      "    haive memory seed --list       # show supported + auto-detected stacks\n" +
-      "    haive memory seed --list --json\n",
+      "    hivelore memory seed              # auto-detect stacks from package.json and seed them\n" +
+      "    hivelore memory seed nestjs       # seed a specific stack\n" +
+      "    hivelore memory seed --list       # show supported + auto-detected stacks\n" +
+      "    hivelore memory seed --list --json\n",
     )
     .option("--list", "list supported stacks (and which are auto-detected here) and exit")
     .option("--json", "machine-readable output (use with --list)")
@@ -78,7 +78,7 @@ export function registerMemorySeed(memory: Command): void {
       }
 
       if (!existsSync(paths.haiveDir)) {
-        ui.error(`No .ai/ found at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/ found at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -88,7 +88,7 @@ export function registerMemorySeed(memory: Command): void {
       if (stack) {
         if (!isValidStack(stack)) {
           ui.error(`Unknown stack '${stack}'. Supported: ${SUPPORTED_STACKS.join(", ")}.`);
-          ui.info("Run `haive memory seed --list` to see all stacks.");
+          ui.info("Run `hivelore memory seed --list` to see all stacks.");
           process.exitCode = 1;
           return;
         }
@@ -98,7 +98,7 @@ export function registerMemorySeed(memory: Command): void {
         ui.info(`Auto-detected from package.json: ${detected.join(", ")}`);
       } else {
         ui.error("No stack auto-detected from package.json.");
-        ui.info("Pass a stack name (e.g. `haive memory seed nestjs`) or run `haive memory seed --list`.");
+        ui.info("Pass a stack name (e.g. `hivelore memory seed nestjs`) or run `hivelore memory seed --list`.");
         process.exitCode = 1;
         return;
       }
@@ -123,7 +123,7 @@ export function registerMemorySeed(memory: Command): void {
 
       ui.success(`Seeded ${total} starter memor${total === 1 ? "y" : "ies"}: ${seededStacks.join(", ")}`);
       ui.info("Kept at background priority. Anchor them to a real file (or replace them) to make them high-signal:");
-      ui.info("  haive memory update <id> --paths <key-file>   # anchor a seed to a file");
+      ui.info("  hivelore memory update <id> --paths <key-file>   # anchor a seed to a file");
 
       // Refresh the embeddings index so the new seeds are searchable (autopilot only).
       const config = await loadConfig(paths);

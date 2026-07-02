@@ -1,14 +1,14 @@
 <p align="center">
-  <a href="https://github.com/Doucs91/hAIve">
-    <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/logo.svg" alt="hAIve logo" width="96" />
+  <a href="https://github.com/Doucs91/hivelore">
+    <img src="https://raw.githubusercontent.com/Doucs91/hivelore/main/packages/vscode/media/logo.svg" alt="Hivelore logo" width="96" />
   </a>
 </p>
 
-# @hiveai/core
+# @hivelore/core
 
-> Internal library — policy, memory, anchor, and enforcement primitives for hAIve.
+> Internal library — policy, memory, anchor, and enforcement primitives for Hivelore.
 
-This package is consumed by `@hiveai/cli` and `@hiveai/mcp`. You do **not** need to install it directly unless you are building a custom hAIve integration or extending the tool.
+This package is consumed by `@hivelore/cli` and `@hivelore/mcp`. You do **not** need to install it directly unless you are building a custom Hivelore integration or extending the tool.
 
 ---
 
@@ -16,7 +16,7 @@ This package is consumed by `@hiveai/cli` and `@hiveai/mcp`. You do **not** need
 
 ### Enforcement primitives
 
-Core owns the durable types and local runtime markers used by hAIve policy gates:
+Core owns the durable types and local runtime markers used by Hivelore policy gates:
 
 - `.ai/haive.config.json` config loading/merging
 - strict enforcement settings (`requireBriefingFirst`, session recap, memory verification, stale-decision blocking)
@@ -29,7 +29,7 @@ Core owns the durable types and local runtime markers used by hAIve policy gates
 A single source of truth for the memory frontmatter format:
 
 ```typescript
-import { MemoryFrontmatterSchema, MemoryTypeSchema, MemoryScopeSchema } from "@hiveai/core";
+import { MemoryFrontmatterSchema, MemoryTypeSchema, MemoryScopeSchema } from "@hivelore/core";
 
 // Types
 type MemoryType  = "convention" | "decision" | "gotcha" | "architecture" | "glossary" | "attempt";
@@ -68,7 +68,7 @@ stale_reason: null
 ### Parser / Serializer
 
 ```typescript
-import { parseMemory, serializeMemory, buildFrontmatter, newMemoryId } from "@hiveai/core";
+import { parseMemory, serializeMemory, buildFrontmatter, newMemoryId } from "@hivelore/core";
 
 // Parse a memory file
 const memory = parseMemory(rawMarkdown);
@@ -92,7 +92,7 @@ const id = newMemoryId("gotcha", "flyway-strict"); // "2025-01-15-gotcha-flyway-
 ### Anchor verification
 
 ```typescript
-import { verifyAnchor } from "@hiveai/core";
+import { verifyAnchor } from "@hivelore/core";
 
 const result = await verifyAnchor(memory, { projectRoot: "/path/to/project" });
 // result.stale          — true if anchor paths or symbols no longer exist
@@ -103,7 +103,7 @@ const result = await verifyAnchor(memory, { projectRoot: "/path/to/project" });
 ### Literal search
 
 ```typescript
-import { tokenizeQuery, literalMatchesAllTokens, literalMatchesAnyToken } from "@hiveai/core";
+import { tokenizeQuery, literalMatchesAllTokens, literalMatchesAnyToken } from "@hivelore/core";
 
 const tokens = tokenizeQuery("flyway migration strict");
 const matches = memories.filter(({ memory }) => literalMatchesAllTokens(memory, tokens));
@@ -112,7 +112,7 @@ const matches = memories.filter(({ memory }) => literalMatchesAllTokens(memory, 
 ### Token budgeting
 
 ```typescript
-import { allocateBudget, estimateTokens, truncateToTokens } from "@hiveai/core";
+import { allocateBudget, estimateTokens, truncateToTokens } from "@hivelore/core";
 
 const slices = allocateBudget(
   [
@@ -126,7 +126,7 @@ const slices = allocateBudget(
 ### Usage / confidence tracking
 
 ```typescript
-import { loadUsageIndex, trackReads, deriveConfidence, isDecaying, DECAY_DAYS } from "@hiveai/core";
+import { loadUsageIndex, trackReads, deriveConfidence, isDecaying, DECAY_DAYS } from "@hivelore/core";
 
 const index = await loadUsageIndex(paths);
 const usage = getUsage(index, memoryId);
@@ -139,7 +139,7 @@ const decaying = isDecaying(usage, frontmatter.created_at); // not read in >90 d
 ### Path helpers
 
 ```typescript
-import { findProjectRoot, resolveHaivePaths, memoryFilePath } from "@hiveai/core";
+import { findProjectRoot, resolveHaivePaths, memoryFilePath } from "@hivelore/core";
 
 const root  = findProjectRoot();            // Walks up from cwd looking for .ai/ or .git/
 const paths = resolveHaivePaths(root);

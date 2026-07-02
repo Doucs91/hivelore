@@ -1,15 +1,15 @@
 {
-  "name": "@hiveai/embeddings",
-  "version": "0.29.13",
-  "description": "hAIve embeddings - local semantic ranking for agent briefings and code search",
+  "name": "@hivelore/embeddings",
+  "version": "0.30.0",
+  "description": "Hivelore embeddings - local semantic ranking for agent briefings and code search",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Doucs91/hAIve.git",
+    "url": "git+https://github.com/Doucs91/hivelore.git",
     "directory": "packages/embeddings"
   },
-  "bugs": "https://github.com/Doucs91/hAIve/issues",
-  "homepage": "https://github.com/Doucs91/hAIve#readme",
+  "bugs": "https://github.com/Doucs91/hivelore/issues",
+  "homepage": "https://github.com/Doucs91/hivelore#readme",
   "keywords": [
     "ai",
     "enforcement",
@@ -38,11 +38,11 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "node ../../scripts/ensure-workspace-dists.mjs @hiveai/core && tsc --noEmit",
+    "typecheck": "node ../../scripts/ensure-workspace-dists.mjs @hivelore/core && tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "dependencies": {
-    "@hiveai/core": "workspace:*",
+    "@hivelore/core": "workspace:*",
     "@xenova/transformers": "^2.17.2"
   },
   "overrides": {

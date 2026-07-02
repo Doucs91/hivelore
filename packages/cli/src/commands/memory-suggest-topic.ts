@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { MemoryTypeSchema, suggestTopicKey } from "@hiveai/core";
+import { MemoryTypeSchema, suggestTopicKey } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 export function registerMemorySuggestTopic(memory: Command): void {

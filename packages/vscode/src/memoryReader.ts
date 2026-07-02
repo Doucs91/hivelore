@@ -1,6 +1,6 @@
 /**
  * Memory reader — parses .ai/memories/**\/*.md files directly without
- * depending on @hiveai/core so the extension stays lightweight.
+ * depending on @hivelore/core so the extension stays lightweight.
  */
 import * as fs from "fs";
 import * as path from "path";
@@ -42,7 +42,7 @@ export interface Memory {
   domain?: string;
 }
 
-// ── Frontmatter parser (handles the specific hAIve YAML subset) ────────────
+// ── Frontmatter parser (handles the specific Hivelore YAML subset) ────────────
 
 function parseFrontmatter(raw: string): { fm: Record<string, unknown>; body: string } {
   const match = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
@@ -180,7 +180,7 @@ export class MemoryStore {
   ) {}
 
   get memoriesDir(): string {
-    const cfg = vscode.workspace.getConfiguration("haive");
+    const cfg = vscode.workspace.getConfiguration("hivelore");
     const rel = cfg.get<string>("memoriesDir") ?? ".ai/memories";
     return path.join(this.workspaceRoot, rel);
   }

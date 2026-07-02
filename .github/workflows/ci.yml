@@ -46,7 +46,7 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=8192
 
-      # Quality gate: hAIve must keep surfacing the right memories/sensors.
+      # Quality gate: Hivelore must keep surfacing the right memories/sensors.
       # Fails the build if briefing retrieval / sensor catch-rate regresses.
-      - name: hAIve eval (retrieval + sensor quality gate)
+      - name: Hivelore eval (retrieval + sensor quality gate)
         run: node packages/cli/dist/index.js eval --fail-under 80

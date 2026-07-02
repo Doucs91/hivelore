@@ -1,4 +1,4 @@
-import { readRuntimeJournalTail } from "@hiveai/core";
+import { readRuntimeJournalTail } from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 

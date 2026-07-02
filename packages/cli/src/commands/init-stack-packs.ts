@@ -17,7 +17,7 @@ import {
   STACK_PACK_TAG,
   type HaivePaths,
   type Sensor,
-} from "@hiveai/core";
+} from "@hivelore/core";
 
 /**
  * A curated, hand-authored regex sensor for a stack-pack memory. Turns generic
@@ -1135,7 +1135,7 @@ Containers default to root; a container escape then runs as host root. In Kubern
  * file (or replacing it) is what turns it into high-signal context.
  */
 const SEED_FOOTER = (stack: string): string =>
-  `> _Seeded by \`haive init\` from the **${stack}** stack pack — generic guidance, not repo-specific. ` +
+  `> _Seeded by \`hivelore init\` from the **${stack}** stack pack — generic guidance, not repo-specific. ` +
   `Anchor it to a real file or replace it with a repo-specific note to raise it above background priority._`;
 
 export const SUPPORTED_STACKS = Object.keys(PACKS) as StackName[];

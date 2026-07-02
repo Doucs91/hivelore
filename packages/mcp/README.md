@@ -1,33 +1,33 @@
 <p align="center">
-  <a href="https://github.com/Doucs91/hAIve">
-    <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/wordmark.svg" alt="hAIve" width="240" />
+  <a href="https://github.com/Doucs91/hivelore">
+    <img src="https://raw.githubusercontent.com/Doucs91/hivelore/main/packages/vscode/media/wordmark.svg" alt="Hivelore" width="240" />
   </a>
 </p>
 
-# @hiveai/mcp
+# @hivelore/mcp
 
-> **hAIve MCP server** - policy-aware briefing and memory tools for MCP-compatible coding-agent harnesses.
+> **Hivelore MCP server** - policy-aware briefing and memory tools for MCP-compatible coding-agent harnesses.
 
 The MCP server is how agents load team policy before changing code. By default it exposes a small harness-oriented tool surface: briefing, relevant memories, failed-attempt capture, anchor verification, code-map lookup, and pre-commit checks. Larger maintenance and experimental surfaces are opt-in via `HAIVE_TOOL_PROFILE`.
 
-hAIve is not just a memory database. The MCP layer participates in context policy: state-changing hAIve tools require `get_briefing` or `mem_relevant_to` first, so agents cannot silently skip team context while using hAIve.
+Hivelore is not just a memory database. The MCP layer participates in context policy: state-changing Hivelore tools require `get_briefing` or `mem_relevant_to` first, so agents cannot silently skip team context while using Hivelore.
 
 ---
 
 ## Install
 
-**Recommended:** install only `@hiveai/cli`. The MCP server is **bundled** inside `haive` — configure clients with `command: "haive"` and `args: ["mcp", "--stdio"]` (see `@hiveai/cli` README).
+**Recommended:** install only `@hivelore/cli`. The MCP server is **bundled** inside `haive` — configure clients with `command: "hivelore"` and `args: ["mcp", "--stdio"]` (see `@hivelore/cli` README).
 
 Standalone package (legacy / advanced):
 
 ```bash
-npm install -g @hiveai/mcp
+npm install -g @hivelore/mcp
 ```
 
-You usually still want the CLI for `haive init`, `haive sync`, etc.:
+You usually still want the CLI for `hivelore init`, `hivelore sync`, etc.:
 
 ```bash
-npm install -g @hiveai/cli
+npm install -g @hivelore/cli
 ```
 
 ---
@@ -36,13 +36,13 @@ npm install -g @hiveai/cli
 
 ```bash
 # 1. Install the CLI
-npm install -g @hiveai/cli
+npm install -g @hivelore/cli
 
-# 2. Initialize hAIve in your project (strict enforcement ON by default)
+# 2. Initialize Hivelore in your project (strict enforcement ON by default)
 cd my-project
-haive init          # .ai/, policy config, hooks, CI workflow, code-map
-haive enforce install
-# haive init --manual  # if you want to approve memories yourself
+hivelore init          # .ai/, policy config, hooks, CI workflow, code-map
+hivelore enforce install
+# hivelore init --manual  # if you want to approve memories yourself
 
 # 3. Point your AI client at the MCP server (see Client configuration below)
 
@@ -62,8 +62,8 @@ Add to `~/.claude.json` (global) or `.claude/settings.json` (per-project):
 ```json
 {
   "mcpServers": {
-    "haive": {
-      "command": "haive",
+    "hivelore": {
+      "command": "hivelore",
       "args": ["mcp", "--stdio", "--root", "/absolute/path/to/your/project"]
     }
   }
@@ -77,8 +77,8 @@ Add to `~/.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "haive": {
-      "command": "haive",
+    "hivelore": {
+      "command": "hivelore",
       "args": ["mcp", "--stdio", "--root", "/absolute/path/to/your/project"]
     }
   }
@@ -98,8 +98,8 @@ Add a `.mcp.json` at the project root:
 ```json
 {
   "mcpServers": {
-    "haive": {
-      "command": "haive",
+    "hivelore": {
+      "command": "hivelore",
       "args": ["mcp", "--stdio"],
       "env": { "HAIVE_PROJECT_ROOT": "/absolute/path/to/your/project" }
     }
@@ -113,7 +113,7 @@ The project root can also be set via the `HAIVE_PROJECT_ROOT` environment variab
 
 ## Default MCP Tools
 
-By default, hAIve runs with `HAIVE_TOOL_PROFILE=enforcement`. This keeps the agent surface small and aligned with the product promise.
+By default, Hivelore runs with `HAIVE_TOOL_PROFILE=enforcement`. This keeps the agent surface small and aligned with the product promise.
 
 Default tools:
 
@@ -135,14 +135,14 @@ Default prompts:
 
 ### Tool Profiles
 
-`HAIVE_TOOL_PROFILE` controls how much hAIve surface an agent sees:
+`HAIVE_TOOL_PROFILE` controls how much Hivelore surface an agent sees:
 
 - `enforcement` (default): compact repo-native context harness for coding agents.
 - `maintenance`: adds corpus review, lifecycle, distillation, code-search, and project-context maintenance tools.
 - `experimental`: adds exploratory diagnostics such as runtime journal, pattern detection, why-this-file, why-this-decision, and conflict analysis.
 - `full`: legacy alias for `experimental`.
 
-Use `maintenance` for human/team stewardship sessions and `experimental` only when you are intentionally working on hAIve's broader research tooling.
+Use `maintenance` for human/team stewardship sessions and `experimental` only when you are intentionally working on Hivelore's broader research tooling.
 
 ### `get_briefing` ⭐ Start every task with this
 
@@ -166,16 +166,16 @@ One-shot policy briefing: returns project context + module contexts + ranked dec
 |---|---|---|
 | `task` | — | What you're about to do. Used to rank memories by relevance. |
 | `files` | `[]` | Files you're editing. Surfaces memories anchored to these files. |
-| `symbols` | `[]` | Symbol names to look up in the code-map (e.g. `["PaymentService"]`). Returns file + line + kind without grepping. Requires `haive index code`. |
+| `symbols` | `[]` | Symbol names to look up in the code-map (e.g. `["PaymentService"]`). Returns file + line + kind without grepping. Requires `hivelore index code`. |
 | `max_tokens` | `8000` | Token budget for the entire response. Sections are truncated to fit. |
 | `max_memories` | `8` | Max memories to include. |
 | `format` | `"full"` | `"full"` = complete bodies · `"compact"` = 1-line summaries (call `mem_get` for details) |
-| `semantic` | `true` | Use embedding-based ranking if `@hiveai/embeddings` is indexed. |
+| `semantic` | `true` | Use embedding-based ranking if `@hivelore/embeddings` is indexed. |
 | `include_stale` | `false` | Include stale memories (may be outdated). |
 | `track` | `true` | Increment read_count for returned memories. |
 
 **Response includes:**
-- `last_session` — most recent `haive session end` recap (surfaced first so agents start with fresh context)
+- `last_session` — most recent `hivelore session end` recap (surfaced first so agents start with fresh context)
 - `project_context` — `.ai/project-context.md` (suppressed if still template — `is_template: true`)
 - `module_contexts` — relevant `.ai/modules/<name>/context.md` files
 - `memories` — ranked memories with `confidence`, `unverified` flag (for draft/proposed), and `match reason`
@@ -210,7 +210,7 @@ Save a policy-relevant piece of knowledge. For failed approaches, use `mem_tried
 | `slug` | ✅ | Short kebab-case identifier used in the file name |
 | `scope` | — | `personal` (default in manual mode) · `team` · `module` |
 | `body` | ✅ | Markdown content of the memory |
-| `paths` | — | Source file paths to anchor to — enables staleness detection by `haive sync`. **Warning if path doesn't exist.** |
+| `paths` | — | Source file paths to anchor to — enables staleness detection by `hivelore sync`. **Warning if path doesn't exist.** |
 | `symbols` | — | Function/class names to anchor to |
 | `tags` | — | Tags for filtering and search |
 | `topic` | — | Stable key for upsert: if a memory with this `topic`+`scope` exists, update it in-place (`revision_count++`) |
@@ -407,7 +407,7 @@ Browse the pre-computed code map (file → exports + descriptions) instead of gr
 { "symbol": "PaymentService" }      // Find a specific export
 ```
 
-Requires `haive index code` to be run first.
+Requires `hivelore index code` to be run first.
 
 ---
 
@@ -425,11 +425,11 @@ Use the post_task prompt with:
 
 ### `bootstrap_project`
 
-Instructions for the AI to analyze the current project and save a structured context document to `.ai/project-context.md`. Run once after `haive init`.
+Instructions for the AI to analyze the current project and save a structured context document to `.ai/project-context.md`. Run once after `hivelore init`.
 
 ### `import_docs`
 
-Analyze documentation (README, ADR, wiki page, API spec) and save actionable knowledge as hAIve memories.
+Analyze documentation (README, ADR, wiki page, API spec) and save actionable knowledge as Hivelore memories.
 
 ```
 Use the import_docs prompt with:

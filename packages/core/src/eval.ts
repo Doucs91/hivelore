@@ -1,7 +1,7 @@
 import type { LoadedMemory } from "./loader.js";
 
 /**
- * A rigorous, model-free, repeatable evaluation of hAIve's core promise: surfacing
+ * A rigorous, model-free, repeatable evaluation of Hivelore's core promise: surfacing
  * the right knowledge and guardrails at the right moment. Unlike the agent benchmark
  * (which parses human-written reports), this is deterministic and CI-runnable — it
  * produces a numeric quality score from labeled cases, so a regression in ranking or
@@ -198,9 +198,9 @@ export function buildReport(
 }
 
 /**
- * Baseline / compare — makes the "hAIve improves retrieval by N%" claim reproducible.
+ * Baseline / compare — makes the "Hivelore improves retrieval by N%" claim reproducible.
  *
- * `haive eval --baseline` snapshots a report; `--compare` re-runs and diffs against it,
+ * `hivelore eval --baseline` snapshots a report; `--compare` re-runs and diffs against it,
  * so a ranking/sensor regression is a number, not a vibe. Pure math here; the CLI does I/O.
  */
 export interface MetricDelta {
@@ -273,7 +273,7 @@ export interface SelfEvalOptions {
 /**
  * Synthesize retrieval cases from a repo's own anchored memories — zero-setup eval.
  * Each anchored, non-recap, non-dead memory becomes a case: "when working on the
- * file(s) this memory anchors, with its title as the task, does hAIve surface it?".
+ * file(s) this memory anchors, with its title as the task, does Hivelore surface it?".
  * With `includeFiles: false` it becomes a harder semantic-only probe (title alone).
  */
 export function synthesizeSelfEvalCases(

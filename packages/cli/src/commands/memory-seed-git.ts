@@ -1,5 +1,5 @@
 /**
- * `haive memory seed-git` — cold-start the corpus from git history.
+ * `hivelore memory seed-git` — cold-start the corpus from git history.
  *
  * A fresh repo has no memories, so the harness has no feedforward value until the team invests.
  * Reverts and urgent fixups are the cheapest signal of a real, repo-specific mistake already paid
@@ -22,7 +22,7 @@ import {
   serializeMemory,
   type GitCommit,
   type MemoryScope,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 const exec = promisify(execFile);
@@ -50,7 +50,7 @@ export function registerMemorySeedGit(memory: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) {
-        ui.error(`No .ai/ found at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/ found at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -66,7 +66,7 @@ export function registerMemorySeedGit(memory: Command): void {
         ui.info("No revert/hotfix signals found in git history — nothing to seed.");
         return;
       } else {
-        console.log(ui.bold(`hAIve seed-git — ${proposals.length} proposal(s) from ${commits.length} commit(s)`));
+        console.log(ui.bold(`Hivelore seed-git — ${proposals.length} proposal(s) from ${commits.length} commit(s)`));
         for (const p of proposals) {
           console.log(`  ${ui.yellow("◆")} ${ui.dim(`[${p.kind}]`)} ${p.what}`);
           if (p.paths.length > 0) console.log(`     ${ui.dim("paths:")} ${p.paths.join(", ")}`);
@@ -98,7 +98,7 @@ export function registerMemorySeedGit(memory: Command): void {
         written += 1;
       }
       if (!opts.json) {
-        ui.success(`Wrote ${written} draft seed(s). Review them: \`haive memory pending\` → validate or delete.`);
+        ui.success(`Wrote ${written} draft seed(s). Review them: \`hivelore memory pending\` → validate or delete.`);
       }
     });
 }

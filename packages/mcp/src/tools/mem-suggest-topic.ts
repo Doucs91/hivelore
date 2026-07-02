@@ -1,4 +1,4 @@
-import { MemoryTypeSchema, suggestTopicKey } from "@hiveai/core";
+import { MemoryTypeSchema, suggestTopicKey } from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 

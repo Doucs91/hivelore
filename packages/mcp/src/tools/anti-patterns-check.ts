@@ -17,7 +17,7 @@ import {
   sensorTargetsFromDiff,
   tokenizeQuery,
   type DocFrequency,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -46,7 +46,7 @@ export const AntiPatternsCheckInputSchema = {
     .boolean()
     .default(true)
     .describe(
-      "When true, also use semantic search (requires @hiveai/embeddings + memory index) to find related anti-patterns.",
+      "When true, also use semantic search (requires @hivelore/embeddings + memory index) to find related anti-patterns.",
     ),
   min_semantic_score: z
     .number()
@@ -134,8 +134,8 @@ function tokenizeDiffForLiteral(diff: string): string[] {
 }
 
 /**
- * Files hAIve generates/writes that are NOT application code: agent bridges (Lot A init + Lot C
- * bridges), the MCP client configs, and `.gitignore` (init appends a hAIve block). Scanning any of
+ * Files Hivelore generates/writes that are NOT application code: agent bridges (Lot A init + Lot C
+ * bridges), the MCP client configs, and `.gitignore` (init appends a Hivelore block). Scanning any of
  * these for anti-patterns self-matches the corpus they mirror (a bridge listing the seeded gotchas,
  * a `.gitignore` line that merely contains "cache", etc.).
  */
@@ -150,7 +150,7 @@ const HAIVE_GENERATED_FILES = new Set<string>([
 ]);
 
 /**
- * True for files hAIve itself owns/generates: the `.ai/` knowledge base, plus the agent-bridge,
+ * True for files Hivelore itself owns/generates: the `.ai/` knowledge base, plus the agent-bridge,
  * config, and workflow files it writes from that same corpus. Scanning these for anti-patterns
  * self-matches the memories they mirror and fabricates "prevented mistake" events on the very first
  * post-init commit (which stages the seeded corpus AND everything init generated, all at once).
@@ -164,10 +164,10 @@ export function isHaiveOwnedPath(p: string): boolean {
 }
 
 /**
- * Drop hunks for hAIve-owned files (see {@link isHaiveOwnedPath}) from a unified diff. Anti-patterns
- * are about CODE reintroducing a known mistake — editing hAIve's own knowledge base or the bridge
+ * Drop hunks for Hivelore-owned files (see {@link isHaiveOwnedPath}) from a unified diff. Anti-patterns
+ * are about CODE reintroducing a known mistake — editing Hivelore's own knowledge base or the bridge
  * files it generates from that corpus must never corroborate a literal/semantic match. Without this,
- * re-tagging a memory, or simply committing a fresh `haive init` (which writes the seeded corpus AND
+ * re-tagging a memory, or simply committing a fresh `hivelore init` (which writes the seeded corpus AND
  * its bridges in one commit), self-matches and can hard-block or inflate prevention counts.
  * See gotcha 2026-06-03-gotcha-antipattern-self-match-on-memory-file-edit.
  */
@@ -341,7 +341,7 @@ export async function antiPatternsCheck(
     const added = addedLinesFromDiff(scanDiff);
     const diffTargets = sensorTargetsFromDiff(scanDiff);
     const hasFileTargets = diffTargets.some((target) => target.path.length > 0);
-    // Never run sensors against hAIve-owned files — a memory/bridge that documents a bad pattern
+    // Never run sensors against Hivelore-owned files — a memory/bridge that documents a bad pattern
     // contains that pattern and would self-fire (see stripAiDirHunks / isHaiveOwnedPath).
     const codePaths = input.paths.filter((p) => !isHaiveOwnedPath(p));
     const fallbackContent = added.trim().length > 0 ? added : scanDiff;
@@ -366,7 +366,7 @@ export async function antiPatternsCheck(
   // 3. Semantic search
   if (input.semantic && scanDiff) {
     try {
-      const mod = await import("@hiveai/embeddings");
+      const mod = await import("@hivelore/embeddings");
       // Embed the ADDED lines only — "what you INTRODUCED" — not the raw diff. The raw diff carries
       // context lines, removed lines and file headers; embedding that whole blob blurs the query and
       // inflates cosine similarity against broadly-related memories (a big release matches *some*
@@ -420,7 +420,7 @@ export async function antiPatternsCheck(
   // they just aren't counted as prevented outcomes. Debounced via recordPrevention.
   const isHardBlockCatch = (w: { reasons: string[] }): boolean => w.reasons.includes("sensor");
   const strongCatches = warnings.filter(isHardBlockCatch);
-  // THE shared recorder — same path the git-hook gate and `haive sensors check` use (debounced).
+  // THE shared recorder — same path the git-hook gate and `hivelore sensors check` use (debounced).
   await recordPreventionHits(ctx.paths, strongCatches.map((w) => w.id), "anti-pattern");
 
   return {

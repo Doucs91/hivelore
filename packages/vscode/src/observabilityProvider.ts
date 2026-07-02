@@ -260,7 +260,7 @@ export class ObservabilityProvider implements vscode.TreeDataProvider<Observabil
     if (element) return [];
 
     if (this.loading) {
-      return [new ObservabilityItem("Loading hAIve observability...", { icon: "loading~spin" })];
+      return [new ObservabilityItem("Loading Hivelore observability...", { icon: "loading~spin" })];
     }
 
     const r = this.mode === "cockpit" ? VIEW_ROLES.cockpit : VIEW_ROLES.inbox;
@@ -272,8 +272,8 @@ export class ObservabilityProvider implements vscode.TreeDataProvider<Observabil
         new ObservabilityItem(this.mode === "cockpit" ? "Run strategic check" : "Build discipline inbox", {
           icon: "play",
           command: {
-            command: "haive.refreshObservability",
-            title: "Refresh hAIve Observability",
+            command: "hivelore.refreshObservability",
+            title: "Refresh Hivelore Observability",
           },
         }),
       ];
@@ -296,12 +296,12 @@ export class ObservabilityProvider implements vscode.TreeDataProvider<Observabil
   ): Promise<T | { error: string } | null> {
     try {
       const raw = await runHaive(this.workspaceRoot, args);
-      this.outputChannel.appendLine(`\n[haive ${args.join(" ")}] ${new Date().toLocaleTimeString()}`);
+      this.outputChannel.appendLine(`\n[hivelore ${args.join(" ")}] ${new Date().toLocaleTimeString()}`);
       this.outputChannel.appendLine(raw.slice(0, 20_000));
       return JSON.parse(raw) as T;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (logError) this.outputChannel.appendLine(`[haive ${label} error] ${msg}`);
+      if (logError) this.outputChannel.appendLine(`[hivelore ${label} error] ${msg}`);
       return { error: `${label}: ${msg}` };
     }
   }
@@ -422,7 +422,7 @@ function buildInboxItems(snapshot: ObservabilitySnapshot): ObservabilityItem[] {
         contextValue: finding.id ? "haiveMemoryAction" : "haiveInfoAction",
         memoryId: finding.id,
         command: finding.id
-          ? { command: "haive.openMemoryById", title: "Open Memory", arguments: [finding.id] }
+          ? { command: "hivelore.openMemoryById", title: "Open Memory", arguments: [finding.id] }
           : undefined,
       }),
     );
@@ -437,7 +437,7 @@ function buildInboxItems(snapshot: ObservabilitySnapshot): ObservabilityItem[] {
         color: "list.warningForeground",
         contextValue: "haiveMemoryAction",
         memoryId: row.id,
-        command: { command: "haive.openMemoryById", title: "Open Memory", arguments: [row.id] },
+        command: { command: "hivelore.openMemoryById", title: "Open Memory", arguments: [row.id] },
       }),
     );
   }
@@ -450,7 +450,7 @@ function buildInboxItems(snapshot: ObservabilitySnapshot): ObservabilityItem[] {
         icon: "question",
         contextValue: "haiveMemoryFeedbackAction",
         memoryId: row.id,
-        command: { command: "haive.openMemoryById", title: "Open Memory", arguments: [row.id] },
+        command: { command: "hivelore.openMemoryById", title: "Open Memory", arguments: [row.id] },
       }),
     );
   }
@@ -464,7 +464,7 @@ function buildInboxItems(snapshot: ObservabilitySnapshot): ObservabilityItem[] {
         contextValue: "haiveSensorAction",
         memoryId: sensor.id,
         sensorId: sensor.id,
-        command: { command: "haive.openMemoryById", title: "Open Memory", arguments: [sensor.id] },
+        command: { command: "hivelore.openMemoryById", title: "Open Memory", arguments: [sensor.id] },
       }),
     );
   }
@@ -512,13 +512,13 @@ function buildInboxItems(snapshot: ObservabilitySnapshot): ObservabilityItem[] {
 
 function routineItems(): ObservabilityItem[] {
   return [
-    commandItem("Run health check", "haive.runDoctor", "pulse"),
-    commandItem("Run eval", "haive.runEval", "beaker"),
-    commandItem("Save eval baseline", "haive.saveEvalBaseline", "bookmark"),
-    commandItem("Run sensors check", "haive.runSensorsCheck", "shield"),
-    commandItem("Run memory lint", "haive.runMemoryLint", "wand"),
-    commandItem("Record failed attempt", "haive.memTried", "debug-restart"),
-    commandItem("Add memory for current file", "haive.addMemory", "add"),
+    commandItem("Run health check", "hivelore.runDoctor", "pulse"),
+    commandItem("Run eval", "hivelore.runEval", "beaker"),
+    commandItem("Save eval baseline", "hivelore.saveEvalBaseline", "bookmark"),
+    commandItem("Run sensors check", "hivelore.runSensorsCheck", "shield"),
+    commandItem("Run memory lint", "hivelore.runMemoryLint", "wand"),
+    commandItem("Record failed attempt", "hivelore.memTried", "debug-restart"),
+    commandItem("Add memory for current file", "hivelore.addMemory", "add"),
   ];
 }
 
@@ -593,7 +593,7 @@ function memoryImpactItem(row: ImpactRow): ObservabilityItem {
     color: impact.pruneCandidate ? "list.warningForeground" : undefined,
     contextValue: "haiveMemoryFeedbackAction",
     memoryId: row.id,
-    command: { command: "haive.openMemoryById", title: "Open Memory", arguments: [row.id] },
+    command: { command: "hivelore.openMemoryById", title: "Open Memory", arguments: [row.id] },
   });
 }
 
@@ -606,7 +606,7 @@ function sensorItem(sensor: SensorJson): ObservabilityItem {
     contextValue: "haiveSensorAction",
     memoryId: sensor.id,
     sensorId: sensor.id,
-    command: { command: "haive.openMemoryById", title: "Open Memory", arguments: [sensor.id] },
+    command: { command: "hivelore.openMemoryById", title: "Open Memory", arguments: [sensor.id] },
   });
 }
 
@@ -690,11 +690,11 @@ function colorForSeverity(severity: Severity): string | undefined {
 }
 
 function fixToArgs(fix: string): string[] | undefined {
-  const first = fix.split("\n").map((line) => line.trim()).find((line) => line.startsWith("haive "));
+  const first = fix.split("\n").map((line) => line.trim()).find((line) => line.startsWith("hivelore ") || line.startsWith("haive "));
   if (!first) return undefined;
   return first
     .replace(/\s+#.*$/, "")
-    .replace(/^haive\s+/, "")
+    .replace(/^(?:hivelore|haive)\s+/, "")
     .split(/\s+/)
     .filter(Boolean);
 }

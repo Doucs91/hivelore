@@ -10,7 +10,7 @@ describe("antiPatternGateParams", () => {
   });
 
   it("defaults the gate to 'anchored' in both default and autopilot configs", () => {
-    // The git hook and `haive precommit` both fall back to this when the field is unset.
+    // The git hook and `hivelore precommit` both fall back to this when the field is unset.
     expect(DEFAULT_CONFIG.enforcement?.antiPatternGate).toBe("anchored");
     expect(AUTOPILOT_DEFAULTS.enforcement?.antiPatternGate).toBe("anchored");
   });

@@ -16,7 +16,7 @@ import {
   type MemoryFrontmatter,
   type MemoryScope,
   type MemoryType,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
 import { ui } from "../utils/ui.js";
 
@@ -55,16 +55,16 @@ export function registerMemoryAdd(memory: Command): void {
       "    gotcha      — non-obvious behavior that surprises newcomers\n" +
       "    architecture — structural overview of a system or module\n" +
       "    glossary    — domain terms and their meaning in this codebase\n" +
-      "    attempt     — failed approach (prefer 'haive memory tried' for better structure)\n\n" +
+      "    attempt     — failed approach (prefer 'hivelore memory tried' for better structure)\n\n" +
       "  Tips:\n" +
       "    • --paths anchors the memory to source files for staleness detection\n" +
       "    • --topic enables upsert: future adds with the same topic update the existing memory\n" +
       "    • In autopilot mode, memories go directly to validated with team scope by default\n\n" +
       "  Examples:\n" +
-      "    haive memory add --type gotcha --slug jpa-open-in-view --scope team \\\\\n" +
+      "    hivelore memory add --type gotcha --slug jpa-open-in-view --scope team \\\\\n" +
       "      --paths src/main/resources/application.properties \\\\\n" +
       "      --body \"spring.jpa.open-in-view=false is intentional — do not re-enable.\"\n" +
-      "    haive memory add --type convention --slug flyway-no-modify --topic flyway \\\\\n" +
+      "    hivelore memory add --type convention --slug flyway-no-modify --topic flyway \\\\\n" +
       "      --scope team --body \"Never modify existing migrations. Create V{n+1}__desc.sql.\"\n",
     )
     .requiredOption("--type <type>", "skill | convention | decision | gotcha | architecture | glossary | attempt")
@@ -75,7 +75,7 @@ export function registerMemoryAdd(memory: Command): void {
     .option("--tags <csv>", "comma-separated tags for easier retrieval")
     .option("--domain <domain>", "domain (e.g. transactions)")
     .option("--author <author>", "author email or handle")
-    .option("--paths <csv>", "anchor to source files — used for staleness detection by haive sync")
+    .option("--paths <csv>", "anchor to source files — used for staleness detection by hivelore sync")
     .option("--files <csv>", "alias for --paths (matches the MCP `files` parameter)")
     .option("--symbols <csv>", "anchor to specific symbols (class/function names)")
     .option("--commit <sha>", "anchor to a specific commit SHA")
@@ -95,7 +95,7 @@ export function registerMemoryAdd(memory: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) {
-        ui.error(`No .ai/ found at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/ found at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -124,7 +124,7 @@ export function registerMemoryAdd(memory: Command): void {
           ui.warn(`Anchor path${missing.length > 1 ? "s" : ""} not found in project:`);
           for (const p of missing) ui.warn(`  ✗ ${p}`);
           ui.warn(
-            "Memories anchored to non-existent paths will be immediately marked stale by \`haive sync\`.\n" +
+            "Memories anchored to non-existent paths will be immediately marked stale by \`hivelore sync\`.\n" +
             "  Verify the paths are relative to the project root and the files/directories exist.",
           );
         }
@@ -158,7 +158,7 @@ export function registerMemoryAdd(memory: Command): void {
         );
         if (hashDup) {
           ui.error(`Duplicate content detected — identical body already saved as "${hashDup.memory.frontmatter.id}".`);
-          ui.error("Use \`haive memory update\` to modify it, or change the body to add new information.");
+          ui.error("Use \`hivelore memory update\` to modify it, or change the body to add new information.");
           process.exitCode = 1;
           return;
         }
@@ -235,7 +235,7 @@ export function registerMemoryAdd(memory: Command): void {
         });
         if (similar.length > 0) {
           ui.warn(`Possible duplicate — similar memories exist: ${similar.map((m) => m.memory.frontmatter.id).join(", ")}`);
-          ui.warn("Consider updating one of these with \`haive memory update\` instead.");
+          ui.warn("Consider updating one of these with \`hivelore memory update\` instead.");
         }
       }
 
@@ -254,7 +254,7 @@ export function registerMemoryAdd(memory: Command): void {
       if (anchorPaths.length === 0 && typeNeedsAnchor) {
         ui.warn(
           `This memory has no anchor paths — staleness cannot be detected automatically.` +
-          `\n  Add file anchors: haive memory update ${frontmatter.id} --paths <file1,file2>`,
+          `\n  Add file anchors: hivelore memory update ${frontmatter.id} --paths <file1,file2>`,
         );
       }
 
@@ -264,13 +264,13 @@ export function registerMemoryAdd(memory: Command): void {
       } else if (scope === "personal") {
         console.log(
           ui.dim(
-            `→ next: haive memory approve ${frontmatter.id}  (activate)` +
-            `  |  haive memory promote ${frontmatter.id}  (share with team)`,
+            `→ next: hivelore memory approve ${frontmatter.id}  (activate)` +
+            `  |  hivelore memory promote ${frontmatter.id}  (share with team)`,
           ),
         );
       } else {
         console.log(
-          ui.dim(`→ next: haive memory approve ${frontmatter.id}  (mark as validated)`),
+          ui.dim(`→ next: hivelore memory approve ${frontmatter.id}  (mark as validated)`),
         );
       }
     });
@@ -349,7 +349,7 @@ function normalizeBody(rawBody: string, title: string, titleExplicit: boolean): 
     trimmed,
     "",
     "## Why",
-    "Recorded in hAIve so future agents can apply this project rule consistently.",
+    "Recorded in Hivelore so future agents can apply this project rule consistently.",
     "",
   ].join("\n");
 }

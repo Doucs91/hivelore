@@ -1,14 +1,14 @@
 /**
- * Patch a Claude Code settings.json file with hAIve enforcement hooks.
+ * Patch a Claude Code settings.json file with Hivelore enforcement hooks.
  *
  * Claude Code's hook format:
  *   { "hooks": { "PostToolUse": [{ "matcher": "...", "hooks": [{ "type":"command", "command":"..." }] }] } }
  *
- * We add hAIve-marked entries so we can find and replace them on re-runs:
- *   - SessionStart → `haive enforce session-start`
- *   - PreToolUse   → `haive enforce pre-tool-use` (matcher: Edit|Write|Bash)
- *   - PostToolUse  → `haive observe` (passive capture)
- *   - SessionEnd   → `haive session end --quiet --auto`
+ * We add Hivelore-marked entries so we can find and replace them on re-runs:
+ *   - SessionStart → `hivelore enforce session-start`
+ *   - PreToolUse   → `hivelore enforce pre-tool-use` (matcher: Edit|Write|Bash)
+ *   - PostToolUse  → `hivelore observe` (passive capture)
+ *   - SessionEnd   → `hivelore session end --quiet --auto`
  *
  * Existing user-defined hooks are preserved untouched.
  */
@@ -21,7 +21,7 @@ export const HAIVE_HOOK_TAG = "haive-enforcement";
 interface ClaudeHookEntry {
   type: "command";
   command: string;
-  /** hAIve marker so we can identify our own entries on re-runs. */
+  /** Hivelore marker so we can identify our own entries on re-runs. */
   haive_tag?: string;
 }
 
@@ -40,7 +40,7 @@ const POST_TOOL_USE_GROUP: ClaudeHookGroup = {
   hooks: [
     {
       type: "command",
-      command: "haive observe",
+      command: "hivelore observe",
       haive_tag: HAIVE_HOOK_TAG,
     },
   ],
@@ -51,7 +51,7 @@ const PRE_TOOL_USE_GROUP: ClaudeHookGroup = {
   hooks: [
     {
       type: "command",
-      command: "haive enforce pre-tool-use",
+      command: "hivelore enforce pre-tool-use",
       haive_tag: HAIVE_HOOK_TAG,
     },
   ],
@@ -61,7 +61,7 @@ const SESSION_START_GROUP: ClaudeHookGroup = {
   hooks: [
     {
       type: "command",
-      command: "haive enforce session-start",
+      command: "hivelore enforce session-start",
       haive_tag: HAIVE_HOOK_TAG,
     },
   ],
@@ -71,7 +71,7 @@ const SESSION_END_GROUP: ClaudeHookGroup = {
   hooks: [
     {
       type: "command",
-      command: "haive session end --quiet --auto",
+      command: "hivelore session end --quiet --auto",
       haive_tag: HAIVE_HOOK_TAG,
     },
   ],

@@ -11,7 +11,7 @@ import {
   serializeMemory,
   type ImpactTier,
   type FeedbackAdjustment,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { z } from "zod";
@@ -54,17 +54,17 @@ export interface MemFeedbackOutput {
 }
 
 /**
- * Record a closed-loop utility outcome for a memory. This is what turns hAIve's
+ * Record a closed-loop utility outcome for a memory. This is what turns Hivelore's
  * memory store from a passive index into a learning system: agents report whether
  * a surfaced memory actually steered their work, and that feeds impact scoring
- * (`haive memory impact`) and future pruning/ranking.
+ * (`hivelore memory impact`) and future pruning/ranking.
  */
 export async function memFeedback(
   input: MemFeedbackInput,
   ctx: HaiveContext,
 ): Promise<MemFeedbackOutput> {
   if (!existsSync(ctx.paths.memoriesDir)) {
-    return { ok: false, id: input.id, error: "No .ai/memories — run `haive init` first." };
+    return { ok: false, id: input.id, error: "No .ai/memories — run `hivelore init` first." };
   }
 
   const all = await loadMemoriesFromDir(ctx.paths.memoriesDir);

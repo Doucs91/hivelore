@@ -2,7 +2,7 @@ import path from "node:path";
 import type { LoadedMemory } from "./loader.js";
 
 /**
- * Tag stamped on memories that were pre-seeded from a stack pack at `haive init`
+ * Tag stamped on memories that were pre-seeded from a stack pack at `hivelore init`
  * (generic framework knowledge the model already largely knows, not repo-specific
  * institutional knowledge). Briefing ranking caps these at `background` priority so
  * a generic seed never displaces a repo-specific memory — unless the seed has been

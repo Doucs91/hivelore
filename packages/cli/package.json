@@ -1,15 +1,15 @@
 {
-  "name": "@hiveai/cli",
-  "version": "0.29.13",
-  "description": "hAIve CLI - repo-native memory and context policy for coding-agent harnesses",
+  "name": "@hivelore/cli",
+  "version": "0.30.0",
+  "description": "Hivelore CLI - repo-native memory and context policy for coding-agent harnesses",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Doucs91/hAIve.git",
+    "url": "git+https://github.com/Doucs91/hivelore.git",
     "directory": "packages/cli"
   },
-  "bugs": "https://github.com/Doucs91/hAIve/issues",
-  "homepage": "https://github.com/Doucs91/hAIve#readme",
+  "bugs": "https://github.com/Doucs91/hivelore/issues",
+  "homepage": "https://github.com/Doucs91/hivelore#readme",
   "keywords": [
     "ai",
     "enforcement",
@@ -28,6 +28,7 @@
   ],
   "type": "module",
   "bin": {
+    "hivelore": "./dist/index.js",
     "haive": "./dist/index.js"
   },
   "files": [
@@ -38,13 +39,13 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "node ../../scripts/ensure-workspace-dists.mjs @hiveai/core @hiveai/embeddings @hiveai/mcp && tsc --noEmit",
+    "typecheck": "node ../../scripts/ensure-workspace-dists.mjs @hivelore/core @hivelore/embeddings @hivelore/mcp && tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "dependencies": {
-    "@hiveai/core": "workspace:*",
-    "@hiveai/embeddings": "workspace:*",
-    "@hiveai/mcp": "workspace:*",
+    "@hivelore/core": "workspace:*",
+    "@hivelore/embeddings": "workspace:*",
+    "@hivelore/mcp": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "commander": "^12.1.0",
     "ink": "^7.0.1",

@@ -11,7 +11,7 @@ import {
   loadUsageIndex,
   resolveHaivePaths,
   serializeMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface ArchiveOptions {
@@ -42,7 +42,7 @@ export function registerMemoryArchive(memory: Command): void {
       "  whose anchored paths have all disappeared (or have no anchor at all).\n\n" +
       "  Defaults to a DRY RUN — pass --apply to actually rewrite files.\n" +
       "  Targets `attempt` memories by default since they age the fastest.\n\n" +
-      "  Recover later with `haive memory edit <id>` to set status back to validated.",
+      "  Recover later with `hivelore memory edit <id>` to set status back to validated.",
     )
     .option("--since <window>", "minimum age since last read (e.g. '180d', '6m'). Default: enforcement.decayAfterDays or 180d")
     .option("--type <type>", "limit to a memory type (default 'attempt'). Pass 'all' to scan all types.", "attempt")
@@ -54,7 +54,7 @@ export function registerMemoryArchive(memory: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
-        ui.error(`No .ai/memories at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/memories at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }

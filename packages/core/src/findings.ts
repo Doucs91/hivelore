@@ -12,7 +12,7 @@ import { meetsSeedQualityFloor } from "./specificity.js";
  * becomes an anchored `gotcha`/`convention` memory, pre-filled with a conservative autogen
  * sensor, so the *next* agent is steered away from it before it writes the same code.
  *
- * This module is pure: parsers + draft synthesis, no I/O. The CLI (`haive ingest`) and the
+ * This module is pure: parsers + draft synthesis, no I/O. The CLI (`hivelore ingest`) and the
  * MCP tool (`ingest_findings`) read files / write memories around these functions.
  *
  * Safety: every draft is `status: proposed` and every suggested sensor is `severity: warn`

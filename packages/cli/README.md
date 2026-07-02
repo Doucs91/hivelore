@@ -1,63 +1,63 @@
 <p align="center">
-  <a href="https://github.com/Doucs91/hAIve">
-    <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/wordmark.svg" alt="hAIve" width="240" />
+  <a href="https://github.com/Doucs91/hivelore">
+    <img src="https://raw.githubusercontent.com/Doucs91/hivelore/main/packages/vscode/media/wordmark.svg" alt="Hivelore" width="240" />
   </a>
 </p>
 
-# @hiveai/cli
+# @hivelore/cli
 
-> **hAIve** - repo-native memory and context policy for coding-agent harnesses.
+> **Hivelore** - repo-native memory and context policy for coding-agent harnesses.
 
-hAIve makes your team knowledge enforceable inside the harness around AI coding agents. It gives agents a required briefing before work starts, stores decisions/gotchas/failed attempts as version-controlled Markdown, and adds MCP, Git, CI, and wrapper gates so AI-generated changes cannot quietly bypass project policy.
+Hivelore makes your team knowledge enforceable inside the harness around AI coding agents. It gives agents a required briefing before work starts, stores decisions/gotchas/failed attempts as version-controlled Markdown, and adds MCP, Git, CI, and wrapper gates so AI-generated changes cannot quietly bypass project policy.
 
-The memory system is the mechanism. The CLI is the control plane: initialize context policy, run agents inside hAIve, check the repo, and block unsafe workflow states. hAIve complements tests, linters, evals, and observability by carrying the repo-specific knowledge they cannot infer.
+The memory system is the mechanism. The CLI is the control plane: initialize context policy, run agents inside Hivelore, check the repo, and block unsafe workflow states. Hivelore complements tests, linters, evals, and observability by carrying the repo-specific knowledge they cannot infer.
 
 ---
 
 ## Install
 
 ```bash
-npm install -g @hiveai/cli
+npm install -g @hivelore/cli
 ```
 
-This installs the `haive` command globally. **The MCP server is bundled** — use `haive mcp --stdio` in your AI client (no separate `@hiveai/mcp` install required for normal use).
+This installs the `haive` command globally. **The MCP server is bundled** — use `hivelore mcp --stdio` in your AI client (no separate `@hivelore/mcp` install required for normal use).
 
-> **Semantic search** (optional): install `@hiveai/embeddings` for local embedding-based search (no data leaves your machine).
+> **Semantic search** (optional): install `@hivelore/embeddings` for local embedding-based search (no data leaves your machine).
 
-> Legacy configs may still use the standalone `haive-mcp` binary from `@hiveai/mcp`; prefer `haive` so CLI and MCP versions always match.
+> Legacy configs may still use the standalone `haive-mcp` binary from `@hivelore/mcp`; prefer `haive` so CLI and MCP versions always match.
 
 ---
 
 ## Quick start
 
 ```bash
-# 1. Initialize hAIve in your project (strict enforcement ON by default)
+# 1. Initialize Hivelore in your project (strict enforcement ON by default)
 cd my-project
-haive init                          # .ai/, MCP config, hooks, CI, code-map
-haive agent status                  # confirm MCP/wrapper/fallback mode
-haive enforce install               # re-apply strict MCP + Git + CI enforcement gates
+hivelore init                          # .ai/, MCP config, hooks, CI, code-map
+hivelore agent status                  # confirm MCP/wrapper/fallback mode
+hivelore enforce install               # re-apply strict MCP + Git + CI enforcement gates
 
 # 2. Point your AI client at the MCP server
 # Add to ~/.claude.json / ~/.cursor/mcp.json:
-# { "mcpServers": { "haive": { "command": "haive", "args": ["mcp", "--stdio", "--root", "/absolute/path"] } } }
+# { "mcpServers": { "hivelore": { "command": "hivelore", "args": ["mcp", "--stdio", "--root", "/absolute/path"] } } }
 
 # 3. Bootstrap project context (run once in your AI client)
 # → Use the bootstrap_project MCP prompt to analyze the codebase and fill .ai/project-context.md
 
-# 4. Start work through hAIve
-haive briefing --task "add Stripe webhook"
-haive run -- <agent-command> [args...]      # for CLI agents without blocking hooks
+# 4. Start work through Hivelore
+hivelore briefing --task "add Stripe webhook"
+hivelore run -- <agent-command> [args...]      # for CLI agents without blocking hooks
 
 # 5. Save durable policy knowledge manually (or let the agent use mem_save/mem_tried)
-haive memory save \
+hivelore memory save \
   --type gotcha --slug "jpa-open-in-view" --scope team \
   --paths src/main/resources/application.properties \
   --body "spring.jpa.open-in-view=false is intentional — do not re-enable."
 
 # 6. Gate the workflow
-haive enforce status
-haive enforce check --stage pre-commit
-haive enforce ci
+hivelore enforce status
+hivelore enforce check --stage pre-commit
+hivelore enforce ci
 ```
 
 ---
@@ -67,42 +67,42 @@ haive enforce ci
 The default help is intentionally small and centered on the core harness workflow. Run:
 
 ```bash
-haive --help
-haive memory --help
+hivelore --help
+hivelore memory --help
 ```
 
 to see the focused surface. Maintenance and experimental commands remain available, but are hidden from default help:
 
 ```bash
-haive --advanced --help
-haive --advanced memory --help
+hivelore --advanced --help
+hivelore --advanced memory --help
 ```
 
-This keeps hAIve from feeling like a grab bag: day-to-day users see the core harness loop first - context loading, enforcement, diagnostics, sync, recaps, and the high-signal memory operations.
+This keeps Hivelore from feeling like a grab bag: day-to-day users see the core harness loop first - context loading, enforcement, diagnostics, sync, recaps, and the high-signal memory operations.
 
-### `haive init`
+### `hivelore init`
 
 Initialize the `.ai/` structure in a project. **Autopilot mode is ON by default** and now installs strict enforcement gates by default.
 
 ```bash
-haive init                    # Autopilot: policy config, hooks, CI, MCP setup, code-map
-haive init --manual           # Manual mode: you approve every memory yourself
-haive init --no-bridges       # Skip native bridge generation (CLAUDE.md, AGENTS.md, etc.)
-haive init --dir /other/path  # Initialize in a specific directory
-haive init --yes              # Also approve user-level AI client MCP configuration
+hivelore init                    # Autopilot: policy config, hooks, CI, MCP setup, code-map
+hivelore init --manual           # Manual mode: you approve every memory yourself
+hivelore init --no-bridges       # Skip native bridge generation (CLAUDE.md, AGENTS.md, etc.)
+hivelore init --dir /other/path  # Initialize in a specific directory
+hivelore init --yes              # Also approve user-level AI client MCP configuration
 ```
 
 **Autopilot mode** (default):
 - Memories are saved directly as `validated` (no approval cycle)
-- Git hooks installed automatically (`haive enforce check` gates commits/pushes)
+- Git hooks installed automatically (`hivelore enforce check` gates commits/pushes)
 - CI workflows generated (`haive-enforcement.yml` and sync workflow)
 - Initial code-map built (`.ai/code-map.json`) for symbol lookup
 - Session recaps saved automatically when the MCP server exits
 - Configuration stored in `.ai/haive.config.json`
 
 **Manual mode** (`--manual`):
-- Memories start as `proposed` and require explicit approval (`haive memory approve`)
-- No automatic hooks or CI — set up manually with `haive install-hooks` and `haive init --with-ci`
+- Memories start as `proposed` and require explicit approval (`hivelore memory approve`)
+- No automatic hooks or CI — set up manually with `hivelore install-hooks` and `hivelore init --with-ci`
 - Full control over when knowledge becomes team policy
 
 **What it creates:**
@@ -125,53 +125,53 @@ your-project/
 ```
 
 Each bridge carries the repo's validated memories **and** block sensors — not just an empty template —
-so the enforcement edge travels to non-MCP agents too. Regenerate with `haive bridges sync`; scope with
-`haive init --bridge-targets cursor,copilot`. Bridge files include mandatory rules, but they are not the
-enforcement boundary. hAIve's portable enforcement comes from MCP policy, Git hooks, CI checks, and `haive run -- <agent>` for CLI agents.
+so the enforcement edge travels to non-MCP agents too. Regenerate with `hivelore bridges sync`; scope with
+`hivelore init --bridge-targets cursor,copilot`. Bridge files include mandatory rules, but they are not the
+enforcement boundary. Hivelore's portable enforcement comes from MCP policy, Git hooks, CI checks, and `hivelore run -- <agent>` for CLI agents.
 
-`haive init` also runs agent-aware setup. It always writes project-level MCP configs and records the selected mode in `.ai/.runtime/enforcement/agent-mode.json`. When it needs to change user-level configs such as Cursor, Claude Code, VS Code, Windsurf, or Codex, it asks for confirmation in an interactive shell. In CI/non-interactive shells, re-run:
+`hivelore init` also runs agent-aware setup. It always writes project-level MCP configs and records the selected mode in `.ai/.runtime/enforcement/agent-mode.json`. When it needs to change user-level configs such as Cursor, Claude Code, VS Code, Windsurf, or Codex, it asks for confirmation in an interactive shell. In CI/non-interactive shells, re-run:
 
 ```bash
-haive agent setup --yes
+hivelore agent setup --yes
 ```
 
-### `haive agent`
+### `hivelore agent`
 
-Detect and configure the best hAIve mode for the current machine.
+Detect and configure the best Hivelore mode for the current machine.
 
 ```bash
-haive agent detect                 # inspect project MCP + installed agents
-haive agent status                 # same report, human-readable or --json
-haive agent setup                  # project MCP + optional global MCP setup
-haive agent setup --no-global      # project-only setup, no user config writes
-haive agent setup --yes            # approve user-level MCP config writes
+hivelore agent detect                 # inspect project MCP + installed agents
+hivelore agent status                 # same report, human-readable or --json
+hivelore agent setup                  # project MCP + optional global MCP setup
+hivelore agent setup --no-global      # project-only setup, no user config writes
+hivelore agent setup --yes            # approve user-level MCP config writes
 ```
 
 Modes:
 
-- `mcp`: native hAIve tools are available through the AI client.
-- `wrapped`: use `haive run -- <agent>` when native MCP is unavailable.
-- `fallback`: use `haive briefing` and `haive enforce check` manually.
+- `mcp`: native Hivelore tools are available through the AI client.
+- `wrapped`: use `hivelore run -- <agent>` when native MCP is unavailable.
+- `fallback`: use `hivelore briefing` and `hivelore enforce check` manually.
 
 ---
 
-### `haive enforce`
+### `hivelore enforce`
 
 Install and run the agent-agnostic policy gates.
 
 ```bash
-haive enforce install                 # strict config + Git hooks + CI + supported client hooks
-haive enforce status                  # show whether the repo is protected
-haive enforce check --stage local     # local policy gate
-haive enforce check --stage pre-push  # used by Git hooks
-haive enforce ci                      # used by required CI checks
-haive enforce finish                  # final agent-exit gate: commit/push + version/tag protocol
-haive enforce cleanup                 # remove generated .ai runtime/cache artifacts
+hivelore enforce install                 # strict config + Git hooks + CI + supported client hooks
+hivelore enforce status                  # show whether the repo is protected
+hivelore enforce check --stage local     # local policy gate
+hivelore enforce check --stage pre-push  # used by Git hooks
+hivelore enforce ci                      # used by required CI checks
+hivelore enforce finish                  # final agent-exit gate: commit/push + version/tag protocol
+hivelore enforce cleanup                 # remove generated .ai runtime/cache artifacts
 ```
 
 Strict mode checks for:
 
-- a recent hAIve briefing marker before local write workflows
+- a recent Hivelore briefing marker before local write workflows
 - recent session recap before push/CI gates
 - stale important memories anchored to changed code
 - decision coverage: changed files must have their relevant anchored policies surfaced in the latest briefing
@@ -179,103 +179,103 @@ Strict mode checks for:
 - visible generated artifacts such as `.ai/.runtime`, `.ai/.cache`, or Python bytecode
 - completed work is committed/pushed; shippable package changes have lockstep version bump + git tag
 
-`haive enforce check` prints an enforcement score and fails strict gates when the score drops below the configured threshold.
+`hivelore enforce check` prints an enforcement score and fails strict gates when the score drops below the configured threshold.
 
-### `haive sensors`
+### `hivelore sensors`
 
 Operate executable regex sensors stored on `gotcha`/`attempt` memories.
 
 ```bash
-haive sensors list
-haive sensors check                    # scans git diff --cached
-haive sensors check --diff-file diff.patch --json
-haive sensors promote <memory-id> --yes
-haive sensors export --format grep
+hivelore sensors list
+hivelore sensors check                    # scans git diff --cached
+hivelore sensors check --diff-file diff.patch --json
+hivelore sensors promote <memory-id> --yes
+hivelore sensors export --format grep
 ```
 
 Autogenerated sensors are conservative: they start as `warn` and `autogen: true`. A human can promote
 high-confidence sensors to `severity: block`, which makes a deterministic pre-commit blocker when the
 sensor matches added diff lines.
 
-### `haive ingest`
+### `hivelore ingest`
 
 Seed proposed, anchored memories (with sensors) from scanner output, so a fresh repo has policy from
 day one instead of an empty corpus.
 
 ```bash
-haive ingest --from sonar issues.json --min-severity major
-haive ingest --from sarif report.sarif
-haive ingest --from eslint eslint-report.json
-haive ingest --from npm-audit audit.json --scope team
-haive ingest --from sonar-api --sonar-component my_project   # pull straight from SonarQube
-haive ingest --from sarif report.sarif --dry-run             # preview without writing
+hivelore ingest --from sonar issues.json --min-severity major
+hivelore ingest --from sarif report.sarif
+hivelore ingest --from eslint eslint-report.json
+hivelore ingest --from npm-audit audit.json --scope team
+hivelore ingest --from sonar-api --sonar-component my_project   # pull straight from SonarQube
+hivelore ingest --from sarif report.sarif --dry-run             # preview without writing
 ```
 
 A **quality floor** runs by default: auto-fixable stylistic rules (semi/quotes/indent/prefer-const/
 prettier… and the equivalent Sonar numeric keys) are dropped as linter-autofix noise, not lessons. Pass
 `--include-stylistic` to keep them. Created memories are `proposed` with warn-only sensors — review with
-`haive memory list --status proposed` and promote vetted sensors with `haive sensors promote`.
+`hivelore memory list --status proposed` and promote vetted sensors with `hivelore sensors promote`.
 
-### `haive coverage`
+### `hivelore coverage`
 
 Find changed files that no memory covers — the blind spots in your corpus.
 
 ```bash
-haive coverage                       # cross corpus with git churn + agent-edited hot files
-haive coverage --source git          # only committed churn
-haive coverage --source agent        # only files agents edited (PostToolUse observation log)
+hivelore coverage                       # cross corpus with git churn + agent-edited hot files
+hivelore coverage --source git          # only committed churn
+hivelore coverage --source agent        # only files agents edited (PostToolUse observation log)
 ```
 
-### `haive eval`
+### `hivelore eval`
 
-Run the repeatable quality gate for hAIve itself or for a project using hAIve:
+Run the repeatable quality gate for Hivelore itself or for a project using Hivelore:
 
 ```bash
-haive eval
-haive eval --semantic-only
-haive eval --spec .ai/eval/spec.json --fail-under 80
+hivelore eval
+hivelore eval --semantic-only
+hivelore eval --spec .ai/eval/spec.json --fail-under 80
 ```
 
-Without `--spec`, hAIve synthesizes retrieval cases from anchored memories. If `.ai/eval/spec.json`
+Without `--spec`, Hivelore synthesizes retrieval cases from anchored memories. If `.ai/eval/spec.json`
 exists, it is loaded automatically and merged with those synthesized retrieval cases. Use that file
 for labeled sensor cases and hard retrieval probes so CI measures both “did the right memory surface?”
 and “did the executable guardrail fire?”.
 
-### `haive doctor`
+### `hivelore doctor`
 
-`doctor` is the first stop when hAIve feels inconsistent locally:
+`doctor` is the first stop when Hivelore feels inconsistent locally:
 
 ```bash
-haive doctor
-haive doctor --json
-haive doctor --fix
+hivelore doctor
+hivelore doctor --json
+hivelore doctor --fix
 ```
 
 It reports missing `pnpm`, stale workspace `dist` artifacts after a pull, global CLI/MCP version skew,
 outdated code-search indexes, memory-lint findings, and harness coverage. The output is intentionally
 actionable: every setup finding should carry the exact command to run next.
 
-### `haive benchmark`
+### `hivelore benchmark`
 
-Turn hAIve-vs-plain agent trials into a repeatable demo/report.
+Turn Hivelore-vs-plain agent trials into a repeatable demo/report.
 
 ```bash
-haive benchmark demo
-haive benchmark report --dir benchmarks/agent-benchmark
-haive benchmark report --dir benchmarks/agent-benchmark --out RESULTS.md
+hivelore benchmark demo
+hivelore benchmark report --dir benchmarks/agent-benchmark
+hivelore benchmark report --dir benchmarks/agent-benchmark --out RESULTS.md
 ```
 
-The report summarizes agent effort from `BENCHMARK_AGENT_REPORT.md` files: commands, files read, files modified, test iterations, terminal failures, decision mentions, token proxy, and whether hAIve memory shaped the outcome.
+The report summarizes agent effort from `BENCHMARK_AGENT_REPORT.md` files: commands, files read, files modified, test iterations, terminal failures, decision mentions, token proxy, and whether Hivelore memory shaped the outcome.
 
-### `haive run`
+### `hivelore run`
 
-Wrap any CLI-based coding agent in a hAIve session.
+Wrap any CLI-based coding agent in a Hivelore session.
 
 ```bash
-haive run -- claude
-haive run -- codex
-haive run -- aider
-haive run -- <custom-agent> [args...]
+hivelore run -- claude
+hivelore run -- codex
+hivelore run -- aider
+hivelore run -- <custom-agent> [args...]
 ```
 
 The wrapper writes a compact briefing file and exports:
@@ -288,22 +288,22 @@ The wrapper writes a compact briefing file and exports:
 
 ---
 
-### `haive mcp`
+### `hivelore mcp`
 
-Run the hAIve MCP server over stdio (**bundled into this package** — same tools as legacy `haive-mcp`).
+Run the Hivelore MCP server over stdio (**bundled into this package** — same tools as legacy `haive-mcp`).
 
 ```bash
-haive mcp --stdio                     # typical MCP client args (stdio marker optional but recommended)
-haive mcp -d /path/to/project         # resolve project root from this directory
-haive mcp --root /path/to/project     # alias for legacy haive-mcp --root
+hivelore mcp --stdio                     # typical MCP client args (stdio marker optional but recommended)
+hivelore mcp -d /path/to/project         # resolve project root from this directory
+hivelore mcp --root /path/to/project     # alias for legacy haive-mcp --root
 ```
 
 **Claude Code** (`~/.claude.json`):
 ```json
 {
   "mcpServers": {
-    "haive": {
-      "command": "haive",
+    "hivelore": {
+      "command": "hivelore",
       "args": ["mcp", "--stdio", "--root", "/absolute/path/to/your/project"]
     }
   }
@@ -314,8 +314,8 @@ haive mcp --root /path/to/project     # alias for legacy haive-mcp --root
 ```json
 {
   "mcpServers": {
-    "haive": {
-      "command": "haive",
+    "hivelore": {
+      "command": "hivelore",
       "args": ["mcp", "--stdio", "--root", "/absolute/path/to/your/project"]
     }
   }
@@ -329,16 +329,16 @@ code --add-mcp '{"name":"haive","command":"haive","args":["mcp","--stdio","--roo
 
 ---
 
-### `haive memory`
+### `hivelore memory`
 
 Manage individual memory entries.
 
-#### `haive memory save`
+#### `hivelore memory save`
 
-(Canonical verb; `haive memory add` remains as an alias.)
+(Canonical verb; `hivelore memory add` remains as an alias.)
 
 ```bash
-haive memory save \
+hivelore memory save \
   --type <type> \          # convention | decision | gotcha | architecture | glossary | attempt
   --slug <slug> \          # Short identifier used in the filename
   --scope team \           # personal (default) | team | module
@@ -350,7 +350,7 @@ haive memory save \
   --body "The knowledge."  # Memory content (Markdown)
 
 # Read body from a file (useful for long memories):
-haive memory save --type architecture --slug "payment-flow" \
+hivelore memory save --type architecture --slug "payment-flow" \
   --body-file docs/payment-architecture.md
 ```
 
@@ -365,74 +365,74 @@ haive memory save --type architecture --slug "payment-flow" \
 | `glossary` | Domain terms and their meaning in this project |
 | `attempt` | Failed approach — prevents the same mistake next session |
 
-#### `haive memory list`
+#### `hivelore memory list`
 
 ```bash
-haive memory list                        # All memories
-haive memory list --scope team           # Team memories only
-haive memory list --status validated     # Only validated
-haive memory list --type gotcha          # Gotchas only
-haive memory list --tags auth,jwt        # By tags (AND match)
-haive memory list --module payments      # Module-scoped memories
+hivelore memory list                        # All memories
+hivelore memory list --scope team           # Team memories only
+hivelore memory list --status validated     # Only validated
+hivelore memory list --type gotcha          # Gotchas only
+hivelore memory list --tags auth,jwt        # By tags (AND match)
+hivelore memory list --module payments      # Module-scoped memories
 ```
 
-#### `haive memory search`
+#### `hivelore memory search`
 
-Full-text (or semantic) search across id, tags, and body. (`haive memory query` remains as an alias.)
+Full-text (or semantic) search across id, tags, and body. (`hivelore memory query` remains as an alias.)
 
 ```bash
-haive memory search "flyway migration"         # AND search across all tokens
-haive memory search "payment mobile wave"      # Falls back to OR if no AND match
-haive memory search "jwt" --scope team --limit 5
+hivelore memory search "flyway migration"         # AND search across all tokens
+hivelore memory search "payment mobile wave"      # Falls back to OR if no AND match
+hivelore memory search "jwt" --scope team --limit 5
 ```
 
-#### `haive memory get`
+#### `hivelore memory get`
 
-Print the full body, frontmatter, and usage stats of a memory. (`haive memory show` remains as an alias.)
+Print the full body, frontmatter, and usage stats of a memory. (`hivelore memory show` remains as an alias.)
 
 ```bash
-haive memory get 2025-01-15-gotcha-flyway-strict
+hivelore memory get 2025-01-15-gotcha-flyway-strict
 ```
 
-#### `haive memory update`
+#### `hivelore memory update`
 
 Update a memory's body, tags, or anchor without changing its id or history.
 
 ```bash
-haive memory update <id> --body "Updated content."
-haive memory update <id> --tags "auth,jwt,security"
-haive memory update <id> --paths src/auth.ts,src/jwt.ts
+hivelore memory update <id> --body "Updated content."
+hivelore memory update <id> --tags "auth,jwt,security"
+hivelore memory update <id> --paths src/auth.ts,src/jwt.ts
 ```
 
-#### `haive memory verify`
+#### `hivelore memory verify`
 
 Check anchor freshness — detect stale memories when anchored files or symbols have moved.
 
 ```bash
-haive memory verify           # Check all memories
-haive memory verify --id <id> # Check a specific one
-haive memory verify --update  # Write stale/validated status back to disk
+hivelore memory verify           # Check all memories
+hivelore memory verify --id <id> # Check a specific one
+hivelore memory verify --update  # Write stale/validated status back to disk
 ```
 
-When a file is missing, hAIve searches the project for files with the same basename and suggests possible renames.
+When a file is missing, Hivelore searches the project for files with the same basename and suggests possible renames.
 
-#### `haive memory approve` / `promote` / `reject`
+#### `hivelore memory approve` / `promote` / `reject`
 
 Control the memory lifecycle: `draft → proposed → validated` or `rejected`.
 
 ```bash
-haive memory approve <id>       # Mark as validated
-haive memory approve --all      # Bulk-approve all proposed/draft
-haive memory promote <id>       # Promote personal → team (status: proposed)
-haive memory reject <id> --reason "Outdated after refactor"
+hivelore memory approve <id>       # Mark as validated
+hivelore memory approve --all      # Bulk-approve all proposed/draft
+hivelore memory promote <id>       # Promote personal → team (status: proposed)
+hivelore memory reject <id> --reason "Outdated after refactor"
 ```
 
-#### `haive memory tried`
+#### `hivelore memory tried`
 
 Record a failed approach — the most valuable type of negative knowledge.
 
 ```bash
-haive memory tried \
+hivelore memory tried \
   --what "importing gray-matter with ESM dynamic import" \
   --why-failed "gray-matter doesn't export a default; named import required" \
   --instead "import matter from 'gray-matter'" \
@@ -442,57 +442,57 @@ haive memory tried \
 
 Auto-validated (no approval cycle needed). Surfaced first in `get_briefing` so agents see it before making the same mistake.
 
-#### `haive memory import`
+#### `hivelore memory import`
 
 Import documentation (README, ADR, wiki page) as memories via the `import_docs` MCP prompt.
 
 ```bash
-haive memory import --from docs/architecture.md --scope team
+hivelore memory import --from docs/architecture.md --scope team
 ```
 
 Prints the MCP `import_docs` invocation to run in your AI client.
 
-#### `haive memory for-files`
+#### `hivelore memory for-files`
 
 Show memories relevant to specific files you're about to edit.
 
 ```bash
-haive memory for-files src/payments/PaymentService.java src/payments/PaymentController.java
+hivelore memory for-files src/payments/PaymentService.java src/payments/PaymentController.java
 ```
 
-#### `haive memory stats` / `hot` / `pending` / `digest`
+#### `hivelore memory stats` / `hot` / `pending` / `digest`
 
 ```bash
-haive memory stats     # Usage stats and confidence levels for all memories
-haive memory hot       # Most-read unvalidated memories (good promotion candidates)
-haive memory pending   # Proposed memories awaiting review
+hivelore memory stats     # Usage stats and confidence levels for all memories
+hivelore memory hot       # Most-read unvalidated memories (good promotion candidates)
+hivelore memory pending   # Proposed memories awaiting review
 
 # Generate a Markdown review digest for bulk approval/rejection:
-haive memory digest                  # Last 7 days, team scope (prints to stdout)
-haive memory digest --days 14        # Last 14 days
-haive memory digest --scope all      # All scopes
-haive memory digest --out digest.md  # Write to file
+hivelore memory digest                  # Last 7 days, team scope (prints to stdout)
+hivelore memory digest --days 14        # Last 14 days
+hivelore memory digest --scope all      # All scopes
+hivelore memory digest --out digest.md  # Write to file
 ```
 
 The digest groups memories by type, shows confidence level (⬜ unverified / 🟡 low / 🟢 trusted / ⭐ authoritative), anchor, read count, and action checkboxes for easy bulk review.
 
 ---
 
-### `haive briefing`
+### `hivelore briefing`
 
 Print the full project briefing — project context + relevant memories — in one shot. Use before starting a task.
 
 ```bash
-haive briefing                                           # Full briefing, team scope
-haive briefing --task "add a Stripe payment"             # Filter by task relevance
-haive briefing --files src/payments/PaymentService.java  # Filter by files
-haive briefing --symbols PaymentService,TenantFilter     # Look up symbol locations in code-map
-haive briefing --scope all                               # Include personal memories
-haive briefing --include-stale                           # Include stale memories
-haive briefing --max-memories 15                         # Show more memories
+hivelore briefing                                           # Full briefing, team scope
+hivelore briefing --task "add a Stripe payment"             # Filter by task relevance
+hivelore briefing --files src/payments/PaymentService.java  # Filter by files
+hivelore briefing --symbols PaymentService,TenantFilter     # Look up symbol locations in code-map
+hivelore briefing --scope all                               # Include personal memories
+hivelore briefing --include-stale                           # Include stale memories
+hivelore briefing --max-memories 15                         # Show more memories
 ```
 
-**`--symbols` (requires `haive index code`):** look up where specific symbols are defined across your entire codebase — no grep needed. Returns file, line number, kind (class/interface/function/enum), and JSDoc description for each match.
+**`--symbols` (requires `hivelore index code`):** look up where specific symbols are defined across your entire codebase — no grep needed. Returns file, line number, kind (class/interface/function/enum), and JSDoc description for each match.
 
 ```
 PaymentProvider  src/payments/PaymentProvider.java:12  [interface]  — Abstract payment provider
@@ -501,16 +501,16 @@ PaymentProvider  src/frontend/payment.types.ts:4       [enum]       — Mobile p
 
 ---
 
-### `haive sync`
+### `hivelore sync`
 
 Refresh memory state after a `git pull` or merge.
 
 ```bash
-haive sync                          # Verify anchors + auto-promote eligible memories
-haive sync --since main             # Report memories changed since main
-haive sync --inject-bridge          # Inject top memories into CLAUDE.md
-haive sync --embed                  # Rebuild embeddings index after sync
-haive sync --quiet                  # Minimal output (for git hooks)
+hivelore sync                          # Verify anchors + auto-promote eligible memories
+hivelore sync --since main             # Report memories changed since main
+hivelore sync --inject-bridge          # Inject top memories into CLAUDE.md
+hivelore sync --embed                  # Rebuild embeddings index after sync
+hivelore sync --quiet                  # Minimal output (for git hooks)
 ```
 
 **What sync does:**
@@ -522,50 +522,50 @@ haive sync --quiet                  # Minimal output (for git hooks)
 
 ---
 
-### `haive install-hooks`
+### `hivelore install-hooks`
 
-Install git hooks so `haive sync` runs automatically after every pull/merge.
+Install git hooks so `hivelore sync` runs automatically after every pull/merge.
 
 ```bash
-haive install-hooks         # Install post-merge and post-rewrite hooks
-haive install-hooks --dir /path/to/project
+hivelore install-hooks         # Install post-merge and post-rewrite hooks
+hivelore install-hooks --dir /path/to/project
 ```
 
 ---
 
-### `haive embeddings`
+### `hivelore embeddings`
 
-Manage the local semantic search index (requires `@hiveai/embeddings` to be installed).
+Manage the local semantic search index (requires `@hivelore/embeddings` to be installed).
 
 ```bash
-haive embeddings index          # Build or refresh the embeddings index
-haive embeddings status         # Show index stats (count, last updated, model)
-haive embeddings query "how do we handle retries on payment failures"
+hivelore embeddings index          # Build or refresh the embeddings index
+hivelore embeddings status         # Show index stats (count, last updated, model)
+hivelore embeddings query "how do we handle retries on payment failures"
 ```
 
 The model (`bge-small-en-v1.5`, ~110MB) is downloaded on first use and cached locally. **No data leaves your machine.**
 
 ---
 
-### `haive index`
+### `hivelore index`
 
 Build code navigation indexes.
 
 ```bash
-haive index code        # Build .ai/code-map.json (file → exports + 1-line descriptions)
+hivelore index code        # Build .ai/code-map.json (file → exports + 1-line descriptions)
 ```
 
 The code map lets AI agents find where a function lives without grepping — dramatically reducing tool calls at the start of a task.
 
 ---
 
-### `haive tui`
+### `hivelore tui`
 
 Interactive terminal dashboard with 3 screens — browse, filter, and manage memories without leaving the terminal.
 
 ```bash
-haive tui               # Open the TUI
-haive tui --dir /path/to/project
+hivelore tui               # Open the TUI
+hivelore tui --dir /path/to/project
 ```
 
 **Screens (switch with `1` `2` `3`):**
@@ -590,12 +590,12 @@ haive tui --dir /path/to/project
 
 ---
 
-### `haive session end`
+### `hivelore session end`
 
 Save a structured end-of-session recap. Surfaced automatically at the start of the next session via `get_briefing`.
 
 ```bash
-haive session end \
+hivelore session end \
   --goal "Add Stripe payment integration" \
   --accomplished "Implemented PaymentService, added tests, deployed to staging" \
   --discoveries "The webhook signature must use the raw request body, not parsed JSON" \
@@ -611,11 +611,11 @@ One recap is kept per scope (topic-upsert: `revision_count` increments on each c
 ## Memory lifecycle
 
 ```
-haive memory save       → status: draft
-haive memory promote    → status: proposed  (personal → team)
-haive memory approve    → status: validated
-haive sync              → status: stale     (if anchor broken)
-haive memory reject     → status: rejected
+hivelore memory save       → status: draft
+hivelore memory promote    → status: proposed  (personal → team)
+hivelore memory approve    → status: validated
+hivelore sync              → status: stale     (if anchor broken)
+hivelore memory reject     → status: rejected
 ```
 
 Validated team memories are loaded into every `get_briefing` call and injected into bridge files.
@@ -627,7 +627,7 @@ Validated team memories are loaded into every `get_briefing` call and injected i
 For projects with frontend + backend (or microservices), create one module context per component:
 
 ```bash
-# After haive init, create module context files:
+# After hivelore init, create module context files:
 mkdir -p .ai/modules/backend .ai/modules/frontend
 
 cat > .ai/modules/backend/context.md << 'EOF'
@@ -651,12 +651,12 @@ EOF
 
 ## Semantic search (optional)
 
-Install `@hiveai/embeddings` for similarity-based memory retrieval:
+Install `@hivelore/embeddings` for similarity-based memory retrieval:
 
 ```bash
-npm install -g @hiveai/embeddings
-haive embeddings index          # First run downloads the model (~110MB)
-haive embeddings query "payment retry logic"
+npm install -g @hivelore/embeddings
+hivelore embeddings index          # First run downloads the model (~110MB)
+hivelore embeddings query "payment retry logic"
 ```
 
 From MCP: set `semantic: true` on `mem_search` or `get_briefing`.

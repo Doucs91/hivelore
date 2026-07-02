@@ -1,4 +1,4 @@
-import type { HaivePaths } from "@hiveai/core";
+import type { HaivePaths } from "@hivelore/core";
 import { cosine, Embedder, type EmbedderLike } from "./embedder.js";
 import { loadIndex, type EmbeddingIndex } from "./index-cache.js";
 
@@ -24,7 +24,7 @@ export async function semanticSearch(
   const embedder = options.embedder ?? (await Embedder.create(index.model));
   if (embedder.dimension !== index.dimension) {
     throw new Error(
-      `Embedder dimension (${embedder.dimension}) differs from index (${index.dimension}). Re-run \`haive embeddings index\`.`,
+      `Embedder dimension (${embedder.dimension}) differs from index (${index.dimension}). Re-run \`hivelore embeddings index\`.`,
     );
   }
 

@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { loadPreventionEvents, resolveHaivePaths } from "@hiveai/core";
+import { loadPreventionEvents, resolveHaivePaths } from "@hivelore/core";
 import type { HaiveContext } from "../src/context.js";
 import { antiPatternsCheck, isHaiveOwnedPath, isTestPath, stripAiDirHunks, stripTestHunks } from "../src/tools/anti-patterns-check.js";
 import { classifyAntiPatternWarningForTest, preCommitCheck } from "../src/tools/precommit-check.js";
@@ -449,7 +449,7 @@ describe("preCommitCheck", () => {
     );
 
     const result = await preCommitCheck({
-      diff: '- "haive": "0.9.0"\n+ "haive": "0.9.21"\n+++ package.json\n npm install -g @hiveai/cli',
+      diff: '- "haive": "0.9.0"\n+ "haive": "0.9.21"\n+++ package.json\n npm install -g @hivelore/cli',
       paths: [".ai/haive.config.json", "package.json", ".github/workflows/haive-sync.yml"],
       block_on: "high-confidence",
       semantic: false,
@@ -468,7 +468,7 @@ describe("preCommitCheck", () => {
       ctx.paths.teamDir!,
       "2024-01-01-attempt-haive-init-yes",
       "attempt",
-      "# haive init --yes fails\n\nThe CLI init command does not expose --yes; it exits with unknown option.",
+      "# hivelore init --yes fails\n\nThe CLI init command does not expose --yes; it exits with unknown option.",
     );
 
     const result = await preCommitCheck({
@@ -619,7 +619,7 @@ describe("preCommitCheck", () => {
 
   it("scopes affected_files to changed CODE files covered by the memory's anchors", () => {
     // A post-init commit stages .ai/ + bridges alongside the code change; the warning
-    // must point at the anchored code file, not at hAIve's own generated files.
+    // must point at the anchored code file, not at Hivelore's own generated files.
     const warning = classifyAntiPatternWarningForTest({
       id: "2024-01-01-attempt-anchored-backend-lesson",
       type: "attempt",
@@ -633,7 +633,7 @@ describe("preCommitCheck", () => {
     expect(warning.affected_files).toEqual(["backend/src/server.ts"]);
   });
 
-  it("falls back to all changed code files (never hAIve-owned) when the memory has no anchors", () => {
+  it("falls back to all changed code files (never Hivelore-owned) when the memory has no anchors", () => {
     const warning = classifyAntiPatternWarningForTest({
       id: "2024-01-01-gotcha-unanchored-lesson",
       type: "gotcha",
@@ -1186,14 +1186,14 @@ describe("stripAiDirHunks", () => {
       "diff --git a/.ai/memories/team/x.md b/.ai/memories/team/x.md",
       "--- a/.ai/memories/team/x.md",
       "+++ b/.ai/memories/team/x.md",
-      "+do not run npm install -g @hiveai/core",
+      "+do not run npm install -g @hivelore/core",
       "diff --git a/packages/cli/src/index.ts b/packages/cli/src/index.ts",
       "--- a/packages/cli/src/index.ts",
       "+++ b/packages/cli/src/index.ts",
       "+const x = 1;",
     ].join("\n");
     const out = stripAiDirHunks(diff);
-    expect(out).not.toContain("npm install -g @hiveai/core");
+    expect(out).not.toContain("npm install -g @hivelore/core");
     expect(out).toContain("const x = 1;");
     expect(out).toContain("packages/cli/src/index.ts");
   });
@@ -1210,8 +1210,8 @@ describe("stripAiDirHunks", () => {
     expect(stripAiDirHunks("+just some added text")).toBe("+just some added text");
   });
 
-  it("drops hAIve-generated bridge/config/workflow hunks so a fresh-init commit can't self-match", () => {
-    // The first commit after `haive init` stages the seeded corpus AND every file init generated
+  it("drops Hivelore-generated bridge/config/workflow hunks so a fresh-init commit can't self-match", () => {
+    // The first commit after `hivelore init` stages the seeded corpus AND every file init generated
     // (bridges, .gitignore, MCP configs, workflows). None are application code; none may corroborate.
     const diff = [
       "diff --git a/AGENTS.md b/AGENTS.md",
@@ -1238,7 +1238,7 @@ describe("stripAiDirHunks", () => {
 });
 
 describe("isHaiveOwnedPath", () => {
-  it("flags the .ai/ knowledge base and hAIve-generated files", () => {
+  it("flags the .ai/ knowledge base and Hivelore-generated files", () => {
     for (const p of [
       ".ai/memories/team/x.md", ".ai/code-map.json",
       "AGENTS.md", "CLAUDE.md", ".cursorrules", ".clinerules", ".windsurfrules",

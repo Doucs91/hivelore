@@ -13,7 +13,7 @@ import {
   readUsageEvents,
   resolveHaivePaths,
   serializeMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface SuggestOptions {
@@ -177,7 +177,7 @@ export function registerMemorySuggest(memory: Command): void {
           if (status === "validated") {
             ui.info("Autopilot defaults applied: suggestions are status=validated and active.");
           } else {
-            ui.info("Drafts are status=draft — edit them, then run `haive memory promote <id>`.");
+            ui.info("Drafts are status=draft — edit them, then run `hivelore memory promote <id>`.");
           }
         }
         return;
@@ -190,7 +190,7 @@ export function registerMemorySuggest(memory: Command): void {
       }
 
       const totals = aggregateUsage(events, since ?? undefined);
-      console.log(ui.bold(`hAIve memory suggestions (${opts.since ?? "all time"})`));
+      console.log(ui.bold(`Hivelore memory suggestions (${opts.since ?? "all time"})`));
       console.log(
         ui.dim(`scanned ${totals.total} events, ${suggestions.length} repeated queries (≥${minCount})`),
       );
@@ -233,11 +233,11 @@ function inferType(tools: Set<string>, query: string): QuerySuggestion["inferred
 function renderTemplate(s: QuerySuggestion, id: string, status: "draft" | "validated"): string {
   const nextStep = status === "validated"
     ? `This record is already active because project autopilot defaults set status=validated. Replace the template body with the actual answer when known.`
-    : `Then run \`haive memory promote ${id}\` to move it into team review.`;
+    : `Then run \`hivelore memory promote ${id}\` to move it into team review.`;
   return [
     `# Auto-drafted from recurring searches`,
     ``,
-    `> This memory was drafted by \`haive memory suggest --auto-save\` because`,
+    `> This memory was drafted by \`hivelore memory suggest --auto-save\` because`,
     `> agents searched for this **${s.count} times** in the recent window`,
     `> via ${s.tools.join(", ")}.`,
     ``,

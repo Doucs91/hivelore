@@ -120,7 +120,7 @@ export class MemoryItem extends vscode.TreeItem {
     this.tooltip = new vscode.MarkdownString(lines.join("\n"));
 
     this.command = {
-      command: "haive.openMemory",
+      command: "hivelore.openMemory",
       title: "Open Memory",
       arguments: [memory.filePath],
     };

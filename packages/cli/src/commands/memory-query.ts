@@ -11,7 +11,7 @@ import {
   tokenizeQuery,
   trackReads,
   type MemoryScope,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
@@ -37,14 +37,14 @@ export function registerMemoryQuery(memory: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
-        ui.error(`No memories directory at ${paths.memoriesDir}. Run \`haive init\` first.`);
+        ui.error(`No memories directory at ${paths.memoriesDir}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
 
       const tokens = tokenizeQuery(text);
       if (tokens.length === 0) {
-        ui.warn("Empty query — use \`haive memory list\` to list all memories.");
+        ui.warn("Empty query — use \`hivelore memory list\` to list all memories.");
         return;
       }
       const statusFilter = opts.status ? opts.status.split(",").map((s) => s.trim()) : null;

@@ -1,11 +1,11 @@
 {
-  "name": "@hiveai/github-action",
+  "name": "@hivelore/github-action",
   "version": "0.4.5",
-  "description": "GitHub Action for hAIve context policy and decision enforcement on pull requests",
+  "description": "GitHub Action for Hivelore context policy and decision enforcement on pull requests",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Doucs91/hAIve.git"
+    "url": "https://github.com/Doucs91/hivelore.git"
   },
   "scripts": {
     "build": "tsup src/run.ts --format cjs --out-dir dist --no-splitting --minify",

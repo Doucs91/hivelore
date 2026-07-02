@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/icon-128.png" width="96" height="96" alt="hAIve logo" />
+  <img src="https://raw.githubusercontent.com/Doucs91/hivelore/main/packages/vscode/media/icon-128.png" width="96" height="96" alt="Hivelore logo" />
 </p>
 
-<h1 align="center">hAIve — VS Code Extension</h1>
+<h1 align="center">Hivelore — VS Code Extension</h1>
 
 <p align="center">
   Surface team memories, gotchas, and architectural decisions <strong>inline while you code</strong>.<br/>
@@ -12,25 +12,25 @@
 ## Getting started
 
 1. **Install the extension** (from the Marketplace, or a local `.vsix` — see [Installation](#installation)).
-2. **Initialize hAIve in your repo** — open the Command Palette and run **`hAIve: Initialize in This Workspace`** (or `haive init` in a terminal). This creates `.ai/memories/`.
-3. **Open any file** — anchored team knowledge appears inline (CodeLens at the top of the file), in the **hAIve** sidebar (Activity Bar), and in the status bar. Press `Ctrl/Cmd+Shift+B` to get a briefing for the current file, or `Ctrl/Cmd+Shift+H` to search memories.
+2. **Initialize Hivelore in your repo** — open the Command Palette and run **`Hivelore: Initialize in This Workspace`** (or `hivelore init` in a terminal). This creates `.ai/memories/`.
+3. **Open any file** — anchored team knowledge appears inline (CodeLens at the top of the file), in the **Hivelore** sidebar (Activity Bar), and in the status bar. Press `Ctrl/Cmd+Shift+B` to get a briefing for the current file, or `Ctrl/Cmd+Shift+H` to search memories.
 
-> The extension reads `.ai/memories/**` directly, so it works even without the `haive` CLI on your PATH. Cockpit/eval/sensor/doctor features call the CLI — set `haive.cliPath` if `haive` isn't on PATH.
+> The extension reads `.ai/memories/**` directly, so it works even without the `hivelore` CLI on your PATH. Cockpit/eval/sensor/doctor features call the CLI — set `hivelore.cliPath` if `hivelore` isn't on PATH.
 
 ## Features
 
 ### Strategic Cockpit
-The **Strategic Cockpit** turns hAIve's CLI observability into a one-shot VS Code view:
+The **Strategic Cockpit** turns Hivelore's CLI observability into a one-shot VS Code view:
 
 - doctor scores: protection, context quality, corpus quality, harness coverage
 - eval quality: score, recall, precision, MRR, sensor catch-rate, baseline delta
 - corpus health: active/retired memories, stale, pending, anchorless, prune candidates
 - memory impact: high/medium/low tiers and top records by demonstrated utility
 - sensors: warn/block/autogen/fired counts and sensor records
-- tool usage: top hAIve tool calls from the usage log
+- tool usage: top Hivelore tool calls from the usage log
 - strategic risks: noisy retrieval, unfired sensors, stale/pending/prune work
 
-Use **hAIve: Refresh Observability** to rebuild the cockpit from the official CLI JSON commands
+Use **Hivelore: Refresh Observability** to rebuild the cockpit from the official CLI JSON commands
 (`doctor`, `dashboard`, `eval`, `stats`, `memory impact`, `sensors list`, `memory lint`).
 
 ### Discipline Inbox
@@ -46,16 +46,16 @@ Right-click items to open the memory, mark it **Applied** or **Rejected**, run a
 approve/reject memories, or promote a vetted sensor to `block`.
 
 ### Harness Health
-The **Harness Health** view surfaces `haive doctor` scores — protection, context quality, corpus
+The **Harness Health** view surfaces `hivelore doctor` scores — protection, context quality, corpus
 quality, and harness coverage — so you can see at a glance whether the agent harness is healthy
-before handing work to an agent. Use **hAIve: Run Health Check** to (re)compute the scores, and
-**hAIve: Sync Memories** to pull the latest shared corpus.
+before handing work to an agent. Use **Hivelore: Run Health Check** to (re)compute the scores, and
+**Hivelore: Sync Memories** to pull the latest shared corpus.
 
 ### 🧠 Inline CodeLens
 Files with anchored memories show a count at the top:
 
 ```
-🧠 hAIve: 3 memories — ⚠️ 1 gotcha · 🏗 1 architecture · 📐 1 convention
+🧠 Hivelore: 3 memories — ⚠️ 1 gotcha · 🏗 1 architecture · 📐 1 convention
   ⚠️  pg Pool — must set max:5 in production
   🏗  DB — always call migrate() at startup
   📐  UUID as PK — never use sequential integers
@@ -64,7 +64,7 @@ Files with anchored memories show a count at the top:
 Click any lens to jump to the memory file.
 
 ### 📋 Activity bar sidebar
-Browse memories from the dedicated **hAIve** icon in the **Activity Bar** (left strip). Memories are grouped by type; when you edit a file, the tree prioritizes anchors tied to that path.
+Browse memories from the dedicated **Hivelore** icon in the **Activity Bar** (left strip). Memories are grouped by type; when you edit a file, the tree prioritizes anchors tied to that path.
 
 Older builds placed the panel under Explorer — the activity bar placement keeps institutional knowledge one click away.
 
@@ -87,11 +87,11 @@ Example tree:
 Bottom status bar shows total memories and flags action_required:
 
 ```
-⚠️ hAIve: 9 memories · 2 action required
+⚠️ Hivelore: 9 memories · 2 action required
 ```
 
 ### ⚡ Auto-reload
-The extension watches `.ai/memories/**` and refreshes automatically when you run `haive memory save`, `haive sync`, or edit memory files directly.
+The extension watches `.ai/memories/**` and refreshes automatically when you run `hivelore memory save`, `hivelore sync`, or edit memory files directly.
 
 ### Human context routines
 The extension is designed to reinforce a small daily discipline:
@@ -105,8 +105,8 @@ The extension is designed to reinforce a small daily discipline:
 
 ## Requirements
 
-- `haive init` must have been run in the workspace (creates `.ai/memories/`)
-- Node.js ≥ 20 (for the `haive` CLI, optional — extension reads files directly)
+- `hivelore init` must have been run in the workspace (creates `.ai/memories/`)
+- Node.js ≥ 20 (for the `hivelore` CLI, optional — extension reads files directly)
 
 ## Installation
 
@@ -116,35 +116,35 @@ cd packages/vscode
 pnpm install
 pnpm build
 npx vsce package
-code --install-extension haive-vscode-*.vsix
+code --install-extension hivelore-vscode-*.vsix
 ```
 
 ### From Marketplace
-Search **hAIve** in the Extensions view, or run:
+Search **Hivelore** in the Extensions view, or run:
 
 ```
-ext install hAIve.haive-vscode
+ext install hivelore.hivelore-vscode
 ```
 
-Then initialize hAIve in your repo (see [Getting started](#getting-started)).
+Then initialize Hivelore in your repo (see [Getting started](#getting-started)).
 
 ## Settings
 
 | Setting | Default | Description |
 |---|---|---|
-| `haive.showCodeLens` | `true` | Show inline context-record count (CodeLens) at the top of files with anchored records |
-| `haive.showStatusBar` | `true` | Show the hAIve memory count in the status bar |
-| `haive.memoriesDir` | `.ai/memories` | Path to the context-records directory, relative to the workspace root |
-| `haive.highlightActionRequired` | `true` | Warning decoration on files with `action_required` records |
-| `haive.cliPath` | `haive` | Path to the `haive` CLI binary. Use an absolute path if `haive` is not on PATH (e.g. `/usr/local/bin/haive`) |
-| `haive.briefingBudget` | `default` | Token budget for the briefing: `default`, `deep` (more thorough, more tokens), or `minimal` |
+| `hivelore.showCodeLens` | `true` | Show inline context-record count (CodeLens) at the top of files with anchored records |
+| `hivelore.showStatusBar` | `true` | Show the Hivelore memory count in the status bar |
+| `hivelore.memoriesDir` | `.ai/memories` | Path to the context-records directory, relative to the workspace root |
+| `hivelore.highlightActionRequired` | `true` | Warning decoration on files with `action_required` records |
+| `hivelore.cliPath` | `hivelore` | Path to the `hivelore` CLI binary. Use an absolute path if it is not on PATH (e.g. `/usr/local/bin/hivelore`) |
+| `hivelore.briefingBudget` | `default` | Token budget for the briefing: `default`, `deep` (more thorough, more tokens), or `minimal` |
 
 ## Keybindings
 
 | Shortcut (Win/Linux) | Shortcut (macOS) | Command |
 |---|---|---|
-| `Ctrl+Shift+H` | `Cmd+Shift+H` | hAIve: Search Memories… |
-| `Ctrl+Shift+B` | `Cmd+Shift+B` | hAIve: Get Briefing for This File *(when the editor is focused)* |
+| `Ctrl+Shift+H` | `Cmd+Shift+H` | Hivelore: Search Memories… |
+| `Ctrl+Shift+B` | `Cmd+Shift+B` | Hivelore: Get Briefing for This File *(when the editor is focused)* |
 
 ## Commands
 
@@ -154,45 +154,45 @@ All commands are available from the Command Palette (`Ctrl/Cmd+Shift+P`).
 
 | Command | Description |
 |---|---|
-| `hAIve: Refresh Memories` | Reload memories from disk |
-| `hAIve: Show All Memories` | Show every memory in the sidebar |
-| `hAIve: Show Memories for This File` | Filter the sidebar to the current file |
-| `hAIve: Search Memories…` | Fuzzy-search the corpus (`Ctrl/Cmd+Shift+H`) |
-| `hAIve: Get Briefing for This File` | Ranked, file-scoped briefing for the active file (`Ctrl/Cmd+Shift+B`) |
-| `hAIve: Copy Memory Content` | Copy a memory's body to the clipboard |
+| `Hivelore: Refresh Memories` | Reload memories from disk |
+| `Hivelore: Show All Memories` | Show every memory in the sidebar |
+| `Hivelore: Show Memories for This File` | Filter the sidebar to the current file |
+| `Hivelore: Search Memories…` | Fuzzy-search the corpus (`Ctrl/Cmd+Shift+H`) |
+| `Hivelore: Get Briefing for This File` | Ranked, file-scoped briefing for the active file (`Ctrl/Cmd+Shift+B`) |
+| `Hivelore: Copy Memory Content` | Copy a memory's body to the clipboard |
 
 **Author & curate**
 
 | Command | Description |
 |---|---|
-| `hAIve: Add Memory…` | Quick-add a memory via guided input |
-| `hAIve: Record Failed Attempt…` | Capture a dead end (`mem tried`) so agents don't repeat it |
-| `hAIve: Add Starter Memories (Stack Pack)…` | Seed a stack pack of starter memories (auto-detected stacks first) |
-| `hAIve: Anchor Memory to File…` | Anchor a memory/seed to the active or a chosen file — turns a background seed into high-signal context |
-| `hAIve: Promote Memory to Team` | Promote a personal memory to the shared team scope |
-| `hAIve: Mark Memory Applied` | Record that a memory demonstrably steered work |
-| `hAIve: Mark Memory Rejected` | Record that a memory was noisy, wrong, or unhelpful |
-| `hAIve: Sync Memories` | Sync the corpus (regenerate bridges / shared state) |
+| `Hivelore: Add Memory…` | Quick-add a memory via guided input |
+| `Hivelore: Record Failed Attempt…` | Capture a dead end (`mem tried`) so agents don't repeat it |
+| `Hivelore: Add Starter Memories (Stack Pack)…` | Seed a stack pack of starter memories (auto-detected stacks first) |
+| `Hivelore: Anchor Memory to File…` | Anchor a memory/seed to the active or a chosen file — turns a background seed into high-signal context |
+| `Hivelore: Promote Memory to Team` | Promote a personal memory to the shared team scope |
+| `Hivelore: Mark Memory Applied` | Record that a memory demonstrably steered work |
+| `Hivelore: Mark Memory Rejected` | Record that a memory was noisy, wrong, or unhelpful |
+| `Hivelore: Sync Memories` | Sync the corpus (regenerate bridges / shared state) |
 
 **Observability & quality**
 
 | Command | Description |
 |---|---|
-| `hAIve: Run Health Check` | Run `haive doctor` and refresh the Harness Health view |
-| `hAIve: Refresh Observability` | Rebuild Strategic Cockpit + Discipline Inbox from CLI stats |
-| `hAIve: Run Eval` | Run retrieval + sensor quality eval |
-| `hAIve: Save Eval Baseline` | Save the current eval report as the regression baseline |
-| `hAIve: Compare Eval to Baseline` | Compare current eval to the saved baseline |
-| `hAIve: Run Sensors Check` | Run executable memory sensors against the staged diff |
-| `hAIve: Run Memory Lint` | Review corpus quality and suggested fixes |
-| `hAIve: Run Suggested Fix` | Apply a fix suggested by a Discipline Inbox item |
-| `hAIve: Promote Sensor to Block` | Promote a vetted sensor from `warn` to `block` |
+| `Hivelore: Run Health Check` | Run `hivelore doctor` and refresh the Harness Health view |
+| `Hivelore: Refresh Observability` | Rebuild Strategic Cockpit + Discipline Inbox from CLI stats |
+| `Hivelore: Run Eval` | Run retrieval + sensor quality eval |
+| `Hivelore: Save Eval Baseline` | Save the current eval report as the regression baseline |
+| `Hivelore: Compare Eval to Baseline` | Compare current eval to the saved baseline |
+| `Hivelore: Run Sensors Check` | Run executable memory sensors against the staged diff |
+| `Hivelore: Run Memory Lint` | Review corpus quality and suggested fixes |
+| `Hivelore: Run Suggested Fix` | Apply a fix suggested by a Discipline Inbox item |
+| `Hivelore: Promote Sensor to Block` | Promote a vetted sensor from `warn` to `block` |
 
 **Setup**
 
 | Command | Description |
 |---|---|
-| `hAIve: Initialize in This Workspace` | Run `haive init` in the terminal |
-| `hAIve: Show Output` | Open the hAIve output channel (logs/diagnostics) |
+| `Hivelore: Initialize in This Workspace` | Run `hivelore init` in the terminal |
+| `Hivelore: Show Output` | Open the Hivelore output channel (logs/diagnostics) |
 
 > 🌱 **Curating seeds:** stack-pack seeds are generic starter knowledge kept at *background* priority. The sidebar groups unanchored seeds under **Seeds — needs curation**; anchor one to a real file (or replace it with a repo-specific note) to make it high-signal for agents.

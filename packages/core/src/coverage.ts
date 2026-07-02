@@ -1,7 +1,7 @@
 /**
  * Harness coverage-gap detection — "which churny files have NO team knowledge on them?".
  *
- * hAIve's `eval` synthesizes cases from the memories that EXIST (does the corpus surface
+ * Hivelore's `eval` synthesizes cases from the memories that EXIST (does the corpus surface
  * correctly?). It cannot tell you what knowledge is MISSING. This module answers the inverse,
  * proactive question Fowler frames as an open challenge: of the files the team edits most, which
  * carry no covering decision/convention/gotcha/architecture memory? Those are the blind spots

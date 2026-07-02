@@ -6,7 +6,7 @@ describe("createHaiveServer", () => {
     const { server, context } = createHaiveServer({ root: process.cwd() });
     expect(server).toBeDefined();
     expect(context.paths.root).toBeTruthy();
-    expect(SERVER_NAME).toBe("haive");
+    expect(SERVER_NAME).toBe("hivelore");
     expect(SERVER_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });

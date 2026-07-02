@@ -1,17 +1,17 @@
-<!-- hAIve bridge file — do not edit by hand. -->
-<!-- This file points your AI tool at the shared hAIve project context. -->
+<!-- Hivelore bridge file — do not edit by hand. -->
+<!-- This file points your AI tool at the shared Hivelore project context. -->
 
 See `.ai/project-context.md` for the full project context.
 Memories live under `.ai/memories/` (personal/team/module).
 
-## hAIve — mandatory rules for AI agents
+## Hivelore — mandatory rules for AI agents
 
-Installing or initializing hAIve in this repository means **the team expects AI agents to drive work through hAIve**, not bypass it.
+Installing or initializing Hivelore in this repository means **the team expects AI agents to drive work through Hivelore**, not bypass it.
 
 ### MCP first (default — never optional unless the developer says so)
 The **haive** MCP server must be enabled in your client. Until it is unavailable (misconfiguration report to the developer), you **must** use it for substantive work:
 
-- **Before** you edit project source files, configs (`package.json`, tooling), or workflows for the current goal, invoke `get_briefing` with a short **task** string (and **files** / **symbols** when you know them). If project context was already refreshed in this session and you only need ranked memories, you may call `mem_relevant_to` instead—but **still** consult hAIve before trusting ungrounded guesses.
+- **Before** you edit project source files, configs (`package.json`, tooling), or workflows for the current goal, invoke `get_briefing` with a short **task** string (and **files** / **symbols** when you know them). If project context was already refreshed in this session and you only need ranked memories, you may call `mem_relevant_to` instead—but **still** consult Hivelore before trusting ungrounded guesses.
 - **Before** declaring a coding task finished, invoke the MCP prompt `post_task` when the session produced learnings or substantive changes worth capturing.
 
 Do **not** treat these as nice-to-have: they are **default-required** for coding agents here.
@@ -24,7 +24,7 @@ Several agents **and** the human (Sady) work on this repo in parallel with manua
 
 **BEFORE a task:** `git pull`; resolve any conflicts before touching code; verify no conflict markers remain (`<<<<<<<`, `=======`, `>>>>>>>`), especially under `.ai/`.
 
-**AFTER changing code:** `git commit`; bump the version **only if shippable package code changed** (`@hiveai/core`, `cli`, `mcp`, `embeddings`), **patch by default**, lockstep across the 4 packages; create the tag `vX.Y.Z`; then `git push && git push --tags`. Docs-only / `.ai/`-only / config / CI commits → commit + push **without** bump or tag.
+**AFTER changing code:** `git commit`; bump the version **only if shippable package code changed** (`@hivelore/core`, `cli`, `mcp`, `embeddings`), **patch by default**, lockstep across the 4 packages; create the tag `vX.Y.Z`; then `git push && git push --tags`. Docs-only / `.ai/`-only / config / CI commits → commit + push **without** bump or tag.
 
 **BOUNDARY: agents NEVER run `npm publish` — the human (Sady) handles npm publication.**
 

@@ -4,7 +4,7 @@ import {
   estimateTokens,
   findProjectRoot,
   resolveHaivePaths,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import {
   antiPatternsCheck,
   codeMapTool,
@@ -12,7 +12,7 @@ import {
   getBriefing,
   getRecap,
   memRelevantTo,
-} from "@hiveai/mcp";
+} from "@hivelore/mcp";
 import { ui } from "../utils/ui.js";
 
 interface BenchOptions {
@@ -33,7 +33,7 @@ export function registerBench(program: Command): void {
   program
     .command("selftest")
     .alias("bench")
-    .description("Self-test the LOCAL hAIve install: runs core MCP tools against this project and reports latency + payload size. Different from `benchmark` (which measures hAIve-vs-plain agent value). Alias: bench")
+    .description("Self-test the LOCAL Hivelore install: runs core MCP tools against this project and reports latency + payload size. Different from `benchmark` (which measures Hivelore-vs-plain agent value). Alias: bench")
     .option("-t, --task <task>", "task description for ranking-aware tools", "audit dependencies for security risks")
     .option("--json", "emit JSON instead of a table", false)
     .option("-d, --dir <dir>", "project root")
@@ -98,7 +98,7 @@ export function registerBench(program: Command): void {
           const t0 = performance.now();
           const out = await codeSearch({ query: task, k: 5, min_score: 0.2 }, ctx);
           return summarize("code_search", t0, out, [
-            out.available ? `${out.hits.length} hits` : "needs index (haive index code-search)",
+            out.available ? `${out.hits.length} hits` : "needs index (hivelore index code-search)",
           ]);
         },
         async () => {
@@ -130,7 +130,7 @@ export function registerBench(program: Command): void {
         return;
       }
 
-      console.log(ui.bold(`hAIve bench — ${root}`));
+      console.log(ui.bold(`Hivelore bench — ${root}`));
       console.log(ui.dim(`task: ${task}`));
       console.log();
       console.log(

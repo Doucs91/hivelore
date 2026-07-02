@@ -7,7 +7,7 @@ import {
   readUsageEvents,
   resolveHaivePaths,
   type UsageEvent,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface PlaybackOptions {
@@ -112,7 +112,7 @@ export function registerPlayback(program: Command): void {
         return;
       }
 
-      console.log(ui.bold(`hAIve playback — ${enriched.length} session(s) over ${opts.since ?? "all time"}`));
+      console.log(ui.bold(`Hivelore playback — ${enriched.length} session(s) over ${opts.since ?? "all time"}`));
       console.log();
       for (const s of shown) {
         console.log(

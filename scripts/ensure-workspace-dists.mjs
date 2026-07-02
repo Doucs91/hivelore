@@ -8,9 +8,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 
 const packages = new Map([
-  ["@hiveai/core", "packages/core/dist/index.d.ts"],
-  ["@hiveai/embeddings", "packages/embeddings/dist/index.d.ts"],
-  ["@hiveai/mcp", "packages/mcp/dist/server.d.ts"],
+  ["@hivelore/core", "packages/core/dist/index.d.ts"],
+  ["@hivelore/embeddings", "packages/embeddings/dist/index.d.ts"],
+  ["@hivelore/mcp", "packages/mcp/dist/server.d.ts"],
 ]);
 
 const requested = process.argv.slice(2);

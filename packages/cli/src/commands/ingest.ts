@@ -1,23 +1,23 @@
 /**
- * CI USAGE — integrate haive ingest in your pipeline:
+ * CI USAGE — integrate hivelore ingest in your pipeline:
  *
  *   # ESLint / any SARIF emitter
  *   eslint --format @microsoft/eslint-formatter-sarif --output-file eslint.sarif src/
- *   haive ingest --from sarif eslint.sarif --scope team --min-severity major
+ *   hivelore ingest --from sarif eslint.sarif --scope team --min-severity major
  *
  *   # SonarQube file export
- *   haive ingest --from sonar sonar-issues.json --scope team --min-severity major
+ *   hivelore ingest --from sonar sonar-issues.json --scope team --min-severity major
  *
  *   # SonarQube live API (no file needed — Node 18+)
- *   haive ingest --from sonar-api \
+ *   hivelore ingest --from sonar-api \
  *     --sonar-url "$SONAR_HOST_URL" --sonar-token "$SONAR_TOKEN" \
  *     --sonar-component my_project --min-severity major
  *
  *   # Dry-run to preview without writing
- *   haive ingest --from sarif report.sarif --dry-run
+ *   hivelore ingest --from sarif report.sarif --dry-run
  *
  * Exit codes: 0 = success (even when nothing new), 1 = bad args or unreadable report.
- * New memories are status=proposed; a human validates them with `haive memory pending`.
+ * New memories are status=proposed; a human validates them with `hivelore memory pending`.
  */
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -34,7 +34,7 @@ import {
   serializeMemory,
   type FindingSeverity,
   type MemoryDraft,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface IngestOptions {
@@ -69,11 +69,11 @@ export function registerIngest(program: Command): void {
       "  no MCP or special setup required, just a URL + token you provide (or SONAR_HOST_URL /\n" +
       "  SONAR_TOKEN env). If you don't use it, file-based ingest works exactly the same.\n\n" +
       "  Example:\n" +
-      "    haive ingest --from eslint eslint-report.json --min-severity major\n" +
-      "    haive ingest --from npm-audit audit.json --scope team\n" +
-      "    haive ingest --from sarif report.sarif --dry-run\n" +
-      "    haive ingest --from sonar sonar-issues.json --scope team --min-severity major\n" +
-      "    haive ingest --from sonar-api --sonar-component my_project --min-severity major\n\n" +
+      "    hivelore ingest --from eslint eslint-report.json --min-severity major\n" +
+      "    hivelore ingest --from npm-audit audit.json --scope team\n" +
+      "    hivelore ingest --from sarif report.sarif --dry-run\n" +
+      "    hivelore ingest --from sonar sonar-issues.json --scope team --min-severity major\n" +
+      "    hivelore ingest --from sonar-api --sonar-component my_project --min-severity major\n\n" +
       "  Generate the input reports:\n" +
       "    eslint -f json -o eslint-report.json .      # --from eslint\n" +
       "    npm audit --json > audit.json               # --from npm-audit\n",
@@ -116,7 +116,7 @@ export function registerIngest(program: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) {
-        ui.error(`No .ai/ found at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/ found at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -136,7 +136,7 @@ export function registerIngest(program: Command): void {
         raw = fetched.json;
       } else {
         if (!file) {
-          ui.error(`--from ${format} needs a report file argument, e.g. \`haive ingest --from ${format} report.json\`.`);
+          ui.error(`--from ${format} needs a report file argument, e.g. \`hivelore ingest --from ${format} report.json\`.`);
           process.exitCode = 1;
           return;
         }
@@ -217,7 +217,7 @@ export function registerIngest(program: Command): void {
       const filteredLowValue = Math.max(0, findingsCount - drafts.length);
       console.log(
         ui.bold(
-          `hAIve ingest (${format}) — ${findingsCount} finding(s), ${fresh.length} new` +
+          `Hivelore ingest (${format}) — ${findingsCount} finding(s), ${fresh.length} new` +
           (filteredLowValue > 0 ? `, ${filteredLowValue} low-value/stylistic filtered` : "") +
           (skipped > 0 ? `, ${skipped} already ingested` : ""),
         ),
@@ -246,7 +246,7 @@ export function registerIngest(program: Command): void {
         created++;
       }
       ui.success(`Created ${created} proposed memory(ies) under ${path.relative(root, paths.memoriesDir)}/`);
-      ui.info("Review with `haive memory pending`; promote sensors with `haive sensors promote <id> --yes`.");
+      ui.info("Review with `hivelore memory pending`; promote sensors with `hivelore sensors promote <id> --yes`.");
     });
 }
 
@@ -262,7 +262,7 @@ type SonarFetchResult = { ok: true; json: string } | { ok: false; error: string 
 /**
  * Fetch open issues from any SonarQube / SonarCloud instance over plain HTTPS, using the
  * SonarQube Web API (`/api/issues/search`). This is deliberately MCP-free and dependency-free
- * (Node's built-in fetch) so hAIve works on any project: credentials are supplied by the user
+ * (Node's built-in fetch) so Hivelore works on any project: credentials are supplied by the user
  * via flags or env, and when they are absent this returns a clear error instead of crashing —
  * file-based ingest (`--from sonar|sarif`) is always available regardless.
  */

@@ -12,7 +12,7 @@ import {
   serializeMemory,
   type LoadedMemory,
   type UsageIndex,
-} from "@hiveai/core";
+} from "@hivelore/core";
 
 type Screen = "memories" | "health" | "stats";
 type FilterStatus = "all" | "draft" | "proposed" | "validated" | "stale" | "rejected";
@@ -167,7 +167,7 @@ export function Dashboard({ root }: Props) {
 
   if (loading) return <Text dimColor>Loading memories…</Text>;
   if (!existsSync(paths.memoriesDir)) {
-    return <Text color="red">No .ai/memories found — run `haive init` first.</Text>;
+    return <Text color="red">No .ai/memories found — run `hivelore init` first.</Text>;
   }
 
   // ── Header (shared) ───────────────────────────────────────────────────
@@ -179,7 +179,7 @@ export function Dashboard({ root }: Props) {
 
   const Header = () => (
     <Box borderStyle="round" paddingX={1} gap={2}>
-      <Text bold color="cyan">hAIve</Text>
+      <Text bold color="cyan">Hivelore</Text>
       <Text dimColor>{root.length > 40 ? "…" + root.slice(-38) : root}</Text>
       <Text>  </Text>
       <Text color="green">✓ {v}</Text>
@@ -348,7 +348,7 @@ export function Dashboard({ root }: Props) {
 
         <Box paddingX={1} marginTop={1}>
           <Text dimColor>
-            Run `haive memory verify --update` to recheck anchors  |  `haive memory update &lt;id&gt; --paths &lt;files&gt;` to add anchors
+            Run `hivelore memory verify --update` to recheck anchors  |  `hivelore memory update &lt;id&gt; --paths &lt;files&gt;` to add anchors
           </Text>
         </Box>
         <FlashBar />

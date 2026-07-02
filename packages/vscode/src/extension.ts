@@ -21,7 +21,7 @@ function relativeToWorkspace(uri: vscode.Uri, root: string): string {
 // ── Status bar ────────────────────────────────────────────────────────────────
 
 function updateStatusBar(item: vscode.StatusBarItem, store: MemoryStore): void {
-  const cfg = vscode.workspace.getConfiguration("haive");
+  const cfg = vscode.workspace.getConfiguration("hivelore");
   if (!cfg.get<boolean>("showStatusBar", true) || !store.isInitialized()) {
     item.hide();
     return;
@@ -32,24 +32,24 @@ function updateStatusBar(item: vscode.StatusBarItem, store: MemoryStore): void {
   const pending = store.pendingCount();
 
   if (total === 0) {
-    item.text = "$(book) hAIve: no memories";
-    item.tooltip = "No hAIve memories found. Run `haive memory add` to add the first one.";
+    item.text = "$(book) Hivelore: no memories";
+    item.tooltip = "No Hivelore memories found. Run `hivelore memory add` to add the first one.";
     item.backgroundColor = undefined;
   } else if (ar > 0) {
-    item.text = `$(warning) hAIve: ${total} · ${ar} action required`;
-    item.tooltip = `${ar} memory(ies) require human confirmation. Open the hAIve sidebar to review.`;
+    item.text = `$(warning) Hivelore: ${total} · ${ar} action required`;
+    item.tooltip = `${ar} memory(ies) require human confirmation. Open the Hivelore sidebar to review.`;
     item.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
   } else if (pending > 0) {
-    item.text = `$(circle-outline) hAIve: ${total} · ${pending} pending`;
+    item.text = `$(circle-outline) Hivelore: ${total} · ${pending} pending`;
     item.tooltip = `${pending} draft/proposed memory(ies) awaiting review.`;
     item.backgroundColor = undefined;
   } else {
-    item.text = `$(book) hAIve: ${total} ${total === 1 ? "memory" : "memories"}`;
-    item.tooltip = "Click to open hAIve Memories panel";
+    item.text = `$(book) Hivelore: ${total} ${total === 1 ? "memory" : "memories"}`;
+    item.tooltip = "Click to open Hivelore Memories panel";
     item.backgroundColor = undefined;
   }
 
-  item.command = "haive.showMemoriesForFile";
+  item.command = "hivelore.showMemoriesForFile";
   item.show();
 }
 
@@ -60,7 +60,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   if (!root) return;
   const workspaceRoot = root;
 
-  const outputChannel = vscode.window.createOutputChannel("hAIve", "markdown");
+  const outputChannel = vscode.window.createOutputChannel("Hivelore", "markdown");
   ctx.subscriptions.push(outputChannel);
 
   // ── Core store ─────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   // ── Memories tree view ─────────────────────────────────────────────────
   const treeProvider = new HaiveTreeProvider(store);
-  const treeView = vscode.window.createTreeView("haive.memoriesView", {
+  const treeView = vscode.window.createTreeView("hivelore.memoriesView", {
     treeDataProvider: treeProvider,
     showCollapseAll: true,
   });
@@ -101,7 +101,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   // ── Harness Health tree view ────────────────────────────────────────────
   const healthProvider = new HarnessHealthProvider(workspaceRoot, outputChannel);
-  const healthView = vscode.window.createTreeView("haive.harnessView", {
+  const healthView = vscode.window.createTreeView("hivelore.harnessView", {
     treeDataProvider: healthProvider,
     showCollapseAll: false,
   });
@@ -110,11 +110,11 @@ export function activate(ctx: vscode.ExtensionContext): void {
   // ── Strategic observability views ──────────────────────────────────────
   const cockpitProvider = new ObservabilityProvider(workspaceRoot, outputChannel, "cockpit");
   const inboxProvider = new ObservabilityProvider(workspaceRoot, outputChannel, "inbox");
-  const cockpitView = vscode.window.createTreeView("haive.cockpitView", {
+  const cockpitView = vscode.window.createTreeView("hivelore.cockpitView", {
     treeDataProvider: cockpitProvider,
     showCollapseAll: true,
   });
-  const inboxView = vscode.window.createTreeView("haive.inboxView", {
+  const inboxView = vscode.window.createTreeView("hivelore.inboxView", {
     treeDataProvider: inboxProvider,
     showCollapseAll: true,
   });
@@ -143,7 +143,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   function updateDecorations(editor: vscode.TextEditor | undefined): void {
     if (!editor) return;
-    const cfg = vscode.workspace.getConfiguration("haive");
+    const cfg = vscode.workspace.getConfiguration("hivelore");
     if (!cfg.get<boolean>("highlightActionRequired", true)) return;
     const rel = relativeToWorkspace(editor.document.uri, workspaceRoot);
     const hasThreat = store.forFile(rel).some((m) => m.requiresHumanApproval);
@@ -156,35 +156,35 @@ export function activate(ctx: vscode.ExtensionContext): void {
   // ── Commands ───────────────────────────────────────────────────────────
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.refreshMemories", () => {
+    vscode.commands.registerCommand("hivelore.refreshMemories", () => {
       store.load();
       codeLensProvider.refresh();
       treeProvider.refresh();
       updateStatusBar(statusBarItem, store);
-      vscode.window.setStatusBarMessage("$(check) hAIve: memories refreshed", 2000);
+      vscode.window.setStatusBarMessage("$(check) Hivelore: memories refreshed", 2000);
     }),
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.showMemoriesForFile", async (uri?: vscode.Uri) => {
+    vscode.commands.registerCommand("hivelore.showMemoriesForFile", async (uri?: vscode.Uri) => {
       const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
       if (targetUri) {
         const rel = relativeToWorkspace(targetUri, workspaceRoot);
         treeProvider.filterToFile(rel);
       }
-      await vscode.commands.executeCommand("haive.memoriesView.focus");
+      await vscode.commands.executeCommand("hivelore.memoriesView.focus");
     }),
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.showAllMemories", async () => {
+    vscode.commands.registerCommand("hivelore.showAllMemories", async () => {
       treeProvider.clearFilter();
-      await vscode.commands.executeCommand("haive.memoriesView.focus");
+      await vscode.commands.executeCommand("hivelore.memoriesView.focus");
     }),
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.openMemory", async (filePathOrUri: string | vscode.Uri) => {
+    vscode.commands.registerCommand("hivelore.openMemory", async (filePathOrUri: string | vscode.Uri) => {
       const uri = typeof filePathOrUri === "string" ? vscode.Uri.file(filePathOrUri) : filePathOrUri;
       const doc = await vscode.workspace.openTextDocument(uri);
       await vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
@@ -192,7 +192,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.copyMemoryBody", async (item: { memory?: { body: string } }) => {
+    vscode.commands.registerCommand("hivelore.copyMemoryBody", async (item: { memory?: { body: string } }) => {
       if (item?.memory?.body) {
         await vscode.env.clipboard.writeText(item.memory.body);
         vscode.window.setStatusBarMessage("$(check) Memory content copied", 2000);
@@ -202,10 +202,10 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   // ── Search memories ────────────────────────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.searchMemories", async () => {
+    vscode.commands.registerCommand("hivelore.searchMemories", async () => {
       const all = store.getAll();
       if (all.length === 0) {
-        vscode.window.showInformationMessage("No hAIve memories found in this workspace.");
+        vscode.window.showInformationMessage("No Hivelore memories found in this workspace.");
         return;
       }
 
@@ -225,18 +225,18 @@ export function activate(ctx: vscode.ExtensionContext): void {
         matchOnDescription: true,
         matchOnDetail: true,
         placeHolder: "Search memories by title, type, tags…",
-        title: "hAIve: Search Memories",
+        title: "Hivelore: Search Memories",
       });
 
       if (selected) {
-        await vscode.commands.executeCommand("haive.openMemory", selected.memory.filePath);
+        await vscode.commands.executeCommand("hivelore.openMemory", selected.memory.filePath);
       }
     }),
   );
 
   // ── Add memory ────────────────────────────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.addMemory", async () => {
+    vscode.commands.registerCommand("hivelore.addMemory", async () => {
       const TYPE_ITEMS = [
         { label: "⚡ skill", description: "Reusable procedure/playbook agents should follow", value: "skill" },
         { label: "⚠️ gotcha", description: "Non-obvious behavior that surprises newcomers", value: "gotcha" },
@@ -248,14 +248,14 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
       const typeItem = await vscode.window.showQuickPick(TYPE_ITEMS, {
         placeHolder: "Select memory type",
-        title: "hAIve: Add Memory (1/4)",
+        title: "Hivelore: Add Memory (1/4)",
       });
       if (!typeItem) return;
 
       const slug = await vscode.window.showInputBox({
         prompt: "Short slug (kebab-case)",
         placeHolder: `${typeItem.value}-my-slug`,
-        title: "hAIve: Add Memory (2/4)",
+        title: "Hivelore: Add Memory (2/4)",
         validateInput: (v) =>
           /^[a-z0-9-]+$/.test(v) ? null : "Lowercase letters, numbers and hyphens only",
       });
@@ -268,7 +268,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
           : typeItem.value === "gotcha"
           ? "Non-obvious behavior: … Fix: …"
           : "Describe the " + typeItem.value + "…",
-        title: "hAIve: Add Memory (3/4)",
+        title: "Hivelore: Add Memory (3/4)",
       });
       if (!body) return;
 
@@ -282,13 +282,13 @@ export function activate(ctx: vscode.ExtensionContext): void {
             { label: `$(file-code) Anchor to ${path.basename(rel)}`, value: rel },
             { label: "$(close) No anchor", value: "" },
           ],
-          { placeHolder: "Anchor this memory to a source file?", title: "hAIve: Add Memory (4/4)" },
+          { placeHolder: "Anchor this memory to a source file?", title: "Hivelore: Add Memory (4/4)" },
         );
         if (anchor?.value) anchorFlag = ` --paths "${anchor.value}"`;
       }
 
-      const cmd = `haive memory add --type ${typeItem.value} --slug ${slug} --scope team --body "${body.replace(/"/g, '\\"')}"${anchorFlag}`;
-      const terminal = vscode.window.createTerminal({ name: "hAIve", cwd: workspaceRoot });
+      const cmd = `hivelore memory add --type ${typeItem.value} --slug ${slug} --scope team --body "${body.replace(/"/g, '\\"')}"${anchorFlag}`;
+      const terminal = vscode.window.createTerminal({ name: "Hivelore", cwd: workspaceRoot });
       terminal.show();
       terminal.sendText(cmd);
     }),
@@ -296,30 +296,30 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   // ── Memory Tried ────────────────────────────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.memTried", async () => {
+    vscode.commands.registerCommand("hivelore.memTried", async () => {
       const what = await vscode.window.showInputBox({
         prompt: "What did you try? (brief description)",
         placeHolder: "Used X approach for Y problem",
-        title: "hAIve: Record Failed Attempt (1/2)",
+        title: "Hivelore: Record Failed Attempt (1/2)",
       });
       if (!what) return;
 
       const why = await vscode.window.showInputBox({
         prompt: "Why did it fail?",
         placeHolder: "Failed because…",
-        title: "hAIve: Record Failed Attempt (2/2)",
+        title: "Hivelore: Record Failed Attempt (2/2)",
       });
       if (!why) return;
 
-      const terminal = vscode.window.createTerminal({ name: "hAIve", cwd: workspaceRoot });
+      const terminal = vscode.window.createTerminal({ name: "Hivelore", cwd: workspaceRoot });
       terminal.show();
-      terminal.sendText(`haive memory tried --what "${what.replace(/"/g, '\\"')}" --why "${why.replace(/"/g, '\\"')}"`);
+      terminal.sendText(`hivelore memory tried --what "${what.replace(/"/g, '\\"')}" --why "${why.replace(/"/g, '\\"')}"`);
     }),
   );
 
   // ── Run Briefing ────────────────────────────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.runBriefing", async (uri?: vscode.Uri) => {
+    vscode.commands.registerCommand("hivelore.runBriefing", async (uri?: vscode.Uri) => {
       const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
       let relFile: string | undefined;
       if (targetUri?.scheme === "file") {
@@ -327,7 +327,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
       }
 
       await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Window, title: "hAIve: loading briefing…" },
+        { location: vscode.ProgressLocation.Window, title: "Hivelore: loading briefing…" },
         () => briefingPanel.runForFile(workspaceRoot, relFile),
       );
     }),
@@ -335,50 +335,50 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   // ── Run Doctor ─────────────────────────────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.runDoctor", async () => {
+    vscode.commands.registerCommand("hivelore.runDoctor", async () => {
       await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Window, title: "hAIve: running doctor…" },
+        { location: vscode.ProgressLocation.Window, title: "Hivelore: running doctor…" },
         () => healthProvider.runDoctor(),
       );
-      await vscode.commands.executeCommand("haive.harnessView.focus");
+      await vscode.commands.executeCommand("hivelore.harnessView.focus");
     }),
   );
 
   // ── Strategic observability refresh ────────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.refreshObservability", async () => {
+    vscode.commands.registerCommand("hivelore.refreshObservability", async () => {
       await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Window, title: "hAIve: refreshing observability…" },
+        { location: vscode.ProgressLocation.Window, title: "Hivelore: refreshing observability…" },
         async () => {
           const snapshot = await cockpitProvider.refreshData();
           if (snapshot) inboxProvider.useSnapshot(snapshot);
         },
       );
-      await vscode.commands.executeCommand("haive.cockpitView.focus");
+      await vscode.commands.executeCommand("hivelore.cockpitView.focus");
     }),
   );
 
   // ── Sync memories ───────────────────────────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.syncMemories", async () => {
+    vscode.commands.registerCommand("hivelore.syncMemories", async () => {
       await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Window, title: "hAIve: syncing…" },
+        { location: vscode.ProgressLocation.Window, title: "Hivelore: syncing…" },
         async () => {
           try {
             const out = await runHaive(workspaceRoot, ["sync"]);
-            outputChannel.appendLine(`\n[haive sync] ${new Date().toLocaleTimeString()}`);
+            outputChannel.appendLine(`\n[hivelore sync] ${new Date().toLocaleTimeString()}`);
             outputChannel.appendLine(out);
             store.load();
             treeProvider.refresh();
             const snapshot = await cockpitProvider.refreshData();
             if (snapshot) inboxProvider.useSnapshot(snapshot);
             updateStatusBar(statusBarItem, store);
-            vscode.window.setStatusBarMessage("$(check) hAIve: sync complete", 3000);
+            vscode.window.setStatusBarMessage("$(check) Hivelore: sync complete", 3000);
           } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
-            outputChannel.appendLine(`[haive sync error] ${msg}`);
+            outputChannel.appendLine(`[hivelore sync error] ${msg}`);
             outputChannel.show(true);
-            vscode.window.showErrorMessage(`hAIve sync failed: ${msg}`);
+            vscode.window.showErrorMessage(`Hivelore sync failed: ${msg}`);
           }
         },
       );
@@ -387,10 +387,10 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   // ── Approve memory ─────────────────────────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.approveMemory", async (item?: { memory?: { id: string } }) => {
+    vscode.commands.registerCommand("hivelore.approveMemory", async (item?: { memory?: { id: string } }) => {
       let id = itemMemoryId(item);
       if (!id) {
-        id = await vscode.window.showInputBox({ prompt: "Memory ID to approve", title: "hAIve: Approve Memory" });
+        id = await vscode.window.showInputBox({ prompt: "Memory ID to approve", title: "Hivelore: Approve Memory" });
       }
       if (!id) return;
       await runHaiveAction(["memory", "approve", id], `approved ${id}`);
@@ -399,10 +399,10 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   // ── Reject memory ──────────────────────────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.rejectMemory", async (item?: { memory?: { id: string } }) => {
+    vscode.commands.registerCommand("hivelore.rejectMemory", async (item?: { memory?: { id: string } }) => {
       let id = itemMemoryId(item);
       if (!id) {
-        id = await vscode.window.showInputBox({ prompt: "Memory ID to reject", title: "hAIve: Reject Memory" });
+        id = await vscode.window.showInputBox({ prompt: "Memory ID to reject", title: "Hivelore: Reject Memory" });
       }
       if (!id) return;
       await runHaiveAction(["memory", "reject", id], `rejected ${id}`);
@@ -413,7 +413,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   async function runHaiveAction(args: string[], successMsg: string): Promise<boolean> {
     try {
       const out = await runHaive(workspaceRoot, args);
-      outputChannel.appendLine(`\n[haive ${args.join(" ")}] ${new Date().toLocaleTimeString()}`);
+      outputChannel.appendLine(`\n[hivelore ${args.join(" ")}] ${new Date().toLocaleTimeString()}`);
       outputChannel.appendLine(out);
       store.load();
       treeProvider.refresh();
@@ -425,9 +425,9 @@ export function activate(ctx: vscode.ExtensionContext): void {
       return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      outputChannel.appendLine(`[haive error] ${msg}`);
+      outputChannel.appendLine(`[hivelore error] ${msg}`);
       outputChannel.show(true);
-      vscode.window.showErrorMessage(`hAIve: ${msg}`);
+      vscode.window.showErrorMessage(`Hivelore: ${msg}`);
       return false;
     }
   }
@@ -436,10 +436,10 @@ export function activate(ctx: vscode.ExtensionContext): void {
     if (!id) return;
     const memory = store.getAll().find((m) => m.id === id);
     if (!memory) {
-      vscode.window.showWarningMessage(`hAIve: no local memory found for ${id}. Refresh memories and try again.`);
+      vscode.window.showWarningMessage(`Hivelore: no local memory found for ${id}. Refresh memories and try again.`);
       return;
     }
-    await vscode.commands.executeCommand("haive.openMemory", memory.filePath);
+    await vscode.commands.executeCommand("hivelore.openMemory", memory.filePath);
   }
 
   /** Resolve a memory id from a tree item, or let the user pick one. */
@@ -451,7 +451,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
     if (item?.memory?.id) return item.memory.id;
     const all = store.getAll().filter((m) => (filter ? filter(m) : true));
     if (all.length === 0) {
-      vscode.window.showInformationMessage("hAIve: no matching memories.");
+      vscode.window.showInformationMessage("Hivelore: no matching memories.");
       return undefined;
     }
     const picked = await vscode.window.showQuickPick(
@@ -460,7 +460,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
         description: `${m.scope}/${m.type}${m.status !== "validated" ? ` [${m.status}]` : ""}`,
         id: m.id,
       })),
-      { placeHolder, matchOnDescription: true, title: "hAIve" },
+      { placeHolder, matchOnDescription: true, title: "Hivelore" },
     );
     return picked?.id;
   }
@@ -479,47 +479,47 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   // ── Observability routines and item actions ────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.openMemoryById", async (itemOrId?: unknown) => {
+    vscode.commands.registerCommand("hivelore.openMemoryById", async (itemOrId?: unknown) => {
       const id = typeof itemOrId === "string" ? itemOrId : itemMemoryId(itemOrId);
       await openMemoryById(id);
     }),
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.runEval", async () => {
+    vscode.commands.registerCommand("hivelore.runEval", async () => {
       await runHaiveAction(["eval"], "eval complete");
     }),
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.saveEvalBaseline", async () => {
+    vscode.commands.registerCommand("hivelore.saveEvalBaseline", async () => {
       await runHaiveAction(["eval", "--baseline"], "eval baseline saved");
     }),
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.compareEval", async () => {
+    vscode.commands.registerCommand("hivelore.compareEval", async () => {
       await runHaiveAction(["eval", "--compare"], "eval comparison complete");
     }),
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.runSensorsCheck", async () => {
+    vscode.commands.registerCommand("hivelore.runSensorsCheck", async () => {
       await runHaiveAction(["sensors", "check"], "sensors check complete");
     }),
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.runMemoryLint", async () => {
+    vscode.commands.registerCommand("hivelore.runMemoryLint", async () => {
       await runHaiveAction(["memory", "lint", "--fix"], "memory lint complete");
     }),
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.runFixAction", async (item?: unknown) => {
+    vscode.commands.registerCommand("hivelore.runFixAction", async (item?: unknown) => {
       const args = itemActionArgs(item);
       if (!args || args.length === 0) {
-        vscode.window.showInformationMessage("hAIve: this item has no automatic fix.");
+        vscode.window.showInformationMessage("Hivelore: this item has no automatic fix.");
         return;
       }
       await runHaiveAction(args, `ran haive ${args.join(" ")}`);
@@ -527,7 +527,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.markMemoryApplied", async (item?: unknown) => {
+    vscode.commands.registerCommand("hivelore.markMemoryApplied", async (item?: unknown) => {
       const id = itemMemoryId(item);
       if (!id) return;
       await runHaiveAction(["memory", "feedback", id, "--applied"], `marked ${id} as applied`);
@@ -535,11 +535,11 @@ export function activate(ctx: vscode.ExtensionContext): void {
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.markMemoryRejected", async (item?: unknown) => {
+    vscode.commands.registerCommand("hivelore.markMemoryRejected", async (item?: unknown) => {
       const id = itemMemoryId(item);
       if (!id) return;
       const reason = await vscode.window.showInputBox({
-        title: "hAIve: Reject Memory Signal",
+        title: "Hivelore: Reject Memory Signal",
         prompt: "Why was this memory wrong, noisy, or unhelpful?",
         placeHolder: "Too generic / outdated / did not apply to this task",
       });
@@ -549,7 +549,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   );
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.promoteSensor", async (item?: unknown) => {
+    vscode.commands.registerCommand("hivelore.promoteSensor", async (item?: unknown) => {
       const id = itemMemoryId(item);
       if (!id) return;
       const choice = await vscode.window.showWarningMessage(
@@ -564,7 +564,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   // ── Seed a stack pack ──────────────────────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.seedStackPack", async () => {
+    vscode.commands.registerCommand("hivelore.seedStackPack", async () => {
       let supported: string[] = [];
       let detected: string[] = [];
       try {
@@ -574,11 +574,11 @@ export function activate(ctx: vscode.ExtensionContext): void {
         detected = parsed.detected ?? [];
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        vscode.window.showErrorMessage(`hAIve: could not list stacks (${msg}). Is hAIve initialized?`);
+        vscode.window.showErrorMessage(`Hivelore: could not list stacks (${msg}). Is Hivelore initialized?`);
         return;
       }
       if (supported.length === 0) {
-        vscode.window.showInformationMessage("hAIve: no stack packs available.");
+        vscode.window.showInformationMessage("Hivelore: no stack packs available.");
         return;
       }
 
@@ -593,13 +593,13 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
       const chosen = await vscode.window.showQuickPick(picks, {
         placeHolder: "Pick a stack to seed starter memories (kept at background priority until anchored)",
-        title: "hAIve: Add Starter Memories",
+        title: "Hivelore: Add Starter Memories",
         canPickMany: false,
       });
       if (!chosen) return;
 
       await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Window, title: `hAIve: seeding ${chosen.value}…` },
+        { location: vscode.ProgressLocation.Window, title: `Hivelore: seeding ${chosen.value}…` },
         () => runHaiveAction(["memory", "seed", chosen.value], `seeded ${chosen.value} starter memories`),
       );
     }),
@@ -607,7 +607,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   // ── Anchor a memory (or seed) to a file ────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.anchorMemory", async (item?: { memory?: { id: string } }) => {
+    vscode.commands.registerCommand("hivelore.anchorMemory", async (item?: { memory?: { id: string } }) => {
       const id = await resolveMemoryId(item, "Pick a memory to anchor to a file");
       if (!id) return;
 
@@ -621,7 +621,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
       const pick = await vscode.window.showQuickPick(choices, {
         placeHolder: "Which file should this memory be anchored to?",
-        title: "hAIve: Anchor Memory",
+        title: "Hivelore: Anchor Memory",
       });
       if (!pick) return;
 
@@ -634,7 +634,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
         });
         const picked = uris?.[0];
         if (!picked || !picked.fsPath.startsWith(workspaceRoot)) {
-          if (picked) vscode.window.showWarningMessage("hAIve: pick a file inside this workspace.");
+          if (picked) vscode.window.showWarningMessage("Hivelore: pick a file inside this workspace.");
           return;
         }
         rel = relativeToWorkspace(picked, workspaceRoot);
@@ -646,7 +646,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   // ── Promote a memory (personal → team) ─────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.promoteMemory", async (item?: { memory?: { id: string } }) => {
+    vscode.commands.registerCommand("hivelore.promoteMemory", async (item?: { memory?: { id: string } }) => {
       const id = await resolveMemoryId(
         item,
         "Pick a personal memory to promote to the team",
@@ -659,16 +659,16 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   // ── Init ───────────────────────────────────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.init", () => {
-      const terminal = vscode.window.createTerminal({ name: "hAIve Init", cwd: workspaceRoot });
+    vscode.commands.registerCommand("hivelore.init", () => {
+      const terminal = vscode.window.createTerminal({ name: "Hivelore Init", cwd: workspaceRoot });
       terminal.show();
-      terminal.sendText("haive init");
+      terminal.sendText("hivelore init");
     }),
   );
 
   // ── Show output ────────────────────────────────────────────────────────
   ctx.subscriptions.push(
-    vscode.commands.registerCommand("haive.showOutput", () => {
+    vscode.commands.registerCommand("hivelore.showOutput", () => {
       outputChannel.show();
     }),
   );
@@ -676,7 +676,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   // ── Config change listener ─────────────────────────────────────────────
   ctx.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("haive")) {
+      if (e.affectsConfiguration("hivelore")) {
         codeLensProvider.refresh();
         treeProvider.refresh();
         updateStatusBar(statusBarItem, store);
@@ -688,25 +688,25 @@ export function activate(ctx: vscode.ExtensionContext): void {
   if (!store.isInitialized()) {
     vscode.window
       .showInformationMessage(
-        "hAIve is not initialized in this workspace.",
-        "Initialize hAIve",
+        "Hivelore is not initialized in this workspace.",
+        "Initialize Hivelore",
         "Learn More",
       )
       .then((choice) => {
-        if (choice === "Initialize hAIve") vscode.commands.executeCommand("haive.init");
+        if (choice === "Initialize Hivelore") vscode.commands.executeCommand("hivelore.init");
         else if (choice === "Learn More")
-          vscode.env.openExternal(vscode.Uri.parse("https://github.com/Doucs91/hAIve"));
+          vscode.env.openExternal(vscode.Uri.parse("https://github.com/Doucs91/hivelore"));
       });
   } else {
     const ar = store.actionRequiredCount();
     if (ar > 0) {
       vscode.window
         .showWarningMessage(
-          `hAIve: ${ar} memory(ies) require your attention before AI agents can act.`,
+          `Hivelore: ${ar} memory(ies) require your attention before AI agents can act.`,
           "Review Now",
         )
         .then((choice) => {
-          if (choice === "Review Now") vscode.commands.executeCommand("haive.memoriesView.focus");
+          if (choice === "Review Now") vscode.commands.executeCommand("hivelore.memoriesView.focus");
         });
     }
   }

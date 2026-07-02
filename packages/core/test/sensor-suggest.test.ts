@@ -160,17 +160,17 @@ describe("suggestSensorFromMemory — discriminating (X without Y)", () => {
     expect(sensor?.message).not.toMatch(/avoid idempotencyKey/i);
   });
 
-  it("never emits the tool's own name (hAIve) lifted from auto-added provenance boilerplate", () => {
-    // Regression: mem_save appends a "## Why\nRecorded in hAIve …" provenance section. The generator
-    // scanned it and picked "hAIve" as the distinctive token, producing a sensor that only ever fires
-    // on diffs mentioning hAIve. The tool's own name must be a stopword; the real token wins instead.
+  it("never emits the tool's own name (Hivelore) lifted from auto-added provenance boilerplate", () => {
+    // Regression: mem_save appends a "## Why\nRecorded in Hivelore …" provenance section. The generator
+    // scanned it and picked "Hivelore" as the distinctive token, producing a sensor that only ever fires
+    // on diffs mentioning Hivelore. The tool's own name must be a stopword; the real token wins instead.
     const body = [
       "# Avoid the legacyAdapter shim",
       "",
       "**Why it failed / do NOT use:** legacyAdapter breaks under load.",
       "",
       "## Why",
-      "Recorded in hAIve so future agents can apply this project rule consistently.",
+      "Recorded in Hivelore so future agents can apply this project rule consistently.",
     ].join("\n");
     const sensor = suggestSensorFromMemory(body, ["src/adapter.ts"]);
     expect(sensor?.pattern).toBe("legacyAdapter");

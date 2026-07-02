@@ -10,7 +10,7 @@ import {
   serializeMemory,
   suggestSensorSeed,
   type Sensor,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -142,7 +142,7 @@ function sensorLoopState(
       sensor_hint:
         "This lesson is NOT yet enforced. Call propose_sensor to turn it into a reliable block — a " +
         "candidate is pre-filled in proposed_sensor_seed (refine it: pattern = the faulty usage, " +
-        "absent = the correct-usage marker). hAIve validates the proposal (silent on current code, " +
+        "absent = the correct-usage marker). Hivelore validates the proposal (silent on current code, " +
         "fires on the bad example) before trusting it to block.",
     };
   }
@@ -199,7 +199,7 @@ export async function memSave(
 ): Promise<MemSaveOutput> {
   if (!existsSync(ctx.paths.haiveDir)) {
     throw new Error(
-      `No .ai/ directory at ${ctx.paths.root}. Run 'haive init' first.`,
+      `No .ai/ directory at ${ctx.paths.root}. Run 'hivelore init' first.`,
     );
   }
 
@@ -279,7 +279,7 @@ export async function memSave(
       );
       const mergedTw = [
         invalidPaths.length > 0
-          ? `Anchor path(s) not found in project: ${invalidPaths.join(", ")}. They will be marked stale by haive sync.`
+          ? `Anchor path(s) not found in project: ${invalidPaths.join(", ")}. They will be marked stale by hivelore sync.`
           : null,
         criticalAnchorWarning(input.type, fm.status, newFrontmatter.anchor.paths, newFrontmatter.anchor.symbols),
         simW ?? null,
@@ -361,7 +361,7 @@ export async function memSave(
   // Merge warnings: invalid anchors + slug similarity + body similarity
   const finalWarning = [
     invalidPaths.length > 0
-      ? `Anchor path(s) not found in project: ${invalidPaths.join(", ")}. They will be marked stale by \`haive sync\`.`
+      ? `Anchor path(s) not found in project: ${invalidPaths.join(", ")}. They will be marked stale by \`hivelore sync\`.`
       : null,
     criticalAnchorWarning(frontmatter.type, frontmatter.status, frontmatter.anchor.paths, frontmatter.anchor.symbols),
     warning ?? null,
@@ -390,5 +390,5 @@ function criticalAnchorWarning(
   if (!["decision", "gotcha", "architecture"].includes(type)) return null;
   if (status !== "validated") return null;
   if (paths.length > 0 || symbols.length > 0) return null;
-  return `${type} is validated without paths or symbols; add anchors so hAIve can detect drift.`;
+  return `${type} is validated without paths or symbols; add anchors so Hivelore can detect drift.`;
 }

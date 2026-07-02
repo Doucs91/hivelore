@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveHaivePaths } from "@hiveai/core";
+import { resolveHaivePaths } from "@hivelore/core";
 import type { HaiveContext } from "../src/context.js";
 import { bootstrapProjectSave } from "../src/tools/bootstrap-project-save.js";
 import { getProjectContext } from "../src/tools/get-project-context.js";
@@ -17,7 +17,7 @@ import { patternDetect } from "../src/tools/pattern-detect.js";
 import { preCommitCheck } from "../src/tools/precommit-check.js";
 import { pendingDistillPath, type PendingDistill } from "../src/session-tracker.js";
 
-describe("hAIve MCP tools", () => {
+describe("Hivelore MCP tools", () => {
   let workDir: string;
   let ctx: HaiveContext;
 
@@ -351,7 +351,7 @@ describe("hAIve MCP tools", () => {
         ctx,
       );
 
-      const { loadMemoriesFromDir, serializeMemory, trackReads } = await import("@hiveai/core");
+      const { loadMemoriesFromDir, serializeMemory, trackReads } = await import("@hivelore/core");
       const loaded = await loadMemoriesFromDir(ctx.paths.memoriesDir);
       for (const item of loaded) {
         await writeFile(
@@ -419,7 +419,7 @@ describe("hAIve MCP tools", () => {
         ctx,
       );
 
-      const { loadMemoriesFromDir, serializeMemory } = await import("@hiveai/core");
+      const { loadMemoriesFromDir, serializeMemory } = await import("@hivelore/core");
       for (const item of await loadMemoriesFromDir(ctx.paths.memoriesDir)) {
         await writeFile(
           item.filePath,
@@ -458,7 +458,7 @@ describe("hAIve MCP tools", () => {
         },
         ctx,
       );
-      const { loadMemoriesFromDir, serializeMemory, readRecentBriefingMarker } = await import("@hiveai/core");
+      const { loadMemoriesFromDir, serializeMemory, readRecentBriefingMarker } = await import("@hivelore/core");
       for (const item of await loadMemoriesFromDir(ctx.paths.memoriesDir)) {
         await writeFile(
           item.filePath,
@@ -656,7 +656,7 @@ describe("hAIve MCP tools", () => {
           files_touched: ["src/old.ts"], next_steps: "", scope: "team" },
         ctx,
       );
-      const { loadMemoriesFromDir } = await import("@hiveai/core");
+      const { loadMemoriesFromDir } = await import("@hivelore/core");
       const before = (await loadMemoriesFromDir(ctx.paths.memoriesDir))
         .find(({ memory }) => memory.frontmatter.type === "session_recap");
       expect(before).toBeDefined();
@@ -723,7 +723,7 @@ describe("hAIve MCP tools", () => {
         ctx,
       );
       // Force status to proposed
-      const { loadMemoriesFromDir, serializeMemory } = await import("@hiveai/core");
+      const { loadMemoriesFromDir, serializeMemory } = await import("@hivelore/core");
       const mems = await loadMemoriesFromDir(ctx.paths.memoriesDir);
       const target = mems.find((m) => m.memory.frontmatter.id === saved.id);
       expect(target).toBeDefined();
@@ -776,7 +776,7 @@ describe("hAIve MCP tools", () => {
         ctx,
       );
       // Manually force status to proposed
-      const { loadMemoriesFromDir, serializeMemory } = await import("@hiveai/core");
+      const { loadMemoriesFromDir, serializeMemory } = await import("@hivelore/core");
       const mems = await loadMemoriesFromDir(ctx.paths.memoriesDir);
       const target = mems.find((m) => m.memory.frontmatter.id === saved.id);
       expect(target).toBeDefined();
@@ -876,7 +876,7 @@ describe("hAIve MCP tools", () => {
         },
         ctx,
       );
-      const { loadMemoriesFromDir, serializeMemory } = await import("@hiveai/core");
+      const { loadMemoriesFromDir, serializeMemory } = await import("@hivelore/core");
       const target = (await loadMemoriesFromDir(ctx.paths.memoriesDir))
         .find(({ memory }) => memory.frontmatter.id === saved.id);
       expect(target).toBeDefined();

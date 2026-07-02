@@ -8,8 +8,8 @@
  *   - TypeScript declaration files (.d.ts)
  *   - JSON Schema
  *
- * `haive snapshot --contract <file>` saves a snapshot to .ai/contracts/<name>.lock
- * `haive sync` compares current file against snapshot and returns BreakingChange[].
+ * `hivelore snapshot --contract <file>` saves a snapshot to .ai/contracts/<name>.lock
+ * `hivelore sync` compares current file against snapshot and returns BreakingChange[].
  */
 import { existsSync } from "node:fs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";

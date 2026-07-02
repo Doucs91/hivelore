@@ -8,7 +8,7 @@ import {
   findProjectRoot,
   loadMemoriesFromDir,
   resolveHaivePaths,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 const TYPE_RANK: Record<string, number> = {
@@ -31,9 +31,9 @@ export function registerWelcome(program: Command): void {
     .command("welcome")
     .description(
       "Onboarding checklist: ranks validated/proposed **team** memories by type.\n" +
-      "Use after `haive init` so new devs skim institutional knowledge quickly.\n\n" +
-      "  haive welcome\n" +
-      "  haive welcome --limit 15\n",
+      "Use after `hivelore init` so new devs skim institutional knowledge quickly.\n\n" +
+      "  hivelore welcome\n" +
+      "  hivelore welcome --limit 15\n",
     )
     .option("--limit <n>", "maximum memories listed", "20")
     .option("-d, --dir <dir>", "project root")
@@ -41,7 +41,7 @@ export function registerWelcome(program: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
-        ui.error(`No memories at ${paths.memoriesDir}. Run 'haive init' first.`);
+        ui.error(`No memories at ${paths.memoriesDir}. Run 'hivelore init' first.`);
         process.exitCode = 1;
         return;
       }
@@ -83,7 +83,7 @@ export function registerWelcome(program: Command): void {
       const summaryWidth = Math.max(...summaryLines.map((l) => l.length), 44);
       const bar = "─".repeat(summaryWidth + 2);
       console.log(ui.bold(`┌${bar}┐`));
-      console.log(ui.bold(`│`) + `  hAIve corpus`.padEnd(summaryWidth + 1) + ui.bold(`│`));
+      console.log(ui.bold(`│`) + `  Hivelore corpus`.padEnd(summaryWidth + 1) + ui.bold(`│`));
       console.log(ui.bold(`├${bar}┤`));
       for (const line of summaryLines) {
         console.log(ui.bold(`│`) + line.padEnd(summaryWidth + 2) + ui.bold(`│`));
@@ -92,11 +92,11 @@ export function registerWelcome(program: Command): void {
       console.log();
       // ────────────────────────────────────────────────────────────────────
 
-      console.log(ui.bold(`hAIve welcome — ${pick.length} team memories (${root})`));
-      console.log(ui.dim(`Next: invoke get_briefing with your task or run 'haive briefing --task "…"'`));
+      console.log(ui.bold(`Hivelore welcome — ${pick.length} team memories (${root})`));
+      console.log(ui.dim(`Next: invoke get_briefing with your task or run 'hivelore briefing --task "…"'`));
 
       if (pick.length === 0) {
-        ui.warn("No team memories yet — add some with 'haive memory save' or promote personal ones.");
+        ui.warn("No team memories yet — add some with 'hivelore memory save' or promote personal ones.");
         return;
       }
 

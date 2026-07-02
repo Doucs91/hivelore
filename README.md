@@ -1,25 +1,26 @@
 <p align="center">
-  <a href="https://github.com/Doucs91/hAIve">
-    <img src="https://raw.githubusercontent.com/Doucs91/hAIve/main/packages/vscode/media/logo.svg" alt="hAIve logo" width="96" />
+  <a href="https://github.com/Doucs91/hivelore">
+    <img src="https://raw.githubusercontent.com/Doucs91/hivelore/main/packages/vscode/media/logo.svg" alt="Hivelore logo" width="96" />
   </a>
 </p>
 
-<h1 align="center">hAIve</h1>
+<h1 align="center">Hivelore</h1>
 
 <p align="center">
-  <strong>Repo-native memory and context policy for coding-agent harnesses.</strong>
+  <strong>Your team's hard-won lessons, briefed into every agent session — and enforced at commit time.</strong><br/>
+  <em>Repo-native memory and context policy for coding-agent harnesses. Formerly published as <code>hAIve</code> (<code>@hiveai/*</code>).</em>
 </p>
 
-hAIve is the team-knowledge layer inside an AI coding-agent harness. It gives agents a feedforward briefing before work starts, then adds feedback gates in MCP, Git hooks, CI, and wrappers so changes cannot quietly bypass repo policy.
+Hivelore is the team-knowledge layer inside an AI coding-agent harness. It gives agents a feedforward briefing before work starts, then adds feedback gates in MCP, Git hooks, CI, and wrappers so changes cannot quietly bypass repo policy.
 
-A capable model already knows generic best practice. What it *cannot* guess is your team's arbitrary, repo-specific knowledge: that public ids are `id + 100000` prefixed `AC-`, that the status field must be `"OK"`/`"KO"`, that you never edit an applied migration. Left to itself, a confident agent invents a plausible answer - clean, tested, green, and **wrong by policy**. hAIve carries that unguessable knowledge into the task and blocks the change that's about to violate it.
+A capable model already knows generic best practice. What it *cannot* guess is your team's arbitrary, repo-specific knowledge: that public ids are `id + 100000` prefixed `AC-`, that the status field must be `"OK"`/`"KO"`, that you never edit an applied migration. Left to itself, a confident agent invents a plausible answer - clean, tested, green, and **wrong by policy**. Hivelore carries that unguessable knowledge into the task and blocks the change that's about to violate it.
 
-> hAIve's job is not to replace tests, linters, or observability. It makes the repo-specific knowledge those tools cannot infer available, auditable, and enforceable.
+> Hivelore's job is not to replace tests, linters, or observability. It makes the repo-specific knowledge those tools cannot infer available, auditable, and enforceable.
 
-[![npm](https://img.shields.io/npm/v/@hiveai/cli?color=blue)](https://www.npmjs.com/package/@hiveai/cli)
+[![npm](https://img.shields.io/npm/v/@hivelore/cli?color=blue)](https://www.npmjs.com/package/@hivelore/cli)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org)
-[![CI](https://github.com/Doucs91/hAIve/actions/workflows/ci.yml/badge.svg)](https://github.com/Doucs91/hAIve/actions/workflows/ci.yml)
+[![CI](https://github.com/Doucs91/hivelore/actions/workflows/ci.yml/badge.svg)](https://github.com/Doucs91/hivelore/actions/workflows/ci.yml)
 
 ---
 
@@ -34,45 +35,45 @@ Most teams work around this with instructions and hope:
 - *"Remember to capture what you learned."*
 - *"Don't merge code that invalidates a team decision."*
 
-Those rules are easy to skip. hAIve turns them into **repo-native context policy**.
+Those rules are easy to skip. Hivelore turns them into **repo-native context policy**.
 
 ---
 
 ## How it works
 
 ```
-AI agent ──▶ hAIve briefing ──▶ code change ──▶ hAIve policy gate ──▶ merge
+AI agent ──▶ Hivelore briefing ──▶ code change ──▶ Hivelore policy gate ──▶ merge
                   ▲                                       │
                   └── context breadcrumbs · decisions · gotchas · anchors
 ```
 
-1. `haive init` creates a `.ai/` context policy layer in your repo.
+1. `hivelore init` creates a `.ai/` context policy layer in your repo.
 2. Agents start every session with `get_briefing` — one MCP call that returns small default context plus deeper breadcrumbs ranked by task relevance.
-3. Decisions, gotchas, failed attempts, and session recaps live as Markdown files anchored to the code paths they describe. When code moves, hAIve detects stale anchors.
-4. `haive enforce check` and CI enforcement block unsafe states: missing briefing, stale critical decisions, an anchored anti-pattern your diff is about to repeat, or uncaptured session knowledge.
+3. Decisions, gotchas, failed attempts, and session recaps live as Markdown files anchored to the code paths they describe. When code moves, Hivelore detects stale anchors.
+4. `hivelore enforce check` and CI enforcement block unsafe states: missing briefing, stale critical decisions, an anchored anti-pattern your diff is about to repeat, or uncaptured session knowledge.
 
 > **Memory is the substrate. Context enforcement is the product promise.**
 > AI changes should not enter the codebase without consulting the team's current knowledge.
 
-## Where hAIve fits in the harness
+## Where Hivelore fits in the harness
 
-Harness engineering is about the environment around the model: feedforward guidance before it acts, feedback sensors after it acts, and workflow gates that keep bad states from landing. hAIve owns the **repo-specific context policy** part of that harness.
+Harness engineering is about the environment around the model: feedforward guidance before it acts, feedback sensors after it acts, and workflow gates that keep bad states from landing. Hivelore owns the **repo-specific context policy** part of that harness.
 
-| Harness concern | hAIve role |
+| Harness concern | Hivelore role |
 |---|---|
 | **Feedforward guidance** | `get_briefing`, module context, skills, decisions, gotchas, failed attempts |
 | **Feedback and gates** | MCP ordering policy, `pre_commit_check`, Git hooks, CI enforcement, stale-anchor detection |
 | **Knowledge lifecycle** | Git-native Markdown records, path/symbol anchors, confidence, retirement, linting |
-| **Boundaries** | hAIve complements unit/e2e tests, type checks, runtime traces, security scanners, and LLM evals; it does not try to replace them |
+| **Boundaries** | Hivelore complements unit/e2e tests, type checks, runtime traces, security scanners, and LLM evals; it does not try to replace them |
 
-The narrow positioning is intentional: hAIve is not a general memory database or an agent dashboard. It is the control layer that helps coding agents act with the validated, non-obvious knowledge of the team.
+The narrow positioning is intentional: Hivelore is not a general memory database or an agent dashboard. It is the control layer that helps coding agents act with the validated, non-obvious knowledge of the team.
 
 ### Scope & boundaries — the three harnesses
 
-Harness engineering regulates three different things about agent-written code. hAIve deliberately
+Harness engineering regulates three different things about agent-written code. Hivelore deliberately
 covers two of them and **treats the third as out of scope, for now.**
 
-| Harness dimension | Question it answers | hAIve today |
+| Harness dimension | Question it answers | Hivelore today |
 |---|---|---|
 | **Maintainability** | Is the code clean? (patterns, footguns, conventions) | ✅ **Covered** — executable sensors + anti-pattern gate |
 | **Architecture fitness** | Does it respect the team's structural decisions? | 🟡 **Partly** — anchored `decision`/`architecture` memories + decision-coverage gate |
@@ -81,16 +82,16 @@ covers two of them and **treats the third as out of scope, for now.**
 **Why no behaviour harness yet.** Verifying functional correctness needs an *oracle* — an independent
 source of truth for what the code *should* do — and that oracle problem (plus the trap of an agent
 grading its own work) is the least-mature part of the field. That territory belongs to your tests,
-property-based checks, and LLM-evals; hAIve does not try to replace them. What hAIve *does* do is carry
+property-based checks, and LLM-evals; Hivelore does not try to replace them. What Hivelore *does* do is carry
 the **unguessable intent** a behaviour test would otherwise have to encode (`status must be OK/KO`,
 `public ids = id + 100000`) as feedforward context and deterministic sensors — a partial, static slice
 of behaviour control, not a runtime functional oracle.
 
 A future, opt-in **command/test sensor** lane (already scaffolded behind
 `enforcement.runCommandSensors`) is the planned bridge toward real behaviour feedback without diluting
-the narrow scope. Until then, treat the behaviour harness as your responsibility, not hAIve's.
+the narrow scope. Until then, treat the behaviour harness as your responsibility, not Hivelore's.
 
-> See [`STABILITY.md`](./STABILITY.md) for the frozen 1.0 surface and [`CONTRIBUTING.md`](./CONTRIBUTING.md) to extend hAIve.
+> See [`STABILITY.md`](./STABILITY.md) for the frozen 1.0 surface and [`CONTRIBUTING.md`](./CONTRIBUTING.md) to extend Hivelore.
 
 ### Executable memory sensors
 
@@ -100,10 +101,10 @@ signal, independent of embeddings or model judgment. Autogenerated sensors start
 promote high-confidence ones to `block`.
 
 ```bash
-haive sensors list
-haive sensors check              # scans git diff --cached
-haive sensors promote <id> --yes # promote a vetted sensor to block
-haive sensors export --format grep
+hivelore sensors list
+hivelore sensors check              # scans git diff --cached
+hivelore sensors promote <id> --yes # promote a vetted sensor to block
+hivelore sensors export --format grep
 ```
 
 ---
@@ -111,10 +112,41 @@ haive sensors export --format grep
 ## Install
 
 ```bash
-npm install -g @hiveai/cli
+npm install -g @hivelore/cli
 # Optional: local semantic search (downloads ~110MB model once)
-npm install -g @hiveai/embeddings
+npm install -g @hivelore/embeddings
 ```
+
+---
+
+## The 60-second proof — watch a lesson stop a commit
+
+Memory tools remember; Hivelore's difference is that a remembered lesson can **refuse the commit
+that repeats it**. Try it on any git repo:
+
+```bash
+hivelore init -y                     # .ai/ layer + git hooks + 12 agent bridges
+
+# 1. Capture a failed approach (agents do this via the mem_tried MCP tool)
+hivelore memory tried \
+  --what "importing moment.js" \
+  --why-failed "bundle bloat — team standard is date-fns" \
+  --instead "date-fns" --paths src/
+#    → prints the new memory id, e.g. 2026-07-02-attempt-importing-momentjs
+
+# 2. Give the lesson teeth: a validated, deterministic guardrail
+hivelore sensors propose 2026-07-02-attempt-importing-momentjs \
+  --pattern "from ['\"]moment['\"]" --severity block
+#    Hivelore validates it first: silent on your current code, fires on the mistake.
+
+# 3. Reintroduce the mistake — the commit is refused
+echo "import moment from 'moment';" >> src/dates.ts
+git add . && git commit -m "add date helper"
+#    ✗ Block sensor fired — importing moment.js: use date-fns  (exit 2)
+```
+
+Same diff, same answer, on every machine and in CI — the gate is deterministic by design.
+Everything lives as reviewable Markdown in `.ai/`, versioned with your code. `rm -rf .ai` undoes it all.
 
 ---
 
@@ -124,10 +156,10 @@ npm install -g @hiveai/embeddings
 
 ```bash
 cd my-project
-haive init          # Creates .ai/, bridge files, MCP config, hooks, CI template
+hivelore init          # Creates .ai/, bridge files, MCP config, hooks, CI template
 ```
 
-`haive init` now also runs agent setup. It writes project-level MCP configs, records the best available mode, and asks before changing user-level client configs. In non-interactive shells it skips global config and tells you how to finish setup.
+`hivelore init` now also runs agent setup. It writes project-level MCP configs, records the best available mode, and asks before changing user-level client configs. In non-interactive shells it skips global config and tells you how to finish setup.
 
 ### 2. Connect your AI client
 
@@ -135,8 +167,8 @@ haive init          # Creates .ai/, bridge files, MCP config, hooks, CI template
 ```json
 {
   "mcpServers": {
-    "haive": {
-      "command": "haive",
+    "hivelore": {
+      "command": "hivelore",
       "args": ["mcp", "--stdio", "--root", "/absolute/path/to/my-project"]
     }
   }
@@ -147,8 +179,8 @@ haive init          # Creates .ai/, bridge files, MCP config, hooks, CI template
 ```json
 {
   "mcpServers": {
-    "haive": {
-      "command": "haive",
+    "hivelore": {
+      "command": "hivelore",
       "args": ["mcp", "--stdio", "--root", "/absolute/path/to/my-project"]
     }
   }
@@ -164,7 +196,7 @@ code --add-mcp '{"name":"haive","command":"haive","args":["mcp","--stdio","--roo
 
 In your AI client, invoke the `bootstrap_project` MCP prompt. The agent analyzes your codebase and writes `.ai/project-context.md` automatically.
 
-### 4. Start work through hAIve
+### 4. Start work through Hivelore
 
 Every session starts with one call:
 
@@ -177,75 +209,75 @@ The agent gets project context + relevant module contexts + ranked context bread
 For CLI agents without native MCP, wrap them:
 
 ```bash
-haive run -- claude --dangerously-skip-permissions -p "$(cat task.md)"
+hivelore run -- claude --dangerously-skip-permissions -p "$(cat task.md)"
 ```
 
 Check the selected mode any time:
 
 ```bash
-haive agent status
-haive agent setup          # re-run setup later
-haive agent setup --yes    # approve user-level MCP config without prompting
+hivelore agent status
+hivelore agent setup          # re-run setup later
+hivelore agent setup --yes    # approve user-level MCP config without prompting
 ```
 
 ### 5. Gate commits and pull requests
 
 ```bash
-haive enforce install       # Installs Git hooks + CI enforcement template
-haive enforce status        # Current enforcement posture
-haive enforce check         # Pre-commit policy gate
-haive enforce ci            # CI entrypoint (exits 1 on violations)
+hivelore enforce install       # Installs Git hooks + CI enforcement template
+hivelore enforce status        # Current enforcement posture
+hivelore enforce check         # Pre-commit policy gate
+hivelore enforce ci            # CI entrypoint (exits 1 on violations)
 ```
 
 ---
 
 ## CLI at a glance — the golden path
 
-`haive --help` shows only the commands you use day to day. Everything else (review, import,
-diagnostics, benchmarks) is one `haive --advanced --help` away — the focused surface is deliberate,
+`hivelore --help` shows only the commands you use day to day. Everything else (review, import,
+diagnostics, benchmarks) is one `hivelore --advanced --help` away — the focused surface is deliberate,
 not a missing feature.
 
 | Stage | Command | What it does |
 |---|---|---|
-| **Set up** | `haive init` | Create `.ai/`, bridge files, MCP config, hooks, CI |
-| | `haive doctor` | Check the install is healthy |
-| | `haive agent setup` | Wire your AI client (MCP, hooks) |
-| **Before editing** | `haive briefing` | Feedforward context — the CLI mirror of `get_briefing` |
-| **Capture knowledge** | `haive memory save` | Record a decision / convention / gotcha |
-| | `haive memory tried` | Record a failed approach so it isn't repeated |
-| **Retrieve** | `haive memory search` · `get` | Find, then read a record |
-| **Feedback** | `haive sensors check` | Scan the diff against documented lessons |
-| **Gate** | `haive enforce finish` | Exit gate before you call the task done |
-| **Sync** | `haive sync` | Re-check stale anchors, refresh bridge files |
-| **Close** | `haive session end` | Save a recap for the next session |
+| **Set up** | `hivelore init` | Create `.ai/`, bridge files, MCP config, hooks, CI |
+| | `hivelore doctor` | Check the install is healthy |
+| | `hivelore agent setup` | Wire your AI client (MCP, hooks) |
+| **Before editing** | `hivelore briefing` | Feedforward context — the CLI mirror of `get_briefing` |
+| **Capture knowledge** | `hivelore memory save` | Record a decision / convention / gotcha |
+| | `hivelore memory tried` | Record a failed approach so it isn't repeated |
+| **Retrieve** | `hivelore memory search` · `get` | Find, then read a record |
+| **Feedback** | `hivelore sensors check` | Scan the diff against documented lessons |
+| **Gate** | `hivelore enforce finish` | Exit gate before you call the task done |
+| **Sync** | `hivelore sync` | Re-check stale anchors, refresh bridge files |
+| **Close** | `hivelore session end` | Save a recap for the next session |
 
 **One vocabulary across CLI and MCP.** The memory verbs mirror the MCP tool names, so an agent learns
-them once: `haive memory save/search/get/delete` ↔ `mem_save`/`mem_search`/`mem_get`/`mem_delete`
+them once: `hivelore memory save/search/get/delete` ↔ `mem_save`/`mem_search`/`mem_get`/`mem_delete`
 (the older `add`/`query`/`show`/`rm` still work as aliases).
 
 ---
 
 ## Try it on your repo (5 minutes, reversible)
 
-Want to evaluate hAIve on a real codebase that isn't a toy? It is non-destructive — everything it
+Want to evaluate Hivelore on a real codebase that isn't a toy? It is non-destructive — everything it
 writes lives under `.ai/` plus a few bridge files, all removable.
 
 ```bash
 cd your-project
-npm install -g @hiveai/cli
-haive init -y            # seeds stack packs + git-history scars; writes .ai/ and bridges
-haive briefing --task "the change you're about to make" --files path/to/file
-haive doctor             # health + coverage report
-haive sensors check      # scan your staged diff against documented lessons
-haive eval --fail-under 50   # retrieval + sensor quality on your own corpus
+npm install -g @hivelore/cli
+hivelore init -y            # seeds stack packs + git-history scars; writes .ai/ and bridges
+hivelore briefing --task "the change you're about to make" --files path/to/file
+hivelore doctor             # health + coverage report
+hivelore sensors check      # scan your staged diff against documented lessons
+hivelore eval --fail-under 50   # retrieval + sensor quality on your own corpus
 ```
 
-To remove everything hAIve added: `rm -rf .ai CLAUDE.md AGENTS.md GEMINI.md .cursorrules .clinerules
+To remove everything Hivelore added: `rm -rf .ai CLAUDE.md AGENTS.md GEMINI.md .cursorrules .clinerules
 .continuerules .windsurfrules .rules CONVENTIONS.md .github/copilot-instructions.md` and drop the
 `.github/workflows/haive-*.yml` files. Feedback from a repo that isn't ours is the most valuable thing
-you can send — please [open an issue](https://github.com/Doucs91/hAIve/issues) with what worked and what didn't.
+you can send — please [open an issue](https://github.com/Doucs91/hivelore/issues) with what worked and what didn't.
 
-## What hAIve enforces
+## What Hivelore enforces
 
 | Gate | What it checks |
 |---|---|
@@ -257,7 +289,7 @@ you can send — please [open an issue](https://github.com/Doucs91/hAIve/issues)
 | **Session recap** | Agent captured what changed and what remains before closing |
 | **CI enforcement** | Required check blocks merge on any gate failure |
 
-> **What "block" means here.** hAIve's gate is deterministic by design: the only thing that
+> **What "block" means here.** Hivelore's gate is deterministic by design: the only thing that
 > hard-blocks a commit is a **validated sensor** firing on the added lines — same diff, same answer,
 > on every machine and in CI. Anchor, literal-token, and semantic matches (however strong) are
 > **surfaced for review**, never blocked: relevance signals vary across environments and
@@ -269,7 +301,7 @@ you can send — please [open an issue](https://github.com/Doucs91/hAIve/issues)
 
 ## Cold start — value in session one
 
-An empty corpus is worth nothing, so `haive init` seeds from signals the repo already has — and every
+An empty corpus is worth nothing, so `hivelore init` seeds from signals the repo already has — and every
 seed passes a **quality floor** so cold-start never ships generic, guessable advice. A seed earns its
 place only if it carries an enforceable sensor or is concrete and non-generic.
 
@@ -277,17 +309,17 @@ place only if it carries an enforceable sensor or is concrete and non-generic.
 |---|---|---|
 | **Stack packs** | Detected-framework traps (Next/Nest/Prisma/Flask/Rails/Tailwind/Docker… 20+ packs), with **block sensors** where high-signal | specificity floor — generic advice is dropped, audited in CI |
 | **Git history** (`--seed`, on by default) | Draft memories from revert/hotfix/workaround commits — your repo's real scars | noise-subject denylist (merge/bump/deps/wip/format dropped) |
-| **Scanner findings** (`haive ingest`) | SonarQube / SARIF / ESLint / `npm audit` findings as proposed, anchored memories with sensors | auto-fixable **stylistic** rules dropped (incl. Sonar numeric keys); `--include-stylistic` to keep |
+| **Scanner findings** (`hivelore ingest`) | SonarQube / SARIF / ESLint / `npm audit` findings as proposed, anchored memories with sensors | auto-fixable **stylistic** rules dropped (incl. Sonar numeric keys); `--include-stylistic` to keep |
 
 ```bash
-haive init                                   # Detect stack + seed packs + seed git history
-haive ingest --from sonar issues.json --min-severity major
-haive ingest --from eslint report.json
-haive ingest --from sarif report.sarif --dry-run   # Preview without writing
+hivelore init                                   # Detect stack + seed packs + seed git history
+hivelore ingest --from sonar issues.json --min-severity major
+hivelore ingest --from eslint report.json
+hivelore ingest --from sarif report.sarif --dry-run   # Preview without writing
 ```
 
 Ingested and git-seeded memories land as `proposed` (warn-only sensors). Review them with
-`haive memory list --status proposed`; promote vetted sensors to `block` with `haive sensors promote`.
+`hivelore memory list --status proposed`; promote vetted sensors to `block` with `hivelore sensors promote`.
 
 ---
 
@@ -315,10 +347,10 @@ your-project/
 
 ### Native bridges — meet every agent where it is
 
-For CLI/IDE agents without MCP, `haive init` generates native config files from the **same** corpus, so
+For CLI/IDE agents without MCP, `hivelore init` generates native config files from the **same** corpus, so
 the team's memories and **block sensors** travel to whatever agent a developer uses — not just an empty
-template, the enforcement edge too. `haive sync` keeps them fresh; never hand-edit them (regenerate with
-`haive bridges sync`).
+template, the enforcement edge too. `hivelore sync` keeps them fresh; never hand-edit them (regenerate with
+`hivelore bridges sync`).
 
 | Agent | File | Agent | File |
 |---|---|---|---|
@@ -330,9 +362,9 @@ template, the enforcement edge too. `haive sync` keeps them fresh; never hand-ed
 | Aider | `CONVENTIONS.md` | Roo | `.roo/rules/haive.md` |
 
 ```bash
-haive bridges list                 # Show target status
-haive bridges sync --all           # Regenerate every native bridge
-haive init --bridge-targets cursor,copilot   # Or scope to specific agents
+hivelore bridges list                 # Show target status
+hivelore bridges sync --all           # Regenerate every native bridge
+hivelore init --bridge-targets cursor,copilot   # Or scope to specific agents
 ```
 
 ---
@@ -347,7 +379,7 @@ haive init --bridge-targets cursor,copilot   # Or scope to specific agents
 | `attempt` | Failed approaches — so agents don't repeat them |
 | `architecture` | Component boundaries, interfaces, data flow |
 
-All records can be anchored to file paths and symbol names. When anchored code changes, hAIve flags the record as potentially stale.
+All records can be anchored to file paths and symbol names. When anchored code changes, Hivelore flags the record as potentially stale.
 
 ---
 
@@ -389,10 +421,10 @@ MCP profiles keep the product focused:
 
 | Package | Install | Description |
 |---|---|---|
-| [`@hiveai/cli`](./packages/cli) | `npm i -g @hiveai/cli` | Main product: init, enforce, run agents, briefing, memory, sync, CI/Git hooks |
-| [`@hiveai/mcp`](./packages/mcp) | bundled into `@hiveai/cli` | Policy-aware MCP server |
-| [`@hiveai/core`](./packages/core) | dependency | Types, schema, anchors, policy primitives, token budgets |
-| [`@hiveai/embeddings`](./packages/embeddings) | `npm i -g @hiveai/embeddings` | Optional: local semantic ranking (bge-small-en-v1.5, fully offline) |
+| [`@hivelore/cli`](./packages/cli) | `npm i -g @hivelore/cli` | Main product: init, enforce, run agents, briefing, memory, sync, CI/Git hooks |
+| [`@hivelore/mcp`](./packages/mcp) | bundled into `@hivelore/cli` | Policy-aware MCP server |
+| [`@hivelore/core`](./packages/core) | dependency | Types, schema, anchors, policy primitives, token budgets |
+| [`@hivelore/embeddings`](./packages/embeddings) | `npm i -g @hivelore/embeddings` | Optional: local semantic ranking (bge-small-en-v1.5, fully offline) |
 
 **Also in this repo:** a [VS Code extension](./packages/vscode) (surfaces memories inline + a Strategic
 Cockpit over the CLI's observability) and a [GitHub Action](./packages/github-action) (posts relevant
@@ -404,7 +436,7 @@ team memories as a PR comment so reviewers and agents never miss a non-obvious c
 
 A briefing only earns its place when it carries unguessable knowledge, so `get_briefing` returns
 `briefing_value: "high" | "low"`. When nothing team-specific matches the files/task, the auto-generated
-project context is trimmed to a one-line note (config: `adaptiveBriefing`, default on) — so hAIve
+project context is trimmed to a one-line note (config: `adaptiveBriefing`, default on) — so Hivelore
 surfaces deeper context only when it actually knows something the model doesn't.
 
 ---
@@ -413,56 +445,56 @@ surfaces deeper context only when it actually knows something the model doesn't.
 
 ```bash
 # Setup
-haive init [--with-ci] [--no-bridges]         # Initialize .ai/ + bridge files + seed stack/git
-haive init --bridge-targets <all|csv>         # Scope generated bridges to specific agents
-haive enforce install                         # Install Git hooks + CI enforcement
-haive enforce status                          # Enforcement posture report
-haive bridges list/sync [--all]               # Inspect / regenerate native agent bridges
-haive index code                              # Build .ai/code-map.json
-haive index code --status [--json]            # Report code-map / code-search index freshness
+hivelore init [--with-ci] [--no-bridges]         # Initialize .ai/ + bridge files + seed stack/git
+hivelore init --bridge-targets <all|csv>         # Scope generated bridges to specific agents
+hivelore enforce install                         # Install Git hooks + CI enforcement
+hivelore enforce status                          # Enforcement posture report
+hivelore bridges list/sync [--all]               # Inspect / regenerate native agent bridges
+hivelore index code                              # Build .ai/code-map.json
+hivelore index code --status [--json]            # Report code-map / code-search index freshness
 
 # Daily use
-haive briefing [--task <text>] [--files] [--json]   # Print context + relevant memories
-haive run -- <agent command>                  # Wrap any CLI agent in hAIve session
-haive enforce check [--stage pre-commit]      # Policy gate
-haive enforce ci                              # CI entrypoint
-haive enforce finish                          # Final agent-exit gate: commit/push + version/tag protocol
-haive coverage [--source git|agent|both]      # Find changed files no memory covers
-haive sync [--since <ref>] [--embed]          # Verify anchors + auto-promote
-haive sensors list/check/export/promote       # Operate executable memory sensors
+hivelore briefing [--task <text>] [--files] [--json]   # Print context + relevant memories
+hivelore run -- <agent command>                  # Wrap any CLI agent in Hivelore session
+hivelore enforce check [--stage pre-commit]      # Policy gate
+hivelore enforce ci                              # CI entrypoint
+hivelore enforce finish                          # Final agent-exit gate: commit/push + version/tag protocol
+hivelore coverage [--source git|agent|both]      # Find changed files no memory covers
+hivelore sync [--since <ref>] [--embed]          # Verify anchors + auto-promote
+hivelore sensors list/check/export/promote       # Operate executable memory sensors
 
 # Memory
-haive memory save --type <type> [--paths|--files <csv>] # Save a memory (anchor to files)
-haive memory list [--scope] [--status]        # List memories
-haive memory search <text>                    # Full-text / semantic search
-haive memory get <id>                         # Read one record
-haive memory approve [<id>|--all]             # Mark as validated
-haive memory promote <id>                     # personal → team
-haive memory tried                            # Record a failed approach
-haive memory resolve-conflict [--yes]         # Guided supersede of contradicting memories
-haive memory verify [--update] [--json]       # Check anchor freshness
-haive memory import --from <file>             # Import docs as memories
+hivelore memory save --type <type> --body "<text>" [--paths <csv>]  # Save a memory (anchor to files)
+hivelore memory list [--scope] [--status]        # List memories
+hivelore memory search <text>                    # Full-text / semantic search
+hivelore memory get <id>                         # Read one record
+hivelore memory approve [<id>|--all]             # Mark as validated
+hivelore memory promote <id>                     # personal → team
+hivelore memory tried                            # Record a failed approach
+hivelore memory resolve-conflict [--yes]         # Guided supersede of contradicting memories
+hivelore memory verify [--update] [--json]       # Check anchor freshness
+hivelore memory import --from <file>             # Import docs as memories
 
 # Cold start (seed from existing signals)
-haive ingest --from sonar|sarif|eslint|npm-audit <file>  # Scanner findings → anchored memories
-haive ingest --from <fmt> <file> --dry-run    # Preview without writing
+hivelore ingest --from sonar|sarif|eslint|npm-audit <file>  # Scanner findings → anchored memories
+hivelore ingest --from <fmt> <file> --dry-run    # Preview without writing
 
 # Semantic search
-haive embeddings index                        # Build index (first run: downloads model)
-haive embeddings query <text>                 # Semantic search
+hivelore embeddings index                        # Build index (first run: downloads model)
+hivelore embeddings query <text>                 # Semantic search
 
 # Diagnostics
-haive doctor                                  # Analyze setup, emit recommendations
-haive eval --fail-under 80                    # Retrieval + sensor quality gate
-haive tui                                     # Interactive terminal dashboard
-haive bench                                   # Self-test MCP tools
+hivelore doctor                                  # Analyze setup, emit recommendations
+hivelore eval --fail-under 80                    # Retrieval + sensor quality gate
+hivelore tui                                     # Interactive terminal dashboard
+hivelore bench                                   # Self-test MCP tools
 ```
 
-`haive eval` auto-synthesizes retrieval cases from anchored memories and, when present, also loads
+`hivelore eval` auto-synthesizes retrieval cases from anchored memories and, when present, also loads
 `.ai/eval/spec.json` for labeled retrieval/sensor cases. This repo uses that file to keep executable
 memory sensors in CI, so a broken guardrail is caught before release.
 
-`haive doctor` reports local setup drift that can make agents misdiagnose the repo: missing `pnpm`,
+`hivelore doctor` reports local setup drift that can make agents misdiagnose the repo: missing `pnpm`,
 stale workspace `dist` artifacts, global CLI/MCP version skew, outdated code-search indexes, and low
 memory-anchor coverage.
 
@@ -495,8 +527,8 @@ EOF
 ## Development
 
 ```bash
-git clone https://github.com/Doucs91/hAIve.git
-cd hAIve
+git clone https://github.com/Doucs91/hivelore.git
+cd Hivelore
 pnpm install
 pnpm -r build    # Build all packages
 pnpm -r test     # Run tests

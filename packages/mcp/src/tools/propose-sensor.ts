@@ -21,7 +21,7 @@ import {
   serializeMemory,
   type Sensor,
   type SensorTarget,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -127,7 +127,7 @@ export async function proposeSensor(
   ctx: HaiveContext,
 ): Promise<ProposeSensorOutput> {
   if (!existsSync(ctx.paths.memoriesDir)) {
-    throw new Error(`No .ai/memories at ${ctx.paths.root}. Run 'haive init' first.`);
+    throw new Error(`No .ai/memories at ${ctx.paths.root}. Run 'hivelore init' first.`);
   }
 
   // Validate the regex(es) compile before anything else.

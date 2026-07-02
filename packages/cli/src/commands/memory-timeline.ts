@@ -5,7 +5,7 @@ import {
   collectTimelineEntries,
   findProjectRoot,
   resolveHaivePaths,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
@@ -35,7 +35,7 @@ export function registerMemoryTimeline(memory: Command): void {
       const root = path.resolve(opts.dir ?? process.cwd());
       const paths = resolveHaivePaths(findProjectRoot(root));
       if (!existsSync(paths.memoriesDir)) {
-        ui.error("No memories — run `haive init`.");
+        ui.error("No memories — run `hivelore init`.");
         process.exitCode = 1;
         return;
       }

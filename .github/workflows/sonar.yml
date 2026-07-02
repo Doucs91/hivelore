@@ -8,7 +8,7 @@ on:
 
 jobs:
   sonar:
-    name: SonarQube scan (hAIve)
+    name: SonarQube scan (Hivelore)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

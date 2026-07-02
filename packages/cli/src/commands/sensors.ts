@@ -22,8 +22,8 @@ import {
   type CommandSensorSpec,
   type Memory,
   type Sensor,
-} from "@hiveai/core";
-import { readPresumedCorrectTargets } from "@hiveai/mcp";
+} from "@hivelore/core";
+import { readPresumedCorrectTargets } from "@hivelore/mcp";
 import { ui } from "../utils/ui.js";
 
 const exec = promisify(execFile);
@@ -67,7 +67,7 @@ interface SensorsProposeOptions {
 export function registerSensors(program: Command): void {
   const sensors = program
     .command("sensors")
-    .description("Operate executable sensors derived from hAIve memories");
+    .description("Operate executable sensors derived from Hivelore memories");
 
   sensors
     .command("list")
@@ -88,7 +88,7 @@ export function registerSensors(program: Command): void {
       }
       const brittleCount = rows.filter((r) => "brittle" in r && r.brittle).length;
       console.log(
-        ui.bold(`hAIve sensors — ${rows.length}`) +
+        ui.bold(`Hivelore sensors — ${rows.length}`) +
           (brittleCount > 0 ? ui.yellow(` (${brittleCount} brittle — see ⚠)`) : ""),
       );
       for (const row of rows) {
@@ -109,7 +109,7 @@ export function registerSensors(program: Command): void {
     .description(
       "Run regex sensors against a diff (the deterministic/computational layer); defaults to `git diff --cached`.\n" +
       "  Diff-scan layers: `sensors check` (regex) and `anti_patterns_check` (memory match) are components;\n" +
-      "  `pre_commit_check` combines them; `haive enforce check` is THE gate that runs at commit.",
+      "  `pre_commit_check` combines them; `hivelore enforce check` is THE gate that runs at commit.",
     )
     .option("--diff-file <path>", "read unified diff from a file instead of staged changes")
     .option("--json", "emit JSON", false)
@@ -122,7 +122,7 @@ export function registerSensors(program: Command): void {
       const diff = opts.diffFile
         ? await readFile(path.resolve(root, opts.diffFile), "utf8")
         : await stagedDiff(root);
-      // Never scan `.ai/` or hAIve-owned files — a memory body quotes the very pattern it
+      // Never scan `.ai/` or Hivelore-owned files — a memory body quotes the very pattern it
       // documents and would self-fire (mirrors the git-hook gate in enforce.ts).
       const targets = scannableSensorTargets(diff);
       const hits = runSensors(memories, targets);
@@ -175,7 +175,7 @@ export function registerSensors(program: Command): void {
         console.log(JSON.stringify(output, null, 2));
       } else {
         const total = hits.length + commandHits.length;
-        console.log(ui.bold(`hAIve sensors check — ${total} hit(s), ${memories.length} regex + ${commandSpecs.length} command sensor(s)`));
+        console.log(ui.bold(`Hivelore sensors check — ${total} hit(s), ${memories.length} regex + ${commandSpecs.length} command sensor(s)`));
         for (const hit of hits) {
           const marker = hit.severity === "block" ? ui.red("✗") : ui.yellow("⚠");
           console.log(`  ${marker} ${hit.memory_id} ${ui.dim(`(${hit.severity})`)}`);
@@ -290,12 +290,12 @@ export function registerSensors(program: Command): void {
   sensors
     .command("propose")
     .description(
-      "Propose a discriminating sensor for a memory — you write the pattern, hAIve validates it before\n" +
+      "Propose a discriminating sensor for a memory — you write the pattern, Hivelore validates it before\n" +
       "  trusting it to block. Mirrors the MCP `propose_sensor` tool (the agent-authored path).\n\n" +
       "  A `block` proposal is accepted ONLY if it is not brittle, stays SILENT on the current code,\n" +
       "  and FIRES on the bad example. Rejected proposals are not written — fix and re-run.\n\n" +
       "  Example:\n" +
-      "    haive sensors propose <memory-id> \\\n" +
+      "    hivelore sensors propose <memory-id> \\\n" +
       "      --pattern 'stripe\\.paymentIntents\\.create' --absent 'idempotencyKey' \\\n" +
       "      --bad-example 'stripe.paymentIntents.create({ amount })'",
     )
@@ -475,7 +475,7 @@ function renderGrepScript(rows: Awaited<ReturnType<typeof sensorRows>>): string 
     const paths = row.paths.length > 0 ? row.paths : ["."];
     for (const p of paths) {
       lines.push(`if grep -RInE -- ${shellQuote(row.pattern!)} ${shellQuote(p)}; then`);
-      lines.push(`  echo ${shellQuote(`hAIve sensor ${row.id}: ${row.message}`)}`);
+      lines.push(`  echo ${shellQuote(`Hivelore sensor ${row.id}: ${row.message}`)}`);
       if (row.severity === "block") lines.push("  status=1");
       lines.push("fi");
       lines.push("");

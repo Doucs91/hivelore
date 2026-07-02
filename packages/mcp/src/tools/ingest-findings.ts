@@ -10,7 +10,7 @@ import {
   serializeMemory,
   type FindingSeverity,
   type MemoryDraft,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -76,7 +76,7 @@ export async function ingestFindings(
   ctx: HaiveContext,
 ): Promise<IngestFindingsOutput> {
   if (!existsSync(ctx.paths.haiveDir)) {
-    throw new Error(`No .ai/ directory at ${ctx.paths.root}. Run 'haive init' first.`);
+    throw new Error(`No .ai/ directory at ${ctx.paths.root}. Run 'hivelore init' first.`);
   }
 
   let raw: string;
@@ -127,7 +127,7 @@ export async function ingestFindings(
 
   const notice = input.dry_run
     ? `Dry run — ${fresh.length} memory(ies) would be created (status=proposed). Re-run with dry_run=false to write them.`
-    : `Created ${fresh.length} proposed memory(ies). They are NOT validated and their sensors are warn-only — review with mem_pending and promote with 'haive sensors promote'.`;
+    : `Created ${fresh.length} proposed memory(ies). They are NOT validated and their sensors are warn-only — review with mem_pending and promote with 'hivelore sensors promote'.`;
 
   return {
     format: input.format,

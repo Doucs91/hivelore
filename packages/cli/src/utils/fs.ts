@@ -3,4 +3,4 @@ export {
   loadMemory,
   listMarkdownFilesRecursive,
   type LoadedMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";

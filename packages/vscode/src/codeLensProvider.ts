@@ -26,7 +26,7 @@ export class HaiveCodeLensProvider implements vscode.CodeLensProvider {
   }
 
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
-    const cfg = vscode.workspace.getConfiguration("haive");
+    const cfg = vscode.workspace.getConfiguration("hivelore");
     if (!cfg.get<boolean>("showCodeLens", true)) return [];
     if (!this.store.isInitialized()) return [];
 
@@ -55,15 +55,15 @@ export class HaiveCodeLensProvider implements vscode.CodeLensProvider {
       .join(" · ");
 
     const label = actionRequired.length > 0
-      ? `⚠️ hAIve: ${memories.length} ${memories.length === 1 ? "memory" : "memories"} (${actionRequired.length} action required) — ${typeSummary}`
-      : `🧠 hAIve: ${memories.length} ${memories.length === 1 ? "memory" : "memories"} — ${typeSummary}`;
+      ? `⚠️ Hivelore: ${memories.length} ${memories.length === 1 ? "memory" : "memories"} (${actionRequired.length} action required) — ${typeSummary}`
+      : `🧠 Hivelore: ${memories.length} ${memories.length === 1 ? "memory" : "memories"} — ${typeSummary}`;
 
     lenses.push(
       new vscode.CodeLens(range, {
         title: label,
-        command: "haive.showMemoriesForFile",
+        command: "hivelore.showMemoriesForFile",
         arguments: [document.uri],
-        tooltip: "Click to see all memories for this file in the hAIve sidebar",
+        tooltip: "Click to see all memories for this file in the Hivelore sidebar",
       }),
     );
 
@@ -82,7 +82,7 @@ export class HaiveCodeLensProvider implements vscode.CodeLensProvider {
       lenses.push(
         new vscode.CodeLens(range, {
           title: `  ${icon} ${shortTitle}${staleTag}`,
-          command: "haive.openMemory",
+          command: "hivelore.openMemory",
           arguments: [m.filePath],
           tooltip: m.body.slice(0, 300).replace(/^#+\s*/gm, "").trim(),
         }),

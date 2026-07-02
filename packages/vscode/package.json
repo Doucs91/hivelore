@@ -1,20 +1,35 @@
 {
-  "name": "haive-vscode",
-  "displayName": "hAIve — Agent Harness & Context Enforcement",
+  "name": "hivelore-vscode",
+  "displayName": "Hivelore \u2014 Agent Harness & Context Enforcement",
   "description": "Repo-native context policy for coding-agent harnesses: surface decisions, gotchas, skills, and harness health inline.",
   "version": "0.6.3",
-  "publisher": "hAIve",
+  "publisher": "hivelore",
   "icon": "media/icon.png",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Doucs91/hAIve.git"
+    "url": "https://github.com/Doucs91/hivelore.git"
   },
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other", "AI", "Programming Languages"],
-  "keywords": ["ai", "enforcement", "policy", "context", "mcp", "harness", "cursor", "copilot", "knowledge", "skills"],
+  "categories": [
+    "Other",
+    "AI",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "ai",
+    "enforcement",
+    "policy",
+    "context",
+    "mcp",
+    "harness",
+    "cursor",
+    "copilot",
+    "knowledge",
+    "skills"
+  ],
   "activationEvents": [
     "workspaceContains:.ai/memories/**",
     "workspaceContains:.ai/haive.config.json"
@@ -24,34 +39,34 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "haive-explorer",
-          "title": "hAIve",
+          "id": "hivelore-explorer",
+          "title": "Hivelore",
           "icon": "media/logo-mono.svg"
         }
       ]
     },
     "views": {
-      "haive-explorer": [
+      "hivelore-explorer": [
         {
-          "id": "haive.memoriesView",
+          "id": "hivelore.memoriesView",
           "name": "Context Policy",
           "icon": "$(book)",
           "contextualTitle": "Context records"
         },
         {
-          "id": "haive.cockpitView",
+          "id": "hivelore.cockpitView",
           "name": "Strategic Cockpit",
           "icon": "$(dashboard)",
-          "contextualTitle": "hAIve observability cockpit"
+          "contextualTitle": "Hivelore observability cockpit"
         },
         {
-          "id": "haive.inboxView",
+          "id": "hivelore.inboxView",
           "name": "Discipline Inbox",
           "icon": "$(checklist)",
           "contextualTitle": "Context hygiene actions"
         },
         {
-          "id": "haive.harnessView",
+          "id": "hivelore.harnessView",
           "name": "Harness Health",
           "icon": "$(pulse)",
           "contextualTitle": "Harness health scores"
@@ -60,319 +75,319 @@
     },
     "viewsWelcome": [
       {
-        "view": "haive.memoriesView",
-        "contents": "No hAIve context records found in this workspace.\n\nRun `haive init` to initialize hAIve in your project.\n[Learn more](https://github.com/Doucs91/hAIve)\n\n[Initialize hAIve](command:haive.init)"
+        "view": "hivelore.memoriesView",
+        "contents": "No Hivelore context records found in this workspace.\n\nRun `hivelore init` to initialize Hivelore in your project.\n[Learn more](https://github.com/Doucs91/hivelore)\n\n[Initialize Hivelore](command:hivelore.init)"
       },
       {
-        "view": "haive.cockpitView",
-        "contents": "Run a strategic hAIve check to see corpus health, eval quality, sensors, impact, usage, and risks.\n\n[Refresh Observability](command:haive.refreshObservability)"
+        "view": "hivelore.cockpitView",
+        "contents": "Run a strategic Hivelore check to see corpus health, eval quality, sensors, impact, usage, and risks.\n\n[Refresh Observability](command:hivelore.refreshObservability)"
       },
       {
-        "view": "haive.inboxView",
-        "contents": "Build the discipline inbox to review stale, pending, noisy, low-value, and sensor-related context work.\n\n[Refresh Observability](command:haive.refreshObservability)"
+        "view": "hivelore.inboxView",
+        "contents": "Build the discipline inbox to review stale, pending, noisy, low-value, and sensor-related context work.\n\n[Refresh Observability](command:hivelore.refreshObservability)"
       },
       {
-        "view": "haive.harnessView",
-        "contents": "Run a harness health check to see doctor scores.\n\n[Run Health Check](command:haive.runDoctor)"
+        "view": "hivelore.harnessView",
+        "contents": "Run a harness health check to see doctor scores.\n\n[Run Health Check](command:hivelore.runDoctor)"
       }
     ],
     "commands": [
       {
-        "command": "haive.refreshMemories",
-        "title": "hAIve: Refresh Memories",
+        "command": "hivelore.refreshMemories",
+        "title": "Hivelore: Refresh Memories",
         "icon": "$(refresh)"
       },
       {
-        "command": "haive.showMemoriesForFile",
-        "title": "hAIve: Show Memories for This File"
+        "command": "hivelore.showMemoriesForFile",
+        "title": "Hivelore: Show Memories for This File"
       },
       {
-        "command": "haive.showAllMemories",
-        "title": "hAIve: Show All Memories",
+        "command": "hivelore.showAllMemories",
+        "title": "Hivelore: Show All Memories",
         "icon": "$(list-unordered)"
       },
       {
-        "command": "haive.openMemory",
-        "title": "hAIve: Open Memory File"
+        "command": "hivelore.openMemory",
+        "title": "Hivelore: Open Memory File"
       },
       {
-        "command": "haive.addMemory",
-        "title": "hAIve: Add Memory…",
+        "command": "hivelore.addMemory",
+        "title": "Hivelore: Add Memory\u2026",
         "icon": "$(add)"
       },
       {
-        "command": "haive.copyMemoryBody",
-        "title": "hAIve: Copy Memory Content",
+        "command": "hivelore.copyMemoryBody",
+        "title": "Hivelore: Copy Memory Content",
         "icon": "$(copy)"
       },
       {
-        "command": "haive.searchMemories",
-        "title": "hAIve: Search Memories…",
+        "command": "hivelore.searchMemories",
+        "title": "Hivelore: Search Memories\u2026",
         "icon": "$(search)"
       },
       {
-        "command": "haive.memTried",
-        "title": "hAIve: Record Failed Attempt…",
+        "command": "hivelore.memTried",
+        "title": "Hivelore: Record Failed Attempt\u2026",
         "icon": "$(debug-restart)"
       },
       {
-        "command": "haive.runBriefing",
-        "title": "hAIve: Get Briefing for This File",
+        "command": "hivelore.runBriefing",
+        "title": "Hivelore: Get Briefing for This File",
         "icon": "$(book)"
       },
       {
-        "command": "haive.runDoctor",
-        "title": "hAIve: Run Health Check",
+        "command": "hivelore.runDoctor",
+        "title": "Hivelore: Run Health Check",
         "icon": "$(pulse)"
       },
       {
-        "command": "haive.refreshObservability",
-        "title": "hAIve: Refresh Observability",
+        "command": "hivelore.refreshObservability",
+        "title": "Hivelore: Refresh Observability",
         "icon": "$(dashboard)"
       },
       {
-        "command": "haive.runEval",
-        "title": "hAIve: Run Eval",
+        "command": "hivelore.runEval",
+        "title": "Hivelore: Run Eval",
         "icon": "$(beaker)"
       },
       {
-        "command": "haive.saveEvalBaseline",
-        "title": "hAIve: Save Eval Baseline",
+        "command": "hivelore.saveEvalBaseline",
+        "title": "Hivelore: Save Eval Baseline",
         "icon": "$(bookmark)"
       },
       {
-        "command": "haive.compareEval",
-        "title": "hAIve: Compare Eval to Baseline",
+        "command": "hivelore.compareEval",
+        "title": "Hivelore: Compare Eval to Baseline",
         "icon": "$(diff)"
       },
       {
-        "command": "haive.runSensorsCheck",
-        "title": "hAIve: Run Sensors Check",
+        "command": "hivelore.runSensorsCheck",
+        "title": "Hivelore: Run Sensors Check",
         "icon": "$(shield)"
       },
       {
-        "command": "haive.runMemoryLint",
-        "title": "hAIve: Run Memory Lint",
+        "command": "hivelore.runMemoryLint",
+        "title": "Hivelore: Run Memory Lint",
         "icon": "$(wand)"
       },
       {
-        "command": "haive.openMemoryById",
-        "title": "hAIve: Open Memory by ID"
+        "command": "hivelore.openMemoryById",
+        "title": "Hivelore: Open Memory by ID"
       },
       {
-        "command": "haive.runFixAction",
-        "title": "hAIve: Run Suggested Fix",
+        "command": "hivelore.runFixAction",
+        "title": "Hivelore: Run Suggested Fix",
         "icon": "$(tools)"
       },
       {
-        "command": "haive.markMemoryApplied",
-        "title": "hAIve: Mark Memory Applied",
+        "command": "hivelore.markMemoryApplied",
+        "title": "Hivelore: Mark Memory Applied",
         "icon": "$(check)"
       },
       {
-        "command": "haive.markMemoryRejected",
-        "title": "hAIve: Mark Memory Rejected",
+        "command": "hivelore.markMemoryRejected",
+        "title": "Hivelore: Mark Memory Rejected",
         "icon": "$(close)"
       },
       {
-        "command": "haive.promoteSensor",
-        "title": "hAIve: Promote Sensor to Block",
+        "command": "hivelore.promoteSensor",
+        "title": "Hivelore: Promote Sensor to Block",
         "icon": "$(shield)"
       },
       {
-        "command": "haive.syncMemories",
-        "title": "hAIve: Sync Memories",
+        "command": "hivelore.syncMemories",
+        "title": "Hivelore: Sync Memories",
         "icon": "$(sync)"
       },
       {
-        "command": "haive.approveMemory",
-        "title": "hAIve: Approve Memory",
+        "command": "hivelore.approveMemory",
+        "title": "Hivelore: Approve Memory",
         "icon": "$(pass)"
       },
       {
-        "command": "haive.rejectMemory",
-        "title": "hAIve: Reject Memory",
+        "command": "hivelore.rejectMemory",
+        "title": "Hivelore: Reject Memory",
         "icon": "$(trash)"
       },
       {
-        "command": "haive.seedStackPack",
-        "title": "hAIve: Add Starter Memories (Stack Pack)…",
+        "command": "hivelore.seedStackPack",
+        "title": "Hivelore: Add Starter Memories (Stack Pack)\u2026",
         "icon": "$(sparkle)"
       },
       {
-        "command": "haive.anchorMemory",
-        "title": "hAIve: Anchor Memory to File…",
+        "command": "hivelore.anchorMemory",
+        "title": "Hivelore: Anchor Memory to File\u2026",
         "icon": "$(pin)"
       },
       {
-        "command": "haive.promoteMemory",
-        "title": "hAIve: Promote Memory to Team",
+        "command": "hivelore.promoteMemory",
+        "title": "Hivelore: Promote Memory to Team",
         "icon": "$(arrow-up)"
       },
       {
-        "command": "haive.init",
-        "title": "hAIve: Initialize in This Workspace"
+        "command": "hivelore.init",
+        "title": "Hivelore: Initialize in This Workspace"
       },
       {
-        "command": "haive.showOutput",
-        "title": "hAIve: Show Output"
+        "command": "hivelore.showOutput",
+        "title": "Hivelore: Show Output"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "haive.addMemory",
-          "when": "view == haive.memoriesView",
+          "command": "hivelore.addMemory",
+          "when": "view == hivelore.memoriesView",
           "group": "navigation@1"
         },
         {
-          "command": "haive.seedStackPack",
-          "when": "view == haive.memoriesView",
+          "command": "hivelore.seedStackPack",
+          "when": "view == hivelore.memoriesView",
           "group": "navigation@2"
         },
         {
-          "command": "haive.searchMemories",
-          "when": "view == haive.memoriesView",
+          "command": "hivelore.searchMemories",
+          "when": "view == hivelore.memoriesView",
           "group": "navigation@3"
         },
         {
-          "command": "haive.refreshMemories",
-          "when": "view == haive.memoriesView",
+          "command": "hivelore.refreshMemories",
+          "when": "view == hivelore.memoriesView",
           "group": "navigation@4"
         },
         {
-          "command": "haive.runDoctor",
-          "when": "view == haive.harnessView",
+          "command": "hivelore.runDoctor",
+          "when": "view == hivelore.harnessView",
           "group": "navigation@1"
         },
         {
-          "command": "haive.refreshObservability",
-          "when": "view == haive.cockpitView",
+          "command": "hivelore.refreshObservability",
+          "when": "view == hivelore.cockpitView",
           "group": "navigation@1"
         },
         {
-          "command": "haive.runEval",
-          "when": "view == haive.cockpitView",
+          "command": "hivelore.runEval",
+          "when": "view == hivelore.cockpitView",
           "group": "navigation@2"
         },
         {
-          "command": "haive.compareEval",
-          "when": "view == haive.cockpitView",
+          "command": "hivelore.compareEval",
+          "when": "view == hivelore.cockpitView",
           "group": "navigation@3"
         },
         {
-          "command": "haive.refreshObservability",
-          "when": "view == haive.inboxView",
+          "command": "hivelore.refreshObservability",
+          "when": "view == hivelore.inboxView",
           "group": "navigation@1"
         },
         {
-          "command": "haive.runMemoryLint",
-          "when": "view == haive.inboxView",
+          "command": "hivelore.runMemoryLint",
+          "when": "view == hivelore.inboxView",
           "group": "navigation@2"
         },
         {
-          "command": "haive.runSensorsCheck",
-          "when": "view == haive.inboxView",
+          "command": "hivelore.runSensorsCheck",
+          "when": "view == hivelore.inboxView",
           "group": "navigation@3"
         },
         {
-          "command": "haive.syncMemories",
-          "when": "view == haive.harnessView",
+          "command": "hivelore.syncMemories",
+          "when": "view == hivelore.harnessView",
           "group": "navigation@2"
         }
       ],
       "view/item/context": [
         {
-          "command": "haive.anchorMemory",
-          "when": "view == haive.memoriesView && viewItem == seedMemory",
+          "command": "hivelore.anchorMemory",
+          "when": "view == hivelore.memoriesView && viewItem == seedMemory",
           "group": "inline@0"
         },
         {
-          "command": "haive.openMemory",
-          "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
+          "command": "hivelore.openMemory",
+          "when": "view == hivelore.memoriesView && (viewItem == memory || viewItem == seedMemory)",
           "group": "inline@1"
         },
         {
-          "command": "haive.copyMemoryBody",
-          "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
+          "command": "hivelore.copyMemoryBody",
+          "when": "view == hivelore.memoriesView && (viewItem == memory || viewItem == seedMemory)",
           "group": "inline@2"
         },
         {
-          "command": "haive.anchorMemory",
-          "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
+          "command": "hivelore.anchorMemory",
+          "when": "view == hivelore.memoriesView && (viewItem == memory || viewItem == seedMemory)",
           "group": "haive@1"
         },
         {
-          "command": "haive.promoteMemory",
-          "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
+          "command": "hivelore.promoteMemory",
+          "when": "view == hivelore.memoriesView && (viewItem == memory || viewItem == seedMemory)",
           "group": "haive@2"
         },
         {
-          "command": "haive.approveMemory",
-          "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
+          "command": "hivelore.approveMemory",
+          "when": "view == hivelore.memoriesView && (viewItem == memory || viewItem == seedMemory)",
           "group": "haive@3"
         },
         {
-          "command": "haive.rejectMemory",
-          "when": "view == haive.memoriesView && (viewItem == memory || viewItem == seedMemory)",
+          "command": "hivelore.rejectMemory",
+          "when": "view == hivelore.memoriesView && (viewItem == memory || viewItem == seedMemory)",
           "group": "haive@4"
         },
         {
-          "command": "haive.openMemoryById",
+          "command": "hivelore.openMemoryById",
           "when": "viewItem == haiveMemoryAction || viewItem == haiveMemoryFeedbackAction || viewItem == haiveSensorAction",
           "group": "inline@1"
         },
         {
-          "command": "haive.markMemoryApplied",
+          "command": "hivelore.markMemoryApplied",
           "when": "viewItem == haiveMemoryFeedbackAction || viewItem == haiveMemoryAction",
           "group": "inline@2"
         },
         {
-          "command": "haive.markMemoryRejected",
+          "command": "hivelore.markMemoryRejected",
           "when": "viewItem == haiveMemoryFeedbackAction || viewItem == haiveMemoryAction",
           "group": "inline@3"
         },
         {
-          "command": "haive.promoteSensor",
+          "command": "hivelore.promoteSensor",
           "when": "viewItem == haiveSensorAction",
           "group": "inline@4"
         },
         {
-          "command": "haive.runFixAction",
+          "command": "hivelore.runFixAction",
           "when": "viewItem == haiveFixAction",
           "group": "inline@5"
         },
         {
-          "command": "haive.approveMemory",
+          "command": "hivelore.approveMemory",
           "when": "viewItem == haiveMemoryAction",
           "group": "haive@1"
         },
         {
-          "command": "haive.rejectMemory",
+          "command": "hivelore.rejectMemory",
           "when": "viewItem == haiveMemoryAction",
           "group": "haive@2"
         }
       ],
       "editor/title": [
         {
-          "command": "haive.runBriefing",
+          "command": "hivelore.runBriefing",
           "when": "resourceScheme == file",
           "group": "haive"
         }
       ],
       "editor/context": [
         {
-          "command": "haive.showMemoriesForFile",
+          "command": "hivelore.showMemoriesForFile",
           "group": "haive@1",
           "when": "resourceScheme == file"
         },
         {
-          "command": "haive.runBriefing",
+          "command": "hivelore.runBriefing",
           "group": "haive@2",
           "when": "resourceScheme == file"
         },
         {
-          "command": "haive.memTried",
+          "command": "hivelore.memTried",
           "group": "haive@3",
           "when": "resourceScheme == file"
         }
@@ -380,50 +395,54 @@
     },
     "keybindings": [
       {
-        "command": "haive.searchMemories",
+        "command": "hivelore.searchMemories",
         "key": "ctrl+shift+h",
         "mac": "cmd+shift+h"
       },
       {
-        "command": "haive.runBriefing",
+        "command": "hivelore.runBriefing",
         "key": "ctrl+shift+b",
         "mac": "cmd+shift+b",
         "when": "editorFocus"
       }
     ],
     "configuration": {
-      "title": "hAIve",
+      "title": "Hivelore",
       "properties": {
-        "haive.showCodeLens": {
+        "hivelore.showCodeLens": {
           "type": "boolean",
           "default": true,
-          "description": "Show inline context record count (CodeLens) at the top of files with anchored hAIve records."
+          "description": "Show inline context record count (CodeLens) at the top of files with anchored Hivelore records."
         },
-        "haive.showStatusBar": {
+        "hivelore.showStatusBar": {
           "type": "boolean",
           "default": true,
-          "description": "Show the hAIve memory count in the status bar."
+          "description": "Show the Hivelore memory count in the status bar."
         },
-        "haive.memoriesDir": {
+        "hivelore.memoriesDir": {
           "type": "string",
           "default": ".ai/memories",
-          "description": "Path to the hAIve context records directory relative to the workspace root."
+          "description": "Path to the Hivelore context records directory relative to the workspace root."
         },
-        "haive.highlightActionRequired": {
+        "hivelore.highlightActionRequired": {
           "type": "boolean",
           "default": true,
-          "description": "Highlight files with action_required hAIve context records using a warning decoration."
+          "description": "Highlight files with action_required Hivelore context records using a warning decoration."
         },
-        "haive.cliPath": {
+        "hivelore.cliPath": {
           "type": "string",
           "default": "haive",
           "description": "Path to the haive CLI binary. Use an absolute path if haive is not on PATH (e.g. /usr/local/bin/haive)."
         },
-        "haive.briefingBudget": {
+        "hivelore.briefingBudget": {
           "type": "string",
-          "enum": ["default", "deep", "minimal"],
+          "enum": [
+            "default",
+            "deep",
+            "minimal"
+          ],
           "default": "default",
-          "description": "Token budget for haive briefing. Use 'deep' for a more thorough briefing at the cost of more tokens."
+          "description": "Token budget for hivelore briefing. Use 'deep' for a more thorough briefing at the cost of more tokens."
         }
       }
     }

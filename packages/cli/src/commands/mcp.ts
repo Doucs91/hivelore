@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { findProjectRoot } from "@hiveai/core";
-import { runHaiveMcpStdio } from "@hiveai/mcp";
+import { findProjectRoot } from "@hivelore/core";
+import { runHaiveMcpStdio } from "@hivelore/mcp";
 import { ui } from "../utils/ui.js";
 
 interface McpOptions {
@@ -14,12 +14,12 @@ export function registerMcp(program: Command): void {
   program
     .command("mcp")
     .description(
-      "Run the hAIve MCP server over stdio (bundled — same tools as legacy haive-mcp).\n\n" +
-      "  Configure via haive init (project-level), or manually:\n" +
-      '    \"command\": \"haive\",\n' +
+      "Run the Hivelore MCP server over stdio (bundled — same tools as legacy haive-mcp).\n\n" +
+      "  Configure via hivelore init (project-level), or manually:\n" +
+      '    \"command\": \"hivelore\",\n' +
       '    \"args\": [\"mcp\", \"--stdio\"],\n' +
       "    optional env: HAIVE_PROJECT_ROOT (absolute project root).\n\n" +
-      "  Updating @hiveai/cli updates MCP; standalone haive-mcp is optional legacy.",
+      "  Updating @hivelore/cli updates MCP; standalone haive-mcp is optional legacy.",
     )
     .option("-d, --dir <dir>", "project root (walks up from here for .ai/ / .git/)")
     .option("-r, --root <dir>", "same as --dir (parity with legacy haive-mcp --root)")

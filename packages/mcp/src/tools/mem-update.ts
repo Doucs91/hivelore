@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { loadMemoriesFromDir, serializeMemory } from "@hiveai/core";
+import { loadMemoriesFromDir, serializeMemory } from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 

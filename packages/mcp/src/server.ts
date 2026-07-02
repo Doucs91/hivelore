@@ -200,9 +200,9 @@ import {
   type ImportDocsArgs,
 } from "./prompts/import-docs.js";
 import { SessionTracker } from "./session-tracker.js";
-import { hasRecentBriefingMarker, loadConfigSync } from "@hiveai/core";
+import { hasRecentBriefingMarker, loadConfigSync } from "@hivelore/core";
 
-// Re-export tool implementations so `@hiveai/cli` (and integrators) can call
+// Re-export tool implementations so `@hivelore/cli` (and integrators) can call
 // them programmatically without going through the MCP stdio transport.
 // These are the same handlers the MCP server registers below.
 export {
@@ -293,7 +293,7 @@ export {
 
 declare const __HAIVE_VERSION__: string;
 
-export const SERVER_NAME = "haive";
+export const SERVER_NAME = "hivelore";
 export const SERVER_VERSION = __HAIVE_VERSION__;
 export type ToolProfile = "enforcement" | "maintenance" | "experimental" | "full";
 
@@ -446,7 +446,7 @@ export function createHaiveServer(
             return jsonResult({
               error: "haive_briefing_required",
               message:
-                "This hAIve project requires get_briefing or mem_relevant_to before state-changing hAIve tools. Call get_briefing({ task: '...' }) first.",
+                "This Hivelore project requires get_briefing or mem_relevant_to before state-changing Hivelore tools. Call get_briefing({ task: '...' }) first.",
               tool: name,
             });
           }
@@ -487,7 +487,7 @@ export function createHaiveServer(
       "  topic    — stable key for upsert: if a memory with same topic+scope exists, update it in-place",
       "",
       "RETURNS: { id, scope, file_path, action: 'created'|'updated', warning?, invalid_paths? }",
-      "WARNING: if paths point to non-existent files, they will be immediately stale after haive sync.",
+      "WARNING: if paths point to non-existent files, they will be immediately stale after hivelore sync.",
       "DEDUP: identical body content within the same scope is rejected — use mem_update to modify.",
     ].join("\n"),
     MemSaveInputSchema,
@@ -548,7 +548,7 @@ export function createHaiveServer(
     "propose_sensor",
     [
       "Propose a discriminating sensor for a gotcha/attempt — YOU write the pattern (you understand the",
-      "code), hAIve validates it before trusting it to block. This is how a captured lesson becomes a",
+      "code), Hivelore validates it before trusting it to block. This is how a captured lesson becomes a",
       "RELIABLE block instead of an advisory note.",
       "",
       "USE THIS right after mem_tried / mem_save on a gotcha whose mistake is detectable in code, to",
@@ -583,7 +583,7 @@ export function createHaiveServer(
     [
       "Turn scanner findings (SonarQube / SARIF) into proposed, anchored memories with sensors.",
       "",
-      "USE THIS to seed hAIve from your existing quality tooling: each real defect a scanner",
+      "USE THIS to seed Hivelore from your existing quality tooling: each real defect a scanner",
       "found becomes a `gotcha`/`convention` memory anchored to the file, pre-filled with a",
       "conservative `warn` sensor — so the next agent is steered away from it before re-writing it.",
       "This closes the review↔memory loop and kills the cold-start problem.",
@@ -677,7 +677,7 @@ export function createHaiveServer(
   registerTool(
     "get_briefing",
     [
-      "⭐ DEFAULT-FIRST for coding agents on any repo where `haive init` ran: call this BEFORE",
+      "⭐ DEFAULT-FIRST for coding agents on any repo where `hivelore init` ran: call this BEFORE",
       "changing source or project config for the current goal (unless the developer explicitly opts out).",
       "One-shot onboarding: everything relevant in a single call under a token budget.",
       "",
@@ -740,13 +740,13 @@ export function createHaiveServer(
       "  Lexical rank (lexical_rank: true, semantic: false): Okapi-BM25-style scoring on the",
       "  filtered corpus — good for phrase-like queries without embeddings.",
       "  Semantic (semantic: true): embedding-based similarity — finds related memories",
-      "  even with different wording. Requires haive embeddings index to be built.",
+      "  even with different wording. Requires hivelore embeddings index to be built.",
       "",
       "PARAMETERS:",
       "  query    — search terms or natural language question",
       "  scope    — filter by personal | team | module",
       "  type     — filter by convention | decision | gotcha | architecture | glossary",
-      "  semantic — true for embedding-based search (requires @hiveai/embeddings)",
+      "  semantic — true for embedding-based search (requires @hivelore/embeddings)",
       "  lexical_rank — BM25-style ranking (ignored when semantic is true)",
       "  limit    — max results (default 10)",
       "",
@@ -887,7 +887,7 @@ export function createHaiveServer(
       "Look up where symbols (classes, functions, interfaces) are defined in the codebase.",
       "",
       "USE INSTEAD OF grepping when you need to find where something lives.",
-      "Requires haive index code to have been run (done automatically in autopilot mode).",
+      "Requires hivelore index code to have been run (done automatically in autopilot mode).",
       "",
       "TIP: include symbols in get_briefing directly for auto-lookup at session start.",
       "",
@@ -897,7 +897,7 @@ export function createHaiveServer(
       "  max_files — cap on results (default 40)",
       "",
       "RETURNS: { available: bool, files: [{ path, exports: [{ name, kind, line, description }] }] }",
-      "If available: false → run haive index code first.",
+      "If available: false → run hivelore index code first.",
     ].join("\n"),
     CodeMapInputSchema,
     async (input: CodeMapInput) => jsonResult(await codeMapTool(input, context)),
@@ -906,7 +906,7 @@ export function createHaiveServer(
   registerTool(
     "mem_resolve_project",
     [
-      "Diagnostics: resolve which project root hAIve is using (never throws).",
+      "Diagnostics: resolve which project root Hivelore is using (never throws).",
       "",
       "USE IN multi-root workspaces or when the agent CWD may not be the repo root —",
       "mirrors HAIVE_PROJECT_ROOT, findProjectRoot markers, and presence of .ai/memories.",
@@ -953,7 +953,7 @@ export function createHaiveServer(
       "Check whether memory anchor paths and symbols still exist in the current code.",
       "",
       "USE WHEN you want to know if a specific memory is still valid after a refactor,",
-      "or to check all memories for staleness (haive sync does this automatically).",
+      "or to check all memories for staleness (hivelore sync does this automatically).",
       "",
       "PARAMETERS:",
       "  id     — check a single memory (omit to check all)",
@@ -1013,7 +1013,7 @@ export function createHaiveServer(
       "  - outcome='rejected' → it was wrong/outdated/unhelpful (negative signal)",
       "",
       "A read only means a memory was surfaced; 'applied' means it demonstrably helped.",
-      "This powers `haive memory impact` (impact tiers + prune candidates) and future ranking.",
+      "This powers `hivelore memory impact` (impact tiers + prune candidates) and future ranking.",
       "",
       "PARAMETERS:",
       "  id      — full memory id the feedback is about",
@@ -1119,7 +1119,7 @@ export function createHaiveServer(
       "interfaces) related to a natural-language query. Replaces blind grep when you",
       "don't know the exact symbol name.",
       "",
-      "Requires `haive index code-search` to have been run (builds embeddings for every",
+      "Requires `hivelore index code-search` to have been run (builds embeddings for every",
       "exported symbol from the code-map). Falls back to a notice when index is missing.",
       "",
       "PARAMETERS:",
@@ -1165,7 +1165,7 @@ export function createHaiveServer(
     "anti_patterns_check",
     [
       "Scan a diff (or set of paths) against documented attempt/gotcha memories.",
-      "[Diff-scan layer: the MEMORY-MATCH component. `pre_commit_check` combines this with sensors + stale checks; `haive enforce check` is the gate.]",
+      "[Diff-scan layer: the MEMORY-MATCH component. `pre_commit_check` combines this with sensors + stale checks; `hivelore enforce check` is the gate.]",
       "Surfaces 'you are about to repeat a known mistake' warnings BEFORE you commit.",
       "",
       "USE BEFORE finalizing a non-trivial change. Cheap and high-signal: the only",
@@ -1320,7 +1320,7 @@ export function createHaiveServer(
     "pre_commit_check",
     [
       "One-shot 'should I block this commit?' check. Combines three signals:",
-      "[Diff-scan layer: the COMBINED check (sensors + anti-patterns + stale). `haive enforce check` is the gate that runs this at commit time.]",
+      "[Diff-scan layer: the COMBINED check (sensors + anti-patterns + stale). `hivelore enforce check` is the gate that runs this at commit time.]",
       "",
       "  1. anti_patterns_check — known gotchas/attempts that match the diff",
       "  2. mem_for_files       — conventions/decisions anchored to touched files",
@@ -1397,7 +1397,7 @@ export function createHaiveServer(
     server.prompt(
       "bootstrap_project",
       [
-        "Analyze the project codebase and write .ai/project-context.md — run once after haive init.",
+        "Analyze the project codebase and write .ai/project-context.md — run once after hivelore init.",
         "The AI explores the directory structure, reads key files (package.json, README, config),",
         "identifies the tech stack, architectural patterns, key modules, and conventions,",
         "then persists everything via bootstrap_project_save.",
@@ -1440,7 +1440,7 @@ export function createHaiveServer(
     server.prompt(
       "import_docs",
       [
-        "Import knowledge from a document (README, ADR, wiki, API spec) as hAIve memories.",
+        "Import knowledge from a document (README, ADR, wiki, API spec) as Hivelore memories.",
         "Pass the full document content; the AI extracts up to 10 actionable memories",
         "(conventions, decisions, gotchas, architecture) and saves them via mem_save.",
         "Good candidates: ADRs, onboarding docs, runbooks, team wikis.",
@@ -1453,7 +1453,7 @@ export function createHaiveServer(
   return { server, context, tracker };
 }
 
-// ── Stdio runtime (also invoked by `haive mcp --stdio` via bundled CLI) ─────
+// ── Stdio runtime (also invoked by `hivelore mcp --stdio` via bundled CLI) ─────
 
 /** Parse argv for the standalone haive-mcp binary / CLI subprocess parity. */
 export function parseMcpCliArgs(argv: string[]): {
@@ -1484,7 +1484,7 @@ export function printHaiveMcpVersion(): void {
 }
 
 /**
- * Run the MCP server over stdio. Used by `haive-mcp` and by `haive mcp --stdio`
+ * Run the MCP server over stdio. Used by `haive-mcp` and by `hivelore mcp --stdio`
  * when the MCP implementation is bundled into the CLI.
  */
 export async function runHaiveMcpStdio(options: { root?: string }): Promise<void> {

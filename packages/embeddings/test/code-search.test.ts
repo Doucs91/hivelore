@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { HaivePaths } from "@hiveai/core";
+import type { HaivePaths } from "@hivelore/core";
 import type { EmbedderLike } from "../src/embedder.js";
 import type { CodeEmbeddingIndex } from "../src/code-index-cache.js";
 import { codeSemanticSearch } from "../src/code-search.js";

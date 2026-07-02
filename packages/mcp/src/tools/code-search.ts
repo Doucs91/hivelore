@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { loadCodeMap } from "@hiveai/core";
+import { loadCodeMap } from "@hivelore/core";
 import type { HaiveContext } from "../context.js";
 
 export const CodeSearchInputSchema = {
@@ -53,16 +53,16 @@ export async function codeSearch(
   input: CodeSearchInput,
   ctx: HaiveContext,
 ): Promise<CodeSearchOutput> {
-  let mod: typeof import("@hiveai/embeddings");
+  let mod: typeof import("@hivelore/embeddings");
   try {
-    mod = await import("@hiveai/embeddings");
+    mod = await import("@hivelore/embeddings");
   } catch {
     return {
       available: false,
       hits: [],
       notice:
-        "@hiveai/embeddings is not installed. Install it (`pnpm add @hiveai/embeddings`) " +
-        "and run `haive index code-search` to enable semantic code search.",
+        "@hivelore/embeddings is not installed. Install it (`pnpm add @hivelore/embeddings`) " +
+        "and run `hivelore index code-search` to enable semantic code search.",
     };
   }
 
@@ -76,7 +76,7 @@ export async function codeSearch(
       available: false,
       hits: [],
       notice:
-        "Code semantic-search index not built. Run `haive index code-search` to generate it " +
+        "Code semantic-search index not built. Run `hivelore index code-search` to generate it " +
         "(builds embeddings for every exported symbol in the code-map).",
     };
   }
@@ -99,7 +99,7 @@ export async function codeSearch(
           stale: true as const,
           notice:
             "Code-search index is stale (built from an older code-map); newly added or moved symbols " +
-            "may be missing or mislocated. Rebuild with `haive index code && haive index code-search`.",
+            "may be missing or mislocated. Rebuild with `hivelore index code && hivelore index code-search`.",
         }
       : {}),
   };

@@ -1,4 +1,4 @@
-import { appendRuntimeJournalEntry } from "@hiveai/core";
+import { appendRuntimeJournalEntry } from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 

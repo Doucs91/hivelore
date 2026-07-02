@@ -4,7 +4,7 @@ import { Command } from "commander";
 import {
   findProjectRoot,
   resolveHaivePaths,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface ImportOptions {
@@ -27,7 +27,7 @@ export function registerMemoryImport(memory: Command): void {
       const paths = resolveHaivePaths(root);
 
       if (!existsSync(paths.haiveDir)) {
-        ui.error(`No .ai/ found at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/ found at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }

@@ -11,7 +11,7 @@ import {
   saveConfig,
   type HaiveConfig,
   type HaivePaths,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { lintMemoriesAsync } from "../commands/memory-lint.js";
 
 export interface AutopilotRepair {
@@ -157,8 +157,8 @@ export async function syncProjectContextVersion(
   const original = await readFile(paths.projectContext, "utf8");
   let updated = original
     .replace(
-      /^# Project context — hAIve \(v[^)]+\)$/m,
-      `# Project context — hAIve (v${status.expectedVersion})`,
+      /^# Project context — Hivelore \(v[^)]+\)$/m,
+      `# Project context — Hivelore (v${status.expectedVersion})`,
     )
     .replace(
       /> \*\*Current version\*\*: [^—\n]+—/m,
@@ -168,7 +168,7 @@ export async function syncProjectContextVersion(
   if (updated === original && !original.includes("Current version")) {
     updated = original.replace(
       /^(> Repo-native context enforcement[^\n]*\n)/m,
-      `$1> **Current version**: ${status.expectedVersion} — @hiveai/core, cli, mcp, embeddings are versioned together.\n`,
+      `$1> **Current version**: ${status.expectedVersion} — @hivelore/core, cli, mcp, embeddings are versioned together.\n`,
     );
   }
 
@@ -203,7 +203,7 @@ export async function projectContextVersionStatus(
   }
 
   const content = await readFile(paths.projectContext, "utf8");
-  const headingVersion = content.match(/^# Project context — hAIve \(v([^)]+)\)$/m)?.[1];
+  const headingVersion = content.match(/^# Project context — Hivelore \(v([^)]+)\)$/m)?.[1];
   const currentLineVersion = content.match(/^> \*\*Current version\*\*: ([^—\n]+)/m)?.[1]?.trim();
   const currentVersion = currentLineVersion ?? headingVersion;
 
@@ -250,7 +250,7 @@ async function refreshCodeMap(
 
 async function refreshCodeSearchIndex(paths: HaivePaths): Promise<boolean> {
   try {
-    const mod = await import("@hiveai/embeddings");
+    const mod = await import("@hivelore/embeddings");
     const embedder = await mod.Embedder.create();
     const { report } = await mod.rebuildCodeIndex(paths, embedder);
     return report.added > 0 || report.updated > 0 || report.removed > 0;
@@ -264,7 +264,7 @@ async function refreshMemorySemanticIndex(paths: HaivePaths): Promise<boolean> {
     if (!existsSync(paths.memoriesDir)) return false;
     const memories = await loadMemoriesFromDir(paths.memoriesDir);
     if (memories.length === 0) return false;
-    const mod = await import("@hiveai/embeddings");
+    const mod = await import("@hivelore/embeddings");
     const embedder = await mod.Embedder.create();
     const { report } = await mod.rebuildIndex(paths, embedder);
     return report.added > 0 || report.updated > 0 || report.removed > 0;

@@ -22,8 +22,8 @@ import {
   trackDependencies,
   verifyAnchor,
   watchContracts,
-} from "@hiveai/core";
-import { BRIDGE_TARGETS, type BridgeTarget } from "@hiveai/core";
+} from "@hivelore/core";
+import { BRIDGE_TARGETS, type BridgeTarget } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
 import { writeBridgeFiles } from "../utils/bridge-files.js";
@@ -59,12 +59,12 @@ export function registerSync(program: Command): void {
       "    3. Auto-promotes proposed memories (by usage count or time delay in autopilot)\n" +
       "    4. Auto-refreshes code-map if source files changed\n" +
       "    5. Reports decay warnings for memories unused >90 days\n\n" +
-      "  Install git hooks to run sync automatically: haive install-hooks\n\n" +
+      "  Install git hooks to run sync automatically: hivelore install-hooks\n\n" +
       "  Examples:\n" +
-      "    haive sync\n" +
-      "    haive sync --dry-run      # preview what would change without writing\n" +
-      "    haive sync --since main   # also report memories changed since main\n" +
-      "    haive sync --embed        # also rebuild embeddings index\n",
+      "    hivelore sync\n" +
+      "    hivelore sync --dry-run      # preview what would change without writing\n" +
+      "    hivelore sync --since main   # also report memories changed since main\n" +
+      "    hivelore sync --embed        # also rebuild embeddings index\n",
     )
     .option("-d, --dir <dir>", "project root")
     .option("--quiet", "minimal output (suitable for git hooks)")
@@ -76,7 +76,7 @@ export function registerSync(program: Command): void {
     .option("--no-promote", "skip the auto-promotion step")
     .option(
       "--inject-bridge",
-      "refresh CLAUDE.md + AGENTS.md hAIve managed blocks (or --bridge-file legacy custom injection)",
+      "refresh CLAUDE.md + AGENTS.md Hivelore managed blocks (or --bridge-file legacy custom injection)",
     )
     .option("--bridge-file <path>", "bridge file to inject into (default: CLAUDE.md)")
     .option("--bridge-max-memories <n>", "max memories to inject into bridge file", "5")
@@ -90,7 +90,7 @@ export function registerSync(program: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
-        if (!opts.quiet) ui.warn(`No .ai/memories at ${root}. Run \`haive init\` first.`);
+        if (!opts.quiet) ui.warn(`No .ai/memories at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -265,7 +265,7 @@ export function registerSync(program: Command): void {
       if (!opts.quiet && draftCount > 0) {
         log(
           ui.dim(
-            `ℹ ${draftCount} memor${draftCount === 1 ? "y" : "ies"} in draft — run \`haive memory approve <id>\` to activate or \`haive memory list --status draft\` to review`,
+            `ℹ ${draftCount} memor${draftCount === 1 ? "y" : "ies"} in draft — run \`hivelore memory approve <id>\` to activate or \`hivelore memory list --status draft\` to review`,
           ),
         );
       }
@@ -422,8 +422,8 @@ export function registerSync(program: Command): void {
                     `Do you want me to analyze the impact and propose updates?"*\n\n` +
                     `Wait for **explicit confirmation** before acting.\n\n` +
                     `**Next steps (if confirmed):**\n` +
-                    `- Check the CHANGELOG: \`haive memory import-changelog --from node_modules/<pkg>/CHANGELOG.md\`\n` +
-                    `- Verify anchored memories: \`haive memory verify\``;
+                    `- Check the CHANGELOG: \`hivelore memory import-changelog --from node_modules/<pkg>/CHANGELOG.md\`\n` +
+                    `- Verify anchored memories: \`hivelore memory verify\``;
                   const fm = buildFrontmatter({
                     type: "gotcha",
                     slug,
@@ -490,8 +490,8 @@ export function registerSync(program: Command): void {
                 `Do you want me to analyze the impact and propose updates?"*\n\n` +
                 `Wait for **explicit confirmation** before acting.\n\n` +
                 `**Next steps (if confirmed):**\n` +
-                `- Search usages: \`haive memory for-files <affected files>\`\n` +
-                `- Check related memories: \`haive memory search ${diff.contract}\``;
+                `- Search usages: \`hivelore memory for-files <affected files>\`\n` +
+                `- Check related memories: \`hivelore memory search ${diff.contract}\``;
               const fm = buildFrontmatter({
                 type: "gotcha",
                 slug,
@@ -522,7 +522,7 @@ export function registerSync(program: Command): void {
       const existingMap = await loadCodeMap(paths);
       if (!dryRun && !existingMap && (config.autopilot || autoRepair.codeMap)) {
         try {
-          const { buildCodeMap, saveCodeMap } = await import("@hiveai/core");
+          const { buildCodeMap, saveCodeMap } = await import("@hivelore/core");
           log(ui.dim("code-map: missing — building index…"));
           const newMap = await buildCodeMap(root);
           await saveCodeMap(paths, newMap);
@@ -555,7 +555,7 @@ export function registerSync(program: Command): void {
         if (changedSourceFiles.length > 0) {
           if (!dryRun) {
             try {
-              const { buildCodeMap, saveCodeMap } = await import("@hiveai/core");
+              const { buildCodeMap, saveCodeMap } = await import("@hivelore/core");
               log(ui.dim("code-map: source files changed — refreshing index…"));
               const newMap = await buildCodeMap(root);
               await saveCodeMap(paths, newMap);
@@ -572,7 +572,7 @@ export function registerSync(program: Command): void {
       // --embed or autopilot autoRepair.codeSearch: rebuild embeddings index after sync
       if (!dryRun && (opts.embed || autoRepair.codeSearch)) {
         try {
-          const { Embedder, rebuildCodeIndex, rebuildIndex } = await import("@hiveai/embeddings");
+          const { Embedder, rebuildCodeIndex, rebuildIndex } = await import("@hivelore/embeddings");
           log(ui.dim("embed: rebuilding index…"));
           const embedder = await Embedder.create();
           const { report } = await rebuildIndex(paths, embedder);
@@ -588,7 +588,7 @@ export function registerSync(program: Command): void {
             ),
           );
         } catch {
-          ui.warn("--embed: @hiveai/embeddings not available or index build failed. Run `haive embeddings index` manually.");
+          ui.warn("--embed: @hivelore/embeddings not available or index build failed. Run `hivelore embeddings index` manually.");
         }
       }
     });
@@ -644,7 +644,7 @@ async function injectBridge(
 
   const injected =
     `${BRIDGE_START}\n` +
-    `<!-- AUTO-GENERATED by haive sync --inject-bridge — do not edit between these markers -->\n` +
+    `<!-- AUTO-GENERATED by hivelore sync --inject-bridge — do not edit between these markers -->\n` +
     `<!-- Top memories — call get_briefing / mem_get for the full body. -->\n\n` +
     block +
     `\n\n${BRIDGE_END}`;
@@ -672,7 +672,7 @@ async function injectBridge(
     updated = existing.slice(0, startIdx) + injected + existing.slice(endIdx + BRIDGE_END.length);
   } else {
     if (!fileExists && !quiet) {
-      ui.info(`Creating ${path.relative(root, bridgeFile)} with haive memory block.`);
+      ui.info(`Creating ${path.relative(root, bridgeFile)} with hivelore memory block.`);
     }
     updated = existing + (existing.endsWith("\n") ? "" : "\n") + "\n" + injected + "\n";
   }

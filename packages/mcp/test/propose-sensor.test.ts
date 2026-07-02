@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { loadMemoriesFromDir, resolveHaivePaths } from "@hiveai/core";
+import { loadMemoriesFromDir, resolveHaivePaths } from "@hivelore/core";
 import type { HaiveContext } from "../src/context.js";
 import { memTried } from "../src/tools/mem-tried.js";
 import { proposeSensor } from "../src/tools/propose-sensor.js";

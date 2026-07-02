@@ -1,4 +1,4 @@
-import { loadMemoriesFromDir, type HaivePaths } from "@hiveai/core";
+import { loadMemoriesFromDir, type HaivePaths } from "@hivelore/core";
 import type { EmbedderLike } from "./embedder.js";
 import {
   buildEntryText,

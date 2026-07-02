@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
-import { findProjectRoot, resolveHaivePaths, type MemoryScope, type MemoryType } from "@hiveai/core";
+import { findProjectRoot, resolveHaivePaths, type MemoryScope, type MemoryType } from "@hivelore/core";
 import { loadMemoriesFromDir, type LoadedMemory } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
@@ -32,7 +32,7 @@ export function registerMemoryList(memory: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
-        ui.error(`No memories directory at ${paths.memoriesDir}. Run \`haive init\` first.`);
+        ui.error(`No memories directory at ${paths.memoriesDir}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -106,9 +106,9 @@ export function registerMemoryList(memory: Command): void {
         const hasTeamDrafts = draftItems.some(
           (m) => m.memory.frontmatter.scope !== "personal",
         );
-        let hint = `ℹ ${draftItems.length} in draft — use \`haive memory approve <id>\` to activate`;
+        let hint = `ℹ ${draftItems.length} in draft — use \`hivelore memory approve <id>\` to activate`;
         if (hasPersonalDrafts && !hasTeamDrafts) {
-          hint += " or `haive memory promote <id>` to share with team";
+          hint += " or `hivelore memory promote <id>` to share with team";
         }
         console.log(ui.dim(hint));
       }

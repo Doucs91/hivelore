@@ -14,7 +14,7 @@ import {
   type ConfidenceLevel,
   type LoadedMemory,
   type UsageIndex,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -46,7 +46,7 @@ export const MemSearchInputSchema = {
     .boolean()
     .default(false)
     .describe(
-      "Use semantic similarity from the embeddings index (requires `haive embeddings index`).",
+      "Use semantic similarity from the embeddings index (requires `hivelore embeddings index`).",
     ),
   lexical_rank: z
     .boolean()
@@ -118,7 +118,7 @@ export async function memSearch(
         ...buildLiteralResult(input, filtered, usage),
         mode: "literal_fallback",
         notice:
-          "Semantic search unavailable (embeddings index missing or @hiveai/embeddings not installed). Falling back to literal search.",
+          "Semantic search unavailable (embeddings index missing or @hivelore/embeddings not installed). Falling back to literal search.",
       };
     }
   } else if (input.lexical_rank && input.query.trim()) {
@@ -205,9 +205,9 @@ async function trySemanticSearch(
   filtered: LoadedMemory[],
   usage: UsageIndex,
 ): Promise<MemSearchOutput | null> {
-  let mod: typeof import("@hiveai/embeddings");
+  let mod: typeof import("@hivelore/embeddings");
   try {
-    mod = await import("@hiveai/embeddings");
+    mod = await import("@hivelore/embeddings");
   } catch {
     return null;
   }

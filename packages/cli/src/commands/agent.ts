@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
-import { findProjectRoot, resolveHaivePaths } from "@hiveai/core";
+import { findProjectRoot, resolveHaivePaths } from "@hivelore/core";
 import { autoConfigureMcpClients, configureProjectMcpClients, type ConfigureResult } from "./init-mcp-setup.js";
 import { ui } from "../utils/ui.js";
 
@@ -37,11 +37,11 @@ interface AgentModeRecord {
 export function registerAgent(program: Command): void {
   const agent = program
     .command("agent")
-    .description("Detect, configure, and report the best hAIve mode for AI coding agents.");
+    .description("Detect, configure, and report the best Hivelore mode for AI coding agents.");
 
   agent
     .command("detect")
-    .description("Detect available AI agents and hAIve MCP/wrapper readiness.")
+    .description("Detect available AI agents and Hivelore MCP/wrapper readiness.")
     .option("-d, --dir <dir>", "project root")
     .option("--json", "emit JSON", false)
     .action(async (opts: AgentOptions) => {
@@ -61,7 +61,7 @@ export function registerAgent(program: Command): void {
 
   agent
     .command("setup")
-    .description("Configure hAIve project MCP, optional global MCP clients, and wrapper fallback metadata.")
+    .description("Configure Hivelore project MCP, optional global MCP clients, and wrapper fallback metadata.")
     .option("-d, --dir <dir>", "project root")
     .option("-y, --yes", "approve user-level/global MCP configuration without prompting", false)
     .option("--no-global", "skip user-level/global MCP configuration")
@@ -107,7 +107,7 @@ export async function setupAgentMode(
     } else {
       globalSkippedReason = opts.interactive
         ? "User declined user-level/global MCP configuration."
-        : "Non-interactive shell; skipped user-level/global MCP configuration. Re-run `haive agent setup --yes` to apply it.";
+        : "Non-interactive shell; skipped user-level/global MCP configuration. Re-run `hivelore agent setup --yes` to apply it.";
     }
   } else {
     globalSkippedReason = "User-level/global MCP configuration disabled.";
@@ -146,8 +146,8 @@ export async function detectAgentMode(dir?: string): Promise<AgentDetection> {
     recommendedMode === "mcp"
       ? "Restart your AI client, then call get_briefing before editing."
       : recommendedMode === "wrapped" && wrapperAgent
-        ? `haive run -- ${wrapperAgent.command}`
-        : 'haive briefing --task "..." --files "..."';
+        ? `hivelore run -- ${wrapperAgent.command}`
+        : 'hivelore briefing --task "..." --files "..."';
 
   return {
     root,
@@ -173,9 +173,9 @@ async function writeAgentModeRecord(
     configured_at: new Date().toISOString(),
     project_root: detection.root,
     notes: [
-      "mcp = native hAIve MCP tools are available or project MCP config exists.",
-      "wrapped = use haive run when native MCP is unavailable.",
-      "fallback = use haive briefing/enforce manually.",
+      "mcp = native Hivelore MCP tools are available or project MCP config exists.",
+      "wrapped = use hivelore run when native MCP is unavailable.",
+      "fallback = use hivelore briefing/enforce manually.",
       ...(skippedReason ? [skippedReason] : []),
     ],
   };
@@ -187,7 +187,7 @@ async function confirmGlobalSetup(): Promise<boolean> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
     const answer = await rl.question(
-      "Configure hAIve in user-level AI client configs (Cursor/VS Code/Claude/Codex when detected)? [y/N] ",
+      "Configure Hivelore in user-level AI client configs (Cursor/VS Code/Claude/Codex when detected)? [y/N] ",
     );
     return /^y(es)?$/i.test(answer.trim());
   } finally {
@@ -235,7 +235,7 @@ function printDetection(detection: AgentDetection, json: boolean): void {
     console.log(JSON.stringify(detection, null, 2));
     return;
   }
-  console.log(ui.bold("hAIve agent status"));
+  console.log(ui.bold("Hivelore agent status"));
   console.log(ui.dim(`  root: ${detection.root}`));
   console.log(`${detection.initialized ? ui.green("✓") : ui.red("✗")} project initialized`);
   for (const cfg of detection.project_mcp) {
@@ -243,7 +243,7 @@ function printDetection(detection: AgentDetection, json: boolean): void {
   }
   for (const agent of detection.installed_agents) {
     const marker = agent.installed ? ui.green("✓") : ui.dim("•");
-    const mcp = agent.mcp_configured === true ? " + hAIve MCP" : "";
+    const mcp = agent.mcp_configured === true ? " + Hivelore MCP" : "";
     console.log(`${marker} ${agent.agent} (${agent.command})${mcp}`);
   }
   console.log(ui.bold(`Recommended mode: ${detection.recommended_mode}`));

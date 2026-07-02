@@ -10,7 +10,7 @@ import {
   serializeMemory,
   suggestSensorSeed,
   type MemoryScope,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface TriedOptions {
@@ -35,7 +35,7 @@ export function registerMemoryTried(memory: Command): void {
       "  get_briefing so agents can't miss it. Auto-validated (no approval cycle).\n\n" +
       "  Use this immediately when you try something and it fails.\n\n" +
       "  Example:\n" +
-      "    haive memory tried \\\\\n" +
+      "    hivelore memory tried \\\\\n" +
       "      --what \"importing X with ESM dynamic import\" \\\\\n" +
       "      --why-failed \"tsup bundles it as CJS, dynamic import fails at runtime\" \\\\\n" +
       "      --instead \"use static import in the entry file\" \\\\\n" +
@@ -55,7 +55,7 @@ export function registerMemoryTried(memory: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) {
-        ui.error(`No .ai/ found at ${root}. Run \`haive init\` first.`);
+        ui.error(`No .ai/ found at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }

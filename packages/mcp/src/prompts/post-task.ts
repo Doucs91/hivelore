@@ -90,7 +90,7 @@ This creates/updates a single rolling recap that **get_briefing automatically su
 Calling \`mem_session_end\` also **clears the pending-distill marker** (if any), confirming that this session's learnings have been properly captured rather than left as an auto-recap skeleton.
 
 ### 7. Verify the git/release/pipeline exit protocol — always
-Run **\`haive enforce finish\`** before your final response.
+Run **\`hivelore enforce finish\`** before your final response.
 
 This executable gate checks the multi-agent git-sync decision:
 - no completed work is left as an uncommitted local diff
@@ -102,7 +102,7 @@ This executable gate checks the multi-agent git-sync decision:
 
 If it blocks, fix the reported Git/version/tag/push/pipeline issue before telling the developer the task is done.
 
-When done, respond with a brief summary: "Saved N memories: [list of IDs]. Session recap saved. hAIve finish gate passed; GitHub Actions passed when applicable."
+When done, respond with a brief summary: "Saved N memories: [list of IDs]. Session recap saved. Hivelore finish gate passed; GitHub Actions passed when applicable."
 `;
 
 

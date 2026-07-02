@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { collectTimelineEntries, loadMemoriesFromDir } from "@hiveai/core";
+import { collectTimelineEntries, loadMemoriesFromDir } from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 

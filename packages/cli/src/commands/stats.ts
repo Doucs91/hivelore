@@ -11,7 +11,7 @@ import {
   readUsageEvents,
   resolveHaivePaths,
   usageLogSize,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface StatsOptions {
@@ -73,7 +73,7 @@ export function registerStats(program: Command): void {
       }
 
       const window = opts.since ?? "all time";
-      console.log(ui.bold(`hAIve usage stats (${window})`));
+      console.log(ui.bold(`Hivelore usage stats (${window})`));
       console.log(
         `  ${ui.dim("total calls:")} ${aggregate.total}  ` +
         `${ui.dim("unique tools:")} ${aggregate.by_tool.length}  ` +
@@ -147,7 +147,7 @@ async function writeRoiReport(
 
   const roiHints = [
     "Prefer get_briefing(format:'actions') or budget_preset:'quick' for low-risk edits to reduce token pressure.",
-    "Run `haive memory lint` in CI to keep the corpus actionable.",
+    "Run `hivelore memory lint` in CI to keep the corpus actionable.",
     "Install the haive VS Code extension (packages/vscode) for always-on memory surfacing beside the editor.",
   ];
 
@@ -203,7 +203,7 @@ async function renderMemoryHits(
   if (entries.length === 0) {
     ui.info(
       `No memory reads recorded in window. Reads are logged when ` +
-      `\`haive briefing\` or \`haive memory search\` surface a memory.`,
+      `\`hivelore briefing\` or \`hivelore memory search\` surface a memory.`,
     );
     return;
   }
@@ -225,6 +225,6 @@ async function renderMemoryHits(
   const dead = Object.keys(index.by_id).length - entries.length;
   if (dead > 0) {
     console.log();
-    ui.info(`${dead} memor${dead === 1 ? "y" : "ies"} never read in window — candidates for cleanup (run \`haive doctor\`).`);
+    ui.info(`${dead} memor${dead === 1 ? "y" : "ies"} never read in window — candidates for cleanup (run \`hivelore doctor\`).`);
   }
 }

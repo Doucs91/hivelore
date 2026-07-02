@@ -7,7 +7,7 @@ import {
   memoryFilePath,
   resolveHaivePaths,
   serializeMemory,
-} from "@hiveai/core";
+} from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
@@ -24,7 +24,7 @@ export function registerMemoryPromote(memory: Command): void {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
-        ui.error(`No memories directory at ${paths.memoriesDir}. Run \`haive init\` first.`);
+        ui.error(`No memories directory at ${paths.memoriesDir}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -42,7 +42,7 @@ export function registerMemoryPromote(memory: Command): void {
           `"${id}" is already in ${fm.scope} scope (status=${fm.status}).`,
         );
         if (fm.status !== "validated") {
-          ui.info(`→ run \`haive memory approve ${id}\` to validate it`);
+          ui.info(`→ run \`hivelore memory approve ${id}\` to validate it`);
         }
         return;
       }
@@ -71,6 +71,6 @@ export function registerMemoryPromote(memory: Command): void {
 
       ui.success(`Promoted ${id} to team scope (status=proposed)`);
       ui.info(`Now at ${path.relative(root, newPath)}`);
-      console.log(ui.dim(`→ next: haive memory approve ${id}  (validate for team use)`));
+      console.log(ui.dim(`→ next: hivelore memory approve ${id}  (validate for team use)`));
     });
 }

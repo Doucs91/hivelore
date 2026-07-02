@@ -25,8 +25,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build local hAIve CLI
+      - name: Build local Hivelore CLI
         run: pnpm -r build
 
-      - name: Enforce hAIve policy
+      - name: Enforce Hivelore policy
         run: node packages/cli/dist/index.js enforce ci
