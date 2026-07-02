@@ -236,3 +236,4 @@
 {"tool":"get_briefing","at":"2026-07-02T16:04:06.647Z","summary":"Add human-vs-agent gate relaxation: detect agent context (env signals CLAUDECODE, CURSOR_AGENT, HAIVE_AGENT set by hivelore run wrapper), new config enforcement.humanCommits relaxed|strict, downgrade process gates (briefing-missing, decision-coverage-missing, session-recap, bootstrap) to warn for human commits while sensors and anti-pattern blocks stay for everyone."}
 {"tool":"mem_save","at":"2026-07-02T16:13:29.932Z","summary":"process-gates-bind-agents-not-humans"}
 {"tool":"mem_save","at":"2026-07-02T17:16:34.937Z","summary":"kill-rituals-pass-design-choices"}
+{"tool":"mem_session_end","at":"2026-07-02T17:22:29.964Z","summary":"Scan awesome-harness-engineering for inspiration, execute the \"kill the rituals\""}
