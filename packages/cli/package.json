@@ -1,6 +1,6 @@
 {
   "name": "@hivelore/cli",
-  "version": "0.30.0",
+  "version": "0.30.1",
   "description": "Hivelore CLI - repo-native memory and context policy for coding-agent harnesses",
   "license": "Apache-2.0",
   "repository": {

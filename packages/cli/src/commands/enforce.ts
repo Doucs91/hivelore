@@ -17,6 +17,7 @@ import {
   isFreshIsoDate,
   isRetiredMemory,
   loadConfig,
+  detectAgentContext,
   loadMemoriesFromDir,
   memoryMatchesAnchorPaths,
   readRecentBriefingMarker,
@@ -101,6 +102,8 @@ interface EnforcementReport {
   root: string;
   initialized: boolean;
   mode: "off" | "advisory" | "strict";
+  /** Who this run binds: "agent (…signals)" or "human — …". Absent for early-exit reports. */
+  actor?: string;
   score: EnforcementScore;
   should_block: boolean;
   findings: EnforcementFinding[];
@@ -779,6 +782,7 @@ export async function runWithEnforcement(
       HAIVE_SESSION_ID: sessionId,
       HAIVE_BRIEFING_FILE: briefingFile,
       HAIVE_ENFORCEMENT: "strict",
+      HAIVE_AGENT: "1", // wrapped process is an agent — process gates bind it (detectAgentContext)
       HAIVE_TOOL_PROFILE: process.env.HAIVE_TOOL_PROFILE ?? "enforcement",
     },
   });
@@ -1031,25 +1035,63 @@ async function buildEnforcementReport(
     findings.push(...await checkBootstrapComplete(paths, config, changed.some(looksLikeProductionCode)));
   }
 
-  const score = buildScore(findings, config.enforcement?.scoreThreshold);
+  // PROCESS gates bind the agent workflow ("consult team knowledge before changing code");
+  // a human committing by hand is the trusted author of that knowledge. When no agent harness
+  // is detected (env signals — see detectAgentContext) and humanCommits=relaxed (default),
+  // downgrade process-gate errors to warnings. DETERMINISTIC findings (sensor-block,
+  // precommit-policy-block, stale anchors, artifacts) are about the code, not the workflow —
+  // they are never relaxed. CI is excluded: it validates the merged result for everyone.
+  const agentContext = detectAgentContext();
+  const relaxForHuman =
+    stage !== "ci" &&
+    !agentContext.agent &&
+    (config.enforcement?.humanCommits ?? "relaxed") === "relaxed";
+  let effectiveFindings = findings;
+  if (relaxForHuman) {
+    const PROCESS_GATE_CODES = new Set([
+      "briefing-missing",
+      "session-recap-missing",
+      "decision-coverage-missing",
+      "bootstrap-incomplete",
+    ]);
+    effectiveFindings = findings.map((f) =>
+      f.severity === "error" && PROCESS_GATE_CODES.has(f.code)
+        ? {
+            ...f,
+            severity: "warn" as const,
+            impact: 5,
+            message:
+              `${f.message} (relaxed to a warning: no agent harness detected, so this human commit ` +
+              `is not bound by agent process gates — set enforcement.humanCommits="strict" to change that)`,
+          }
+        : f,
+    );
+  }
+
+  const score = buildScore(effectiveFindings, config.enforcement?.scoreThreshold);
   if (score.score < score.threshold) {
-    findings.push({
+    effectiveFindings = [...effectiveFindings, {
       severity: "error",
       code: "enforcement-score-below-threshold",
       message: `Enforcement score ${score.score}% is below required threshold ${score.threshold}%.`,
       fix: "Load the relevant briefing, address policy findings, then rerun `hivelore enforce check`.",
       impact: 0,
-    });
+    }];
   }
 
-  const hasErrors = findings.some((f) => f.severity === "error");
+  const hasErrors = effectiveFindings.some((f) => f.severity === "error");
   return withCategories({
     root,
     initialized,
     mode,
-    score: buildScore(findings, config.enforcement?.scoreThreshold),
+    actor: agentContext.agent
+      ? `agent (${agentContext.signals.join(", ")})`
+      : relaxForHuman
+        ? "human — process gates relaxed"
+        : "human — strict (enforcement.humanCommits)",
+    score: buildScore(effectiveFindings, config.enforcement?.scoreThreshold),
     should_block: mode === "strict" && hasErrors,
-    findings,
+    findings: effectiveFindings,
   });
 }
 
@@ -2224,7 +2266,7 @@ function printReport(report: EnforcementReport, json: boolean, explain = false):
     console.log(JSON.stringify(report, null, 2));
     return;
   }
-  console.log(ui.bold(`Hivelore enforcement — ${report.mode}`));
+  console.log(ui.bold(`Hivelore enforcement — ${report.mode}${report.actor ? ` · ${report.actor}` : ""}`));
   console.log(ui.dim(`  root: ${report.root}`));
   console.log(ui.dim(`  score: ${report.score.score}% / threshold ${report.score.threshold}%`));
 

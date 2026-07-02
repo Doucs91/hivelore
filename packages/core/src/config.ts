@@ -216,6 +216,16 @@ export interface HaiveConfig {
      */
     bootstrapGate?: "off" | "warn" | "block";
     /**
+     * Who the PROCESS gates (briefing-loaded, session-recap, decision-coverage, bootstrap) bind at
+     * commit/push time. "relaxed" (default): when no agent harness is detected in the environment
+     * (see detectAgentContext), those gates downgrade to warnings — a human committing by hand is
+     * the trusted owner of the team knowledge the gates exist to inject into AGENTS. Deterministic
+     * gates (block sensors, anti-pattern blocks, artifact hygiene) always bind everyone, and CI is
+     * unaffected (it validates the merged result regardless of author). "strict": process gates
+     * block humans too.
+     */
+    humanCommits?: "relaxed" | "strict";
+    /**
      * Pre-commit/pre-push decision-coverage behaviour. When true (default), the gate SURFACES the
      * relevant anchored decisions/policies itself and records them in the session marker at commit
      * time — no separate `hivelore briefing` step required. Set false for the strict legacy behaviour
@@ -314,6 +324,7 @@ export const DEFAULT_CONFIG: HaiveConfig = {
     requireDecisionCoverage: true,
     antiPatternGate: "anchored",
     bootstrapGate: "block",
+    humanCommits: "relaxed",
     scoreThreshold: 80,
     cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",
@@ -348,6 +359,7 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
     requireDecisionCoverage: true,
     antiPatternGate: "anchored",
     bootstrapGate: "block",
+    humanCommits: "relaxed",
     scoreThreshold: 85,
     cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",

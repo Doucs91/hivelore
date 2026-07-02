@@ -6,6 +6,27 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.30.1] — process gates bind agents, not humans
+
+> Field feedback from the 0.30.0 test pass: `briefing-missing` blocked a HUMAN committing by hand.
+> The process gates encode the agent workflow contract ("consult team knowledge before changing
+> code"); a human is the trusted author of that knowledge.
+
+#### Added
+- **Agent-context detection** (`detectAgentContext`, @hivelore/core): identifies agent harnesses
+  from the environment (Claude Code, Cursor, Gemini CLI, Codex, Aider, the `hivelore run` wrapper
+  via `HAIVE_SESSION_ID`/`HAIVE_AGENT=1`); `HAIVE_AGENT=0` force-overrides to human.
+- **`enforcement.humanCommits: "relaxed" | "strict"`** (default `relaxed`): when no agent harness
+  is detected at pre-commit/pre-push, the PROCESS gates (briefing-missing, session-recap-missing,
+  decision-coverage-missing, bootstrap-incomplete) downgrade to warnings with an explanatory note.
+  DETERMINISTIC gates (block sensors, anti-pattern blocks, stale anchors, artifact hygiene) still
+  bind everyone, and CI is unaffected. The gate header now names the actor:
+  `strict · agent (claude-code)` vs `strict · human — process gates relaxed`.
+
+Verified: human clean commit without briefing → passes with a warning; human reintroducing a
+sensor-blocked pattern → still refused (exit 2); agent (Claude Code detected) without briefing →
+still refused (exit 2).
+
 ## [0.30.0] — hAIve is now Hivelore
 
 > One name everywhere: the brand, the binary, the npm scope, and the GitHub repo are now

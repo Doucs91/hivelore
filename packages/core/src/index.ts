@@ -51,3 +51,4 @@ export * from "./handoff.js";
 export * from "./priority.js";
 // --- Lot C ---
 export * from "./bridges.js";
+export * from "./agent-context.js";
