@@ -11,8 +11,13 @@ const exec = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI = path.resolve(__dirname, "../dist/index.js");
 
+// Pin the agent context: the enforcement suite tests the AGENT workflow contract, and the
+// relaxed human mode (v0.30.1) is env-driven — without pinning, results depend on whether the
+// suite runs inside an agent shell (CLAUDECODE set locally) or a bare CI runner (no signals).
+const PINNED_ENV: NodeJS.ProcessEnv = { ...process.env, HAIVE_AGENT: "1" };
+
 async function run(cwd: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
-  return await exec("node", [CLI, ...args], { cwd });
+  return await exec("node", [CLI, ...args], { cwd, env: PINNED_ENV });
 }
 
 async function runWithInput(
@@ -21,7 +26,7 @@ async function runWithInput(
   input: string,
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
   return await new Promise((resolve) => {
-    const child = spawn("node", [CLI, ...args], { cwd });
+    const child = spawn("node", [CLI, ...args], { cwd, env: PINNED_ENV });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (d: Buffer) => { stdout += d.toString("utf8"); });
@@ -39,7 +44,7 @@ async function runAllowFailure(
   return await new Promise((resolve) => {
     const child = spawn("node", [CLI, ...args], {
       cwd,
-      env: { ...process.env, ...env },
+      env: { ...PINNED_ENV, ...env },
     });
     let stdout = "";
     let stderr = "";
@@ -1416,6 +1421,52 @@ describe("Hivelore CLI integration", () => {
       ) as { findings: Array<{ code: string; severity: string }> };
       expect(ready.findings.some((f) => f.code === "bootstrap-complete" && f.severity === "ok")).toBe(true);
       expect(ready.findings.some((f) => f.code === "bootstrap-incomplete")).toBe(false);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("relaxes process gates to warnings for human commits (no agent signals), keeps them for agents", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-human-relax-"));
+    try {
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/app.ts"), "export const a = 1;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+
+      // Stage a change with NO briefing marker.
+      await writeFile(path.join(repo, "src/app.ts"), "export const a = 2;\n", "utf8");
+      await exec("git", ["add", "src/app.ts"], { cwd: repo });
+
+      // Agent context (pinned HAIVE_AGENT=1): briefing-missing is a blocking error.
+      const agent = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { actor?: string; findings: Array<{ code: string; severity: string }> };
+      expect(agent.actor).toContain("agent");
+      expect(agent.findings.find((f) => f.code === "briefing-missing")?.severity).toBe("error");
+
+      // Human context (HAIVE_AGENT=0 override): same gate relaxes to a warning.
+      const human = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo], { HAIVE_AGENT: "0" })).stdout,
+      ) as { actor?: string; findings: Array<{ code: string; severity: string; message: string }> };
+      expect(human.actor).toContain("human");
+      const relaxed = human.findings.find((f) => f.code === "briefing-missing");
+      expect(relaxed?.severity).toBe("warn");
+      expect(relaxed?.message).toContain("humanCommits");
+
+      // humanCommits=strict binds humans too.
+      const cfgPath = path.join(repo, ".ai", "haive.config.json");
+      const cfg = JSON.parse(await readFile(cfgPath, "utf8")) as { enforcement?: Record<string, unknown> };
+      cfg.enforcement = { ...cfg.enforcement, humanCommits: "strict" };
+      await writeFile(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
+      const strict = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo], { HAIVE_AGENT: "0" })).stdout,
+      ) as { findings: Array<{ code: string; severity: string }> };
+      expect(strict.findings.find((f) => f.code === "briefing-missing")?.severity).toBe("error");
     } finally {
       await rm(repo, { recursive: true, force: true });
     }
