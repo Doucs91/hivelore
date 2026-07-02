@@ -134,6 +134,74 @@ describe("proposeSensor — agent proposes, core validates", () => {
     expect(out.self_check.silent_on_current).toBe(true);
   });
 
+  it("command sensor: accepted when the oracle passes on the current tree, persisted with kind", async () => {
+    const out = await proposeSensor(
+      {
+        memory_id: memoryId,
+        kind: "test",
+        pattern: undefined,
+        command: "node -e \"process.exit(0)\"",
+        timeout_ms: 30_000,
+        absent: undefined,
+        bad_example: undefined,
+        severity: "block",
+        message: "Refund invariant broken — see the lesson.",
+        flags: undefined,
+        paths: [],
+      },
+      ctx,
+    );
+    expect(out.accepted).toBe(true);
+    const sensor = await loadSensor();
+    expect(sensor?.kind).toBe("test");
+    expect(sensor?.command).toContain("process.exit(0)");
+    expect(sensor?.timeout_ms).toBe(30_000);
+    expect(sensor?.severity).toBe("block");
+  });
+
+  it("command sensor: a block proposal whose oracle FAILS on the current tree is rejected (fails-on-current)", async () => {
+    const out = await proposeSensor(
+      {
+        memory_id: memoryId,
+        kind: "test",
+        pattern: undefined,
+        command: "node -e \"console.error('refund exceeds capture'); process.exit(1)\"",
+        timeout_ms: undefined,
+        absent: undefined,
+        bad_example: undefined,
+        severity: "block",
+        message: undefined,
+        flags: undefined,
+        paths: [],
+      },
+      ctx,
+    );
+    expect(out.accepted).toBe(false);
+    expect(out.reason).toBe("fails-on-current");
+    expect(out.guidance).toContain("presumed-correct");
+  });
+
+  it("command sensor: an unrunnable command is rejected with its own reason, never as a test failure", async () => {
+    const out = await proposeSensor(
+      {
+        memory_id: memoryId,
+        kind: "shell",
+        pattern: undefined,
+        command: "definitely-not-a-real-binary-hivelore --check",
+        timeout_ms: undefined,
+        absent: undefined,
+        bad_example: undefined,
+        severity: "block",
+        message: undefined,
+        flags: undefined,
+        paths: [],
+      },
+      ctx,
+    );
+    expect(out.accepted).toBe(false);
+    expect(out.reason).toBe("command-unrunnable");
+  });
+
   it("rejects an invalid regex without throwing", async () => {
     const out = await proposeSensor(
       {

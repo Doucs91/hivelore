@@ -20,6 +20,9 @@ interface TriedOptions {
   files?: string;
   author?: string;
   sensorPattern?: string;
+  sensorCommand?: string;
+  sensorKind?: string;
+  sensorTimeout?: string;
   sensorAbsent?: string;
   sensorSeverity?: string;
   sensorMessage?: string;
@@ -59,6 +62,9 @@ export function registerMemoryTried(memory: Command): void {
     .option("--files <csv>", "alias for --paths (matches the MCP `files` parameter)")
     .option("--author <author>", "author email or handle")
     .option("--sensor-pattern <regex>", "one-shot: regex matching the FAULTY usage — validates + attaches a sensor in this call")
+    .option("--sensor-command <cmd>", "one-shot BEHAVIOUR sensor: a command (test/script) the gate runs when the diff touches --paths; non-zero exit = lesson fires")
+    .option("--sensor-kind <kind>", "with --sensor-command: shell | test (default test)")
+    .option("--sensor-timeout <ms>", "with --sensor-command: max runtime in ms (default 120000)")
     .option("--sensor-absent <regex>", "one-shot: regex marking CORRECT usage nearby (excludes it from firing)")
     .option("--sensor-severity <level>", "one-shot sensor severity: warn | block", "block")
     .option("--sensor-message <text>", "one-shot: self-correction message shown when the sensor fires")
@@ -87,15 +93,29 @@ export function registerMemoryTried(memory: Command): void {
             tags: parseCsv(opts.tags),
             paths: parseCsv(opts.paths ?? opts.files),
             author: opts.author,
-            sensor: opts.sensorPattern
+            sensor: opts.sensorCommand
               ? {
-                  pattern: opts.sensorPattern,
-                  absent: opts.sensorAbsent,
+                  kind: opts.sensorKind === "shell" ? "shell" as const : "test" as const,
+                  pattern: undefined,
+                  command: opts.sensorCommand,
+                  timeout_ms: opts.sensorTimeout ? Math.max(1, Number(opts.sensorTimeout)) : undefined,
+                  absent: undefined,
                   severity,
                   message: opts.sensorMessage,
-                  bad_example: opts.badExample,
+                  bad_example: undefined,
                 }
-              : undefined,
+              : opts.sensorPattern
+                ? {
+                    kind: "regex" as const,
+                    pattern: opts.sensorPattern,
+                    command: undefined,
+                    timeout_ms: undefined,
+                    absent: opts.sensorAbsent,
+                    severity,
+                    message: opts.sensorMessage,
+                    bad_example: opts.badExample,
+                  }
+                : undefined,
           },
           { paths },
         );

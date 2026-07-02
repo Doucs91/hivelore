@@ -86,6 +86,35 @@ describe("memTried — ratchet visibility", () => {
     expect(written).toContain("severity: block");
   });
 
+  it("one-shot COMMAND sensor: attaches a behaviour oracle in the same call", async () => {
+    const out = await memTried(
+      {
+        what: "refund exceeding captured amount",
+        why_failed: "issued a refund above the captured total in prod",
+        instead: "clamp to captured amount; invariant covered by the refund spec",
+        scope: "team",
+        tags: [],
+        paths: ["src/payments/refund.ts"],
+        sensor: {
+          kind: "test",
+          pattern: undefined,
+          command: "node -e \"process.exit(0)\"",
+          timeout_ms: undefined,
+          absent: undefined,
+          severity: "block",
+          message: "Refund invariant broken — see lesson.",
+          bad_example: undefined,
+        },
+      },
+      ctx,
+    );
+    expect(out.sensor_result?.accepted).toBe(true);
+    expect(out.loop_open).toBe(false);
+    const written = await readFile(out.file_path, "utf8");
+    expect(written).toContain("kind: test");
+    expect(written).toContain("command:");
+  });
+
   it("one-shot sensor: a rejected proposal still saves the attempt and reports the verdict", async () => {
     const out = await memTried(
       {

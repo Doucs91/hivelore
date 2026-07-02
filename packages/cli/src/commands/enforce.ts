@@ -39,6 +39,7 @@ import {
 import { getBriefing, preCommitCheck } from "@hivelore/mcp";
 import { ui } from "../utils/ui.js";
 import { installClaudeHooksAtPath, uninstallClaudeHooksAtPath, defaultClaudeSettingsPath } from "../utils/claude-hooks.js";
+import { executeCommandSensors } from "../utils/command-sensors.js";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
 
 declare const __HAIVE_VERSION__: string;
@@ -1516,25 +1517,40 @@ async function runSensorGate(
     const config = await loadConfig(paths).catch(() => null);
     if (config?.enforcement?.runCommandSensors === true) {
       const changedPaths = targets.map((t) => t.path).filter(Boolean);
-      for (const spec of selectCommandSensors(scannable, changedPaths)) {
-        if (seen.has(spec.memory_id)) continue;
-        const failed = await runGateCommandSensor(spec, paths.root);
-        if (!failed) continue;
-        seen.add(spec.memory_id);
-        firedIds.add(spec.memory_id);
-        if (spec.severity === "block") {
+      const specs = selectCommandSensors(scannable, changedPaths).filter((sp) => !seen.has(sp.memory_id));
+      for (const run of await executeCommandSensors(specs, paths.root)) {
+        if (run.status === "passed") continue;
+        seen.add(run.memory_id);
+        if (run.status === "unrunnable") {
+          // The oracle said NOTHING about the code — a broken harness must not block a commit.
+          findings.push({
+            severity: "warn",
+            code: "command-sensor-unrunnable",
+            message:
+              `Command sensor ${run.memory_id} could not run (${run.unrunnable_reason}): \`${run.command}\`` +
+              (run.output_tail ? `\n${run.output_tail}` : ""),
+            fix: "Fix the sensor's command (or its timeout_ms), or demote it: `hivelore sensors promote <id> --severity warn`.",
+            impact: 5,
+          });
+          continue;
+        }
+        firedIds.add(run.memory_id);
+        const outputBlock = run.output_tail ? `\n${run.output_tail}` : "";
+        if (run.severity === "block") {
           findings.push({
             severity: "error",
             code: "sensor-block",
-            message: `Block command sensor fired — ${spec.memory_id}: ${spec.message} (command: ${spec.command})`,
-            fix: "Fix the condition the command checks, or run `hivelore sensors check --commands` to inspect it.",
+            message:
+              `Block ${run.kind} sensor fired — ${run.memory_id}: ${run.message}\n` +
+              `command: ${run.command} (exit ${run.exit_code}, ${run.duration_ms}ms)${outputBlock}`,
+            fix: "Fix the behaviour the command checks, or run `hivelore sensors check --commands` to inspect it.",
             impact: 45,
           });
         } else {
           findings.push({
             severity: "warn",
             code: "sensor-warn",
-            message: `Command sensor flagged ${spec.memory_id}: ${spec.message}`,
+            message: `${run.kind} sensor flagged ${run.memory_id}: ${run.message} (exit ${run.exit_code})${outputBlock}`,
             fix: "Review the failing command; `hivelore sensors check --commands` re-runs it.",
             impact: 5,
           });
@@ -1556,19 +1572,6 @@ async function runSensorGate(
   }
 }
 
-/**
- * Run one shell/test sensor command in the gate. Returns true when the command FAILS (non-zero exit) —
- * the "bad state is present" signal. Timeout/spawn errors also count as a hit. Never throws; mirrors
- * `runCommandSensor` in `sensors.ts`.
- */
-async function runGateCommandSensor(spec: CommandSensorSpec, root: string): Promise<boolean> {
-  try {
-    await execFileAsync("bash", ["-c", spec.command], { cwd: root, timeout: 120_000, maxBuffer: 8 * 1024 * 1024 });
-    return false;
-  } catch {
-    return true;
-  }
-}
 
 async function findGeneratedArtifacts(paths: ReturnType<typeof resolveHaivePaths>): Promise<EnforcementFinding[]> {
   const dirty = await runCommand("git", ["status", "--short", "--untracked-files=all"], paths.root).catch(() => "");

@@ -6,6 +6,36 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.33.0] — the behaviour bridge — command sensors route your own tests to lessons
+
+> The three-harness table said "Behaviour: ⛔ out of scope". This release moves it to 🟡 Bridged —
+> without touching the oracle problem: Hivelore does not generate tests or judge outputs, it routes
+> the oracle the team ALREADY OWNS (an existing test, an invariant script) to the lesson it protects,
+> and the gate executes it deterministically. Verified e2e: a pure behaviour bug (clean code no regex
+> can see) is refused at commit with the oracle's output in the finding.
+
+#### Added
+- **One-shot behaviour capture**: `hivelore memory tried --sensor-command "npx vitest run …"`
+  (MCP: `mem_tried` with `sensor.kind: "shell"|"test"` + `command` + `timeout_ms`) — lesson and
+  executable oracle attached in a single call.
+- **`propose_sensor` / `sensors propose --kind shell|test --command …`**: command proposals are
+  validated before being trusted — the oracle must PASS on the presumed-correct current tree
+  (`fails-on-current` rejection), and an unrunnable command is its own rejection reason.
+- **Shared executor** (`utils/command-sensors.ts`): per-sensor `timeout_ms` (default 120s), output
+  tail captured into findings, and the critical distinction — a command that RAN and failed enforces
+  at the sensor's severity; an UNRUNNABLE command (127/126/timeout) surfaces as
+  `command-sensor-unrunnable` (warn) and never blocks: a broken harness must not masquerade as a
+  failing test. Wired into the gate (pre-commit + CI) and `sensors check --commands`.
+- Gate findings now show the failing oracle's exit code, duration, and output tail — the agent sees
+  WHICH assertion broke without re-running anything.
+
+#### Unchanged (the honesty rules)
+- Command execution stays **opt-in per repo** (`enforcement.runCommandSensors: true`) — it runs
+  repo-authored commands and is never enabled globally by Hivelore.
+- No test generation, no sandbox platform, no LLM-as-judge: full behaviour verification remains the
+  test suite's job. README three-harness table updated (⛔ → 🟡 Bridged).
+
+
 ## [0.32.0] — surface reduction — 67→55 command files, one verb per job
 
 > Field verdict after weeks of dogfooding: the surface had outgrown a solo maintainer. Everything

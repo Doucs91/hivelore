@@ -34,11 +34,14 @@ export const MemTriedInputSchema = {
   author: z.string().optional().describe("Author handle or email"),
   sensor: z
     .object({
-      pattern: z.string().min(1).describe("Regex matching the FAULTY usage (added diff lines)"),
-      absent: z.string().optional().describe("Regex marking CORRECT usage nearby — excludes it from firing"),
+      kind: z.enum(["regex", "shell", "test"]).default("regex").describe("regex pattern, or a shell/test COMMAND the gate executes (behaviour bridge)"),
+      pattern: z.string().optional().describe("kind=regex: regex matching the FAULTY usage (added diff lines)"),
+      command: z.string().optional().describe("kind=shell|test: command the gate runs when the diff touches the sensor's paths (non-zero exit = lesson fires)"),
+      timeout_ms: z.number().int().positive().optional().describe("kind=shell|test: max runtime (default 120000)"),
+      absent: z.string().optional().describe("kind=regex: regex marking CORRECT usage nearby — excludes it from firing"),
       severity: z.enum(["warn", "block"]).default("block").describe("block = deterministic gate refusal"),
       message: z.string().optional().describe("Self-correction message shown when the sensor fires"),
-      bad_example: z.string().optional().describe("Code snippet the sensor MUST fire on (validation)"),
+      bad_example: z.string().optional().describe("kind=regex: code snippet the sensor MUST fire on (validation)"),
     })
     .optional()
     .describe(
@@ -125,7 +128,10 @@ export async function memTried(
     const verdict = await proposeSensor(
       {
         memory_id: frontmatter.id,
+        kind: input.sensor.kind ?? "regex",
         pattern: input.sensor.pattern,
+        command: input.sensor.command,
+        timeout_ms: input.sensor.timeout_ms,
         absent: input.sensor.absent,
         severity: input.sensor.severity ?? "block",
         message: input.sensor.message,

@@ -77,7 +77,7 @@ covers two of them and **treats the third as out of scope, for now.**
 |---|---|---|
 | **Maintainability** | Is the code clean? (patterns, footguns, conventions) | ✅ **Covered** — executable sensors + anti-pattern gate |
 | **Architecture fitness** | Does it respect the team's structural decisions? | 🟡 **Partly** — anchored `decision`/`architecture` memories + decision-coverage gate |
-| **Behaviour** | Does the code do the *functionally correct* thing? | ⛔ **Out of scope (planned)** — see below |
+| **Behaviour** | Does the code do the *functionally correct* thing? | 🟡 **Bridged** — command sensors route your own tests to lessons (see below) |
 
 **Why no behaviour harness yet.** Verifying functional correctness needs an *oracle* — an independent
 source of truth for what the code *should* do — and that oracle problem (plus the trap of an agent
@@ -87,9 +87,25 @@ the **unguessable intent** a behaviour test would otherwise have to encode (`sta
 `public ids = id + 100000`) as feedforward context and deterministic sensors — a partial, static slice
 of behaviour control, not a runtime functional oracle.
 
-A future, opt-in **command/test sensor** lane (already scaffolded behind
-`enforcement.runCommandSensors`) is the planned bridge toward real behaviour feedback without diluting
-the narrow scope. Until then, treat the behaviour harness as your responsibility, not Hivelore's.
+**The bridge exists (v0.33.0): command sensors.** A lesson can carry a *command* instead of a regex —
+your own test or invariant script. When a diff touches the sensor's paths, the gate executes it and a
+non-zero exit refuses the commit with the lesson as the message. Hivelore does not invent the oracle
+(the unsolved problem); it **routes the oracle your team already owns** to the lesson it protects:
+
+```bash
+hivelore memory tried \
+  --what "refund exceeded the captured amount" \
+  --why-failed "prod incident #442 — refunds must clamp to capture" \
+  --paths src/payments/ \
+  --sensor-command "npx vitest run tests/payments/refund-invariants.spec.ts"
+# → validated (the oracle must PASS on the current tree), then enforced at commit + CI
+```
+
+Rules that keep it honest: opt-in per repo (`enforcement.runCommandSensors: true` — it executes
+repo-authored commands), a proposal whose oracle *fails on the presumed-correct tree* is rejected,
+and an **unrunnable** command (not found, timeout) warns but never blocks — a broken harness must not
+masquerade as a failing test. Full behaviour verification (test generation, LLM evals) remains your
+test suite's job.
 
 > See [`STABILITY.md`](./STABILITY.md) for the frozen 1.0 surface and [`CONTRIBUTING.md`](./CONTRIBUTING.md) to extend Hivelore.
 

@@ -55,6 +55,8 @@ export const SensorSchema = z.object({
   flags: z.string().optional(),
   /** Shell/test command to run (for kind=shell|test). Executed by the CLI, never by core. */
   command: z.string().optional(),
+  /** Max runtime for kind=shell|test commands (default 120000). The executor kills on expiry. */
+  timeout_ms: z.number().int().positive().optional(),
   /** Glob-ish path prefixes the sensor applies to. Falls back to the memory's anchor paths when empty. */
   paths: z.array(z.string()).default([]),
   /** LLM-facing self-correction message: what was done wrong and what to do instead. */

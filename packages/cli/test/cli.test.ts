@@ -1477,6 +1477,70 @@ describe("Hivelore CLI integration", () => {
     }
   });
 
+  it("command sensors: the gate runs the lesson's oracle and blocks on failure, warns when unrunnable", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-cmd-sensor-"));
+    try {
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/refund.ts"), "export const refund = 1;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+
+      // Opt in to command execution (off by default — runs repo-authored commands).
+      const cfgPath = path.join(repo, ".ai", "haive.config.json");
+      const cfg = JSON.parse(await readFile(cfgPath, "utf8")) as { enforcement?: Record<string, unknown> };
+      cfg.enforcement = { ...cfg.enforcement, runCommandSensors: true };
+      await writeFile(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
+
+      // A lesson whose oracle FAILS (the behaviour bug is "present"), scoped to src/.
+      const failing = [
+        "---",
+        "id: 2024-01-01-attempt-refund-exceeds-capture",
+        "scope: team", "type: attempt", "status: validated",
+        "created_at: 2024-01-01T00:00:00.000Z",
+        "anchor:", "  paths: [\"src/\"]", "  symbols: []", "tags: []",
+        "sensor:",
+        "  kind: test",
+        "  command: \"node -e \\\"console.error('refund exceeds capture'); process.exit(1)\\\"\"",
+        "  message: Refund invariant broken — clamp to the captured amount.",
+        "  severity: block",
+        "  paths: [\"src/\"]",
+        "---",
+        "# refund exceeding captured amount", "",
+      ].join("\n");
+      await mkdir(path.join(repo, ".ai/memories/team"), { recursive: true });
+      await writeFile(path.join(repo, ".ai/memories/team/2024-01-01-attempt-refund-exceeds-capture.md"), failing, "utf8");
+
+      await writeFile(path.join(repo, "src/refund.ts"), "export const refund = 2;\n", "utf8");
+      await exec("git", ["add", "src/refund.ts"], { cwd: repo });
+      const res = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { findings: Array<{ code: string; severity: string; message: string }> };
+      const block = res.findings.find((f) => f.code === "sensor-block");
+      expect(block?.severity).toBe("error");
+      expect(block?.message).toContain("refund exceeds capture"); // oracle output tail is in the finding
+
+      // An UNRUNNABLE oracle must warn, never block (the oracle said nothing about the code).
+      const unrunnable = failing
+        .replace("2024-01-01-attempt-refund-exceeds-capture", "2024-01-02-attempt-unrunnable-oracle")
+        .replace(/command: .*/, "command: \"definitely-not-a-real-binary-hivelore --check\"")
+        .replace("# refund exceeding captured amount", "# unrunnable oracle");
+      await writeFile(path.join(repo, ".ai/memories/team/2024-01-02-attempt-unrunnable-oracle.md"), unrunnable, "utf8");
+      await rm(path.join(repo, ".ai/memories/team/2024-01-01-attempt-refund-exceeds-capture.md"));
+      const res2 = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { findings: Array<{ code: string; severity: string }> };
+      const unrun = res2.findings.find((f) => f.code === "command-sensor-unrunnable");
+      expect(unrun?.severity).toBe("warn");
+      expect(res2.findings.some((f) => f.code === "sensor-block")).toBe(false);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("finish gate blocks shippable work left as an uncommitted local diff", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-finish-dirty-"));
     try {

@@ -208,6 +208,8 @@ export interface CommandSensorSpec {
   message: string;
   /** Anchor/scoped paths this sensor cares about (for reporting). */
   paths: string[];
+  /** Max runtime in ms (executor default applies when unset). */
+  timeout_ms?: number;
 }
 
 /**
@@ -238,6 +240,7 @@ export function selectCommandSensors(
       severity: sensor.severity,
       message: sensor.message,
       paths: sensor.paths.length > 0 ? sensor.paths : anchorPaths,
+      ...(sensor.timeout_ms ? { timeout_ms: sensor.timeout_ms } : {}),
     });
   }
   return specs;

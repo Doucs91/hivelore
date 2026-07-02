@@ -24,6 +24,7 @@ import {
   type Sensor,
 } from "@hivelore/core";
 import { readPresumedCorrectTargets } from "@hivelore/mcp";
+import { executeCommandSensors } from "../utils/command-sensors.js";
 import { ui } from "../utils/ui.js";
 
 const exec = promisify(execFile);
@@ -54,7 +55,10 @@ interface SensorsPromoteOptions {
 }
 
 interface SensorsProposeOptions {
-  pattern: string;
+  kind?: string;
+  command?: string;
+  timeout?: string;
+  pattern?: string;
   absent?: string;
   badExample?: string;
   severity?: string;
@@ -135,18 +139,21 @@ export function registerSensors(program: Command): void {
       const changedPaths = targets.map((t) => t.path).filter(Boolean);
       const allSensorMemories = await runnableSensorMemories(paths, false);
       const commandSpecs = selectCommandSensors(allSensorMemories, changedPaths);
-      const commandHits: Array<{ memory_id: string; severity: "warn" | "block"; message: string; matched_line: string }> = [];
+      const commandHits: Array<{ memory_id: string; severity: "warn" | "block"; message: string; matched_line: string; output_tail?: string }> = [];
+      const commandUnrunnable: Array<{ memory_id: string; reason: string; command: string }> = [];
       const commandSkipped: string[] = [];
       if (commandSpecs.length > 0 && runCommands) {
-        for (const spec of commandSpecs) {
-          const failed = await runCommandSensor(spec, root);
-          if (failed) {
+        for (const run of await executeCommandSensors(commandSpecs, root)) {
+          if (run.status === "failed") {
             commandHits.push({
-              memory_id: spec.memory_id,
-              severity: spec.severity,
-              message: spec.message,
-              matched_line: `command failed: ${spec.command}`,
+              memory_id: run.memory_id,
+              severity: run.severity,
+              message: run.message,
+              matched_line: `command failed (exit ${run.exit_code}, ${run.duration_ms}ms): ${run.command}`,
+              ...(run.output_tail ? { output_tail: run.output_tail } : {}),
             });
+          } else if (run.status === "unrunnable") {
+            commandUnrunnable.push({ memory_id: run.memory_id, reason: run.unrunnable_reason ?? "unrunnable", command: run.command });
           }
         }
       } else if (commandSpecs.length > 0) {
@@ -169,6 +176,7 @@ export function registerSensors(program: Command): void {
           matched_line: hit.matched_line,
         })),
         command_hits: commandHits,
+        command_unrunnable: commandUnrunnable,
         command_skipped: commandSkipped,
       };
       if (opts.json) {
@@ -188,6 +196,13 @@ export function registerSensors(program: Command): void {
           console.log(`  ${marker} ${hit.memory_id} ${ui.dim(`(${hit.severity}, command)`)}`);
           console.log(`     ${hit.message}`);
           console.log(`     ${ui.dim(hit.matched_line)}`);
+          if (hit.output_tail) {
+            for (const line of hit.output_tail.split("\n").slice(-6)) console.log(`     ${ui.dim("| " + line)}`);
+          }
+        }
+        for (const u of commandUnrunnable) {
+          console.log(`  ${ui.yellow("⚠")} ${u.memory_id} ${ui.dim("(unrunnable — never blocks)")}`);
+          console.log(`     ${u.reason}: ${ui.dim(u.command)}`);
         }
         if (commandSkipped.length > 0) {
           console.log(ui.dim(`  ${commandSkipped.length} command sensor(s) not run — pass --commands or set enforcement.runCommandSensors.`));
@@ -300,7 +315,10 @@ export function registerSensors(program: Command): void {
       "      --bad-example 'stripe.paymentIntents.create({ amount })'",
     )
     .argument("<memory-id>", "memory id to attach the sensor to")
-    .requiredOption("--pattern <regex>", "regex matching the FAULTY usage")
+    .option("--kind <kind>", "regex (default) | shell | test — command kinds route the team's own oracle to this lesson", "regex")
+    .option("--pattern <regex>", "kind=regex: regex matching the FAULTY usage")
+    .option("--command <cmd>", "kind=shell|test: command the gate runs when the diff touches the sensor's paths")
+    .option("--timeout <ms>", "kind=shell|test: max runtime in ms (default 120000)")
     .option("--absent <regex>", "regex for the CORRECT-usage marker (makes it discriminate)")
     .option("--bad-example <code>", "a snippet that SHOULD match (else examples are read from the lesson)")
     .option("--severity <severity>", "block | warn", "block")
@@ -309,6 +327,47 @@ export function registerSensors(program: Command): void {
     .option("--paths <csv>", "override scope paths (defaults to the memory anchors)")
     .option("-d, --dir <dir>", "project root")
     .action(async (id: string, opts: SensorsProposeOptions) => {
+      // ── Command sensors (behaviour bridge): delegate to the shared MCP handler, which
+      // validates that the oracle PASSES on the current tree before trusting it to block. ──
+      if (opts.kind === "shell" || opts.kind === "test") {
+        if (!opts.command?.trim()) {
+          ui.error("--kind shell|test requires --command.");
+          process.exitCode = 1;
+          return;
+        }
+        const root = findProjectRoot(opts.dir);
+        const { proposeSensor } = await import("@hivelore/mcp");
+        const out = await proposeSensor(
+          {
+            memory_id: id,
+            kind: opts.kind,
+            pattern: undefined,
+            command: opts.command.trim(),
+            timeout_ms: opts.timeout ? Math.max(1, Number(opts.timeout)) : undefined,
+            absent: undefined,
+            bad_example: undefined,
+            severity: (opts.severity === "warn" ? "warn" : "block"),
+            message: opts.message,
+            flags: undefined,
+            paths: opts.paths ? opts.paths.split(",").map((p) => p.trim()).filter(Boolean) : [],
+          },
+          { paths: resolveHaivePaths(root) },
+        );
+        if (out.accepted) {
+          ui.success(`Command sensor accepted (${out.severity}) on ${id}`);
+          ui.info(`  ${out.guidance}`);
+        } else {
+          ui.error(`Rejected (${out.reason}).`);
+          if (out.guidance) ui.warn(`  ${out.guidance}`);
+          process.exitCode = 1;
+        }
+        return;
+      }
+      if (!opts.pattern?.trim()) {
+        ui.error("kind=regex requires --pattern.");
+        process.exitCode = 1;
+        return;
+      }
       const severity = opts.severity === "warn" ? "warn" : "block";
       try { new RegExp(opts.pattern, opts.flags ?? ""); if (opts.absent) new RegExp(opts.absent, opts.flags ?? ""); }
       catch (err) { ui.error(`Invalid regex: ${String(err)}`); process.exitCode = 1; return; }
@@ -446,14 +505,6 @@ async function runnableSensorMemories(
  * the "the bad state is present" signal. A timeout or spawn error counts as a failure too (the check
  * couldn't confirm the good state). Never throws.
  */
-async function runCommandSensor(spec: CommandSensorSpec, root: string): Promise<boolean> {
-  try {
-    await exec("bash", ["-c", spec.command], { cwd: root, timeout: 120_000, maxBuffer: 8 * 1024 * 1024 });
-    return false; // exit 0 → good state, no hit
-  } catch {
-    return true; // non-zero exit / timeout / spawn error → hit
-  }
-}
 
 async function stagedDiff(root: string): Promise<string> {
   try {

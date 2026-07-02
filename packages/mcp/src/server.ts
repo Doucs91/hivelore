@@ -212,6 +212,7 @@ export {
 } from "./tools/precommit-check.js";
 export { readPresumedCorrectTargets } from "./tools/propose-sensor.js";
 export { memTried, type MemTriedOutput } from "./tools/mem-tried.js";
+export { proposeSensor, type ProposeSensorOutput } from "./tools/propose-sensor.js";
 export {
   memResolveProject,
   type MemResolveProjectInput,
