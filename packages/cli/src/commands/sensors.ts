@@ -22,8 +22,8 @@ import {
   type CommandSensorSpec,
   type Memory,
   type Sensor,
-  type SensorTarget,
 } from "@hiveai/core";
+import { readPresumedCorrectTargets } from "@hiveai/mcp";
 import { ui } from "../utils/ui.js";
 
 const exec = promisify(execFile);
@@ -247,14 +247,8 @@ export function registerSensors(program: Command): void {
       // A sensor that matches correct code is precisely what trains agents to ignore the gate.
       if (severity === "block" && sensor.kind === "regex" && !opts.force) {
         const anchorPaths = sensor.paths.length > 0 ? sensor.paths : found.memory.frontmatter.anchor.paths;
-        const currentTargets: SensorTarget[] = [];
-        for (const rel of anchorPaths) {
-          const abs = path.resolve(root, rel);
-          if (!existsSync(abs)) continue;
-          try {
-            currentTargets.push({ path: rel, content: await readFile(abs, "utf8") });
-          } catch { /* unreadable — skip */ }
-        }
+        // HEAD-first: the working tree may still contain the very bad pattern being documented.
+        const currentTargets = await readPresumedCorrectTargets(root, anchorPaths);
         const check = sensorSelfCheck(sensor, {
           currentTargets,
           badExamples: extractSensorExamples(found.memory.body),
@@ -328,12 +322,8 @@ export function registerSensors(program: Command): void {
       const anchorPaths = opts.paths
         ? opts.paths.split(",").map((s) => s.trim()).filter(Boolean)
         : found.memory.frontmatter.anchor.paths;
-      const currentTargets: SensorTarget[] = [];
-      for (const rel of anchorPaths) {
-        const abs = path.resolve(root, rel);
-        if (!existsSync(abs)) continue;
-        try { currentTargets.push({ path: rel, content: await readFile(abs, "utf8") }); } catch { /* skip */ }
-      }
+      // HEAD-first: the working tree may still contain the very bad pattern being documented.
+      const currentTargets = await readPresumedCorrectTargets(root, anchorPaths);
       const badExamples = [
         ...(opts.badExample ? [opts.badExample] : []),
         ...extractSensorExamples(found.memory.body),

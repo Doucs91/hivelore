@@ -15,12 +15,13 @@ tags:
   - error-handling
 created_at: '2026-04-27T17:21:09.038Z'
 expires_when: null
-verified_at: '2026-04-27T17:21:21.339Z'
+verified_at: '2026-07-02T05:42:00.268Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # Gotcha Embeddings Load Error Double Print
 

@@ -18,12 +18,13 @@ tags:
   - cold-start
 created_at: '2026-06-07T20:14:58.067Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.294Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 ## First-agent bootstrap gate — force the cold-corpus baseline so later agents can rely on it
 

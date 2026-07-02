@@ -408,8 +408,10 @@ export function registerBriefing(program: Command): void {
       const mustReadCount = priorities.filter((p) => p === "must_read").length;
       const usefulCount = priorities.filter((p) => p === "useful").length;
       const backgroundCount = priorities.filter((p) => p === "background").length;
+      // Mirrors classifyBriefingQuality (briefing-helpers.ts): a must_read hit is actionable,
+      // so "noisy" only applies to useful-only briefings dominated by background seeds.
       const quality = mustReadCount > 0 || usefulCount > 0
-        ? backgroundCount > mustReadCount + usefulCount && backgroundCount > 2 ? "noisy" : "strong"
+        ? mustReadCount === 0 && backgroundCount > usefulCount && backgroundCount > 2 ? "noisy" : "strong"
         : "thin";
 
       // JSON mode: emit the structured ranked briefing (parity with the MCP get_briefing tool) and stop.

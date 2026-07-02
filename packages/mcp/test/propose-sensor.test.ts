@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -102,6 +103,35 @@ describe("proposeSensor — agent proposes, core validates", () => {
     expect(out.self_check.fired_on).toContain(anchor);
     // unchanged on disk
     expect(await loadSensor()).toEqual(before);
+  });
+
+  it("validates against HEAD, not the working tree still holding the documented bad pattern", async () => {
+    // The realistic sequence: the agent writes the bad pattern, hits the failure, calls mem_tried,
+    // then proposes a sensor — all BEFORE reverting. The uncommitted bad code must not reject the
+    // proposal with fires-on-current; HEAD (last gated state) is the presumed-correct baseline.
+    execSync("git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm init", {
+      cwd: workDir,
+    });
+    await writeFile(
+      path.join(workDir, anchor),
+      `${correctCode}\nstripe.paymentIntents.create({ amount: 2 });\n`,
+      "utf8",
+    );
+    const out = await proposeSensor(
+      {
+        memory_id: memoryId,
+        pattern: "stripe\\.paymentIntents\\.create",
+        absent: "idempotencyKey",
+        bad_example: "stripe.paymentIntents.create({ amount: 1 });",
+        severity: "block",
+        message: undefined,
+        flags: undefined,
+        paths: [],
+      },
+      ctx,
+    );
+    expect(out.accepted).toBe(true);
+    expect(out.self_check.silent_on_current).toBe(true);
   });
 
   it("rejects an invalid regex without throwing", async () => {

@@ -1,6 +1,7 @@
+import { pathsOverlap } from "@hiveai/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
-import { antiPatternsCheck, type AntiPatternsWarning } from "./anti-patterns-check.js";
+import { antiPatternsCheck, isHaiveOwnedPath, type AntiPatternsWarning } from "./anti-patterns-check.js";
 import { memForFiles } from "./mem-for-files.js";
 import { memVerify } from "./mem-verify.js";
 
@@ -193,11 +194,16 @@ function classifyWarning(
   paths: string[],
   anchoredBlocks = false,
 ): ClassifiedAntiPatternsWarning {
-  const affectedFiles = paths.filter((p) =>
-    !p.startsWith(".ai/.usage/") &&
-    !p.startsWith(".ai/.cache/") &&
-    !p.startsWith(".ai/.runtime/")
-  );
+  // "Which files is this warning about?" — the changed CODE files, never hAIve's own
+  // knowledge/bridge files (a post-init commit stages `.ai/` + bridges alongside the code,
+  // and listing `.ai/code-map.json` as the affected file sends the repair command to the
+  // wrong place). When the memory is anchored, narrow further to the changed files its
+  // anchors actually cover.
+  const codeFiles = paths.filter((p) => !p.startsWith(".ai/") && !isHaiveOwnedPath(p));
+  const anchorHits = (warning.anchor_paths ?? []).length > 0
+    ? codeFiles.filter((p) => (warning.anchor_paths ?? []).some((ap) => pathsOverlap(ap, p)))
+    : [];
+  const affectedFiles = anchorHits.length > 0 ? anchorHits : codeFiles;
   const repairCommand = repairCommandForWarning(warning, affectedFiles);
   const fileDowngrade = fileTypeDowngradeReason(warning, affectedFiles);
 

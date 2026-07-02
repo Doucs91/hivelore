@@ -30,12 +30,13 @@ tags:
   - monorepo
 created_at: '2026-05-02T06:02:50.683Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.272Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # Cross-package deps with `^X.Y.Z` ranges relying on pnpm to auto-link the workspace version
 

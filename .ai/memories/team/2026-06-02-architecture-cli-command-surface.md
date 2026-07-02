@@ -13,13 +13,14 @@ tags:
   - ux
 created_at: '2026-06-02T02:00:00.000Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.279Z'
 stale_reason: null
 related_ids:
   - 2026-06-02-architecture-core-pure-domain-layer
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # CLI Is Orchestration And User-Facing UX
 

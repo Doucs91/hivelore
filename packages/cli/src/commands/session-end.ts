@@ -8,7 +8,7 @@ import { writeFile, mkdir, readFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import {
   buildFrontmatter,
   findProjectRoot,
@@ -307,6 +307,9 @@ export function registerSessionEnd(session: Command): void {
     )
     .option("--goal <text>", "what you were trying to accomplish (1–2 sentences)")
     .option("--accomplished <text>", "what was actually done (bullet list recommended)")
+    // Hidden synonym: agents guess `--summary` for a one-blob recap; map it to --accomplished
+    // instead of dead-ending them. Kept out of help so the structured flags stay the documented API.
+    .addOption(new Option("--summary <text>", "alias for --accomplished").hideHelp())
     .option("--discoveries <text>", "bugs, surprises, or inconsistencies found during this session")
     .option("--files <csv>", "key files touched, comma-separated (used as anchor for staleness detection)")
     .option("--next <text>", "what should happen next (for the next session or a teammate)")
@@ -329,7 +332,7 @@ export function registerSessionEnd(session: Command): void {
       // Auto mode: derive goal/accomplished/files from captured observations
       let resolvedFiles = opts.files;
       let goal = opts.goal;
-      let accomplished = opts.accomplished;
+      let accomplished = opts.accomplished ?? (opts as { summary?: string }).summary;
       const caughtSince = opts.auto ? await observationStart(paths) : null;
       if (opts.auto) {
         const synth = await buildAutoRecap(paths);

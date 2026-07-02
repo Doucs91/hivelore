@@ -13,13 +13,14 @@ tags:
   - boundaries
 created_at: '2026-06-02T02:00:00.000Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.281Z'
 stale_reason: null
 related_ids:
   - 2026-04-25-architecture-pure-tool-handlers
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # Core Is The Pure Domain Layer
 

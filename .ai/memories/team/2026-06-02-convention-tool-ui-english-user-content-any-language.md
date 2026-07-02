@@ -20,13 +20,14 @@ tags:
   - mcp
 created_at: '2026-06-02T17:14:21.987Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.283Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 topic: tool-ui-language-policy
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # hAIve tool UI language policy
 

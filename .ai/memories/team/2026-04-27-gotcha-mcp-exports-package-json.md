@@ -8,6 +8,18 @@ anchor:
     - packages/mcp/package.json
     - packages/cli/src/commands/mcp.ts
   symbols: []
+sensor:
+  kind: regex
+  pattern: require\.resolve\(.*@hiveai\/mcp\/package\.json
+  paths:
+    - packages/mcp/package.json
+    - packages/cli/src/commands/mcp.ts
+  message: >-
+    require.resolve('@hiveai/mcp/package.json') throws unless `"./package.json":
+    "./package.json"` is in the exports field of packages/mcp/package.json.
+  severity: warn
+  autogen: false
+  last_fired: null
 tags:
   - mcp
   - build
@@ -15,22 +27,13 @@ tags:
   - exports
 created_at: '2026-04-27T17:19:43.286Z'
 expires_when: null
-verified_at: '2026-05-07T16:05:00.000Z'
+verified_at: '2026-07-02T05:42:00.268Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
-sensor:
-  kind: regex
-  pattern: "require\\.resolve\\(.*@hiveai\\/mcp\\/package\\.json"
-  message: "require.resolve('@hiveai/mcp/package.json') throws unless `\"./package.json\": \"./package.json\"` is in the exports field of packages/mcp/package.json."
-  severity: warn
-  autogen: false
-  last_fired: null
-  paths:
-    - packages/mcp/package.json
-    - packages/cli/src/commands/mcp.ts
+validated_by: null
 ---
 # Gotcha Mcp Exports Package Json
 

@@ -15,12 +15,13 @@ tags:
   - integrations
 created_at: '2026-06-02T14:23:55.638Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.286Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 ## Every hAIve tool must work standalone — zero hard dependency on the user's environment
 

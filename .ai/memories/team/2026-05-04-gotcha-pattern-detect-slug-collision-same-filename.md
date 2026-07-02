@@ -14,12 +14,13 @@ tags:
   - fixed
 created_at: '2026-05-04T01:05:45.010Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.274Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 1
 requires_human_approval: false
+validated_by: null
 ---
 # pattern_detect creates colliding slugs for same-name files in different directories
 

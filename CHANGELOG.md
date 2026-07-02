@@ -6,6 +6,40 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.29.12] — the gate stops swallowing review warnings; sensor proposals validate against HEAD
+
+> From a full end-to-end dogfooding pass on a fresh repo: the commit gate reported a clean pass
+> while `haive precommit` was showing "you are about to repeat a documented failed approach".
+> Review-tier knowledge must be VISIBLE at the gate (without blocking), and closing the
+> lesson→sensor loop must work at the exact moment agents actually do it.
+
+#### Fixed
+- **`enforce check` now surfaces review-tier anti-patterns** as a single aggregated
+  `anti-pattern-review` warn finding (bounded impact 5, never blocks). Previously
+  `runPrecommitPolicy` dropped every non-blocking warning from `preCommitCheck`, so the hook/CI
+  path reported `precommit-policy-pass` at 100% while an anchored attempt matched the diff.
+  Aggregation (not one finding per warning) keeps the score impact bounded — the strict per-warning
+  variant is exactly what 2026-05-07-attempt-strict-precommit-gate-on-haive documents as noise.
+- **`propose_sensor` / `sensors propose|promote` self-checks now validate against HEAD**, not the
+  working tree (new shared `readPresumedCorrectTargets`, exported from `@hiveai/mcp`). The realistic
+  sequence — write bad code, hit the failure, `mem_tried`, propose the sensor, THEN revert — was
+  impossible: the uncommitted bad pattern made every honest block proposal fail `fires-on-current`.
+  HEAD is the last gated (presumed-correct) baseline; non-git dirs and new files fall back to the
+  working tree.
+- **`pre_commit_check` `affected_files` now points at the anchored code files**, never at
+  `.ai/code-map.json` / bridges staged alongside (the repair hint sent agents to the wrong file).
+- **`briefing_quality` no longer says `noisy` when a must_read matched**: a direct anchored hit is
+  the product working; background-seed domination stays in `reasons`. (MCP + CLI kept in sync.)
+- **`memory lint` no longer flags stack-pack seeds with MISSING_ANCHOR** (they carry
+  `stack-pack` + `needs_anchor` tags and are unanchorable by nature); first-run output shows real
+  findings instead of seed noise.
+
+#### Added
+- **CLI flag suggestions**: `showSuggestionAfterError` on the root program (inherited by all
+  subcommands) — `--bodi` now answers "Did you mean --body?". Plus hidden synonyms for the two
+  flags agents reliably guess: `memory save --content` → `--body`,
+  `session end --summary` → `--accomplished` (hidden from help; documented flags stay the API).
+
 ## [0.29.0] — agent-proposed sensors (LLM generates, core validates)
 
 > The generation half of "make auto-generation excellent": the agent — which understands the code —

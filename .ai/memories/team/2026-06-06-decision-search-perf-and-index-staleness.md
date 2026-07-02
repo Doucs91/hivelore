@@ -18,12 +18,13 @@ tags:
   - index
 created_at: '2026-06-06T03:01:31.329Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.292Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 ## Search perf (embedder caching) + index staleness transparency (v0.26.6)
 

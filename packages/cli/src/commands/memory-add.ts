@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import {
   buildFrontmatter,
   suggestSensorSeed,
@@ -80,6 +80,9 @@ export function registerMemoryAdd(memory: Command): void {
     .option("--symbols <csv>", "anchor to specific symbols (class/function names)")
     .option("--commit <sha>", "anchor to a specific commit SHA")
     .option("--body <text>", "memory body content (Markdown) — overrides --title default body")
+    // Hidden synonym: agents reliably guess `--content` and a bare "unknown option" dead-ends
+    // them. Kept out of help so `--body` stays the one documented flag.
+    .addOption(new Option("--content <text>", "alias for --body").hideHelp())
     .option("--body-file <path>", "read memory body from a Markdown file — for long content")
     .option("--no-auto-tag", "disable automatic tag suggestions inferred from anchor paths")
     .option("--topic <key>", "stable key for upsert: if a memory with this topic+scope already exists, update it in-place (revision_count++)")
@@ -87,7 +90,8 @@ export function registerMemoryAdd(memory: Command): void {
     .option("--activation-glob <csv>", "skill only: comma-separated path globs that trigger this skill")
     .option("--activation-always", "skill only: always surface this skill (no triggers needed)")
     .option("-d, --dir <dir>", "project root")
-    .action(async (opts: AddOptions & { autoTag?: boolean }) => {
+    .action(async (opts: AddOptions & { autoTag?: boolean; content?: string }) => {
+      if (opts.body === undefined && opts.content !== undefined) opts.body = opts.content;
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) {

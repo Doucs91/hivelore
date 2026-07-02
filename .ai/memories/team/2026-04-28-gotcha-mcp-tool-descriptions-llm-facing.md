@@ -15,12 +15,13 @@ tags:
   - tool-use
 created_at: '2026-04-28T04:18:31.207Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.270Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # MCP tool descriptions are LLM-facing — write them for an AI, not a human
 

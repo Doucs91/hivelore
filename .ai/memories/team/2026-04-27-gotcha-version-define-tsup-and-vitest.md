@@ -11,6 +11,20 @@ anchor:
   symbols:
     - SERVER_VERSION
     - __HAIVE_VERSION__
+sensor:
+  kind: regex
+  pattern: 'console\.(log|error|warn)\([^)]*["''`]v[0-9]+\.[0-9]+\.[0-9]+'
+  paths:
+    - packages/mcp/src/server.ts
+    - packages/mcp/src/index.ts
+    - packages/cli/src/index.ts
+  message: >-
+    Hardcoded version string in console output — use `v${SERVER_VERSION}`
+    (injected by tsup define) instead of a literal like 'v0.1.0'. Also ensure
+    vitest.config.ts has the same define so tests don't see `undefined`.
+  severity: warn
+  autogen: false
+  last_fired: null
 tags:
   - build
   - tsup
@@ -18,23 +32,13 @@ tags:
   - versioning
 created_at: '2026-04-27T17:20:23.358Z'
 expires_when: null
-verified_at: '2026-04-27T17:21:21.343Z'
+verified_at: '2026-07-02T05:42:00.269Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
-sensor:
-  kind: regex
-  pattern: "console\\.(log|error|warn)\\([^)]*[\"'`]v[0-9]+\\.[0-9]+\\.[0-9]+"
-  message: "Hardcoded version string in console output — use `v${SERVER_VERSION}` (injected by tsup define) instead of a literal like 'v0.1.0'. Also ensure vitest.config.ts has the same define so tests don't see `undefined`."
-  severity: warn
-  autogen: false
-  last_fired: null
-  paths:
-    - packages/mcp/src/server.ts
-    - packages/mcp/src/index.ts
-    - packages/cli/src/index.ts
+validated_by: null
 ---
 # Gotcha Version Define Tsup And Vitest
 

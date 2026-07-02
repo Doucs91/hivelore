@@ -18,12 +18,13 @@ tags:
   - yaml
 created_at: '2026-04-28T04:18:31.116Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.271Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # serializeMemory crashes on undefined values in frontmatter
 

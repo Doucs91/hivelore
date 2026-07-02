@@ -14,13 +14,14 @@ tags:
   - decision-coverage
 created_at: '2026-06-02T03:20:00.000Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.285Z'
 stale_reason: null
 related_ids:
   - 2026-05-31-gotcha-enforcement-is-process-not-violation
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # CI Decision Coverage Cannot Require Local Briefing Markers
 

@@ -72,7 +72,11 @@ program
   .name("haive")
   .description("hAIve - repo-native memory and context policy for coding-agent harnesses")
   .version(__HAIVE_VERSION__)
-  .option("--advanced", "show maintenance and experimental commands in help");
+  .option("--advanced", "show maintenance and experimental commands in help")
+  // Agents guess flags by analogy (`--content` for `--body`, `--summary` for `--goal`) and a
+  // bare "unknown option" dead-ends them. Must run BEFORE the register* calls so subcommands
+  // created via program.command() inherit the setting.
+  .showSuggestionAfterError(true);
 
 registerInit(program);
 registerWelcome(program);

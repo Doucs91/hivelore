@@ -14,12 +14,13 @@ tags:
   - measurement
 created_at: '2026-04-28T15:04:31.053Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.270Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # Benchmark v0.2.7 - Measured Token-Reduction Results
 

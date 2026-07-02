@@ -617,6 +617,35 @@ describe("preCommitCheck", () => {
     expect(warning.rationale).toContain("below blocking threshold");
   });
 
+  it("scopes affected_files to changed CODE files covered by the memory's anchors", () => {
+    // A post-init commit stages .ai/ + bridges alongside the code change; the warning
+    // must point at the anchored code file, not at hAIve's own generated files.
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-attempt-anchored-backend-lesson",
+      type: "attempt",
+      scope: "team",
+      confidence: "trusted",
+      body_preview: "Documented failed approach on the backend server.",
+      reasons: ["anchor", "literal"],
+      anchor_paths: ["backend/src/server.ts"],
+    }, [".ai/code-map.json", ".ai/haive.config.json", "CLAUDE.md", "backend/src/server.ts", "frontend/src/App.tsx"]);
+
+    expect(warning.affected_files).toEqual(["backend/src/server.ts"]);
+  });
+
+  it("falls back to all changed code files (never hAIve-owned) when the memory has no anchors", () => {
+    const warning = classifyAntiPatternWarningForTest({
+      id: "2024-01-01-gotcha-unanchored-lesson",
+      type: "gotcha",
+      scope: "team",
+      confidence: "trusted",
+      body_preview: "Unanchored lesson.",
+      reasons: ["literal"],
+    }, [".ai/memories/team/x.md", "CLAUDE.md", "src/a.ts", "src/b.ts"]);
+
+    expect(warning.affected_files).toEqual(["src/a.ts", "src/b.ts"]);
+  });
+
   it("can still block very strong high-confidence semantic matches", () => {
     const warning = classifyAntiPatternWarningForTest({
       id: "2024-01-01-gotcha-anchored-production-risk",

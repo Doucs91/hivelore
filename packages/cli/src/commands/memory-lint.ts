@@ -143,7 +143,11 @@ export async function lintMemoriesAsync(
     }
 
     const suggestedAnchors = suggestAnchors(root, { filePath, memory }, codeMap, trackedFiles);
-    if (ANCHOR_TYPES.has(fm.type) && fm.anchor.paths.length === 0 && fm.status === "validated") {
+    // Stack-pack seeds are framework-level guidance with no natural file anchor; they already
+    // carry `needs_anchor` and their bodies say to anchor-or-replace when they become repo policy.
+    // Flagging them on the very first `haive memory lint` run buries real findings in seed noise.
+    const isUnanchoredSeed = fm.tags.includes("stack-pack") && fm.tags.includes("needs_anchor");
+    if (ANCHOR_TYPES.has(fm.type) && fm.anchor.paths.length === 0 && fm.status === "validated" && !isUnanchoredSeed) {
       out.push({
         file: filePath,
         id: fm.id,

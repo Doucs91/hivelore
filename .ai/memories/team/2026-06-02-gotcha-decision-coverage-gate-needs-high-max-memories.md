@@ -27,12 +27,13 @@ tags:
   - commit
 created_at: '2026-06-02T04:17:39.074Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.287Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # Gotcha Decision Coverage Gate Needs High Max Memories
 

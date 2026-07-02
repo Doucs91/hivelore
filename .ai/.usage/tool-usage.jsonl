@@ -224,3 +224,7 @@
 {"tool":"mem_save","at":"2026-06-08T21:32:20.956Z","summary":"semantic-gate-false-positive-reduction-sensorless-review-test-strip"}
 {"tool":"mem_save","at":"2026-06-09T17:54:15.746Z","summary":"sensors-check-self-match-on-ai-files"}
 {"tool":"mem_session_end","at":"2026-06-09T17:54:37.966Z","summary":"Audit hAIve, raise it toward 1.0 maturity: freeze the stable core, harden periph"}
+{"tool":"mem_tried","at":"2026-07-02T04:52:24.721Z","summary":"Using `haive memory save --content <text>` to set the memory body"}
+{"tool":"mem_tried","at":"2026-07-02T04:52:34.075Z","summary":"Using `haive session end --summary <text>` to save the session recap"}
+{"tool":"get_briefing","at":"2026-07-02T05:15:32.304Z","summary":"Fix enforcement gate dropping review-level anti-pattern warnings in enforce check (enforce.ts runPrecommitPolicyChecks), improve propose_sensor fires-on-current validation to check HEAD instead of working tree, enable commander did-you-mean suggestions, exempt stack-pack seeds from memory lint MISSING_ANCHOR, fix misleading files: listing in precommit output."}
+{"tool":"mem_save","at":"2026-07-02T05:40:51.972Z","summary":"review-warnings-aggregated-and-head-baseline"}

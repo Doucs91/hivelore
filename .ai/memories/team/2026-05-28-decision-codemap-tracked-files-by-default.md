@@ -15,13 +15,14 @@ tags:
   - gitignore
 created_at: '2026-05-28T21:47:10.014Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.275Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 topic: codemap-tracked-files-by-default
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # Code-map indexes tracked source files by default
 

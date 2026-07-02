@@ -17,12 +17,13 @@ tags:
   - dx
 created_at: '2026-06-04T04:45:02.635Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.289Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 ## Pre-commit gate auto-briefs (no manual briefing step); `haive briefing --json` added
 

@@ -8,24 +8,29 @@ anchor:
     - packages/mcp/src/tools/get-briefing.ts
   symbols:
     - getBriefing
+sensor:
+  kind: regex
+  pattern: byId\.get\(hit\.id\)
+  paths:
+    - packages/mcp/src/tools/get-briefing.ts
+  message: >-
+    Verify that `byId` is populated with `new Map(allMemories.map(...))` BEFORE
+    the `for (const hit of semanticHits)` loop — if byId is still an empty Map
+    here, all semantic hits are silently dropped and search_mode reports
+    'semantic' incorrectly.
+  severity: warn
+  autogen: false
+  last_fired: null
 tags: []
 created_at: '2026-05-02T05:51:06.189Z'
 expires_when: null
-verified_at: '2026-05-07T16:05:00.000Z'
+verified_at: '2026-07-02T05:42:00.272Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
-sensor:
-  kind: regex
-  pattern: "byId\\.get\\(hit\\.id\\)"
-  message: "Verify that `byId` is populated with `new Map(allMemories.map(...))` BEFORE the `for (const hit of semanticHits)` loop — if byId is still an empty Map here, all semantic hits are silently dropped and search_mode reports 'semantic' incorrectly."
-  severity: warn
-  autogen: false
-  last_fired: null
-  paths:
-    - packages/mcp/src/tools/get-briefing.ts
+validated_by: null
 ---
 # get_briefing semantic hits silently dropped — byId populated AFTER the loop that uses it
 

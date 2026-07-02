@@ -16,12 +16,13 @@ tags:
   - pnpm
 created_at: '2026-06-05T19:45:05.943Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.290Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # Running pnpm -r build and pnpm -r typecheck in parallel after version bump
 

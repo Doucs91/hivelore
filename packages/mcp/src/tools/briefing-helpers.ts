@@ -97,7 +97,10 @@ export function classifyBriefingQuality(
   if (memories.length === 0 || (mustRead === 0 && useful === 0)) {
     return { level: "thin", reasons };
   }
-  if (background > useful + mustRead && background > 2) {
+  // A direct must_read hit means the briefing is actionable even when background seeds
+  // outnumber it — "noisy" as the headline verdict right after the corpus gained its first
+  // anchored memories reads as a regression. Background domination stays in `reasons`.
+  if (mustRead === 0 && background > useful && background > 2) {
     return { level: "noisy", reasons };
   }
   return { level: "strong", reasons };

@@ -1263,6 +1263,33 @@ async function runPrecommitPolicy(
   // covering convention/architecture sensors the fuzzy anti-pattern matcher skips.
   const sensorFindings = await runSensorGate(paths, snapshot.diff);
 
+  // Review-level anti-patterns must stay VISIBLE in the gate output even when nothing blocks.
+  // History (see 2026-05-07-attempt-strict-precommit-gate-on-haive): making them block spammed
+  // config-only commits — so they were silenced entirely, and `enforce check` reported a clean
+  // pass while `haive precommit` showed "you are about to repeat a documented failed approach".
+  // Middle ground: ONE aggregated warn finding (bounded score impact, never blocks) that points
+  // at `haive precommit` for the full detail. Sensor-driven review warnings are excluded — the
+  // sensor gate below already emits a dedicated finding per sensor hit.
+  const reviewWarnings = result.warnings.filter(
+    (w) => w.level === "review" && !w.reasons.includes("sensor"),
+  );
+  const reviewFinding: EnforcementFinding[] = reviewWarnings.length > 0
+    ? [{
+        severity: "warn",
+        code: "anti-pattern-review",
+        message:
+          `${reviewWarnings.length} documented lesson(s) plausibly match this diff — review before committing: ` +
+          reviewWarnings
+            .slice(0, 3)
+            .map((w) => `${w.id} (${w.reasons.join("+")})`)
+            .join(", ") +
+          (reviewWarnings.length > 3 ? ", …" : ""),
+        fix: "Run `haive precommit` for the matched lines and repair commands; update the code, or retire the memory if it no longer applies.",
+        memory_ids: reviewWarnings.slice(0, 10).map((w) => w.id),
+        impact: 5,
+      }]
+    : [];
+
   if (!result.should_block) {
     return [
       {
@@ -1270,6 +1297,7 @@ async function runPrecommitPolicy(
         code: "precommit-policy-pass",
         message: `${stage === "ci" ? "CI" : "Pre-commit"} policy passed for ${touchedPaths.length} changed file(s).`,
       },
+      ...reviewFinding,
       ...sensorFindings,
     ];
   }
@@ -1281,6 +1309,7 @@ async function runPrecommitPolicy(
       fix: "Review the hAIve warnings, then update the code or the relevant memories.",
       impact: 45,
     },
+    ...reviewFinding,
     ...sensorFindings,
   ];
 }

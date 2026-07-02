@@ -8,6 +8,20 @@ anchor:
     - packages/mcp/src/tools/get-briefing.ts
     - packages/core/src/config.ts
   symbols: []
+sensor:
+  kind: regex
+  pattern: 'minReads\s*:\s*DEFAULT_AUTO_PROMOTE_RULE\.minReads'
+  paths:
+    - packages/mcp/src/tools/get-briefing.ts
+    - packages/core/src/config.ts
+  message: >-
+    Do not assign `minReads: DEFAULT_AUTO_PROMOTE_RULE.minReads` directly —
+    always load config first: `cfg.autoPromoteMinReads ??
+    DEFAULT_AUTO_PROMOTE_RULE.minReads`. The hardcoded default ignores the
+    user's `autoPromoteMinReads` config.
+  severity: warn
+  autogen: false
+  last_fired: null
 tags:
   - auto-promote
   - config
@@ -15,22 +29,13 @@ tags:
   - bug
 created_at: '2026-05-04T01:06:01.101Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.273Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
-sensor:
-  kind: regex
-  pattern: "minReads\\s*:\\s*DEFAULT_AUTO_PROMOTE_RULE\\.minReads"
-  message: "Do not assign `minReads: DEFAULT_AUTO_PROMOTE_RULE.minReads` directly — always load config first: `cfg.autoPromoteMinReads ?? DEFAULT_AUTO_PROMOTE_RULE.minReads`. The hardcoded default ignores the user's `autoPromoteMinReads` config."
-  severity: warn
-  autogen: false
-  last_fired: null
-  paths:
-    - packages/mcp/src/tools/get-briefing.ts
-    - packages/core/src/config.ts
+validated_by: null
 ---
 # Inline auto-promote ignores `autoPromoteMinReads` config and hardcodes default 5
 

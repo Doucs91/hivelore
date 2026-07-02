@@ -17,7 +17,7 @@ tags:
   - github-actions
 created_at: '2026-06-02T04:05:00.000Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.284Z'
 stale_reason: null
 related_ids:
   - 2026-05-31-decision-git-sync-protocol-multi-agent
@@ -25,6 +25,7 @@ related_ids:
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # Verify Pipelines Before Closing
 
@@ -39,4 +40,3 @@ Required closeout flow:
 5. Run `haive enforce finish` and only close the task after it passes.
 
 Rationale: a local build/test/pass is not enough once the work is pushed. The `0.12.2` release passed local gates but failed the `haive-enforcement` workflow on GitHub Actions after push, so agents must treat remote pipeline success as part of the exit protocol.
-

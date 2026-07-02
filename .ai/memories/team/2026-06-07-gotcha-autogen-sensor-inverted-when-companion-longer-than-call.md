@@ -28,12 +28,13 @@ tags:
   - bug
 created_at: '2026-06-07T18:50:19.712Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.295Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 ## Auto-generated "X without Y" sensors were INVERTED when the companion token outscored the call
 

@@ -17,12 +17,13 @@ tags:
   - competitive
 created_at: '2026-06-03T23:18:30.313Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.287Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 ## `haive init` now generates ALL native bridges (best-in-class reach onboarding)
 

@@ -10,6 +10,7 @@
  *   - FIRES on the bad example (from input, or extracted from the lesson body).
  * A rejected proposal is NOT written; the verdict tells the agent how to revise and re-propose.
  */
+import { execSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -86,6 +87,41 @@ function deriveMessage(body: string, pattern: string, absent?: string): string {
   return heading?.slice(0, 180) || `Avoid ${pattern}.`;
 }
 
+/**
+ * Read the PRESUMED-CORRECT contents of anchored files for sensor self-checks.
+ *
+ * "Silent on current" must test the last COMMITTED state (HEAD), not the working tree: an agent
+ * typically proposes a sensor right after hitting the failure, while the bad pattern is still
+ * sitting uncommitted in the anchored file — validating against the working tree then rejects
+ * every honest proposal with fires-on-current. HEAD already passed the gate, so it is the
+ * presumed-correct baseline; fall back to the working tree for files not yet in git.
+ */
+export async function readPresumedCorrectTargets(
+  root: string,
+  relPaths: string[],
+): Promise<SensorTarget[]> {
+  const targets: SensorTarget[] = [];
+  for (const rel of relPaths) {
+    try {
+      // "./" keeps the path relative to cwd even if the project root is a git subdirectory.
+      const content = execSync(`git show ${JSON.stringify(`HEAD:./${rel}`)}`, {
+        cwd: root,
+        encoding: "utf8",
+        maxBuffer: 10 * 1024 * 1024,
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+      targets.push({ path: rel, content });
+      continue;
+    } catch { /* not in HEAD or not a git repo — fall back to the working tree */ }
+    const abs = path.resolve(root, rel);
+    if (!existsSync(abs)) continue;
+    try {
+      targets.push({ path: rel, content: await readFile(abs, "utf8") });
+    } catch { /* unreadable — skip */ }
+  }
+  return targets;
+}
+
 export async function proposeSensor(
   input: ProposeSensorInput,
   ctx: HaiveContext,
@@ -116,14 +152,7 @@ export async function proposeSensor(
   }
 
   const anchorPaths = input.paths.length > 0 ? input.paths : found.memory.frontmatter.anchor.paths;
-  const currentTargets: SensorTarget[] = [];
-  for (const rel of anchorPaths) {
-    const abs = path.resolve(ctx.paths.root, rel);
-    if (!existsSync(abs)) continue;
-    try {
-      currentTargets.push({ path: rel, content: await readFile(abs, "utf8") });
-    } catch { /* unreadable — skip */ }
-  }
+  const currentTargets = await readPresumedCorrectTargets(ctx.paths.root, anchorPaths);
 
   const badExamples = [
     ...(input.bad_example ? [input.bad_example] : []),

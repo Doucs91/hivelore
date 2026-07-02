@@ -30,12 +30,13 @@ tags:
   - gap
 created_at: '2026-06-03T23:51:26.770Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.288Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 ## Deterministic regex sensors do NOT run in the pre-commit gate — they are orphaned
 

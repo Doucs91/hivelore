@@ -11,12 +11,13 @@ anchor:
 tags: []
 created_at: '2026-05-04T02:44:21.853Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T05:42:00.273Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 revision_count: 0
 requires_human_approval: false
+validated_by: null
 ---
 # v0.9.1 - Fixes for the 4 bugs identified during the v0.9.0 audit
 
