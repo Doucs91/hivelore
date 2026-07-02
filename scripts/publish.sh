@@ -38,25 +38,12 @@ if [ "$TARGET" != "$CURRENT" ]; then
   done
 fi
 
-# ── Sync cross-package deps (always) ──────────────────────────────────────
-echo "🔗 Syncing cross-package dependency versions to ^$TARGET"
-for pkg in cli mcp; do
-  node -e "
-    const fs = require('fs');
-    const p = './packages/$pkg/package.json';
-    const j = JSON.parse(fs.readFileSync(p, 'utf8'));
-    const names = ['@hivelore/core','@hivelore/mcp','@hivelore/embeddings'];
-    // Update in all dependency sections (dependencies, optionalDependencies, peerDependencies)
-    for (const section of ['dependencies','optionalDependencies','peerDependencies']) {
-      const deps = j[section] || {};
-      names.forEach(name => { if (deps[name]) deps[name] = '^$TARGET'; });
-      if (Object.keys(deps).length) j[section] = deps;
-    }
-    fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
-  "
-done
-
-echo "   Deps synced:"
+# ── Cross-package deps ─────────────────────────────────────────────────────
+# Source package.json files keep `workspace:*` (see team attempt memory
+# 2026-05-02-attempt-crosspackage-deps-with-xyz-ranges): pnpm rewrites the
+# workspace protocol to the real version automatically at publish/pack time,
+# so no source rewrite is needed — and rewriting would break local dev linking.
+echo "🔗 Cross-package deps stay workspace:* (pnpm resolves them at publish time):"
 grep '"@hivelore' packages/cli/package.json | grep -v '"name"'
 grep '"@hivelore' packages/mcp/package.json | grep -v '"name"'
 
