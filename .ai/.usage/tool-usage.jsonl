@@ -231,3 +231,5 @@
 {"tool":"mem_save","at":"2026-07-02T05:59:16.757Z","summary":"sensor-only-hard-block-determinism"}
 {"tool":"mem_session_end","at":"2026-07-02T06:04:54.680Z","summary":"Deep end-to-end audit of hAIve (build/tests/CLI/MCP/gates on a fresh sandbox rep"}
 {"tool":"get_briefing","at":"2026-07-02T14:42:00.932Z","summary":"Repo-wide rename hAIve → Hivelore: npm scope @hiveai/* → @hivelore/*, binary haive → hivelore with transitional haive alias, brand strings, README repositioning, VS Code extension identity, GitHub Action, version 0.30.0. Keep file-format names (.ai/, haive.config.json, haive-*.yml) and internal identifiers unchanged for compatibility."}
+{"tool":"mem_save","at":"2026-07-02T15:08:30.990Z","summary":"hivelore-rename-compat-strategy"}
+{"tool":"mem_session_end","at":"2026-07-02T15:08:53.342Z","summary":"Execute the repo-wide rename hAIve → Hivelore after Sady reserved the npm org, d"}
