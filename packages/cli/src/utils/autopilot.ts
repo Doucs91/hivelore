@@ -251,8 +251,18 @@ async function refreshCodeMap(
 async function refreshCodeSearchIndex(paths: HaivePaths): Promise<boolean> {
   try {
     const mod = await import("@hivelore/embeddings");
+    // Cold start on a large repo embeds every source chunk (~40s/1600 files) — without a
+    // heads-up the first briefing just looks hung. stderr keeps MCP stdout (JSON-RPC) clean.
+    const cold = !existsSync(mod.codeIndexPath(paths));
+    if (cold) {
+      console.error(
+        "[hivelore] Building the semantic code index (one-time — large repos can take a minute). " +
+        "Subsequent briefings reuse the cache.",
+      );
+    }
     const embedder = await mod.Embedder.create();
     const { report } = await mod.rebuildCodeIndex(paths, embedder);
+    if (cold) console.error("[hivelore] Semantic code index ready.");
     return report.added > 0 || report.updated > 0 || report.removed > 0;
   } catch {
     return false;

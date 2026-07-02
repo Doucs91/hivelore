@@ -7,6 +7,7 @@ import {
   compactAutoRecapBody,
   extractActionsBriefBody,
   findProjectRoot,
+  inferModulesFromPaths,
   literalMatchesAllTokens,
   literalMatchesAnyToken,
   loadCodeMap,
@@ -414,12 +415,25 @@ export function registerBriefing(program: Command): void {
         ? mustReadCount === 0 && backgroundCount > usefulCount && backgroundCount > 2 ? "noisy" : "strong"
         : "thin";
 
+      // Module inference — parity with MCP get_briefing (the CLI JSON used to omit it entirely,
+      // so module contexts like "always filter by tenantId" never reached CLI-driven flows).
+      const inferredModules = inferModulesFromPaths(filePaths);
+      const moduleContexts: Array<{ name: string; content: string }> = [];
+      for (const m of inferredModules) {
+        const ctxFile = path.join(paths.modulesContextDir, m, "context.md");
+        if (existsSync(ctxFile)) {
+          moduleContexts.push({ name: m, content: (await readFile(ctxFile, "utf8")).trim() });
+        }
+      }
+
       // JSON mode: emit the structured ranked briefing (parity with the MCP get_briefing tool) and stop.
       if (json) {
         console.log(JSON.stringify({
           task: opts.task ?? null,
           files: filePaths,
           briefing_quality: quality,
+          inferred_modules: inferredModules,
+          module_contexts: moduleContexts,
           counts: { must_read: mustReadCount, useful: usefulCount, background: backgroundCount },
           recap_id: recaps[0]?.memory.frontmatter.id ?? null,
           memories: top.map((item, i) => ({
@@ -437,6 +451,12 @@ export function registerBriefing(program: Command): void {
       }
       out(ui.dim(`briefing_quality: ${quality} · must_read=${mustReadCount} useful=${usefulCount} background=${backgroundCount}`));
       out("");
+      for (const mc of moduleContexts) {
+        if (stopped()) break;
+        out(ui.bold(`=== Module context: ${mc.name} ===`));
+        out(mc.content);
+        out("");
+      }
       printCliBreadcrumbs({
         top,
         priorities,

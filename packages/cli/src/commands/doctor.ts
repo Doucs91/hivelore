@@ -90,13 +90,19 @@ export function registerDoctor(program: Command): void {
 
       // ── 1. Init state ─────────────────────────────────────────────────────
       if (!existsSync(paths.haiveDir)) {
-        findings.push({
-          severity: "error",
-          code: "not-initialized",
-          message: ".ai/ directory missing — Hivelore is not initialized in this project.",
-          fix: "hivelore init",
-        });
-        return emit(findings, opts);
+        // Do NOT route through emit(): health scores over a non-existent corpus (protection=…,
+        // corpus=100) are meaningless noise for a project that simply isn't set up yet.
+        if (opts.json) {
+          console.log(JSON.stringify({
+            initialized: false,
+            findings: [{ severity: "error", code: "not-initialized", message: ".ai/ directory missing — Hivelore is not initialized in this project.", fix: "hivelore init" }],
+          }, null, 2));
+        } else {
+          ui.error(`Hivelore is not initialized at ${root} (no .ai/ directory).`);
+          ui.info("Run `hivelore init` to set it up — everything it writes is removable (.ai/ + bridge files).");
+        }
+        process.exitCode = 1;
+        return;
       }
 
       if (opts.fix && !opts.dryRun) {

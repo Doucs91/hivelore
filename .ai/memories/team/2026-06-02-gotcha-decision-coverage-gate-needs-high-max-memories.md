@@ -8,18 +8,6 @@ anchor:
     - packages/cli/src/commands/briefing.ts
     - packages/cli/src/commands/enforce.ts
   symbols: []
-sensor:
-  kind: regex
-  pattern: decision-coverage
-  paths:
-    - packages/cli/src/commands/briefing.ts
-    - packages/cli/src/commands/enforce.ts
-  message: >-
-    Avoid decision-coverage; before committing a broad change, run the briefing
-    with a high cap covering every staged file, e.g.
-  severity: warn
-  autogen: true
-  last_fired: null
 tags:
   - enforcement
   - briefing
@@ -36,6 +24,12 @@ requires_human_approval: false
 validated_by: null
 ---
 # Gotcha Decision Coverage Gate Needs High Max Memories
+
+> ✅ **OBSOLETE since autoBrief (v0.20.1, decision 2026-06-04-decision-precommit-autobrief-and-briefing-json).**
+> The pre-commit gate now SURFACES all relevant anchored policies itself and records them in the
+> session marker (`decision-coverage-autosurfaced`) — no manual high-cap briefing is needed before
+> broad commits. The sensor this memory carried was removed in v0.31.0: it nagged every diff that
+> mentioned "decision-coverage" with the outdated workaround. Kept as history.
 
 When a commit touches many files anchored to many decisions/architecture memories (e.g. a multi-package feature touching core+cli+mcp+package.jsons), the pre-commit `decision-coverage` gate fails with `decision-coverage-missing: N/M relevant anchored decisions were not present in the latest briefing`.
 

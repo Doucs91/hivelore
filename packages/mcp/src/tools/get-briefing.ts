@@ -604,11 +604,27 @@ export async function getBriefing(
         ? trimmedMemories.map((m) => ({ ...m, body: extractActionsBriefBody(m.body) }))
         : trimmedMemories;
 
-  const outputMemories = formattedMemories.map((m) => ({
+  let outputMemories = formattedMemories.map((m) => ({
     ...m,
     priority: classifyMemoryPriority(m, byId.get(m.id), input.files, input.symbols),
     why: explainWhySurfaced(m, byId.get(m.id), input.files, inferred),
   }));
+
+  // Token diet: when the briefing has direct hits, BACKGROUND memories ship as one-line
+  // pointers instead of full bodies (a cold-start corpus is mostly stack-pack seeds — full
+  // bodies made an 8-memory briefing ~4k tokens on a 3-file repo). The body is one mem_get
+  // away and the breadcrumbs already point there. Thin briefings (background-only) keep full
+  // bodies: they're all the reader has.
+  if (input.format === "full") {
+    const hasDirectHits = outputMemories.some((m) => m.priority === "must_read" || m.priority === "useful");
+    if (hasDirectHits) {
+      outputMemories = outputMemories.map((m) =>
+        m.priority === "background"
+          ? { ...m, body: `${compactSummary(m.body)}\n(background — full body: mem_get("${m.id}"))` }
+          : m,
+      );
+    }
+  }
 
   const briefingQuality = classifyBriefingQuality(outputMemories, {
     isTemplateContext,

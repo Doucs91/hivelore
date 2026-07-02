@@ -1,5 +1,6 @@
 import type { Memory, Sensor } from "./types.js";
 import { BRIDGE_TARGET_PATH } from "./bridges.js";
+import { globToRegExp, isGlobPath } from "./relevance.js";
 
 /**
  * Is a regex sensor pattern brittle — over-fit to incident-specific literals that rot when code
@@ -62,9 +63,8 @@ function normalizeProjectPath(value: string): string {
 
 /**
  * Does this sensor apply to `path`? A sensor with no explicit `paths` (and whose
- * memory has no anchor paths) applies everywhere. Otherwise it applies only to the
- * exact file or directory prefix. Use an explicit directory path (`src/foo/`) when a
- * sensor should cover a whole subtree.
+ * memory has no anchor paths) applies everywhere. Otherwise it applies to the exact
+ * file, a directory prefix, or a glob (`**` / `*.controller.ts` style) scope.
  */
 export function sensorAppliesToPath(
   sensor: Sensor,
@@ -77,6 +77,9 @@ export function sensorAppliesToPath(
   return scopes.some((rawScope) => {
     const scope = normalizeProjectPath(rawScope);
     if (!scope) return false;
+    // Glob scopes (stack packs ship `**/*.controller.ts`-style sensors) were silently dead
+    // under pure prefix matching — every glob-scoped sensor never fired anywhere.
+    if (isGlobPath(scope)) return globToRegExp(scope).test(target);
     return target === scope || target.startsWith(`${scope}/`);
   });
 }

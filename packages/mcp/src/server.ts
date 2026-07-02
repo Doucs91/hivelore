@@ -261,6 +261,7 @@ export {
   type PreCommitCheckOutput,
 } from "./tools/precommit-check.js";
 export { readPresumedCorrectTargets } from "./tools/propose-sensor.js";
+export { memTried, type MemTriedOutput } from "./tools/mem-tried.js";
 export {
   patternDetect,
   type PatternDetectInput,

@@ -18,6 +18,7 @@ import {
   type HaivePaths,
   type Sensor,
 } from "@hivelore/core";
+import { ui } from "../utils/ui.js";
 
 /**
  * A curated, hand-authored regex sensor for a stack-pack memory. Turns generic
@@ -1201,12 +1202,22 @@ export async function seedStackPack(
   const DATE_PREFIX = /^\d{4}-\d{2}-\d{2}-/;
   const existingTopics = new Set<string>();
   const existingSignatures = new Set<string>();
+  // Hand-written (non-seed) memories, for the near-duplicate hint below: a legacy corpus often
+  // already documents a stack rule in its own words (e.g. "vite-env-prefix-required"), which the
+  // signature/topic dedup cannot see. We only HINT — humans decide with memory resolve-conflict.
+  const handWrittenSlugs: string[] = [];
   if (existsSync(haivePaths.memoriesDir)) {
     for (const { memory } of await loadMemoriesFromDir(haivePaths.memoriesDir)) {
       if (memory.frontmatter.topic) existingTopics.add(memory.frontmatter.topic);
       existingSignatures.add(memory.frontmatter.id.replace(DATE_PREFIX, ""));
+      if (!memory.frontmatter.tags.includes("stack-pack")) {
+        handWrittenSlugs.push(memory.frontmatter.id.replace(DATE_PREFIX, ""));
+      }
     }
   }
+  const overlapHints: Array<{ seeded: string; existing: string }> = [];
+  const slugTokens = (slug: string): Set<string> =>
+    new Set(slug.split("-").filter((t) => t.length > 3 && !["convention", "decision", "gotcha", "attempt", "architecture"].includes(t)));
 
   let memCount = 0;
   let sensorCount = 0;
@@ -1220,7 +1231,11 @@ export async function seedStackPack(
           kind: "regex",
           pattern: mem.sensor.pattern,
           ...(mem.sensor.flags ? { flags: mem.sensor.flags } : {}),
-          paths: mem.sensor.paths ?? [],
+          // Stack rules are stack-wide: when the pack doesn't scope the sensor itself, pin an
+          // explicit repo-wide glob. Leaving [] lets sensorAppliesToPath fall back to the MEMORY's
+          // anchor paths — and seeds get anchored to one exemplar file later, silently shrinking
+          // "never $disconnect() in serverless" to a single file (found in the 0.30.0 field test).
+          paths: mem.sensor.paths ?? ["**"],
           message: mem.sensor.message,
           severity: "warn",
           autogen: false,
@@ -1264,6 +1279,21 @@ export async function seedStackPack(
     existingSignatures.add(signature);
     memCount++;
     if (sensor) sensorCount++;
+    const seededTokens = slugTokens(combinedSlug);
+    for (const prior of handWrittenSlugs) {
+      const shared = [...slugTokens(prior)].filter((t) => seededTokens.has(t));
+      if (shared.length >= 2) {
+        overlapHints.push({ seeded: fm.id, existing: prior });
+        break;
+      }
+    }
+  }
+  if (overlapHints.length > 0) {
+    ui.warn(`${overlapHints.length} seeded lesson(s) may duplicate existing hand-written memories:`);
+    for (const h of overlapHints.slice(0, 5)) {
+      ui.info(`  ${h.seeded} ↔ ${h.existing}`);
+    }
+    ui.info("  Review with `hivelore memory conflict-candidates`, then `hivelore memory resolve-conflict`.");
   }
   return { memories: memCount, sensors: sensorCount };
 }

@@ -61,4 +61,51 @@ describe("memTried — ratchet visibility", () => {
     expect(out.proposed_sensor_seed).toBeUndefined();
     expect(out.hint).toMatch(/paths/i);
   });
+
+  it("one-shot sensor: validates and attaches the guardrail in the same call, closing the loop", async () => {
+    const out = await memTried(
+      {
+        what: "used legacyClient.connect",
+        why_failed: "legacyClient.connect deadlocks under load",
+        instead: "use pooledClient.acquire",
+        scope: "team",
+        tags: [],
+        paths: ["src/db.ts"], // file does not exist → current-code check is vacuous, bad_example decides
+        sensor: {
+          pattern: "legacyClient\\.connect",
+          severity: "block",
+          bad_example: "await legacyClient.connect();",
+        },
+      },
+      ctx,
+    );
+    expect(out.sensor_result?.accepted).toBe(true);
+    expect(out.loop_open).toBe(false);
+    const written = await readFile(out.file_path, "utf8");
+    expect(written).toContain("sensor:");
+    expect(written).toContain("severity: block");
+  });
+
+  it("one-shot sensor: a rejected proposal still saves the attempt and reports the verdict", async () => {
+    const out = await memTried(
+      {
+        what: "used legacyClient.connect again",
+        why_failed: "still deadlocks",
+        scope: "team",
+        tags: [],
+        paths: [],
+        sensor: {
+          pattern: "legacyClient\\.connect",
+          severity: "block",
+          bad_example: "totally unrelated content", // sensor must fire on the bad example — it won't
+        },
+      },
+      ctx,
+    );
+    expect(out.sensor_result?.accepted).toBe(false);
+    expect(out.sensor_result?.reason).toBe("missed-bad-example");
+    expect(out.loop_open).toBe(true);
+    const written = await readFile(out.file_path, "utf8");
+    expect(written).not.toContain("sensor:");
+  });
 });

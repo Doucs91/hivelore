@@ -124,6 +124,18 @@ describe("sensors", () => {
     expect(sensorAppliesToPath(sensor({ paths: [] }), [], "anywhere.ts")).toBe(true);
   });
 
+  it("matches glob sensor paths (stack packs ship **/*.controller.ts-style scopes)", () => {
+    // Regression: glob scopes were silently dead under pure prefix matching — the nestjs
+    // no-ORM-in-controller pack sensor never fired anywhere.
+    const glob = sensor({ paths: ["**/*.controller.ts"] });
+    expect(sensorAppliesToPath(glob, [], "apps/api/src/orders/orders.controller.ts")).toBe(true);
+    expect(sensorAppliesToPath(glob, [], "apps/api/src/orders/orders.service.ts")).toBe(false);
+    // "**" = explicit repo-wide scope (used by seeded stack sensors so a later memory
+    // anchor cannot narrow a stack-wide rule to one exemplar file).
+    const repoWide = sensor({ paths: ["**"] });
+    expect(sensorAppliesToPath(repoWide, ["apps/api/src/prisma.ts"], "apps/web/src/anything.tsx")).toBe(true);
+  });
+
   it("runSensors only runs regex sensors and respects path scope", () => {
     const memos = [
       memory(sensor({ paths: ["src/backend/"] })),

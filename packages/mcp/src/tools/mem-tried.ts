@@ -9,6 +9,7 @@ import {
 } from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
+import { proposeSensor } from "./propose-sensor.js";
 
 export const MemTriedInputSchema = {
   what: z.string().min(1).describe("Brief description of the approach that was tried"),
@@ -31,6 +32,20 @@ export const MemTriedInputSchema = {
     .default([])
     .describe("Anchor file paths this applies to"),
   author: z.string().optional().describe("Author handle or email"),
+  sensor: z
+    .object({
+      pattern: z.string().min(1).describe("Regex matching the FAULTY usage (added diff lines)"),
+      absent: z.string().optional().describe("Regex marking CORRECT usage nearby — excludes it from firing"),
+      severity: z.enum(["warn", "block"]).default("block").describe("block = deterministic gate refusal"),
+      message: z.string().optional().describe("Self-correction message shown when the sensor fires"),
+      bad_example: z.string().optional().describe("Code snippet the sensor MUST fire on (validation)"),
+    })
+    .optional()
+    .describe(
+      "ONE-SHOT loop close: validate and attach a sensor in the same call (equivalent to a follow-up " +
+      "propose_sensor). Validated against HEAD — silent on current code, fires on the bad example. " +
+      "If rejected, the attempt is still saved and the verdict tells you how to revise.",
+    ),
 };
 
 export type MemTriedInput = {
@@ -50,6 +65,13 @@ export interface MemTriedOutput {
   proposed_sensor_seed?: { pattern: string; absent?: string; message: string };
   /** Next-step guidance: how to close the loop via propose_sensor. */
   hint?: string;
+  /** When input.sensor was given: the inline propose_sensor verdict (accepted ⇒ loop closed). */
+  sensor_result?: {
+    accepted: boolean;
+    severity: "warn" | "block";
+    reason?: string;
+    guidance?: string;
+  };
 }
 
 export async function memTried(
@@ -96,6 +118,40 @@ export async function memTried(
 
   await writeFile(file, serializeMemory({ frontmatter, body }), "utf8");
 
+  // ONE-SHOT loop close: when the caller supplies a sensor, run the exact propose_sensor
+  // validation inline (HEAD-baseline self-check, brittle/bad-example gates) — same rules,
+  // one call instead of two. A rejected proposal never blocks saving the attempt itself.
+  if (input.sensor) {
+    const verdict = await proposeSensor(
+      {
+        memory_id: frontmatter.id,
+        pattern: input.sensor.pattern,
+        absent: input.sensor.absent,
+        severity: input.sensor.severity ?? "block",
+        message: input.sensor.message,
+        bad_example: input.sensor.bad_example,
+        flags: undefined,
+        paths: [],
+      },
+      ctx,
+    );
+    return {
+      id: frontmatter.id,
+      scope: frontmatter.scope,
+      file_path: file,
+      loop_open: !verdict.accepted,
+      sensor_result: {
+        accepted: verdict.accepted,
+        severity: input.sensor.severity ?? "block",
+        ...(verdict.reason ? { reason: verdict.reason } : {}),
+        ...(verdict.guidance ? { guidance: verdict.guidance } : {}),
+      },
+      hint: verdict.accepted
+        ? "Loop closed: the attempt is saved AND enforced — the gate now refuses a repeat deterministically."
+        : `Attempt saved, but the sensor was rejected (${verdict.reason}). Revise per the guidance and re-propose with propose_sensor.`,
+    };
+  }
+
   // A captured attempt only CLOSES the loop (gate blocks the repeat) once a sensor is VALIDATED via
   // propose_sensor. We no longer auto-write a heuristic warn sensor; instead we hand the agent a SEED
   // (when one can be derived) to pre-fill propose_sensor, and tell it the loop is open until then.
@@ -104,7 +160,7 @@ export async function memTried(
     input.paths.length === 0
       ? "No `paths` given, so this attempt is feedforward-only — it will be briefed but the gate cannot block the repeat. Re-run with `paths` set to the file(s) where the mistake lives, then call propose_sensor to close the loop."
       : seed
-        ? "This attempt is NOT yet enforced. Call propose_sensor to turn it into a reliable block — a candidate is pre-filled in proposed_sensor_seed (refine it: pattern = the faulty usage, absent = the correct-usage marker). Hivelore validates the proposal (silent on current code, fires on the bad example) before trusting it to block."
+        ? "This attempt is NOT yet enforced. Call propose_sensor (or re-run mem_tried with the one-shot `sensor` parameter) to turn it into a reliable block — a candidate is pre-filled in proposed_sensor_seed (refine it: pattern = the faulty usage, absent = the correct-usage marker). Hivelore validates the proposal (silent on current code, fires on the bad example) before trusting it to block."
         : "This attempt is NOT yet enforced and no candidate pattern could be derived from the wording. Call propose_sensor with a discriminating pattern (pattern = faulty usage, absent = correct-usage marker) to close the loop.";
 
   return {

@@ -6,6 +6,49 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.31.0] — kill the rituals — one-shot guardrails, release verbs, fatigue guard, token diet
+
+> Driven by multi-session dogfooding ("what would make Hivelore irresistible"): remove the
+> ceremonies a daily user repeats, stop warning fatigue before it teaches people to skim,
+> and cut briefing token cost. A scan of awesome-harness-engineering confirmed the direction
+> (half the ecosystem is token-reduction; nobody else closes the lesson→enforcement loop).
+
+#### Added
+- **One-shot loop close**: `mem_tried` accepts a `sensor` parameter (pattern/absent/severity/
+  bad_example) that runs the full propose_sensor validation inline — capture the lesson AND
+  attach the validated guardrail in a single call. CLI: `memory tried --sensor-pattern …
+  [--sensor-absent … --sensor-severity block --bad-example …]`. The CLI command now delegates
+  to the shared mem_tried handler (killed a 60-line duplication).
+- **`hivelore release bump <patch|minor|major|X.Y.Z>`** — lockstep-bumps the 5 publishable
+  manifests + scaffolds the CHANGELOG section; **`hivelore release tag`** — verifies lockstep +
+  clean tree + not-already-tagged, creates `vX.Y.Z`, pushes branch and that one tag.
+- **`enforce finish --wait [--wait-timeout N]`** — polls GitHub Actions for HEAD instead of
+  failing on pending CI (replaces the manual `gh run watch` loop in the exit protocol).
+- **Repeat-warning fatigue guard**: the aggregated `anti-pattern-review` finding lists only ids
+  NOT shown in the last 24h; repeats collapse into "+N shown recently" (runtime-local debounce,
+  count unchanged, `hivelore precommit` still lists everything).
+- **Briefing token diet**: in `get_briefing` (format full), `background` memories ship as
+  one-line pointers (`mem_get(id)` away) whenever the briefing has direct hits — a cold-start
+  briefing dropped from ~3.7k to ~1.4k tokens in the field test. Thin briefings keep full bodies.
+- **Near-duplicate hint on re-seed**: `init` warns when a seeded stack lesson likely duplicates
+  an existing hand-written memory (points at `memory conflict-candidates` / `resolve-conflict`).
+- Cold-start feedback: the first briefing on a large repo announces the one-time semantic code
+  index build on stderr instead of silently hanging ~40s.
+
+#### Fixed
+- **Glob sensor scopes were silently dead** (`sensorAppliesToPath` did pure prefix matching):
+  every `**/*.controller.ts`-style pack sensor never fired anywhere. Glob scopes now match.
+- **Seeded stack sensors are pinned repo-wide (`["**"]`)**: the memory-anchor fallback was
+  silently narrowing stack-wide rules ("never `$disconnect()` in serverless") to the single
+  exemplar file the seed got anchored to.
+- **CLI/MCP parity**: `hivelore briefing` now infers modules and loads module contexts like the
+  MCP `get_briefing` (the CLI JSON omitted them entirely — module rules never reached CLI flows).
+- `doctor` on an uninitialized directory prints a clear message instead of meaningless health scores.
+- Retired the obsolete high-max-memories briefing ritual: the gotcha memory documenting it now
+  says autoBrief covers it, and its sensor (which nagged every diff mentioning "decision-coverage"
+  with outdated advice) was removed.
+
+
 ## [0.30.1] — process gates bind agents, not humans
 
 > Field feedback from the 0.30.0 test pass: `briefing-missing` blocked a HUMAN committing by hand.

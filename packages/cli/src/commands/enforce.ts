@@ -74,6 +74,8 @@ interface FinishOptions {
   dir?: string;
   json?: boolean;
   explain?: boolean;
+  wait?: boolean;
+  waitTimeout?: string;
 }
 
 interface EnforcementFinding {
@@ -236,9 +238,26 @@ export function registerEnforce(program: Command): void {
     )
     .option("-d, --dir <dir>", "project root")
     .option("--explain", "group findings by blocking/review/info and show repair commands", false)
+    .option("--wait", "poll GitHub Actions until the runs for HEAD complete instead of failing on pending CI", false)
+    .option("--wait-timeout <minutes>", "max minutes to wait for CI with --wait", "15")
     .option("--json", "emit JSON", false)
     .action(async (opts: FinishOptions) => {
-      const report = await buildFinishReport(opts.dir);
+      let report = await buildFinishReport(opts.dir);
+      if (opts.wait) {
+        // Replaces the manual `gh run watch <id>` ritual: keep re-checking while the ONLY
+        // blocker is CI that hasn't finished (or hasn't appeared yet right after a push).
+        const WAIT_CODES = new Set(["github-actions-pending", "github-actions-runs-missing"]);
+        const deadline = Date.now() + Math.max(1, Number(opts.waitTimeout ?? 15)) * 60_000;
+        const onlyWaitingOnCi = (r: EnforcementReport): boolean =>
+          r.should_block &&
+          r.findings.some((f) => f.severity === "error" && WAIT_CODES.has(f.code)) &&
+          !r.findings.some((f) => f.severity === "error" && !WAIT_CODES.has(f.code));
+        while (onlyWaitingOnCi(report) && Date.now() < deadline) {
+          if (!opts.json) ui.info("GitHub Actions still running for HEAD — rechecking in 20s (--wait)…");
+          await new Promise((resolve) => setTimeout(resolve, 20_000));
+          report = await buildFinishReport(opts.dir);
+        }
+      }
       printReport(report, Boolean(opts.json), Boolean(opts.explain));
       if (report.should_block) {
         if (!opts.json) printNextRequiredAction(report);
@@ -1315,22 +1334,49 @@ async function runPrecommitPolicy(
   const reviewWarnings = result.warnings.filter(
     (w) => w.level === "review" && !w.reasons.includes("sensor"),
   );
+  // Repeat-warning fatigue guard: hot files re-match the same historical lessons on every
+  // commit (enforce.ts alone re-surfaces its own gate gotchas 12–20× per session). Listing
+  // them each time trains people to skim past the whole finding — so ids already listed in
+  // the last 24h collapse into a "+N shown recently" tail while NEW matches stay prominent.
+  // Runtime-local (gitignored), best-effort, and only affects the LISTING, never the count.
+  const REVIEW_SEEN_TTL_MS = 24 * 60 * 60 * 1000;
+  const reviewSeenFile = path.join(paths.runtimeDir, "enforcement", "review-seen.json");
+  let reviewSeen: Record<string, string> = {};
+  try { reviewSeen = JSON.parse(await readFile(reviewSeenFile, "utf8")) as Record<string, string>; } catch { /* first run */ }
+  const now = Date.now();
+  const isFreshlySeen = (id: string): boolean => {
+    const at = Date.parse(reviewSeen[id] ?? "");
+    return Number.isFinite(at) && now - at < REVIEW_SEEN_TTL_MS;
+  };
+  const newWarnings = reviewWarnings.filter((w) => !isFreshlySeen(w.id));
+  const repeatCount = reviewWarnings.length - newWarnings.length;
   const reviewFinding: EnforcementFinding[] = reviewWarnings.length > 0
     ? [{
         severity: "warn",
         code: "anti-pattern-review",
         message:
-          `${reviewWarnings.length} documented lesson(s) plausibly match this diff — review before committing: ` +
-          reviewWarnings
-            .slice(0, 3)
-            .map((w) => `${w.id} (${w.reasons.join("+")})`)
-            .join(", ") +
-          (reviewWarnings.length > 3 ? ", …" : ""),
+          `${reviewWarnings.length} documented lesson(s) plausibly match this diff — review before committing` +
+          (newWarnings.length > 0
+            ? `: ${newWarnings.slice(0, 3).map((w) => `${w.id} (${w.reasons.join("+")})`).join(", ")}` +
+              (newWarnings.length > 3 ? ", …" : "")
+            : "") +
+          (repeatCount > 0 ? ` (+${repeatCount} shown in the last 24h — \`hivelore precommit\` lists all)` : "") + ".",
         fix: "Run `hivelore precommit` for the matched lines and repair commands; update the code, or retire the memory if it no longer applies.",
         memory_ids: reviewWarnings.slice(0, 10).map((w) => w.id),
         impact: 5,
       }]
     : [];
+  if (reviewWarnings.length > 0) {
+    try {
+      for (const w of reviewWarnings) reviewSeen[w.id] = new Date(now).toISOString();
+      // Drop expired entries so the file cannot grow unbounded.
+      for (const [id, at] of Object.entries(reviewSeen)) {
+        if (!Number.isFinite(Date.parse(at)) || now - Date.parse(at) >= REVIEW_SEEN_TTL_MS) delete reviewSeen[id];
+      }
+      await mkdir(path.dirname(reviewSeenFile), { recursive: true });
+      await writeFile(reviewSeenFile, JSON.stringify(reviewSeen, null, 2), "utf8");
+    } catch { /* best-effort: fatigue guard must never break the gate */ }
+  }
 
   if (!result.should_block) {
     return [
