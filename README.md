@@ -252,17 +252,18 @@ you can send — please [open an issue](https://github.com/Doucs91/hAIve/issues)
 | **First-agent bootstrap** | On a **cold corpus**, the first agent is forced to fill the knowledge layer before its commit/finish can pass: a filled project-context, a module context per component, an anchored memory per main code area, and a **sensor per main code area**. The trigger is corpus state — once the baseline exists the gate is silent for every later agent. Tunable via `enforcement.bootstrapGate` (`off` · `warn` · `block` (default)); only bites when production code is in play |
 | **Briefing loaded** | Agent loaded fresh context breadcrumbs before editing |
 | **Decision coverage** | Changed files are covered by relevant anchored decisions in the last briefing |
-| **Anti-pattern matching** | Anti-patterns relevant to the diff are surfaced; an anchored, diff-corroborated, high-confidence match **blocks** the commit. Hardness is tunable via `enforcement.antiPatternGate` (`off` · `review` · `anchored` (default) · `strict`) |
+| **Anti-pattern matching** | Anti-patterns relevant to the diff are surfaced at the gate; a **validated block sensor** that fires on the added lines **blocks** the commit. Hardness is tunable via `enforcement.antiPatternGate` (`off` · `review` · `anchored` (default) · `strict`) |
 | **Stale anchors** | Memories anchored to deleted/moved paths are flagged |
 | **Session recap** | Agent captured what changed and what remains before closing |
 | **CI enforcement** | Required check blocks merge on any gate failure |
 
-> **What "block" means here.** hAIve's gate is high-precision by design: it hard-blocks the case
-> that is almost always a real mistake — an `attempt`/`gotcha` anchored to the exact file you are
-> editing, whose warning the diff corroborates. Looser, token-only matches are **surfaced for review**
-> rather than blocked, so config/doc commits don't trip on incidental keyword overlap. Tighten or
-> loosen this with `enforcement.antiPatternGate`; everything else is enforced as *process* (was the
-> context loaded, were decisions surfaced, is the recap present).
+> **What "block" means here.** hAIve's gate is deterministic by design: the only thing that
+> hard-blocks a commit is a **validated sensor** firing on the added lines — same diff, same answer,
+> on every machine and in CI. Anchor, literal-token, and semantic matches (however strong) are
+> **surfaced for review**, never blocked: relevance signals vary across environments and
+> co-occurrence is not reintroduction. `propose_sensor` is the path from a captured lesson to a
+> blocking guardrail. Tighten or loosen with `enforcement.antiPatternGate`; everything else is
+> enforced as *process* (was the context loaded, were decisions surfaced, is the recap present).
 
 ---
 

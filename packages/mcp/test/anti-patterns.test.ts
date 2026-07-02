@@ -646,7 +646,9 @@ describe("preCommitCheck", () => {
     expect(warning.affected_files).toEqual(["src/a.ts", "src/b.ts"]);
   });
 
-  it("can still block very strong high-confidence semantic matches", () => {
+  it("keeps even very strong sensor-less semantic matches in review (scores vary per environment)", () => {
+    // Cosine scores depend on the local model/runtime (v0.29.12 passed locally, blocked on CI with
+    // the same diff and corpus). Only a fired block-severity sensor may hard-block.
     const warning = classifyAntiPatternWarningForTest({
       id: "2024-01-01-gotcha-anchored-production-risk",
       type: "gotcha",
@@ -657,8 +659,8 @@ describe("preCommitCheck", () => {
       semantic_score: 0.81,
     }, ["src/service.ts"]);
 
-    expect(warning.level).toBe("blocking");
-    expect(warning.rationale).toContain("0.75");
+    expect(warning.level).toBe("review");
+    expect(warning.rationale).toContain("propose_sensor");
   });
 
   // ── anchored gate (honest blocking) ─────────────────────────────────────
@@ -682,7 +684,9 @@ describe("preCommitCheck", () => {
     expect(warning.rationale).toContain("propose_sensor");
   });
 
-  it("anchored gate HARD-BLOCKS a sensor-less anti-pattern on a STRONG semantic match (>=0.75)", () => {
+  it("anchored gate keeps a sensor-less anti-pattern in review even on a STRONG semantic match (>=0.75)", () => {
+    // Determinism rule: without a sensor there is no hard block — semantic scores are
+    // environment-dependent and must never make the gate answer differently per machine.
     const warning = classifyAntiPatternWarningForTest({
       id: "2024-01-01-attempt-no-bigint",
       type: "attempt",
@@ -695,7 +699,8 @@ describe("preCommitCheck", () => {
       anchor_paths: ["src/math.ts"],
     }, ["src/math.ts"], true);
 
-    expect(warning.level).toBe("blocking");
+    expect(warning.level).toBe("review");
+    expect(warning.rationale).toContain("propose_sensor");
   });
 
   it("anchored gate HARD-BLOCKS when a deterministic block-severity sensor fires", () => {

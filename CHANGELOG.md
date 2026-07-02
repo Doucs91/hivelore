@@ -6,6 +6,28 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.29.13] — deterministic gate: only a validated sensor hard-blocks
+
+> The v0.29.12 release commit passed the local gate at 95% and hard-blocked on GitHub Actions at
+> 50% — same diff, same corpus. Root cause: the last non-deterministic block path (sensor-less
+> memory + semantic ≥ 0.75) depends on cosine scores that vary per environment (fresh model
+> download, runtime, warmup). A gate that answers differently per machine trains agents to bypass
+> it — determinism IS the product promise of the feedback layer.
+
+#### Changed
+- **Hard-blocking is now sensor-only** (`classifyWarning`, precommit-check.ts): a sensor-less
+  memory never blocks, even on a very strong semantic match — it surfaces as `review` with a
+  rationale pointing at `propose_sensor`. The anchored gate keeps every other precision rule
+  (personal-scope veto, sensor veto, distinctive-token analysis) for review/info tiering.
+- **Prevention outcomes are sensor-only too** (`isHardBlockCatch`, anti-patterns-check.ts) — the
+  "prevented mistakes" metric only counts what the gate would actually block.
+- README "What block means" rewritten around the determinism rule.
+
+#### Fixed
+- **`precommit-policy-block` now names the culprits** — blocking memory ids (with reasons and
+  sensor severity) and stale-anchor ids are in the finding message and `memory_ids`. The v0.29.12
+  CI failure was undebuggable from the workflow log ("1 blocking anti-pattern", no id).
+
 ## [0.29.12] — the gate stops swallowing review warnings; sensor proposals validate against HEAD
 
 > From a full end-to-end dogfooding pass on a fresh repo: the commit gate reported a clean pass

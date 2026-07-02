@@ -261,11 +261,17 @@ function classifyWarning(
         repair_command: repairCommand,
       };
     }
+    // Sensor-less memories never hard-block, even at semantic >= 0.75. Cosine scores are
+    // environment-dependent (fresh model download, runtime, warmup): the v0.29.12 release
+    // passed the local gate and hard-blocked on GitHub Actions with the SAME diff and corpus.
+    // A gate that answers differently per machine trains agents to bypass it. Deterministic
+    // blocking is the sensor's job — propose_sensor is the path to make this memory block.
     return {
       ...warning,
-      level: "blocking",
+      level: "review",
       rationale:
-        "authoritative/trusted memory plus very strong semantic match to the diff (score >= 0.75)",
+        "very strong semantic match (>= 0.75) but the memory has no sensor — semantic scores vary " +
+        "across environments, so this surfaces for review; add a sensor via propose_sensor to block deterministically",
       affected_files: affectedFiles,
       repair_command: repairCommand,
     };
@@ -329,11 +335,14 @@ function classifyWarning(
       };
     }
 
+    // Same determinism rule as above: without a sensor, an anchored + strongly-semantic match
+    // is still an environment-dependent signal — review, never block.
     return {
       ...warning,
-      level: "blocking",
+      level: "review",
       rationale:
-        "high-confidence anti-pattern anchored to a touched file and corroborated by the diff (anchored gate)",
+        "anchored high-confidence match corroborated only by semantic similarity — sensor-less memories " +
+        "surface for review; add a sensor via propose_sensor to block deterministically (anchored gate)",
       affected_files: affectedFiles,
       repair_command: repairCommand,
     };

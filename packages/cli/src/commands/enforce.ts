@@ -1301,12 +1301,23 @@ async function runPrecommitPolicy(
       ...sensorFindings,
     ];
   }
+  // Name the culprits: a CI failure that says "1 blocking anti-pattern" without the memory id
+  // is undebuggable from the workflow log (lived on the v0.29.12 release push).
+  const blockingWarnings = result.warnings.filter((w) => w.level === "blocking");
+  const blockingDetail = blockingWarnings
+    .slice(0, 5)
+    .map((w) => `${w.id} (${w.reasons.join("+")}${w.sensor_severity ? `, sensor=${w.sensor_severity}` : ""})`)
+    .join(", ");
   return [
     {
       severity: "error",
       code: "precommit-policy-block",
-      message: `Pre-commit policy matched ${result.summary.blocking_warnings ?? result.summary.anti_patterns} blocking anti-pattern(s), ${result.summary.stale_anchors} stale anchor(s).`,
+      message:
+        `Pre-commit policy matched ${result.summary.blocking_warnings ?? result.summary.anti_patterns} blocking anti-pattern(s), ${result.summary.stale_anchors} stale anchor(s)` +
+        (blockingDetail ? `: ${blockingDetail}` : "") +
+        (result.stale_anchors.length > 0 ? ` — stale: ${result.stale_anchors.slice(0, 5).map((s) => s.id).join(", ")}` : "") + ".",
       fix: "Review the hAIve warnings, then update the code or the relevant memories.",
+      memory_ids: blockingWarnings.slice(0, 10).map((w) => w.id),
       impact: 45,
     },
     ...reviewFinding,

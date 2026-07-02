@@ -413,18 +413,12 @@ export async function antiPatternsCheck(
   // never the mere re-surfacing of an anchored note. A prevention event is a measured claim ("a known
   // mistake was intercepted before it landed"); if it's cheap to trigger, the dashboard / gate-precision
   // / proof-line inflate on noise (the "485 repeats blocked" that was really one note matching every
-  // package.json commit). We require one of:
-  //   • a deterministic SENSOR fired (computational, same result every time, a true block), or
-  //   • a HIGH-CONFIDENCE semantic match strong enough to hard-block (semantic ≥ 0.75) — the same bar
-  //     the pre-commit gate uses (isBlockingWarning).
-  // Deliberately excluded now: anchor+literal WITHOUT strong semantic corroboration — that proves the
-  // diff *touched a related file and shared a word*, not that the mistake recurred. It still SURFACES
-  // as a review warning; it just isn't counted as a prevented outcome. Debounced via recordPrevention.
-  const isHardBlockCatch = (w: { reasons: string[]; confidence?: string; semantic_score?: number }): boolean => {
-    if (w.reasons.includes("sensor")) return true;
-    const highConfidence = w.confidence === "authoritative" || w.confidence === "trusted";
-    return highConfidence && w.reasons.includes("semantic") && (w.semantic_score ?? 0) >= 0.75;
-  };
+  // package.json commit). SENSOR-ONLY, mirroring the gate (classifyWarning): a deterministic sensor
+  // firing is the single hard-block path — sensor-less semantic matches (even ≥ 0.75) no longer block
+  // because cosine scores vary across environments, so counting them as "prevented" would claim an
+  // outcome the gate no longer produces. Anchor/literal/semantic matches still SURFACE for review;
+  // they just aren't counted as prevented outcomes. Debounced via recordPrevention.
+  const isHardBlockCatch = (w: { reasons: string[] }): boolean => w.reasons.includes("sensor");
   const strongCatches = warnings.filter(isHardBlockCatch);
   // THE shared recorder — same path the git-hook gate and `haive sensors check` use (debounced).
   await recordPreventionHits(ctx.paths, strongCatches.map((w) => w.id), "anti-pattern");
