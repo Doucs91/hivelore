@@ -22,7 +22,7 @@ import {
 } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
-interface ImportChangelogOptions {
+export interface ImportChangelogOptions {
   fromChangelog: string;
   package?: string;
   scope?: string;
@@ -121,7 +121,7 @@ function parseChangelog(content: string): ChangelogEntry[] {
 
 export function registerMemoryImportChangelog(memory: Command): void {
   memory
-    .command("import-changelog")
+    .command("import-changelog", { hidden: true })
     .description(
       "Import breaking changes from a CHANGELOG.md as Hivelore memories.\n\n" +
       "  Parses Keep-a-Changelog and Angular commit format changelogs,\n" +
@@ -140,7 +140,13 @@ export function registerMemoryImportChangelog(memory: Command): void {
       "only import specific versions (comma-separated), or 'latest' for the most recent breaking version",
     )
     .option("-d, --dir <dir>", "project root")
-    .action(async (opts: ImportChangelogOptions) => {
+    // Commander maps `--from` to opts.from; the impl reads `fromChangelog` (name kept to avoid
+    // colliding with `memory import --from` when both flags coexist on the merged verb).
+    .action(async (opts: ImportChangelogOptions & { from?: string }) =>
+      runImportChangelog({ ...opts, fromChangelog: opts.from ?? opts.fromChangelog }));
+}
+
+export async function runImportChangelog(opts: ImportChangelogOptions): Promise<void> {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
 
@@ -237,5 +243,4 @@ export function registerMemoryImportChangelog(memory: Command): void {
           ui.dim(`  Run \`hivelore briefing --task "update ${pkgName}"\` to see them in context.`),
         );
       }
-    });
 }

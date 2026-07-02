@@ -13,14 +13,27 @@ interface EmbeddingsQueryOptions extends EmbeddingsOptions {
   minScore?: string;
 }
 
+/**
+ * v0.32.0: the semantic index verbs live under `hivelore index` (memories | query | status),
+ * next to `index code` — one indexing family. The old `embeddings` family stays as a hidden
+ * back-compat alias registering the same actions.
+ */
+export function registerIndexSemantic(idx: Command): void {
+  attachSemanticCommands(idx, { memoriesVerb: "memories" });
+}
+
 export function registerEmbeddings(program: Command): void {
   const embeddings = program
-    .command("embeddings")
-    .description("Manage local embeddings index for semantic search");
+    .command("embeddings", { hidden: true })
+    .description("(hidden alias — canonical: `hivelore index memories|query|status`)");
+  attachSemanticCommands(embeddings, { memoriesVerb: "index" });
+}
+
+function attachSemanticCommands(embeddings: Command, naming: { memoriesVerb: string }): void {
 
   embeddings
-    .command("index")
-    .description("Generate or refresh the embeddings index for all memories")
+    .command(naming.memoriesVerb)
+    .description("Generate or refresh the semantic embeddings index for all memories")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: EmbeddingsOptions) => {
       const root = findProjectRoot(opts.dir);

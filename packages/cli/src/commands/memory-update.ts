@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -7,11 +8,14 @@ import {
   resolveHaivePaths,
   serializeMemory,
   type MemoryType,
+  parseMemory,
 } from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
 interface UpdateOptions {
+  edit?: boolean;
+  editor?: string;
   type?: MemoryType;
   title?: string;
   body?: string;
@@ -41,10 +45,39 @@ export function registerMemoryUpdate(memory: Command): void {
     .option("--commit <sha>", "new anchor commit SHA")
     .option("--domain <domain>", "new domain label")
     .option("--author <author>", "new author handle or email")
+    .option("--edit", "open the memory file in $EDITOR instead of flag-based edits (absorbed `memory edit`)")
+    .option("-e, --editor <cmd>", "with --edit: editor command (defaults to $EDITOR or 'vi')")
     .option("-d, --dir <dir>", "project root")
     .action(async (id: string, opts: UpdateOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
+      if (opts.edit) {
+        // Absorbed `memory edit` (v0.32.0): interactive path, re-validated on save.
+        const all = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
+        const found = all.find((m) => m.memory.frontmatter.id === id);
+        if (!found) {
+          ui.error(`No memory with id "${id}".`);
+          process.exitCode = 1;
+          return;
+        }
+        const editor = opts.editor ?? process.env.EDITOR ?? process.env.VISUAL ?? "vi";
+        ui.info(`Opening ${path.relative(root, found.filePath)} with ${editor}…`);
+        const code = await new Promise<number>((resolve) => {
+          const child = spawn(editor, [found.filePath], { stdio: "inherit" });
+          child.on("exit", (c) => resolve(c ?? 0));
+          child.on("error", () => resolve(127));
+        });
+        if (code !== 0) ui.warn(`Editor exited with status ${code}.`);
+        try {
+          parseMemory(await readFile(found.filePath, "utf8"));
+          ui.success("Memory still parses cleanly.");
+        } catch (err) {
+          ui.error(`Memory no longer parses: ${err instanceof Error ? err.message : String(err)}`);
+          ui.warn("File left as-is on disk; fix it and re-run a parse-aware command to confirm.");
+          process.exitCode = 1;
+        }
+        return;
+      }
       if (!existsSync(paths.memoriesDir)) {
         ui.error(`No .ai/memories at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;

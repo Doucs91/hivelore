@@ -30,7 +30,7 @@ tags:
   - stack-detection
 created_at: '2026-06-06T06:10:07.348Z'
 expires_when: null
-verified_at: '2026-07-02T05:42:00.293Z'
+verified_at: '2026-07-02T22:21:21.993Z'
 stale_reason: null
 related_ids: []
 last_read_at: null

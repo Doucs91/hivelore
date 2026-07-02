@@ -15,7 +15,7 @@ tags:
   - stack-pack
 created_at: '2026-06-04T03:30:24.266Z'
 expires_when: null
-verified_at: '2026-07-02T05:42:00.290Z'
+verified_at: '2026-07-02T22:21:21.989Z'
 stale_reason: null
 related_ids: []
 last_read_at: null

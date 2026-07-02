@@ -16,7 +16,7 @@ tags:
   - dogfooding
 created_at: '2026-07-02T05:40:52.006Z'
 expires_when: null
-verified_at: '2026-07-02T05:42:00.298Z'
+verified_at: '2026-07-02T22:21:22.000Z'
 stale_reason: null
 related_ids: []
 last_read_at: null

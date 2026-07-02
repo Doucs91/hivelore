@@ -13,7 +13,7 @@ tags:
   - ux
 created_at: '2026-06-02T02:00:00.000Z'
 expires_when: null
-verified_at: '2026-07-02T05:42:00.279Z'
+verified_at: '2026-07-02T22:21:21.974Z'
 stale_reason: null
 related_ids:
   - 2026-06-02-architecture-core-pure-domain-layer

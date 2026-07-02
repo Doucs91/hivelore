@@ -17,7 +17,7 @@ tags:
   - competitive
 created_at: '2026-06-03T23:18:30.313Z'
 expires_when: null
-verified_at: '2026-07-02T05:42:00.287Z'
+verified_at: '2026-07-02T22:21:21.985Z'
 stale_reason: null
 related_ids: []
 last_read_at: null

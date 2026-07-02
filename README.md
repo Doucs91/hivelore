@@ -402,8 +402,8 @@ MCP profiles keep the product focused:
 
 - `HAIVE_TOOL_PROFILE=enforcement` (default): compact coding-agent harness.
 - `HAIVE_TOOL_PROFILE=maintenance`: corpus review, lifecycle, distillation, code-search, and project-context maintenance.
-- `HAIVE_TOOL_PROFILE=experimental`: broader diagnostics such as runtime journal, pattern detection, why-this-file, why-this-decision, and conflict analysis.
-- `HAIVE_TOOL_PROFILE=full`: legacy alias for `experimental`.
+- `HAIVE_TOOL_PROFILE=experimental` / `full`: legacy aliases for `maintenance` (the experimental
+  diagnostics were removed in v0.32.0 — months of usage showed a single call across all of them).
 
 ---
 
@@ -470,24 +470,29 @@ hivelore memory search <text>                    # Full-text / semantic search
 hivelore memory get <id>                         # Read one record
 hivelore memory approve [<id>|--all]             # Mark as validated
 hivelore memory promote <id>                     # personal → team
-hivelore memory tried                            # Record a failed approach
-hivelore memory resolve-conflict [--yes]         # Guided supersede of contradicting memories
+hivelore memory tried [--sensor-pattern <re>]    # Record a failed approach (one-shot guardrail)
+hivelore memory conflicts [<a> <b>] [--yes]      # List conflict candidates / resolve one pair
 hivelore memory verify [--update] [--json]       # Check anchor freshness
-hivelore memory import --from <file>             # Import docs as memories
+hivelore memory import --from <file> [--changelog]  # Import docs or a CHANGELOG as memories
+hivelore memory seed [stack|--git]               # Re-seed stack packs / git-history scars
 
 # Cold start (seed from existing signals)
 hivelore ingest --from sonar|sarif|eslint|npm-audit <file>  # Scanner findings → anchored memories
 hivelore ingest --from <fmt> <file> --dry-run    # Preview without writing
 
-# Semantic search
-hivelore embeddings index                        # Build index (first run: downloads model)
-hivelore embeddings query <text>                 # Semantic search
+# Indexes (symbol map + semantic search)
+hivelore index code [--status]                   # Build .ai/code-map.json / report freshness
+hivelore index memories                          # Build the semantic index (first run: ~110MB model)
+hivelore index query <text>                      # Semantic search over memories
+
+# Release protocol
+hivelore release bump <patch|minor|major>        # Lockstep version bump + CHANGELOG scaffold
+hivelore release tag                             # Tag vX.Y.Z at HEAD, push branch + tag
 
 # Diagnostics
 hivelore doctor                                  # Analyze setup, emit recommendations
 hivelore eval --fail-under 80                    # Retrieval + sensor quality gate
-hivelore tui                                     # Interactive terminal dashboard
-hivelore bench                                   # Self-test MCP tools
+hivelore selftest                                # Self-test MCP tools (latency + payloads)
 ```
 
 `hivelore eval` auto-synthesizes retrieval cases from anchored memories and, when present, also loads

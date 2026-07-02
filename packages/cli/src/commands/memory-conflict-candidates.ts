@@ -12,7 +12,7 @@ import { ui } from "../utils/ui.js";
 
 type MemType = "decision" | "architecture" | "convention" | "gotcha";
 
-interface CandOpts {
+export interface CandOpts {
   sinceDays: string;
   types: string;
   minJaccard: string;
@@ -31,9 +31,12 @@ function parseTypes(csv: string): MemType[] {
 
 export function registerMemoryConflictCandidates(memory: Command): void {
   memory
-    .command("conflict-candidates")
+    .command("conflicts [id_a] [id_b]")
+    .alias("conflict-candidates")
     .description(
-      "Heuristic conflict candidates (lexical Jaccard + same-topic validated/rejected pairs) — aligns with MCP mem_conflict_candidates.",
+      "Find likely-conflicting memory pairs; pass two ids to resolve one pair guided.\n\n" +
+      "  hivelore memory conflicts                 # list heuristic candidates\n" +
+      "  hivelore memory conflicts <id_a> <id_b>   # guided supersede/merge of one pair\n",
     )
     .option("-d, --dir <dir>", "project root", process.cwd())
     .option("--since-days <n>", "only memories created within N days (lexical scan)", "365")
@@ -46,7 +49,24 @@ export function registerMemoryConflictCandidates(memory: Command): void {
     .option("--max-pairs <n>", "cap lexical pairs", "20")
     .option("--max-scan <n>", "max memories scanned (lexical)", "500")
     .option("--max-topic-pairs <n>", "cap topic/status pairs", "20")
-    .action(async (opts: CandOpts) => {
+    .option("--yes", "resolution mode: apply the recommended action without prompting", false)
+    .action(async (idA: string | undefined, idB: string | undefined, opts: CandOpts & { yes?: boolean }) => {
+      if (idA && idB) {
+        // Absorbed `memory resolve-conflict` (v0.32.0): two ids switch to guided resolution.
+        const { runResolveConflict } = await import("./memory-resolve-conflict.js");
+        await runResolveConflict(idA, idB, { dir: opts.dir, yes: opts.yes });
+        return;
+      }
+      if (idA && !idB) {
+        console.error("Pass BOTH ids to resolve a pair, or none to list candidates.");
+        process.exitCode = 1;
+        return;
+      }
+      await runConflictCandidates(opts);
+    });
+}
+
+export async function runConflictCandidates(opts: CandOpts): Promise<void> {
       const root = path.resolve(opts.dir ?? process.cwd());
       const paths = resolveHaivePaths(findProjectRoot(root));
       if (!existsSync(paths.memoriesDir)) {
@@ -83,5 +103,4 @@ export function registerMemoryConflictCandidates(memory: Command): void {
           2,
         ),
       );
-    });
 }

@@ -1,10 +1,8 @@
 import { Command } from "commander";
 import { registerBriefing } from "./commands/briefing.js";
-import { registerTui } from "./commands/tui.js";
-import { registerEmbeddings } from "./commands/embeddings.js";
+import { registerEmbeddings, registerIndexSemantic } from "./commands/embeddings.js";
 import { registerIndexCode } from "./commands/index-code.js";
 import { registerInit } from "./commands/init.js";
-import { registerInstallHooks } from "./commands/install-hooks.js";
 import { registerObserve } from "./commands/observe.js";
 import { registerMcp } from "./commands/mcp.js";
 import { registerSync } from "./commands/sync.js";
@@ -13,13 +11,8 @@ import { registerMemoryList } from "./commands/memory-list.js";
 import { registerMemoryPromote } from "./commands/memory-promote.js";
 import { registerMemoryApprove } from "./commands/memory-approve.js";
 import { registerMemoryUpdate } from "./commands/memory-update.js";
-import { registerMemoryAutoPromote } from "./commands/memory-auto-promote.js";
-import { registerMemoryEdit } from "./commands/memory-edit.js";
-import { registerMemoryForFiles } from "./commands/memory-for-files.js";
-import { registerMemoryHot } from "./commands/memory-hot.js";
 import { registerMemoryTried } from "./commands/memory-tried.js";
 import { registerMemorySeed } from "./commands/memory-seed.js";
-import { registerMemoryPending } from "./commands/memory-pending.js";
 import { registerMemoryQuery } from "./commands/memory-query.js";
 import { registerMemoryReject } from "./commands/memory-reject.js";
 import { registerMemoryRm } from "./commands/memory-rm.js";
@@ -29,27 +22,23 @@ import { registerMemoryImpact } from "./commands/memory-impact.js";
 import { registerMemoryFeedback } from "./commands/memory-feedback.js";
 import { registerMemoryVerify } from "./commands/memory-verify.js";
 import { registerMemoryImport } from "./commands/memory-import.js";
-import { registerMemoryImportChangelog } from "./commands/memory-import-changelog.js";
 import { registerMemoryDigest } from "./commands/memory-digest.js";
 import { registerSessionEnd } from "./commands/session-end.js";
-import { registerSnapshot } from "./commands/snapshot.js";
-import { registerHub } from "./commands/hub.js";
 import { registerStats } from "./commands/stats.js";
 import { registerBench } from "./commands/bench.js";
 import { registerBenchmark } from "./commands/benchmark.js";
 import { registerEval } from "./commands/eval.js";
 import { registerMemorySuggest } from "./commands/memory-suggest.js";
+import { registerMemoryPending } from "./commands/memory-pending.js";
+import { registerMemorySeedGit } from "./commands/memory-seed-git.js";
+import { registerMemoryImportChangelog } from "./commands/memory-import-changelog.js";
+import { registerMemoryConflictCandidates } from "./commands/memory-conflict-candidates.js";
+import { registerMemoryResolveConflict } from "./commands/memory-resolve-conflict.js";
 import { registerMemoryArchive } from "./commands/memory-archive.js";
 import { registerDoctor } from "./commands/doctor.js";
-import { registerPlayback } from "./commands/playback.js";
 import { registerPrecommit } from "./commands/precommit.js";
-import { registerWelcome } from "./commands/welcome.js";
 import { registerMemoryLint } from "./commands/memory-lint.js";
-import { registerMemorySuggestTopic } from "./commands/memory-suggest-topic.js";
 import { registerResolveProject } from "./commands/resolve-project.js";
-import { registerRuntime } from "./commands/runtime-journal.js";
-import { registerMemoryTimeline } from "./commands/memory-timeline.js";
-import { registerMemoryConflictCandidates } from "./commands/memory-conflict-candidates.js";
 import { registerEnforce } from "./commands/enforce.js";
 import { registerRelease } from "./commands/release.js";
 import { registerRun } from "./commands/run.js";
@@ -60,8 +49,6 @@ import { registerDashboard } from "./commands/dashboard.js";
 import { registerDevLink } from "./commands/dev-link.js";
 import { registerCoverage } from "./commands/coverage.js";
 import { registerMergeDriver } from "./commands/merge-driver.js";
-import { registerMemoryResolveConflict } from "./commands/memory-resolve-conflict.js";
-import { registerMemorySeedGit } from "./commands/memory-seed-git.js";
 // --- Lot C ---
 import { registerBridges } from "./commands/bridges.js";
 
@@ -80,9 +67,7 @@ program
   .showSuggestionAfterError(true);
 
 registerInit(program);
-registerWelcome(program);
 registerResolveProject(program);
-registerRuntime(program);
 registerEnforce(program);
 registerRelease(program);
 registerRun(program);
@@ -96,13 +81,11 @@ registerDevLink(program);
 
 registerMcp(program);
 registerBriefing(program);
-registerTui(program);
 registerEmbeddings(program);
 registerSync(program);
 registerBridges(program); // --- Lot C ---
-registerInstallHooks(program);
 registerObserve(program);
-registerIndexCode(program);
+registerIndexSemantic(registerIndexCode(program));
 
 const memory = program.command("memory").description("Manage memory entries");
 registerMemoryAdd(memory);
@@ -114,26 +97,20 @@ registerMemoryStats(memory);
 registerMemoryImpact(memory);
 registerMemoryFeedback(memory);
 registerMemoryReject(memory);
-registerMemoryAutoPromote(memory);
-registerMemoryForFiles(memory);
 registerMemoryShow(memory);
-registerMemoryEdit(memory);
 registerMemoryRm(memory);
-registerMemoryPending(memory);
 registerMemoryApprove(memory);
 registerMemoryUpdate(memory);
-registerMemoryHot(memory);
 registerMemoryTried(memory);
 registerMemorySeed(memory);
-registerMemorySeedGit(memory);
-registerMemoryResolveConflict(memory);
 registerMemoryImport(memory);
-registerMemoryImportChangelog(memory);
 registerMemoryDigest(memory);
 registerMemorySuggest(memory);
-registerMemorySuggestTopic(memory);
-registerMemoryTimeline(memory);
-registerMemoryConflictCandidates(memory);
+registerMemoryPending(memory);          // hidden alias — canonical: memory list --pending
+registerMemorySeedGit(memory);          // hidden alias — canonical: memory seed --git
+registerMemoryImportChangelog(memory);  // hidden alias — canonical: memory import --changelog
+registerMemoryConflictCandidates(memory); // `memory conflicts [a] [b]` (+ alias conflict-candidates)
+registerMemoryResolveConflict(memory);  // hidden alias — canonical: memory conflicts <a> <b>
 registerMemoryArchive(memory);
 registerMemoryLint(memory);
 
@@ -145,14 +122,11 @@ const session = program.command("session").description(
 );
 registerSessionEnd(session);
 
-registerSnapshot(program);
-registerHub(program);
 registerStats(program);
 registerBench(program);
 registerBenchmark(program);
 registerEval(program);
 registerDoctor(program);
-registerPlayback(program);
 registerPrecommit(program);
 
 // The core harness loop only — what a developer actually types day to day. Everything else
@@ -217,9 +191,9 @@ function applySurfaceVisibility(root: Command): void {
     ? [
         "",
         "Advanced surface, by family:",
-        "  reports:  dashboard · stats · playback        eval:     eval · benchmark · selftest (alias: bench)",
-        "  index:    index · code-search · embeddings    runtime:  runtime · observe · snapshot",
-        "  ops:      memory <sub> · sensors · ingest · hub · sync · install-hooks (= enforce install) · precommit (= enforce check)",
+        "  reports:  dashboard · stats                    eval:     eval · benchmark · selftest (alias: bench)",
+        "  index:    index code|memories|query            runtime:  observe (hook plumbing)",
+        "  ops:      memory <sub> · sensors · ingest · sync · release · precommit (= enforce check)",
       ]
     : [];
   root.addHelpText(

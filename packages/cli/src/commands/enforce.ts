@@ -38,7 +38,7 @@ import {
 } from "@hivelore/core";
 import { getBriefing, preCommitCheck } from "@hivelore/mcp";
 import { ui } from "../utils/ui.js";
-import { installClaudeHooksAtPath, defaultClaudeSettingsPath } from "../utils/claude-hooks.js";
+import { installClaudeHooksAtPath, uninstallClaudeHooksAtPath, defaultClaudeSettingsPath } from "../utils/claude-hooks.js";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
 
 declare const __HAIVE_VERSION__: string;
@@ -65,6 +65,9 @@ interface EnforceOptions {
   stage?: "local" | "pre-commit" | "pre-push" | "ci";
   strict?: boolean;
   claude?: boolean;
+  claudeScope?: string;
+  claudeSettings?: string;
+  removeClaude?: boolean;
   git?: boolean;
   ci?: boolean;
   explain?: boolean;
@@ -117,6 +120,38 @@ interface EnforcementReport {
 }
 
 export function registerEnforce(program: Command): void {
+  // Back-compat alias (v0.32.0): `install-hooks [git|claude]` was merged into `enforce install`
+  // — the second hook generator it carried was a recurring drift source. Old invocations keep
+  // working; the command is hidden from help.
+  program
+    .command("install-hooks [target]", { hidden: true })
+    .option("-d, --dir <dir>", "project root")
+    .option("--force", "(ignored — Hivelore-owned hooks are always refreshed, foreign hooks appended)")
+    .option("--scope <scope>", "claude: 'user' (~/.claude) or 'project' (.claude/)", "user")
+    .option("--uninstall", "claude: remove previously installed hooks")
+    .option("--settings <path>", "claude: explicit settings.json path")
+    .action(async (target: string | undefined, opts: { dir?: string; scope?: string; uninstall?: boolean; settings?: string }) => {
+      const t = (target ?? "git").toLowerCase();
+      const root = findProjectRoot(opts.dir);
+      if (t === "git") {
+        await installGitEnforcement(root);
+        return;
+      }
+      if (t === "claude") {
+        const settingsPath = opts.settings ?? defaultClaudeSettingsPath(opts.scope === "project" ? "project" : "user", root);
+        if (opts.uninstall) {
+          const result = await uninstallClaudeHooksAtPath(settingsPath);
+          ui.success(`Removed Hivelore hooks from ${result.settingsPath}`);
+        } else {
+          const result = await installClaudeHooksAtPath(settingsPath);
+          ui.success(`${result.created ? "Created" : "Patched"} Claude Code hooks (${result.settingsPath})`);
+        }
+        return;
+      }
+      ui.error(`Unknown target: ${target}. Use \`hivelore enforce install\` (git + claude + ci).`);
+      process.exitCode = 1;
+    });
+
   const enforce = program
     .command("enforce")
     .description(
@@ -129,6 +164,9 @@ export function registerEnforce(program: Command): void {
     .option("-d, --dir <dir>", "project root")
     .option("--no-git", "skip git pre-commit/pre-push enforcement hooks")
     .option("--no-claude", "skip Claude Code hooks")
+    .option("--claude-scope <scope>", "where to write Claude Code hooks: 'project' (.claude/) or 'user' (~/.claude)", "project")
+    .option("--claude-settings <path>", "explicit path to a Claude settings.json")
+    .option("--remove-claude", "remove previously installed Claude Code hooks instead of installing")
     .option("--no-ci", "skip GitHub Actions enforcement workflow")
     .action(async (opts: EnforceOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -156,11 +194,18 @@ export function registerEnforce(program: Command): void {
       if (opts.git !== false) await installGitEnforcement(root);
       if (opts.ci !== false) await installCiEnforcement(root);
       if (opts.claude !== false) {
+        const claudeScope = opts.claudeScope === "user" ? "user" as const : "project" as const;
+        const settingsPath = opts.claudeSettings ?? defaultClaudeSettingsPath(claudeScope, root);
         try {
-          const result = await installClaudeHooksAtPath(defaultClaudeSettingsPath("project", root));
-          ui.success(`${result.created ? "Created" : "Patched"} Claude Code hooks (${path.relative(root, result.settingsPath)})`);
+          if (opts.removeClaude) {
+            const result = await uninstallClaudeHooksAtPath(settingsPath);
+            ui.success(`Removed Hivelore hooks from ${result.settingsPath}`);
+          } else {
+            const result = await installClaudeHooksAtPath(settingsPath);
+            ui.success(`${result.created ? "Created" : "Patched"} Claude Code hooks (${path.relative(root, result.settingsPath) || result.settingsPath})`);
+          }
         } catch (err) {
-          ui.warn(`Claude Code hooks not installed: ${err instanceof Error ? err.message : String(err)}`);
+          ui.warn(`Claude Code hooks not ${opts.removeClaude ? "removed" : "installed"}: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
 
@@ -2252,6 +2297,24 @@ ${resolveCli}
 _hivelore enforce commit-msg "$1" --dir . || exit $?
 `,
     },
+    // Absorbed from the removed `install-hooks` command (v0.32.0): keep anchors fresh after
+    // every pull/merge/rebase so the next agent's briefing reflects moved/deleted files.
+    {
+      name: "post-merge",
+      body: `#!/bin/sh
+${ENFORCE_HOOK_MARKER}
+${resolveCli}
+_hivelore sync --quiet --since ORIG_HEAD || true
+`,
+    },
+    {
+      name: "post-rewrite",
+      body: `#!/bin/sh
+${ENFORCE_HOOK_MARKER}
+${resolveCli}
+_hivelore sync --quiet --since ORIG_HEAD || true
+`,
+    },
   ];
   for (const hook of hooks) {
     const file = path.join(hooksDir, hook.name);
@@ -2267,7 +2330,7 @@ _hivelore enforce commit-msg "$1" --dir . || exit $?
     }
     await chmod(file, 0o755);
   }
-  ui.success("Installed blocking git enforcement hooks: pre-commit, pre-push, commit-msg");
+  ui.success("Installed git hooks: pre-commit, pre-push, commit-msg (blocking) + post-merge, post-rewrite (sync)");
 }
 
 async function installCiEnforcement(root: string): Promise<void> {

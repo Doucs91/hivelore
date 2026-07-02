@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import {
+  MemoryTypeSchema,
   aggregateUsage,
   buildFrontmatter,
   findProjectRoot,
@@ -13,10 +14,13 @@ import {
   readUsageEvents,
   resolveHaivePaths,
   serializeMemory,
+  suggestTopicKey,
 } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface SuggestOptions {
+  topic?: string;
+  type?: string;
   since?: string;
   min?: string;
   json?: boolean;
@@ -56,6 +60,8 @@ export function registerMemorySuggest(memory: Command): void {
       "  Use --auto-save to save the top-N suggestions using the project defaults.\n" +
       "  In autopilot, suggestions land as validated team records; in manual mode they stay draft.",
     )
+    .option("--topic <title>", "suggest a stable topic-upsert key for --type + this title (absorbed suggest-topic)")
+    .option("--type <type>", "with --topic: convention | decision | gotcha | architecture | glossary | attempt | session_recap")
     .option("--since <window>", "ISO date or relative (e.g. '7d', '24h')", "30d")
     .option("--min <count>", "minimum repeat count to surface a query", "2")
     .option("--top-n <n>", "with --auto-save, draft this many top suggestions", "3")
@@ -64,6 +70,17 @@ export function registerMemorySuggest(memory: Command): void {
     .option("--json", "emit JSON instead of human-readable output", false)
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: SuggestOptions) => {
+      // Absorbed `memory suggest-topic` (v0.32.0): pure helper, no usage-log needed.
+      if (opts.topic) {
+        const parsed = MemoryTypeSchema.safeParse(opts.type ?? "");
+        if (!parsed.success) {
+          ui.error(`--topic requires a valid --type (got: ${opts.type ?? "none"})`);
+          process.exitCode = 1;
+          return;
+        }
+        console.log(JSON.stringify({ type: parsed.data, ...suggestTopicKey(parsed.data, opts.topic) }, null, 2));
+        return;
+      }
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       const events = await readUsageEvents(paths);

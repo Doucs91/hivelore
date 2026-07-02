@@ -59,7 +59,7 @@ export function registerSync(program: Command): void {
       "    3. Auto-promotes proposed memories (by usage count or time delay in autopilot)\n" +
       "    4. Auto-refreshes code-map if source files changed\n" +
       "    5. Reports decay warnings for memories unused >90 days\n\n" +
-      "  Install git hooks to run sync automatically: hivelore install-hooks\n\n" +
+      "  Install git hooks to run sync automatically: hivelore enforce install\n\n" +
       "  Examples:\n" +
       "    hivelore sync\n" +
       "    hivelore sync --dry-run      # preview what would change without writing\n" +

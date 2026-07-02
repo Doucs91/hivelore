@@ -27,7 +27,7 @@ import { ui } from "../utils/ui.js";
 
 const exec = promisify(execFile);
 
-interface SeedGitOptions {
+export interface SeedGitOptions {
   apply?: boolean;
   limit?: string;
   days?: string;
@@ -38,7 +38,7 @@ interface SeedGitOptions {
 
 export function registerMemorySeedGit(memory: Command): void {
   memory
-    .command("seed-git")
+    .command("seed-git", { hidden: true })
     .description("Propose draft `attempt` seeds from revert/hotfix commits in git history (cold-start)")
     .option("--apply", "write the proposed seeds as draft memories (default: preview only)", false)
     .option("--limit <n>", "max seeds to propose", "20")
@@ -46,7 +46,10 @@ export function registerMemorySeedGit(memory: Command): void {
     .option("--scope <scope>", "personal | team", "team")
     .option("--json", "emit JSON", false)
     .option("-d, --dir <dir>", "project root")
-    .action(async (opts: SeedGitOptions) => {
+    .action(async (opts: SeedGitOptions) => runGitSeed(opts));
+}
+
+export async function runGitSeed(opts: SeedGitOptions): Promise<void> {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) {
@@ -100,7 +103,6 @@ export function registerMemorySeedGit(memory: Command): void {
       if (!opts.json) {
         ui.success(`Wrote ${written} draft seed(s). Review them: \`hivelore memory pending\` → validate or delete.`);
       }
-    });
 }
 
 /** Read recent commits with their touched files for seeding. Best-effort; returns [] off-git. */

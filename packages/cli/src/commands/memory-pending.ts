@@ -10,18 +10,21 @@ import {
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
-interface PendingOptions {
+export interface PendingOptions {
   scope?: "personal" | "team" | "module";
   dir?: string;
 }
 
 export function registerMemoryPending(memory: Command): void {
   memory
-    .command("pending")
+    .command("pending", { hidden: true })
     .description("List draft and proposed memories awaiting review (sorted by reads desc).\n\n  draft = created but not yet activated · proposed = promoted, awaiting team validation")
     .option("--scope <scope>", "filter by scope (personal | team | module)")
     .option("-d, --dir <dir>", "project root")
-    .action(async (opts: PendingOptions) => {
+    .action(async (opts: PendingOptions) => runPending(opts));
+}
+
+export async function runPending(opts: PendingOptions): Promise<void> {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
@@ -88,5 +91,4 @@ export function registerMemoryPending(memory: Command): void {
       }
 
       ui.info(`${pending.length} total pending (${proposed.length} proposed · ${drafts.length} draft)`);
-    });
 }

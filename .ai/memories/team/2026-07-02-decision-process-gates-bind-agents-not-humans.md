@@ -17,7 +17,7 @@ tags:
   - ux
 created_at: '2026-07-02T16:13:29.961Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T22:21:22.000Z'
 stale_reason: null
 related_ids: []
 last_read_at: null

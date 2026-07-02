@@ -444,11 +444,16 @@ describe("Hivelore CLI integration", () => {
     expect(stdout).toContain("mem_save/mem_search/mem_get/mem_delete");
   });
 
-  it("advanced help exposes maintenance and experimental commands", async () => {
+  it("advanced help exposes maintenance commands but not the removed experimental surface", async () => {
     const { stdout } = await run(workDir, ["--advanced", "--help"]);
-    expect(stdout).toContain("playback");
-    expect(stdout).toContain("snapshot");
     expect(stdout).toContain("benchmark");
+    expect(stdout).toContain("dashboard");
+    // v0.32.0 surface reduction — deleted commands must not resurface (match command
+    // names at line start; prose like "observability snapshot" is fine).
+    expect(stdout).not.toMatch(/\n  playback[\s[]/);
+    expect(stdout).not.toMatch(/\n  snapshot[\s[]/);
+    expect(stdout).not.toMatch(/\n  hub[\s[]/);
+    expect(stdout).not.toMatch(/\n  tui[\s[]/);
   });
 
   it("phase C/D/E: bench is renamed to selftest (alias bench), and advanced families are documented", async () => {

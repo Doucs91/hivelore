@@ -24,7 +24,7 @@ sensor:
 tags: []
 created_at: '2026-05-02T05:51:06.189Z'
 expires_when: null
-verified_at: '2026-07-02T05:42:00.272Z'
+verified_at: '2026-07-02T22:21:21.947Z'
 stale_reason: null
 related_ids: []
 last_read_at: null

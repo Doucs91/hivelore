@@ -75,11 +75,6 @@ import {
   type IngestFindingsInput,
 } from "./tools/ingest-findings.js";
 import {
-  MemObserveInputSchema,
-  memObserve,
-  type MemObserveInput,
-} from "./tools/mem-observe.js";
-import {
   MemSessionEndInputSchema,
   memSessionEnd,
   type MemSessionEndInput,
@@ -115,11 +110,6 @@ import {
   type CodeSearchInput,
 } from "./tools/code-search.js";
 import {
-  WhyThisFileInputSchema,
-  whyThisFile,
-  type WhyThisFileInput,
-} from "./tools/why-this-file.js";
-import {
   AntiPatternsCheckInputSchema,
   antiPatternsCheck,
   type AntiPatternsCheckInput,
@@ -130,25 +120,10 @@ import {
   type MemDistillInput,
 } from "./tools/mem-distill.js";
 import {
-  WhyThisDecisionInputSchema,
-  whyThisDecision,
-  type WhyThisDecisionInput,
-} from "./tools/why-this-decision.js";
-import {
-  MemConflictsInputSchema,
-  memConflicts,
-  type MemConflictsInput,
-} from "./tools/mem-conflicts.js";
-import {
   PreCommitCheckInputSchema,
   preCommitCheck,
   type PreCommitCheckInput,
 } from "./tools/precommit-check.js";
-import {
-  PatternDetectInputSchema,
-  patternDetect,
-  type PatternDetectInput,
-} from "./tools/pattern-detect.js";
 import {
   MemConflictCandidatesInputSchema,
   memConflictCandidates,
@@ -169,16 +144,6 @@ import {
   memTimeline,
   type MemTimelineInput,
 } from "./tools/mem-timeline.js";
-import {
-  RuntimeJournalAppendInputSchema,
-  runtimeJournalAppend,
-  type RuntimeJournalAppendInput,
-} from "./tools/runtime-journal-append.js";
-import {
-  RuntimeJournalTailInputSchema,
-  runtimeJournalTail,
-  type RuntimeJournalTailInput,
-} from "./tools/runtime-journal-tail.js";
 import {
   BootstrapProjectArgsSchema,
   bootstrapProjectPrompt,
@@ -231,11 +196,6 @@ export {
   type CodeSearchOutput,
 } from "./tools/code-search.js";
 export {
-  whyThisFile,
-  type WhyThisFileInput,
-  type WhyThisFileOutput,
-} from "./tools/why-this-file.js";
-export {
   antiPatternsCheck,
   type AntiPatternsCheckInput,
   type AntiPatternsCheckOutput,
@@ -246,27 +206,12 @@ export {
   type MemDistillOutput,
 } from "./tools/mem-distill.js";
 export {
-  whyThisDecision,
-  type WhyThisDecisionInput,
-  type WhyThisDecisionOutput,
-} from "./tools/why-this-decision.js";
-export {
-  memConflicts,
-  type MemConflictsInput,
-  type MemConflictsOutput,
-} from "./tools/mem-conflicts.js";
-export {
   preCommitCheck,
   type PreCommitCheckInput,
   type PreCommitCheckOutput,
 } from "./tools/precommit-check.js";
 export { readPresumedCorrectTargets } from "./tools/propose-sensor.js";
 export { memTried, type MemTriedOutput } from "./tools/mem-tried.js";
-export {
-  patternDetect,
-  type PatternDetectInput,
-  type PatternDetectOutput,
-} from "./tools/pattern-detect.js";
 export {
   memResolveProject,
   type MemResolveProjectInput,
@@ -283,14 +228,6 @@ export {
   memConflictCandidates,
   type MemConflictCandidatesInput,
 } from "./tools/mem-conflict-candidates.js";
-export {
-  runtimeJournalAppend,
-  type RuntimeJournalAppendInput,
-} from "./tools/runtime-journal-append.js";
-export {
-  runtimeJournalTail,
-  type RuntimeJournalTailInput,
-} from "./tools/runtime-journal-tail.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -347,15 +284,12 @@ export const MAINTENANCE_PROFILE_TOOLS = [
   "ingest_findings",
 ] as const;
 
+// v0.32.0 surface reduction: the experimental tools (mem_observe, why_this_file,
+// why_this_decision, mem_conflicts_with, pattern_detect, runtime_journal_*) were removed —
+// months of usage logs showed a single call across all of them. The profile name stays as
+// a deprecated alias of maintenance so existing HAIVE_TOOL_PROFILE=experimental configs keep working.
 export const EXPERIMENTAL_PROFILE_TOOLS = [
   ...MAINTENANCE_PROFILE_TOOLS,
-  "mem_observe",
-  "why_this_file",
-  "why_this_decision",
-  "mem_conflicts_with",
-  "pattern_detect",
-  "runtime_journal_append",
-  "runtime_journal_tail",
 ] as const;
 
 export const TOOL_PROFILES: Record<Exclude<ToolProfile, "full">, ReadonlySet<string>> = {
@@ -374,7 +308,6 @@ const BRIEFING_TOOLS = new Set(["get_briefing", "mem_relevant_to"]);
 const MUTATING_TOOLS = new Set([
   "mem_save",
   "mem_tried",
-  "mem_observe",
   "mem_session_end",
   "bootstrap_project_save",
   "mem_update",
@@ -382,8 +315,6 @@ const MUTATING_TOOLS = new Set([
   "mem_reject",
   "mem_delete",
   "mem_feedback",
-  "runtime_journal_append",
-  "pattern_detect",
   "ingest_findings",
   "propose_sensor",
 ]);
@@ -477,7 +408,7 @@ export function createHaiveServer(
       "  - A domain term and what it means in this codebase",
       "",
       "DO NOT USE for failed approaches → use mem_tried instead (better structure).",
-      "DO NOT USE for code discoveries during exploration → use mem_observe instead.",
+      "For reactive code discoveries during exploration, prefer a compact gotcha via mem_save.",
       "",
       "PARAMETERS:",
       "  type     — convention | decision | gotcha | architecture | glossary | attempt",
@@ -610,38 +541,6 @@ export function createHaiveServer(
     },
   );
 
-  registerTool(
-    "mem_observe",
-    [
-      "Capture a code-level discovery made WHILE READING existing code.",
-      "",
-      "USE THIS when you read a file and spot something the team may not know about:",
-      "  - A bug or race condition hiding in the code",
-      "  - A security gap or missing validation",
-      "  - An inconsistency between two files",
-      "  - A missing configuration or environment variable",
-      "  - Anything that could silently break in production",
-      "",
-      "DIFFERENCE from mem_save: mem_observe is for REACTIVE discoveries during code",
-      "reading. mem_save is for deliberate knowledge capture (conventions, decisions).",
-      "",
-      "Auto-validated, anchored to file paths for staleness detection.",
-      "",
-      "PARAMETERS:",
-      "  what   — one-line title (e.g. 'MobilePaymentController: duplicate @RequestBody')",
-      "  where  — file path(s) where the issue lives",
-      "  impact — what breaks or could break because of this",
-      "  fix    — suggested fix (optional)",
-      "  scope  — team (default, since discoveries benefit everyone)",
-      "",
-      "RETURNS: { id, file_path }",
-    ].join("\n"),
-    MemObserveInputSchema,
-    async (input: MemObserveInput) => {
-      tracker.record("mem_observe", input.where);
-      return jsonResult(await memObserve(input, context));
-    },
-  );
 
   registerTool(
     "mem_session_end",
@@ -1139,26 +1038,6 @@ export function createHaiveServer(
 
   // ── v0.5.0: file-context lookup ───────────────────────────────────────
 
-  registerTool(
-    "why_this_file",
-    [
-      "One-shot file-context lookup: combines recent git history, memories anchored",
-      "to the path, and the code-map entry. Answers 'why is this file the way it is?'",
-      "in a single call instead of 3-4 manual ones.",
-      "",
-      "PARAMETERS:",
-      "  path           — project-relative path (required)",
-      "  git_log_limit  — recent commits to include (default 5)",
-      "  memory_limit   — anchored memories cap (default 5)",
-      "",
-      "RETURNS: { file, exists, recent_commits: [...], memories: [...], code_map_entry, hints? }",
-    ].join("\n"),
-    WhyThisFileInputSchema,
-    async (input: WhyThisFileInput) => {
-      tracker.record("why_this_file", input.path);
-      return jsonResult(await whyThisFile(input, context));
-    },
-  );
 
   // ── v0.5.0: anti-patterns check ───────────────────────────────────────
 
@@ -1215,55 +1094,7 @@ export function createHaiveServer(
     },
   );
 
-  registerTool(
-    "why_this_decision",
-    [
-      "Trace the genealogy of a memory (especially decision/architecture):",
-      "the memory itself + memories explicitly linked via related_ids + memories",
-      "anchored to overlapping paths + recent commits touching those paths.",
-      "",
-      "USE WHEN you find a memory and need to understand WHY it was made and",
-      "what surrounds it. One call instead of 4-5 manual lookups.",
-      "",
-      "PARAMETERS:",
-      "  id            — memory id (required)",
-      "  git_log_limit — how many recent commits per anchor path (default 5)",
-      "",
-      "RETURNS: { decision, related: [...], path_neighbors: [...], recent_commits: [...] }",
-    ].join("\n"),
-    WhyThisDecisionInputSchema,
-    async (input: WhyThisDecisionInput) => {
-      tracker.record("why_this_decision", input.id);
-      return jsonResult(await whyThisDecision(input, context));
-    },
-  );
 
-  registerTool(
-    "mem_conflicts_with",
-    [
-      "Detect memories that potentially CONTRADICT a given memory.",
-      "",
-      "USE BEFORE relying on a memory's advice — surfaces 'another memory says",
-      "the opposite'. Detection uses several heuristics layered together:",
-      "",
-      "  1. Opposite status — validated vs rejected on overlapping topic",
-      "  2. attempt-vs-convention on overlapping anchor paths",
-      "  3. Polarity keywords — 'use X' vs 'do not use X' among semantic neighbors",
-      "  4. Explicit #contradicts:<id> tags in either body",
-      "",
-      "PARAMETERS:",
-      "  id        — memory id to check (required)",
-      "  min_score — minimum cosine similarity for semantic neighbors (default 0.5)",
-      "  semantic  — use embeddings (default true)",
-      "",
-      "RETURNS: { found, target, scanned, conflicts: [{ id, reasons, similarity, ... }] }",
-    ].join("\n"),
-    MemConflictsInputSchema,
-    async (input: MemConflictsInput) => {
-      tracker.record("mem_conflicts_with", input.id);
-      return jsonResult(await memConflicts(input, context));
-    },
-  );
 
   registerTool(
     "mem_conflict_candidates",
@@ -1273,7 +1104,7 @@ export function createHaiveServer(
       "  1. Lexical similarity (Jaccard) on decision/architecture-like pairs",
       "  2. Same frontmatter.topic with validated vs rejected — quick human-review signal",
       "",
-      "Advisory only — follow with mem_conflicts_with on specific ids.",
+      "Advisory only — review the listed candidate ids, then resolve with mem_update/mem_delete.",
       "",
       "PARAMETERS:",
       "  since_days, types, min_jaccard, max_pairs, max_scan, max_topic_pairs",
@@ -1287,35 +1118,7 @@ export function createHaiveServer(
     },
   );
 
-  registerTool(
-    "runtime_journal_append",
-    [
-      "Append one line to `.ai/.runtime/session-journal.ndjson` — machine-local session continuity.",
-      "",
-      "Does NOT replace team memories; complements mem_session_end recaps for local traces.",
-      "",
-      "PARAMETERS: message, kind (note|session_end|mcp), optional tool",
-      "",
-      "RETURNS: { ok, path_hint }",
-    ].join("\n"),
-    RuntimeJournalAppendInputSchema,
-    async (input: RuntimeJournalAppendInput) =>
-      jsonResult(await runtimeJournalAppend(input, context)),
-  );
 
-  registerTool(
-    "runtime_journal_tail",
-    [
-      "Read the last N entries from the runtime session journal (parsed JSON lines).",
-      "",
-      "PARAMETERS: limit (default 30, max 500)",
-      "",
-      "RETURNS: { entries: [...], empty?: true }",
-    ].join("\n"),
-    RuntimeJournalTailInputSchema,
-    async (input: RuntimeJournalTailInput) =>
-      jsonResult(await runtimeJournalTail(input, context)),
-  );
 
   registerTool(
     "pre_commit_check",
@@ -1344,37 +1147,6 @@ export function createHaiveServer(
     },
   );
 
-  registerTool(
-    "pattern_detect",
-    [
-      "Heuristic memory detector — finds knowledge worth saving WITHOUT calling an LLM.",
-      "",
-      "Runs three signals over local git history and the tool-usage log:",
-      "  1. CONFIG_CHANGE — config files modified recently (tsconfig, eslint, prettier, …)",
-      "     → proposes a convention memory with the git diff as body.",
-      "  2. REPEATED_PATH — same file appears ≥3× in mem_tried/mem_observe events",
-      "     → proposes a gotcha memory anchored to that path.",
-      "  3. HOT_FILE — source file referenced ≥3× in writing-tool events",
-      "     → proposes a convention memory (frequent edits = pattern emerging).",
-      "",
-      "Saves memories with status='proposed'. They feed into auto-promote (Phase 4)",
-      "or are surfaced in the next post_task distillation for LLM review.",
-      "",
-      "USE periodically (e.g. end of sprint) or trigger from post-commit hook.",
-      "",
-      "PARAMETERS:",
-      "  since_days — look-back window in days (default 7)",
-      "  dry_run    — report matches without saving (default false)",
-      "  scope      — 'team' (default) | 'personal'",
-      "",
-      "RETURNS: { scanned_events, matches: [{kind, signal, proposed_type, …}], saved, saved_ids }",
-    ].join("\n"),
-    PatternDetectInputSchema,
-    async (input: PatternDetectInput) => {
-      tracker.record("pattern_detect", `since=${input.since_days}d/dry_run=${input.dry_run}`);
-      return jsonResult(await patternDetect(input, context));
-    },
-  );
 
   registerTool(
     "mem_diff",
@@ -1429,7 +1201,7 @@ export function createHaiveServer(
       [
         "⭐ Post-task reflection — run at the end of every session to capture what you learned:",
         "failed approaches (mem_tried), new conventions/decisions/gotchas (mem_save),",
-        "code discoveries (mem_observe), and an end-of-session recap (mem_session_end).",
+        "failed approaches (mem_tried), and an end-of-session recap (mem_session_end).",
         "In autopilot mode a minimal recap saves automatically; calling this produces a richer one.",
       ].join(" "),
       PostTaskArgsSchema,

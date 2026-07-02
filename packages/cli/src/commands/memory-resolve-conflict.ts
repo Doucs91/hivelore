@@ -19,7 +19,7 @@ import {
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
-interface ResolveConflictOptions {
+export interface ResolveConflictOptions {
   yes?: boolean;
   json?: boolean;
   dir?: string;
@@ -27,12 +27,15 @@ interface ResolveConflictOptions {
 
 export function registerMemoryResolveConflict(memory: Command): void {
   memory
-    .command("resolve-conflict <id_a> <id_b>")
+    .command("resolve-conflict <id_a> <id_b>", { hidden: true })
     .description("Resolve a contradiction: keep the stronger memory, deprecate (supersede) the other")
     .option("--yes", "apply the resolution (without this, only previews it)", false)
     .option("--json", "emit JSON", false)
     .option("-d, --dir <dir>", "project root")
-    .action(async (idA: string, idB: string, opts: ResolveConflictOptions) => {
+    .action(async (idA: string, idB: string, opts: ResolveConflictOptions) => runResolveConflict(idA, idB, opts));
+}
+
+export async function runResolveConflict(idA: string, idB: string, opts: ResolveConflictOptions): Promise<void> {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {
@@ -93,5 +96,4 @@ export function registerMemoryResolveConflict(memory: Command): void {
       if (!opts.json) {
         ui.success(`Deprecated ${plan.supersede_id}; promoted ${plan.keep_id} (rev ${applied.winner.revision_count}${applied.topic ? `, topic=${applied.topic}` : ""}).`);
       }
-    });
 }

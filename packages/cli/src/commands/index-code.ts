@@ -18,7 +18,7 @@ interface IndexCodeOptions {
   json?: boolean;
 }
 
-export function registerIndexCode(program: Command): void {
+export function registerIndexCode(program: Command): Command {
   const idx = program
     .command("index")
     .description(
@@ -127,6 +127,7 @@ export function registerIndexCode(program: Command): void {
         process.exit(1);
       }
     });
+  return idx;
 }
 
 async function reportIndexStatus(

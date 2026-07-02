@@ -6,6 +6,7 @@ import { loadMemoriesFromDir, type LoadedMemory } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
 interface ListOptions {
+  pending?: boolean;
   scope?: MemoryScope;
   type?: MemoryType;
   tag?: string;
@@ -20,6 +21,7 @@ export function registerMemoryList(memory: Command): void {
   memory
     .command("list")
     .description("List memories with optional filters")
+    .option("--pending", "grouped review view of draft + proposed memories (absorbed `memory pending`)")
     .option("--scope <scope>", "personal | team | module")
     .option("--type <type>", "filter by type")
     .option("--tag <tag>", "filter by tag")
@@ -29,6 +31,11 @@ export function registerMemoryList(memory: Command): void {
     .option("--limit <n>", "max memories to display")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: ListOptions) => {
+      if (opts.pending) {
+        const { runPending } = await import("./memory-pending.js");
+        await runPending({ dir: opts.dir });
+        return;
+      }
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.memoriesDir)) {

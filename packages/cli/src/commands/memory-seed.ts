@@ -17,6 +17,11 @@ import { applyAutopilotRepairs } from "../utils/autopilot.js";
 import { ui } from "../utils/ui.js";
 
 interface SeedOptions {
+  git?: boolean;
+  apply?: boolean;
+  limit?: string;
+  days?: string;
+  scope?: string;  // --git mode: personal | team
   list?: boolean;
   json?: boolean;
   dir?: string;
@@ -51,10 +56,20 @@ export function registerMemorySeed(memory: Command): void {
       "    hivelore memory seed --list       # show supported + auto-detected stacks\n" +
       "    hivelore memory seed --list --json\n",
     )
+    .option("--git", "seed draft `attempt` lessons from revert/hotfix commits instead of stack packs (absorbed seed-git)")
+    .option("--apply", "with --git: write the proposed seeds as draft memories (default: preview)", false)
+    .option("--limit <n>", "with --git: max seeds to propose", "20")
+    .option("--days <n>", "with --git: git-history lookback window in days", "365")
+    .option("--scope <scope>", "with --git: personal | team", "team")
     .option("--list", "list supported stacks (and which are auto-detected here) and exit")
     .option("--json", "machine-readable output (use with --list)")
     .option("-d, --dir <dir>", "project root")
     .action(async (stack: string | undefined, opts: SeedOptions) => {
+      if (opts.git) {
+        const { runGitSeed } = await import("./memory-seed-git.js");
+        await runGitSeed({ apply: opts.apply, limit: opts.limit, days: opts.days, scope: opts.scope === "personal" ? "personal" : "team", json: opts.json, dir: opts.dir });
+        return;
+      }
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       const deps = await readDependencyMap(root);

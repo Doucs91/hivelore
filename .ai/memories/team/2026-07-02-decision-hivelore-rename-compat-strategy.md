@@ -7,7 +7,7 @@ anchor:
   paths:
     - packages/cli/package.json
     - packages/cli/src/commands/init-mcp-setup.ts
-    - packages/cli/src/commands/install-hooks.ts
+    - packages/cli/src/commands/enforce.ts
     - packages/cli/src/commands/dev-link.ts
   symbols: []
 tags:
@@ -18,7 +18,7 @@ tags:
   - naming
 created_at: '2026-07-02T15:08:31.011Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T22:21:21.999Z'
 stale_reason: null
 related_ids: []
 last_read_at: null

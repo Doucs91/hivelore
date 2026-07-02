@@ -6,6 +6,39 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.32.0] — surface reduction — 67→55 command files, one verb per job
+
+> Field verdict after weeks of dogfooding: the surface had outgrown a solo maintainer. Everything
+> a daily user needs stays; duplicates and the unused long tail go. All old spellings keep working
+> as hidden aliases — nothing breaks, the help just stops advertising two names for one job.
+
+#### Removed (unused / off-mission; resurrect from git history if ever needed)
+- CLI: `snapshot` (API-contract snapshots — behaviour-harness territory, explicitly out of scope),
+  `playback`, `welcome`, `hub`, `tui` (the ink/react interactive dashboard — `dashboard`/`stats`
+  cover it; drops ink+react from the CLI bundle), `runtime journal`.
+- MCP experimental tools: `mem_observe`, `why_this_file`, `why_this_decision`, `mem_conflicts_with`,
+  `pattern_detect`, `runtime_journal_append/tail` — usage logs showed ONE call across all of them
+  in two months. `HAIVE_TOOL_PROFILE=experimental`/`full` remain as aliases of `maintenance`.
+
+#### Merged (one verb per job; old names = hidden aliases)
+- `install-hooks` → **`enforce install`** (single hook generator at last: pre-commit, pre-push,
+  commit-msg + post-merge/post-rewrite sync; `--claude-scope`, `--claude-settings`, `--remove-claude`).
+- `memory import-changelog` → `memory import --changelog [--package --versions]`.
+- `memory seed-git` → `memory seed --git [--apply --limit --days]`.
+- `memory hot` → `memory stats --hot [--threshold]`; `memory timeline` removed (MCP `mem_timeline` remains).
+- `memory suggest-topic` → `memory suggest --topic <title> --type <type>`.
+- `memory edit` → `memory update <id> --edit [-e <editor>]`.
+- `memory conflict-candidates` + `memory resolve-conflict` → **`memory conflicts [<a> <b>] [--yes]`**.
+- `memory pending` → `memory list --pending`.
+- `memory for-files` and `memory auto-promote` removed (`briefing --files` and `sync` cover them).
+- `embeddings index|query|status` → **`index memories|query|status`** next to `index code`
+  (hidden `embeddings` family alias kept).
+
+Net: 67 → 55 command files (−3,358 net lines), root commands 38 → 31, `memory` subcommands 31 → 20,
+MCP tools 37 → 30, CLI bundle sheds ink/react. File formats, hooks contracts, VS Code extension
+calls, and the MCP enforcement profile are untouched.
+
+
 ## [0.31.0] — kill the rituals — one-shot guardrails, release verbs, fatigue guard, token diet
 
 > Driven by multi-session dogfooding ("what would make Hivelore irresistible"): remove the

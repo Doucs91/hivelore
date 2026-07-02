@@ -28,7 +28,7 @@ tags:
   - bug
 created_at: '2026-06-07T18:50:19.712Z'
 expires_when: null
-verified_at: '2026-07-02T05:42:00.295Z'
+verified_at: '2026-07-02T22:21:21.996Z'
 stale_reason: null
 related_ids: []
 last_read_at: null

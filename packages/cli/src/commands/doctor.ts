@@ -447,7 +447,7 @@ export function registerDoctor(program: Command): void {
             severity: "info",
             code: "claude-enforcement-hooks-missing",
             message: "Hivelore enforcement is enabled, but project-scoped Claude Code hooks are not installed.",
-            fix: "hivelore install-hooks claude --scope project",
+            fix: "hivelore enforce install --claude-scope project",
           });
         }
       }

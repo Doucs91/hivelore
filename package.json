@@ -1,7 +1,7 @@
 {
   "name": "hivelore-monorepo",
   "private": true,
-  "version": "0.31.0",
+  "version": "0.32.0",
   "description": "Hivelore - repo-native memory and context policy for coding-agent harnesses",
   "license": "Apache-2.0",
   "repository": {

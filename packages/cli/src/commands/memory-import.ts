@@ -8,6 +8,9 @@ import {
 import { ui } from "../utils/ui.js";
 
 interface ImportOptions {
+  changelog?: boolean;
+  package?: string;
+  versions?: string;
   from: string;
   scope?: "personal" | "team";
   dir?: string;
@@ -20,9 +23,17 @@ export function registerMemoryImport(memory: Command): void {
       "Parse a Markdown file and suggest memories via the import_docs MCP prompt (prints a ready-to-use prompt invocation)",
     )
     .requiredOption("--from <file>", "Markdown/text file to import from")
+    .option("--changelog", "treat the file as a CHANGELOG: extract breaking changes as gotcha memories (absorbed import-changelog)")
+    .option("--package <name>", "with --changelog: package name (used in memory title and tags)")
+    .option("--versions <csv>", "with --changelog: only specific versions, or 'latest'")
     .option("--scope <scope>", "personal | team (default: team)", "team")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: ImportOptions) => {
+      if (opts.changelog) {
+        const { runImportChangelog } = await import("./memory-import-changelog.js");
+        await runImportChangelog({ fromChangelog: opts.from, package: opts.package, scope: opts.scope, versions: opts.versions, dir: opts.dir });
+        return;
+      }
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
 

@@ -13,7 +13,6 @@ import { memSave } from "../src/tools/mem-save.js";
 import { memSearch } from "../src/tools/mem-search.js";
 import { memSessionEnd } from "../src/tools/mem-session-end.js";
 import { memTried } from "../src/tools/mem-tried.js";
-import { patternDetect } from "../src/tools/pattern-detect.js";
 import { preCommitCheck } from "../src/tools/precommit-check.js";
 import { pendingDistillPath, type PendingDistill } from "../src/session-tracker.js";
 
@@ -1011,87 +1010,6 @@ describe("Hivelore MCP tools", () => {
 
       expect(result.should_block).toBe(false);
       expect(result.warnings.every((w) => w.level === "info")).toBe(true);
-    });
-  });
-
-  describe("pattern_detect (Phase 3)", () => {
-    it("returns empty result when no usage events exist", async () => {
-      const out = await patternDetect(
-        { since_days: 7, dry_run: true, scope: "team" },
-        ctx,
-      );
-      expect(out.scanned_events).toBe(0);
-      expect(out.matches).toHaveLength(0);
-      expect(out.saved).toBe(0);
-      expect(out.notice).toBeDefined();
-    });
-
-    it("produces distinct slugs for same-named files in different directories", async () => {
-      // Simulate git repo with two vitest.config.ts files that were recently changed.
-      // The slug must include the parent directory to avoid collision.
-      // Since we can't run real git in tests, we call patternDetect with dry_run
-      // and verify the slug-building logic indirectly by checking that the output
-      // slug for "cli/vitest.config.ts" differs from "core/vitest.config.ts".
-      // We do this by calling the exported slug helper logic directly via the matches.
-      const usageDir = path.join(ctx.paths.haiveDir, ".usage");
-      await mkdir(usageDir, { recursive: true });
-      const events = [
-        { at: new Date().toISOString(), tool: "mem_save", summary: "packages/cli/vitest.config.ts" },
-        { at: new Date().toISOString(), tool: "mem_save", summary: "packages/cli/vitest.config.ts" },
-        { at: new Date().toISOString(), tool: "mem_save", summary: "packages/cli/vitest.config.ts" },
-        { at: new Date().toISOString(), tool: "mem_save", summary: "packages/core/vitest.config.ts" },
-        { at: new Date().toISOString(), tool: "mem_save", summary: "packages/core/vitest.config.ts" },
-        { at: new Date().toISOString(), tool: "mem_save", summary: "packages/core/vitest.config.ts" },
-      ];
-      await writeFile(
-        path.join(usageDir, "tool-usage.jsonl"),
-        events.map((e) => JSON.stringify(e)).join("\n") + "\n",
-        "utf8",
-      );
-      // In dry_run mode we get all matches without writing files
-      const result = await patternDetect(
-        { since_days: 1, dry_run: false, scope: "team" },
-        ctx,
-      );
-      // Both files should produce separate matches (different slugs)
-      const hotFileSlugs = result.matches
-        .filter((m) => m.kind === "hot_file")
-        .map((m) => m.proposed_slug);
-      // No two slugs should be identical
-      const uniqueSlugs = new Set(hotFileSlugs);
-      expect(uniqueSlugs.size).toBe(hotFileSlugs.length);
-    });
-
-    it("detects HOT_FILE signal and saves proposed memory", async () => {
-      // Simulate usage events referencing same file 3+ times
-      const usageDir = path.join(ctx.paths.haiveDir, ".usage");
-      await mkdir(usageDir, { recursive: true });
-      const events = [
-        { at: new Date().toISOString(), tool: "mem_save", summary: "src/service.ts" },
-        { at: new Date().toISOString(), tool: "mem_save", summary: "src/service.ts" },
-        { at: new Date().toISOString(), tool: "mem_save", summary: "src/service.ts" },
-      ];
-      await writeFile(
-        path.join(usageDir, "tool-usage.jsonl"),
-        events.map((e) => JSON.stringify(e)).join("\n") + "\n",
-        "utf8",
-      );
-
-      const dry = await patternDetect(
-        { since_days: 1, dry_run: true, scope: "team" },
-        ctx,
-      );
-      expect(dry.matches.some((m) => m.kind === "hot_file")).toBe(true);
-      expect(dry.saved).toBe(0); // dry_run
-
-      const live = await patternDetect(
-        { since_days: 1, dry_run: false, scope: "team" },
-        ctx,
-      );
-      expect(live.saved).toBeGreaterThan(0);
-      // Proposed memory should exist on disk
-      const teamFiles = await readdir(ctx.paths.teamDir);
-      expect(teamFiles.length).toBeGreaterThan(0);
     });
   });
 

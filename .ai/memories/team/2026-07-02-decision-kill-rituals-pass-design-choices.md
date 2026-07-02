@@ -19,7 +19,7 @@ tags:
   - v0.31.0
 created_at: '2026-07-02T17:16:34.975Z'
 expires_when: null
-verified_at: null
+verified_at: '2026-07-02T22:21:21.999Z'
 stale_reason: null
 related_ids: []
 last_read_at: null

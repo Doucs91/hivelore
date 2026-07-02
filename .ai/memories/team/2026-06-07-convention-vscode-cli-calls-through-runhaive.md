@@ -28,7 +28,7 @@ tags:
   - cli
 created_at: '2026-06-07T23:04:51.836Z'
 expires_when: null
-verified_at: '2026-07-02T05:42:00.294Z'
+verified_at: '2026-07-02T22:21:21.994Z'
 stale_reason: null
 related_ids: []
 last_read_at: null

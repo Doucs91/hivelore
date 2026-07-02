@@ -160,7 +160,7 @@ export function registerObserve(program: Command): void {
       "Passive-capture endpoint for Claude Code PostToolUse hooks.\n\n" +
       "  Reads a JSON payload on stdin and appends an observation record to\n" +
       "  .ai/.cache/observations.jsonl. Always exits 0; never blocks the agent.\n" +
-      "  Wired up automatically by `hivelore install-hooks claude`.",
+      "  Wired up automatically by `hivelore enforce install`.",
     )
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: { dir?: string }) => {

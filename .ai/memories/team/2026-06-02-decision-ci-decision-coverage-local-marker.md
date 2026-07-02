@@ -14,7 +14,7 @@ tags:
   - decision-coverage
 created_at: '2026-06-02T03:20:00.000Z'
 expires_when: null
-verified_at: '2026-07-02T05:42:00.285Z'
+verified_at: '2026-07-02T22:21:21.982Z'
 stale_reason: null
 related_ids:
   - 2026-05-31-gotcha-enforcement-is-process-not-violation

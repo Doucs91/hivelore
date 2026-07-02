@@ -15,7 +15,7 @@ tags:
   - context-efficiency
 created_at: '2026-06-05T22:47:25.662Z'
 expires_when: null
-verified_at: '2026-07-02T05:42:00.291Z'
+verified_at: '2026-07-02T22:21:21.990Z'
 stale_reason: null
 related_ids: []
 last_read_at: null

@@ -237,3 +237,5 @@
 {"tool":"mem_save","at":"2026-07-02T16:13:29.932Z","summary":"process-gates-bind-agents-not-humans"}
 {"tool":"mem_save","at":"2026-07-02T17:16:34.937Z","summary":"kill-rituals-pass-design-choices"}
 {"tool":"mem_session_end","at":"2026-07-02T17:22:29.964Z","summary":"Scan awesome-harness-engineering for inspiration, execute the \"kill the rituals\""}
+{"tool":"get_briefing","at":"2026-07-02T21:55:02.339Z","summary":"Surface reduction v0.32.0: delete snapshot/playback/welcome/hub/tui/runtime-journal CLI commands and experimental MCP tools (why_this_file, why_this_decision, pattern_detect, mem_conflicts_with, mem_observe, runtime_journal_*); merge install-hooks into enforce install, import-changelog into import, seed-git into seed, hot+timeline into memory stats, suggest-topic into suggest, edit into update, conflict-candidates+resolve-conflict into conflicts, embeddings under index; update server.ts profiles, index.ts registrations, README, tests."}
+{"tool":"mem_save","at":"2026-07-02T22:20:28.894Z","summary":"surface-reduction-one-verb-per-job"}

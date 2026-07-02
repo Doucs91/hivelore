@@ -15,7 +15,7 @@ tags:
   - tool-use
 created_at: '2026-04-28T04:18:31.207Z'
 expires_when: null
-verified_at: '2026-07-02T05:42:00.270Z'
+verified_at: '2026-07-02T22:21:21.944Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
