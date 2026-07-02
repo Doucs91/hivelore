@@ -22,8 +22,18 @@ jobs:
         with:
           node-version: '20'
 
-      - name: install hivelore
-        run: npm install -g @hivelore/cli
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.14.2
+
+      # Build the CLI from this repo — the published package can lag the repo
+      # (and did not exist at all during the @hiveai → @hivelore rename).
+      - name: build hivelore from repo
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm -r build
+          echo "$(pwd)/scripts" >> "$GITHUB_PATH"
+          mkdir -p scripts && printf '#!/bin/sh\nexec node "%s/packages/cli/dist/index.js" "$@"\n' "$(pwd)" > scripts/hivelore && chmod +x scripts/hivelore
 
       - name: refresh memory anchors + auto-promote
         run: hivelore sync --since HEAD~1 || true
@@ -51,8 +61,18 @@ jobs:
         with:
           node-version: '20'
 
-      - name: install hivelore
-        run: npm install -g @hivelore/cli
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.14.2
+
+      # Build the CLI from this repo — the published package can lag the repo
+      # (and did not exist at all during the @hiveai → @hivelore rename).
+      - name: build hivelore from repo
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm -r build
+          echo "$(pwd)/scripts" >> "$GITHUB_PATH"
+          mkdir -p scripts && printf '#!/bin/sh\nexec node "%s/packages/cli/dist/index.js" "$@"\n' "$(pwd)" > scripts/hivelore && chmod +x scripts/hivelore
 
       - name: verify memory anchors touched by this PR
         id: verify
