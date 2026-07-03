@@ -336,7 +336,7 @@ export function registerInit(program: Command): void {
         gitRevertsFound: 0,
         gitRecurring: 0,
         bridgesWritten: 0,
-        bridgeTargets: [],
+        bridgeTargets: [] as string[],
       };
 
       if (existsSync(paths.haiveDir)) {

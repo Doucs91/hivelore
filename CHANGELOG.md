@@ -6,6 +6,12 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.34.1] — typecheck fix for the first-hour release
+
+- Fix a `tsc --noEmit` error in the 0.34.0 init report initializer (`bridgeTargets: []` inferred as
+  `never[]`). Runtime behavior unchanged; 0.34.0's CI was red on type-check only. Publish this one.
+
+
 ## [0.34.0] — the first hour — init that respects your machine, your stack, and your readme
 
 > Field-tested the published package on fresh clones of express and vite. The gate engine held;
