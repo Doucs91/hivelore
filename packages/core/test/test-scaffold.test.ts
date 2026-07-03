@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   lessonShortName,
+  normalizeFramework,
   parseLessonFields,
+  pickTestFramework,
   scaffoldPostIncidentTest,
   type PostIncidentLesson,
 } from "../src/test-scaffold.js";
@@ -90,5 +92,45 @@ describe("scaffoldPostIncidentTest", () => {
     const s = scaffoldPostIncidentTest({ memoryId: "2026-07-03-attempt-x", title: "x" }, { framework: "vitest" });
     expect(s.proposeCommand).not.toContain("--incident");
     expect(s.proposeCommand).not.toContain("--paths");
+  });
+
+  it("prefixes baseDir into the path + run command (monorepo package)", () => {
+    const s = scaffoldPostIncidentTest(LESSON, { framework: "vitest", baseDir: "packages/api" });
+    expect(s.relPath).toBe("packages/api/tests/incidents/refund-exceeds-capture.test.ts");
+    expect(s.runCommand).toBe("npx vitest run packages/api/tests/incidents/refund-exceeds-capture.test.ts");
+  });
+
+  it("baseDir scopes the go test directory", () => {
+    const s = scaffoldPostIncidentTest(LESSON, { framework: "gotest", baseDir: "services/pay" });
+    expect(s.relPath).toBe("services/pay/incidents/incident_refund_exceeds_capture_test.go");
+    expect(s.runCommand).toBe("go test ./services/pay/incidents/");
+  });
+
+  it("outPath wins over baseDir", () => {
+    const s = scaffoldPostIncidentTest(LESSON, { framework: "vitest", baseDir: "packages/api", outPath: "custom/x.test.ts" });
+    expect(s.relPath).toBe("custom/x.test.ts");
+  });
+});
+
+describe("normalizeFramework", () => {
+  it("maps aliases and rejects unknown", () => {
+    expect(normalizeFramework("vitest")).toBe("vitest");
+    expect(normalizeFramework("PY")).toBe("pytest");
+    expect(normalizeFramework("python")).toBe("pytest");
+    expect(normalizeFramework("go")).toBe("gotest");
+    expect(normalizeFramework("cypress")).toBeNull();
+  });
+});
+
+describe("pickTestFramework", () => {
+  it("prefers vitest, then jest, from package deps", () => {
+    expect(pickTestFramework({ devDependencies: { vitest: "^2" } }, {})).toBe("vitest");
+    expect(pickTestFramework({ devDependencies: { jest: "^29" } }, {})).toBe("jest");
+    expect(pickTestFramework({ devDependencies: { "ts-jest": "^29" } }, {})).toBe("jest");
+  });
+  it("falls back to non-JS signals, then vitest default", () => {
+    expect(pickTestFramework(null, { goMod: true })).toBe("gotest");
+    expect(pickTestFramework(null, { pySignal: true })).toBe("pytest");
+    expect(pickTestFramework(null, {})).toBe("vitest");
   });
 });

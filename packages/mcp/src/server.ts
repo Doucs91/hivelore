@@ -70,6 +70,11 @@ import {
   type ProposeSensorInput,
 } from "./tools/propose-sensor.js";
 import {
+  ScaffoldTestInputSchema,
+  scaffoldTest,
+  type ScaffoldTestInput,
+} from "./tools/scaffold-test.js";
+import {
   IngestFindingsInputSchema,
   ingestFindings,
   type IngestFindingsInput,
@@ -214,6 +219,11 @@ export { readPresumedCorrectTargets } from "./tools/propose-sensor.js";
 export { memTried, type MemTriedOutput } from "./tools/mem-tried.js";
 export { proposeSensor, type ProposeSensorOutput } from "./tools/propose-sensor.js";
 export {
+  scaffoldTest,
+  detectTestFrameworkForPaths,
+  type ScaffoldTestOutput,
+} from "./tools/scaffold-test.js";
+export {
   memResolveProject,
   type MemResolveProjectInput,
 } from "./tools/mem-resolve-project.js";
@@ -260,6 +270,7 @@ export const ENFORCEMENT_PROFILE_TOOLS = [
   "pre_commit_check",
   "mem_session_end",
   "propose_sensor",
+  "scaffold_test",
 ] as const;
 
 export const MAINTENANCE_PROFILE_TOOLS = [
@@ -508,6 +519,36 @@ export function createHaiveServer(
     async (input: ProposeSensorInput) => {
       tracker.record("propose_sensor", input.memory_id);
       return jsonResult(await proposeSensor(input, context));
+    },
+  );
+
+  registerTool(
+    "scaffold_test",
+    [
+      "Generate a PENDING post-incident test from a lesson (attempt/gotcha) — the on-ramp to a command",
+      "sensor. A command sensor routes YOUR test as its oracle, but someone has to write it; this writes",
+      "the skeleton so you only fill in the assertion.",
+      "",
+      "USE THIS right after mem_tried when the mistake is behavioural (a regex can't express it): it",
+      "writes a stub carrying the incident's provenance and returns the exact `sensors propose --kind",
+      "test` command to arm it.",
+      "",
+      "It DOES NOT arm a sensor — propose_sensor stays the sole validated writer, and the stub is left",
+      "PENDING (todo/skip) so the suite stays green until you write the assertion. Monorepo-aware: the",
+      "framework and location come from the package that owns the lesson's anchor paths.",
+      "",
+      "PARAMETERS:",
+      "  memory_id — the attempt/gotcha to scaffold from",
+      "  framework — vitest | jest | pytest | gotest (auto-detected when omitted)",
+      "  out_path  — override the test file path (repo-relative)",
+      "  write     — write the file (default true); false returns the content for preview",
+      "",
+      "RETURNS: { ok, path, run_command, propose_command, content, written, already_exists, notice }",
+    ].join("\n"),
+    ScaffoldTestInputSchema,
+    async (input: ScaffoldTestInput) => {
+      tracker.record("scaffold_test", input.memory_id);
+      return jsonResult(await scaffoldTest(input, context));
     },
   );
 

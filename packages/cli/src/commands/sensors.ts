@@ -15,6 +15,7 @@ import {
   loadConfig,
   loadSensorLedger,
   loadMemoriesFromDir,
+  normalizeFramework,
   parseLessonFields,
   recordPreventionHits,
   resolveHaivePaths,
@@ -22,7 +23,6 @@ import {
   scaffoldPostIncidentTest,
   selectCommandSensors,
   TEST_FRAMEWORKS,
-  type TestFramework,
   sensorPatternBrittleness,
   sensorSelfCheck,
   sensorAppliesToPath,
@@ -33,7 +33,7 @@ import {
   type Memory,
   type Sensor,
 } from "@hivelore/core";
-import { readPresumedCorrectTargets } from "@hivelore/mcp";
+import { readPresumedCorrectTargets, detectTestFrameworkForPaths } from "@hivelore/mcp";
 import { executeCommandSensors } from "../utils/command-sensors.js";
 import { commandScopeHash, evaluation, gitHeadSha } from "../utils/sensor-evaluations.js";
 import { ui } from "../utils/ui.js";
@@ -517,7 +517,9 @@ export function registerSensors(program: Command): void {
       const found = loaded.find(({ memory }) => memory.frontmatter.id === id);
       if (!found) { ui.error(`No memory found with id ${id}`); process.exitCode = 1; return; }
 
-      const framework = opts.framework ? normalizeFramework(opts.framework) : await detectTestFramework(root);
+      const fm = found.memory.frontmatter;
+      const detected = await detectTestFrameworkForPaths(root, fm.anchor.paths ?? []);
+      const framework = opts.framework ? normalizeFramework(opts.framework) : detected.framework;
       if (!framework) {
         ui.error(`Unknown --framework "${opts.framework}". Use one of: ${TEST_FRAMEWORKS.join(", ")}.`);
         process.exitCode = 1;
@@ -525,7 +527,6 @@ export function registerSensors(program: Command): void {
       }
 
       const fields = parseLessonFields(found.memory.body);
-      const fm = found.memory.frontmatter;
       const scaffold = scaffoldPostIncidentTest(
         {
           memoryId: id,
@@ -535,7 +536,7 @@ export function registerSensors(program: Command): void {
           incident: fm.sensor?.incident,
           paths: fm.anchor.paths,
         },
-        { framework, outPath: opts.out },
+        { framework, outPath: opts.out, baseDir: detected.baseDir },
       );
 
       if (opts.stdout) {
@@ -676,38 +677,3 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
-/** Map a user-supplied framework string (with common aliases) to a TestFramework, or null. */
-function normalizeFramework(input: string): TestFramework | null {
-  const v = input.trim().toLowerCase();
-  if (v === "vitest") return "vitest";
-  if (v === "jest") return "jest";
-  if (v === "pytest" || v === "py" || v === "python") return "pytest";
-  if (v === "go" || v === "gotest" || v === "go-test") return "gotest";
-  return null;
-}
-
-/**
- * Detect the repo's test framework from its manifests. Best-effort with a sensible default (vitest)
- * so scaffolding never dead-ends — the user can always override with --framework.
- */
-async function detectTestFramework(root: string): Promise<TestFramework> {
-  try {
-    const pkgPath = path.join(root, "package.json");
-    if (existsSync(pkgPath)) {
-      const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as {
-        dependencies?: Record<string, string>;
-        devDependencies?: Record<string, string>;
-      };
-      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-      if (deps.vitest) return "vitest";
-      if (deps.jest || deps["ts-jest"]) return "jest";
-    }
-  } catch {
-    // ignore a malformed package.json — fall through to other signals
-  }
-  if (existsSync(path.join(root, "go.mod"))) return "gotest";
-  for (const signal of ["pyproject.toml", "setup.py", "pytest.ini", "requirements.txt", "tox.ini"]) {
-    if (existsSync(path.join(root, signal))) return "pytest";
-  }
-  return "vitest";
-}

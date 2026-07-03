@@ -46,8 +46,45 @@ export interface TestScaffold {
 
 export interface ScaffoldOptions {
   framework: TestFramework;
-  /** Override the generated file path (project-relative). */
+  /** Override the generated file path (project-relative). Wins over baseDir. */
   outPath?: string;
+  /**
+   * Repo-relative directory of the package that owns the incident (monorepo awareness). The default
+   * test path and run command are placed inside it. Empty/omitted → repo root.
+   */
+  baseDir?: string;
+}
+
+/** Map a user-supplied framework string (with common aliases) to a TestFramework, or null. */
+export function normalizeFramework(input: string): TestFramework | null {
+  const v = input.trim().toLowerCase();
+  if (v === "vitest") return "vitest";
+  if (v === "jest") return "jest";
+  if (v === "pytest" || v === "py" || v === "python") return "pytest";
+  if (v === "go" || v === "gotest" || v === "go-test") return "gotest";
+  return null;
+}
+
+/**
+ * Pure framework decision from already-gathered facts (a package.json's deps + non-JS signals). The
+ * FS walking that produces these facts is I/O and lives in the caller (cli/mcp), keeping core pure.
+ */
+export function pickTestFramework(
+  pkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> } | null,
+  signals: { goMod?: boolean; pySignal?: boolean } = {},
+): TestFramework {
+  const deps = { ...pkg?.dependencies, ...pkg?.devDependencies };
+  if (deps.vitest) return "vitest";
+  if (deps.jest || deps["ts-jest"]) return "jest";
+  if (signals.goMod) return "gotest";
+  if (signals.pySignal) return "pytest";
+  return "vitest";
+}
+
+/** Join a repo-relative base dir with a default sub-path, tolerating an empty base and slashes. */
+function joinRel(baseDir: string | undefined, rest: string): string {
+  const base = (baseDir ?? "").replace(/^\/+|\/+$/g, "");
+  return base ? `${base}/${rest}` : rest;
 }
 
 /** Strip the `YYYY-MM-DD-<type>-` id prefix to the descriptive slug (`importing-momentjs`). */
@@ -126,7 +163,7 @@ export function scaffoldPostIncidentTest(lesson: PostIncidentLesson, options: Sc
   let content: string;
 
   if (framework === "vitest" || framework === "jest") {
-    relPath = options.outPath ?? `tests/incidents/${short}.test.ts`;
+    relPath = options.outPath ?? joinRel(options.baseDir, `tests/incidents/${short}.test.ts`);
     runCommand = framework === "vitest" ? `npx vitest run ${relPath}` : `npx jest ${relPath}`;
     const hc = (l: string) => (l ? `// ${l}` : "//");
     const importLine = framework === "vitest" ? `import { describe, it, expect } from "vitest";\n\n` : "";
@@ -143,7 +180,7 @@ export function scaffoldPostIncidentTest(lesson: PostIncidentLesson, options: Sc
       `});\n`;
   } else if (framework === "pytest") {
     const fn = snake(short);
-    relPath = options.outPath ?? `tests/incidents/test_${fn}.py`;
+    relPath = options.outPath ?? joinRel(options.baseDir, `tests/incidents/test_${fn}.py`);
     runCommand = `pytest ${relPath}`;
     const hc = (l: string) => (l ? `# ${l}` : "#");
     content =
@@ -157,8 +194,8 @@ export function scaffoldPostIncidentTest(lesson: PostIncidentLesson, options: Sc
   } else {
     // gotest
     const fn = pascal(short);
-    const dir = options.outPath ? options.outPath.replace(/\/[^/]+$/, "") : "incidents";
-    relPath = options.outPath ?? `incidents/incident_${snake(short)}_test.go`;
+    const dir = options.outPath ? options.outPath.replace(/\/[^/]+$/, "") : joinRel(options.baseDir, "incidents");
+    relPath = options.outPath ?? joinRel(options.baseDir, `incidents/incident_${snake(short)}_test.go`);
     runCommand = `go test ./${dir}/`;
     const hc = (l: string) => (l ? `// ${l}` : "//");
     content =

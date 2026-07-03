@@ -109,10 +109,13 @@ test suite's job.
 
 **The on-ramp (v0.36.0): scaffold the test from the incident.** A command sensor needs a test to
 route — so Hivelore generates the skeleton from the lesson. `hivelore sensors scaffold <memory-id>`
-detects your test framework (vitest / jest / pytest / go), writes a **pending** test carrying the
-incident's provenance in its header, and prints the exact `sensors propose --kind test` line to arm
-it. It never arms a sensor itself (`propose_sensor` stays the sole validated writer); the stub stays
-pending so the suite is green until you write the assertion.
+(or the `scaffold_test` MCP tool, so agents do it in-session) detects your test framework
+(vitest / jest / pytest / go), writes a **pending** test carrying the incident's provenance in its
+header, and prints the exact `sensors propose --kind test` line to arm it. It never arms a sensor
+itself (`propose_sensor` stays the sole validated writer); the stub stays pending so the suite is
+green until you write the assertion. In a **monorepo**, the framework and location come from the
+package that owns the lesson's anchor paths (a lesson under `packages/api/` scaffolds into
+`packages/api/tests/…`), not the repo root.
 
 ```bash
 hivelore sensors scaffold 2026-07-03-attempt-refund-exceeds-capture
@@ -424,6 +427,7 @@ All records can be anchored to file paths and symbol names. When anchored code c
 | `mem_get` | Fetch one context record after a compact briefing/search result |
 | `code_map` | Look up symbols without manual grep when code-map is indexed |
 | `mem_verify` | Check anchor freshness, detect stale records |
+| `scaffold_test` | Generate a pending post-incident test from a lesson + the `sensors propose --kind test` line to arm it (monorepo-aware) |
 | `pre_commit_check` | Diff against known gotchas, decisions, and stale anchors |
 | `mem_session_end` | Save end-of-session recap for the next agent |
 
