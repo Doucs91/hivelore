@@ -259,3 +259,5 @@
 {"tool":"mem_session_end","at":"2026-07-03T16:56:25.817Z","summary":"Verify the dev agent's v0.35.0 self-auditing gate implementation against docs/sp"}
 {"tool":"get_briefing","at":"2026-07-03T20:02:51.201Z","summary":"Implement 4 positioning improvements: (1) reposition README top-line to lead with deterministic policy gate, (2) push command sensors toward a behaviour harness linking incidents to tests, (3) turn the prevention receipt / PR comment into a growth loop, (4) separate the cold-onboarding bootstrap signal from the sensor-block signal in the enforce gate output."}
 {"tool":"mem_save","at":"2026-07-03T20:18:14.662Z","summary":"sensor-incident-provenance-on-frontmatter"}
+{"tool":"mem_session_end","at":"2026-07-03T20:34:55.249Z","summary":"Implement, from a positioning analysis, the four \"what I'd do\" recommendations a"}
+{"tool":"mem_tried","at":"2026-07-03T20:42:12.777Z","summary":"Running `hivelore release tag` right after the release commit"}
