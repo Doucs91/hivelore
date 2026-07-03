@@ -7,8 +7,10 @@ import {
   DEFAULT_AUTO_PROMOTE_RULE,
   assessSensorHealth,
   buildFrontmatter,
+  existingGateMissShas,
   findProjectRoot,
   getUsage,
+  gatePassedShas,
   isAutoPromoteEligible,
   isDecaying,
   isStackPackSeed,
@@ -18,6 +20,8 @@ import {
   loadSensorLedger,
   loadUsageIndex,
   pullCrossRepoSources,
+  planGitWatch,
+  proposeGateMissDrafts,
   resolveHaivePaths,
   resolveManifestFiles,
   serializeMemory,
@@ -25,6 +29,8 @@ import {
   trackDependencies,
   verifyAnchor,
   watchContracts,
+  type GitCommit,
+  type GitWatchState,
 } from "@hivelore/core";
 import { BRIDGE_TARGETS, type BridgeTarget } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
@@ -277,6 +283,13 @@ export function registerSync(program: Command): void {
       }
 
       const sinceReport = opts.since ? collectSinceChanges(root, opts.since) : null;
+
+      // Run after verify/auto-promotion so a brand-new gate-miss always remains proposed on the sync
+      // that creates it. The next normal sync may verify its candidate anchors like any other lesson.
+      const gateMissIds = await processGateMissWatch(root, paths, dryRun);
+      if (gateMissIds.length > 0) {
+        log(ui.yellow(`gate-miss: proposed ${gateMissIds.length} lesson(s): ${gateMissIds.join(", ")}`));
+      }
 
       const draftMemories = (await loadMemoriesFromDir(paths.memoriesDir)).filter(
         (m) => m.memory.frontmatter.status === "draft",
@@ -617,6 +630,87 @@ export function registerSync(program: Command): void {
         }
       }
     });
+}
+
+async function processGateMissWatch(
+  root: string,
+  paths: ReturnType<typeof resolveHaivePaths>,
+  dryRun: boolean,
+): Promise<string[]> {
+  const headResult = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" });
+  if (headResult.status !== 0) return [];
+  const head = headResult.stdout.trim();
+  if (!head) return [];
+  const stateFile = path.join(paths.runtimeDir, "enforcement", "git-watch.json");
+  let state: GitWatchState | null = null;
+  try { state = JSON.parse(await readFile(stateFile, "utf8")) as GitWatchState; } catch { /* first sync */ }
+  const plan = planGitWatch(state, head);
+  if (plan.action === "initialize") {
+    if (!dryRun) {
+      await mkdir(path.dirname(stateFile), { recursive: true });
+      await writeFile(stateFile, JSON.stringify(plan.next, null, 2) + "\n", "utf8");
+    }
+    return [];
+  }
+  if (plan.action === "idle") return [];
+
+  const proposals = proposeGateMissDrafts(
+    readGitCommitsRange(root, plan.range),
+    existingGateMissShas(await loadMemoriesFromDir(paths.memoriesDir)),
+    gatePassedShas(await loadSensorLedger(paths)),
+  );
+  const ids: string[] = [];
+  for (const proposal of proposals) {
+    const fm = {
+      ...buildFrontmatter({
+        type: "attempt",
+        slug: proposal.slug,
+        scope: "team",
+        status: "proposed",
+        tags: ["gate-miss", proposal.kind],
+        paths: proposal.paths,
+        topic: `gate-miss-${proposal.reverted_sha}`,
+      }),
+      status: "proposed" as const,
+    };
+    ids.push(fm.id);
+    if (!dryRun) {
+      await mkdir(paths.teamDir, { recursive: true });
+      await writeFile(
+        path.join(paths.teamDir, `${fm.id}.md`),
+        serializeMemory({ frontmatter: fm, body: proposal.body }),
+        "utf8",
+      );
+    }
+  }
+  if (!dryRun) {
+    await mkdir(path.dirname(stateFile), { recursive: true });
+    await writeFile(stateFile, JSON.stringify(plan.next, null, 2) + "\n", "utf8");
+  }
+  return ids;
+}
+
+function readGitCommitsRange(root: string, range: string): GitCommit[] {
+  const result = spawnSync(
+    "git",
+    ["log", "--reverse", "--format=%x1e%H%x1f%s%x1f%b%x1f", "--name-only", range],
+    { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 },
+  );
+  if (result.status !== 0) return [];
+  const commits: GitCommit[] = [];
+  for (const block of result.stdout.split("\x1e").filter((part) => part.trim())) {
+    const [shaRaw, subjectRaw, bodyRaw, filesRaw = ""] = block.split("\x1f");
+    const sha = shaRaw?.trim();
+    const subject = subjectRaw?.trim();
+    if (!sha || !subject) continue;
+    commits.push({
+      sha,
+      subject,
+      body: bodyRaw?.trim() ?? "",
+      files: filesRaw.split("\n").map((file) => file.trim()).filter(Boolean),
+    });
+  }
+  return commits;
 }
 
 /** First meaningful line of a memory body, condensed to a single bridge-friendly summary. */

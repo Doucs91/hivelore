@@ -319,6 +319,20 @@ export function registerDoctor(program: Command): void {
       // rather than letting the pitch outrun the config. Either promote a trusted sensor, or stop
       // claiming enforcement. Counts toward the Protection section.
       const sensorMemories = memories.filter((m) => m.memory.frontmatter.sensor);
+      const gateMissDrafts = memories.filter((m) =>
+        m.memory.frontmatter.status === "proposed" && m.memory.frontmatter.tags.includes("gate-miss"),
+      );
+      if (gateMissDrafts.length > 0) {
+        findings.push({
+          severity: "info",
+          code: "gate-miss-drafts",
+          section: "Corpus health" as DoctorSection,
+          message:
+            `${gateMissDrafts.length} proposed gate-miss lesson(s) await review: ` +
+            `${gateMissDrafts.slice(0, 5).map((m) => m.memory.frontmatter.id).join(", ")}.`,
+          fix: "Review with `hivelore memory list --status proposed`.",
+        });
+      }
       const blockSensors = sensorMemories.filter(
         (m) => m.memory.frontmatter.sensor?.severity === "block",
       ).length;

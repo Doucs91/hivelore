@@ -45,6 +45,7 @@ export * from "./eval-history.js";
 export * from "./conflict-resolve.js";
 export * from "./gate-precision.js";
 export * from "./seed-git.js";
+export * from "./gate-miss.js";
 export * from "./seed.js";
 export * from "./merge-memory.js";
 export * from "./recap.js";

@@ -1618,6 +1618,54 @@ describe("Hivelore CLI integration", () => {
     }
   });
 
+  it("sync proposes one gate-miss lesson when a gate-passed commit is reverted", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-gate-miss-"));
+    try {
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      const initial = (await exec("git", ["rev-parse", "HEAD"], { cwd: repo })).stdout.trim();
+      const syncArgs = ["sync", "--no-verify", "--no-promote", "--no-bridges", "--no-deps", "--no-contracts", "--no-cross-repo", "--dir", repo];
+      await run(repo, syncArgs); // first run initializes git-watch at HEAD
+
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/feature.ts"), "export const broken = true;\n", "utf8");
+      await exec("git", ["add", "src/feature.ts"], { cwd: repo });
+      await exec("git", ["commit", "-m", "feat: break refunds"], { cwd: repo });
+      const commitA = (await exec("git", ["rev-parse", "HEAD"], { cwd: repo })).stdout.trim();
+      const gate = await runAllowFailure(repo, ["enforce", "ci", "--json", "--dir", repo], {
+        HAIVE_BASE_SHA: initial,
+        HAIVE_HEAD_SHA: commitA,
+      });
+      expect(gate.code).toBe(0);
+
+      await exec("git", ["revert", "--no-edit", commitA], { cwd: repo });
+      await run(repo, syncArgs);
+      const teamDir = path.join(repo, ".ai/memories/team");
+      let gateMissFiles = (await readdir(teamDir)).filter((file) => file.includes("gate-miss-"));
+      expect(gateMissFiles).toHaveLength(1);
+      const content = await readFile(path.join(teamDir, gateMissFiles[0]!), "utf8");
+      expect(content).toContain("status: proposed");
+      expect(content).toContain("gate-miss");
+      expect(content).toContain(`Reverted SHA: ${commitA}`);
+      expect(content).toContain("The gate PASSED this commit");
+      expect(content).toContain("proposed_sensor_seed:");
+
+      await run(repo, syncArgs);
+      gateMissFiles = (await readdir(teamDir)).filter((file) => file.includes("gate-miss-"));
+      expect(gateMissFiles).toHaveLength(1);
+      const doctor = JSON.parse((await run(repo, ["doctor", "--json", "--dir", repo])).stdout) as {
+        findings: Array<{ code: string }>;
+      };
+      expect(doctor.findings.some((finding) => finding.code === "gate-miss-drafts")).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("finish gate blocks shippable work left as an uncommitted local diff", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-finish-dirty-"));
     try {

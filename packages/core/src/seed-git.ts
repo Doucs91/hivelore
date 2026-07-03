@@ -13,6 +13,10 @@ export interface GitCommit {
   subject: string;
   /** Files touched by the commit (optional — improves anchoring). */
   files?: string[];
+  /** Full commit body when available (used to resolve `This reverts commit <sha>`). */
+  body?: string;
+  /** Explicit failed/reverted SHA when a caller already parsed it. */
+  reverted_sha?: string;
 }
 
 export interface SeedProposal {
