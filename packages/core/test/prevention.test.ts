@@ -4,8 +4,10 @@ import {
   buildPreventionReceipt,
   computePreventionTrend,
   computeRecurrence,
+  HIVELORE_ATTRIBUTION,
   renderCaughtForYou,
   renderPreventionReceipt,
+  renderPreventionReceiptShare,
   summarizeCaughtForYou,
   type PreventionEvent,
 } from "../src/prevention.js";
@@ -87,6 +89,21 @@ describe("prevention receipt", () => {
     );
     expect(receipt.events[0]?.incident).toBe("prod #442");
     expect(renderPreventionReceipt(receipt)).toContain("↩ incident: prod #442");
+    // --share Markdown carries the incident, the title, and the growth-loop attribution footer.
+    const share = renderPreventionReceiptShare(receipt);
+    expect(share).toContain("↩ incident: prod #442");
+    expect(share).toContain("**refunds must clamp to capture**");
+    expect(share).toContain(HIVELORE_ATTRIBUTION);
+  });
+
+  it("share render turns an empty window into a forward CTA (not a dead zero), still attributed", () => {
+    const empty = buildPreventionReceipt([], [], emptyUsageIndex(), {
+      since: new Date(NOW.getTime() - 7 * 86_400_000), now: NOW,
+    });
+    const share = renderPreventionReceiptShare(empty);
+    expect(share).toContain("Turn a past incident into a guardrail");
+    expect(share).toContain("--sensor-command");
+    expect(share).toContain(HIVELORE_ATTRIBUTION);
   });
 });
 

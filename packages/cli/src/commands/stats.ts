@@ -12,6 +12,7 @@ import {
   loadPreventionEvents,
   parseSince,
   readUsageEvents,
+  renderPreventionReceiptShare,
   resolveHaivePaths,
   usageLogSize,
 } from "@hivelore/core";
@@ -30,12 +31,14 @@ export function registerStats(program: Command): void {
     .command("stats")
     .description("Show MCP tool-usage stats and prevention receipts.");
 
-  stats
+  const receiptCmd = stats
     .command("receipt")
     .description("Show documented mistakes refused by the gate over a time window")
+    .option("--share", "emit a Markdown block ready to paste into Slack or a PR (with attribution)", false)
     .addHelpText("after", "\nParent options also apply: --since <window> (default 7d here), --json, --dir <dir>.")
     .action(async () => {
       const opts = stats.opts<{ since?: string; json?: boolean; dir?: string }>();
+      const sub = receiptCmd.opts<{ share?: boolean }>();
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       const sinceRaw = stats.getOptionValueSource("since") === "default" ? "7d" : (opts.since ?? "7d");
@@ -46,7 +49,12 @@ export function registerStats(program: Command): void {
         existsSync(paths.memoriesDir) ? loadMemoriesFromDir(paths.memoriesDir) : Promise.resolve([]),
       ]);
       const receipt = buildPreventionReceipt(events, memories, usage, { since });
-      console.log(opts.json ? JSON.stringify(receipt, null, 2) : renderPreventionReceipt(receipt));
+      const output = sub.share
+        ? renderPreventionReceiptShare(receipt)
+        : opts.json
+          ? JSON.stringify(receipt, null, 2)
+          : renderPreventionReceipt(receipt);
+      console.log(output);
     });
 
   stats
