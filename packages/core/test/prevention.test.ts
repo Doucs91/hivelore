@@ -59,8 +59,34 @@ describe("prevention receipt", () => {
     expect(receipt.previous_total).toBe(1);
     expect(receipt.events[0]).toEqual({
       at: ev(1, "current").at, id: "current", title: "current", source: "sensor",
-      kind: "regex", stage: null, exit_code: null, message: null,
+      kind: "regex", stage: null, exit_code: null, message: null, incident: null,
     });
+  });
+
+  it("carries sensor incident provenance into the row and the rendered receipt", () => {
+    const mem = {
+      memory: {
+        frontmatter: {
+          id: "refund-clamp",
+          title: "refunds must clamp to capture",
+          sensor: {
+            kind: "test",
+            message: "refund exceeded the captured amount",
+            incident: "prod #442",
+            severity: "block",
+          },
+        },
+        body: "# refunds must clamp to capture\n",
+      },
+    } as unknown as LoadedMemory;
+    const receipt = buildPreventionReceipt(
+      [{ ...ev(1, "refund-clamp"), kind: "test", stage: "pre-commit", exit_code: 1 }],
+      [mem],
+      emptyUsageIndex(),
+      { since: new Date(NOW.getTime() - 7 * 86_400_000), now: NOW },
+    );
+    expect(receipt.events[0]?.incident).toBe("prod #442");
+    expect(renderPreventionReceipt(receipt)).toContain("↩ incident: prod #442");
   });
 });
 

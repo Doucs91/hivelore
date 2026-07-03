@@ -206,10 +206,22 @@ export interface CommandSensorSpec {
   severity: Sensor["severity"];
   /** LLM-facing self-correction message carried from the sensor. */
   message: string;
+  /** Optional incident provenance carried from the sensor (ticket/prod ref this test guards). */
+  incident?: string;
   /** Anchor/scoped paths this sensor cares about (for reporting). */
   paths: string[];
   /** Max runtime in ms (executor default applies when unset). */
   timeout_ms?: number;
+}
+
+/**
+ * Render the incident-provenance suffix appended to a fired sensor's message. Empty when the sensor
+ * carries no `incident` — so the behaviour-harness link ("guards the incident this test exists for")
+ * shows up wherever a sensor speaks, without every call site re-deriving the copy.
+ */
+export function incidentSuffix(incident?: string): string {
+  const ref = incident?.trim();
+  return ref ? `  ↩ guards incident: ${ref}` : "";
 }
 
 /**
@@ -239,6 +251,7 @@ export function selectCommandSensors(
       kind: sensor.kind,
       severity: sensor.severity,
       message: sensor.message,
+      ...(sensor.incident ? { incident: sensor.incident } : {}),
       paths: sensor.paths.length > 0 ? sensor.paths : anchorPaths,
       ...(sensor.timeout_ms ? { timeout_ms: sensor.timeout_ms } : {}),
     });

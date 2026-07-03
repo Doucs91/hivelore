@@ -27,6 +27,7 @@ import {
   readRecentBriefingMarker,
   recordPreventionHits,
   resolveBriefingBudget,
+  incidentSuffix,
   resolveHaivePaths,
   runSensors,
   saveConfig,
@@ -1529,7 +1530,7 @@ async function runSensorGate(
         findings.push({
           severity: "error",
           code: "sensor-block",
-          message: `Block sensor fired — ${hit.memory_id}: ${hit.message}${where}`,
+          message: `Block sensor fired — ${hit.memory_id}: ${hit.message}${where}${incidentSuffix(hit.sensor.incident)}`,
           fix: "Remove the flagged pattern, or run `hivelore sensors check` to inspect the match.",
           impact: 45,
           memory_ids: [hit.memory_id],
@@ -1538,7 +1539,7 @@ async function runSensorGate(
         findings.push({
           severity: "warn",
           code: "sensor-warn",
-          message: `Sensor flagged ${hit.memory_id}: ${hit.message}${where}`,
+          message: `Sensor flagged ${hit.memory_id}: ${hit.message}${where}${incidentSuffix(hit.sensor.incident)}`,
           fix: "Review the flagged line; `hivelore sensors check` shows the matched code.",
           impact: 5,
           memory_ids: [hit.memory_id],
@@ -1609,7 +1610,7 @@ async function runSensorGate(
             severity: "error",
             code: "sensor-block",
             message:
-              `Block ${run.kind} sensor fired — ${run.memory_id}: ${run.message}\n` +
+              `Block ${run.kind} sensor fired — ${run.memory_id}: ${run.message}${incidentSuffix(run.incident)}\n` +
               `command: ${run.command} (exit ${run.exit_code}, ${run.duration_ms}ms)${outputBlock}`,
             fix: "Fix the behaviour the command checks, or run `hivelore sensors check --commands` to inspect it.",
             impact: 45,
@@ -1619,7 +1620,7 @@ async function runSensorGate(
           findings.push({
             severity: "warn",
             code: "sensor-warn",
-            message: `${run.kind} sensor flagged ${run.memory_id}: ${run.message} (exit ${run.exit_code})${outputBlock}`,
+            message: `${run.kind} sensor flagged ${run.memory_id}: ${run.message}${incidentSuffix(run.incident)} (exit ${run.exit_code})${outputBlock}`,
             fix: "Review the failing command; `hivelore sensors check --commands` re-runs it.",
             impact: 5,
             memory_ids: [run.memory_id],

@@ -41,6 +41,7 @@ export const MemTriedInputSchema = {
       absent: z.string().optional().describe("kind=regex: regex marking CORRECT usage nearby — excludes it from firing"),
       severity: z.enum(["warn", "block"]).default("block").describe("block = deterministic gate refusal"),
       message: z.string().optional().describe("Self-correction message shown when the sensor fires"),
+      incident: z.string().optional().describe("Provenance: the incident this sensor guards (e.g. 'prod #442') — surfaced when it fires and in the receipt"),
       bad_example: z.string().optional().describe("kind=regex: code snippet the sensor MUST fire on (validation)"),
     })
     .optional()
@@ -135,6 +136,7 @@ export async function memTried(
         absent: input.sensor.absent,
         severity: input.sensor.severity ?? "block",
         message: input.sensor.message,
+        incident: input.sensor.incident,
         bad_example: input.sensor.bad_example,
         flags: undefined,
         paths: [],

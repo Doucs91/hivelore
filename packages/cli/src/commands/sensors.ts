@@ -70,6 +70,7 @@ interface SensorsProposeOptions {
   badExample?: string;
   severity?: string;
   message?: string;
+  incident?: string;
   flags?: string;
   paths?: string;
   dir?: string;
@@ -378,6 +379,7 @@ export function registerSensors(program: Command): void {
     .option("--bad-example <code>", "a snippet that SHOULD match (else examples are read from the lesson)")
     .option("--severity <severity>", "block | warn", "block")
     .option("--message <text>", "fix message shown when it fires")
+    .option("--incident <ref>", "provenance: the incident this sensor guards (e.g. 'prod #442') — shown when it fires and in the receipt")
     .option("--flags <flags>", "regex flags (e.g. i)")
     .option("--paths <csv>", "override scope paths (defaults to the memory anchors)")
     .option("-d, --dir <dir>", "project root")
@@ -403,6 +405,7 @@ export function registerSensors(program: Command): void {
             bad_example: undefined,
             severity: (opts.severity === "warn" ? "warn" : "block"),
             message: opts.message,
+            incident: opts.incident,
             flags: undefined,
             paths: opts.paths ? opts.paths.split(",").map((p) => p.trim()).filter(Boolean) : [],
           },
@@ -450,6 +453,7 @@ export function registerSensors(program: Command): void {
         ...(opts.flags ? { flags: opts.flags } : {}),
         paths: anchorPaths,
         message: opts.message?.trim() || deriveProposedMessage(found.memory.body, opts.pattern, opts.absent),
+        ...(opts.incident?.trim() ? { incident: opts.incident.trim() } : {}),
         severity,
         autogen: false,
         last_fired: null,

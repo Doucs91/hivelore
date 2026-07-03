@@ -61,6 +61,13 @@ export const SensorSchema = z.object({
   paths: z.array(z.string()).default([]),
   /** LLM-facing self-correction message: what was done wrong and what to do instead. */
   message: z.string().min(1),
+  /**
+   * Optional provenance: the real incident this sensor guards against — a ticket ref, a prod
+   * incident id, a date ("prod #442", "INC-1029", "2026-06 refund overcharge"). This is the
+   * behaviour-harness link a plain test can't carry: it turns "a test failed" into "this reproduces
+   * the incident the test exists to prevent". Surfaced in the block message and the prevention receipt.
+   */
+  incident: z.string().optional(),
   /** `warn` surfaces in review; `block` can hard-block the commit (only when the gate opts in). */
   severity: z.enum(["warn", "block"]).default("warn"),
   /** True when Hivelore generated this sensor automatically (vs. hand-authored). */

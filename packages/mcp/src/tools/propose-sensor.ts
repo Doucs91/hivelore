@@ -66,6 +66,15 @@ export const ProposeSensorInputSchema = {
     .default("block")
     .describe("block = hard-fail the gate (accepted ONLY if it passes self-validation). warn = advisory."),
   message: z.string().optional().describe("LLM-facing fix message shown when it fires. Defaults to one derived from the lesson."),
+  incident: z
+    .string()
+    .optional()
+    .describe(
+      "Provenance: the real incident this sensor guards — a ticket/prod ref ('prod #442', 'INC-1029', " +
+      "'2026-06 refund overcharge'). Turns 'a test failed' into 'this reproduces the incident the test " +
+      "exists to prevent'. Surfaced in the block message and the prevention receipt. Strongly recommended " +
+      "for command/test sensors routed from a post-incident test.",
+    ),
   flags: z.string().optional().describe("Optional regex flags (e.g. 'i' for case-insensitive)."),
   paths: z
     .array(z.string())
@@ -246,6 +255,7 @@ export async function proposeSensor(
       ...(input.timeout_ms ? { timeout_ms: input.timeout_ms } : {}),
       paths: anchorPathsCmd,
       message: input.message?.trim() || deriveMessage(found.memory.body, input.command!.trim(), undefined),
+      ...(input.incident?.trim() ? { incident: input.incident.trim() } : {}),
       severity: input.severity,
       autogen: false,
       last_fired: null,
@@ -282,6 +292,7 @@ export async function proposeSensor(
     ...(input.flags ? { flags: input.flags } : {}),
     paths: anchorPaths,
     message: input.message?.trim() || deriveMessage(found.memory.body, input.pattern!, input.absent),
+    ...(input.incident?.trim() ? { incident: input.incident.trim() } : {}),
     severity: input.severity,
     autogen: false, // deliberately authored by the agent and validated — higher trust than heuristic
     last_fired: null,

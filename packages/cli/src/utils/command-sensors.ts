@@ -31,6 +31,8 @@ export interface CommandSensorRun {
   kind: "shell" | "test";
   severity: "warn" | "block";
   message: string;
+  /** Incident provenance carried from the sensor spec (for the block message + receipt). */
+  incident?: string;
   status: "passed" | "failed" | "unrunnable";
   exit_code: number | null;
   /** Last lines of stdout+stderr — enough to see WHICH assertion failed without re-running. */
@@ -57,6 +59,7 @@ export async function executeCommandSensor(
     kind: spec.kind,
     severity: spec.severity,
     message: spec.message,
+    ...(spec.incident ? { incident: spec.incident } : {}),
   };
   try {
     const { stdout, stderr } = await exec("bash", ["-c", spec.command], {

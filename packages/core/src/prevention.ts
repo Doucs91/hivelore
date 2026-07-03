@@ -93,6 +93,8 @@ export interface PreventionReceiptRow {
   stage: "pre-commit" | "pre-push" | "ci" | "manual" | null;
   exit_code: number | null;
   message: string | null;
+  /** Incident provenance from the sensor frontmatter — the behaviour-harness link, when present. */
+  incident: string | null;
 }
 
 export interface PreventionReceipt {
@@ -140,6 +142,7 @@ export function buildPreventionReceipt(
         stage: event.stage ?? null,
         exit_code: event.exit_code ?? null,
         message: sensor?.message ?? null,
+        incident: sensor?.incident ?? null,
       };
     })
     .sort((a, b) => b.at.localeCompare(a.at));
@@ -166,7 +169,8 @@ export function renderPreventionReceipt(receipt: PreventionReceipt): string {
     const kind = row.kind ? `${row.kind} sensor` : row.source;
     const exit = row.exit_code === null ? "" : `, exit ${row.exit_code}`;
     const stage = row.stage ? ` — caught at ${row.stage}` : "";
-    lines.push(`  ✗→✓ ${row.at.slice(0, 10)}  ${row.id.padEnd(32)} (${kind}${exit}${stage})`);
+    const incident = row.incident ? `  ↩ incident: ${row.incident}` : "";
+    lines.push(`  ✗→✓ ${row.at.slice(0, 10)}  ${row.id.padEnd(32)} (${kind}${exit}${stage})${incident}`);
   }
   lines.push(
     `  Trend: ${receipt.total} this window vs ${receipt.previous_total} previous window ` +
