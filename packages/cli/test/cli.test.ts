@@ -1562,6 +1562,48 @@ describe("Hivelore CLI integration", () => {
     }
   });
 
+  it("a blocked gate leads with a headline that names a lesson-refusal (not the cold-repo baseline)", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-headline-"));
+    try {
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/d.ts"), "export const x = 1;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+
+      // A validated regex BLOCK sensor scoped to src/ (deterministic — always error, no opt-in).
+      const mem = [
+        "---",
+        "id: 2024-02-02-attempt-no-moment",
+        "scope: team", "type: attempt", "status: validated",
+        "created_at: 2024-02-02T00:00:00.000Z",
+        "anchor:", "  paths: [\"src/\"]", "  symbols: []", "tags: []",
+        "sensor:",
+        "  kind: regex",
+        "  pattern: \"moment\"",
+        "  message: Use date-fns, not moment.",
+        "  severity: block",
+        "  paths: [\"src/\"]",
+        "---",
+        "# no moment", "",
+      ].join("\n");
+      await mkdir(path.join(repo, ".ai/memories/team"), { recursive: true });
+      await writeFile(path.join(repo, ".ai/memories/team/2024-02-02-attempt-no-moment.md"), mem, "utf8");
+
+      // The diff repeats the lesson: the headline must name THE CHANGE, above bootstrap/score noise.
+      await writeFile(path.join(repo, "src/d.ts"), "export const x = 1;\nimport moment from 'moment';\n", "utf8");
+      await exec("git", ["add", "src/d.ts"], { cwd: repo });
+      const caught = await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--dir", repo]);
+      expect(caught.stdout).toContain("A documented lesson refused this commit");
+      expect(caught.stdout).toContain("2024-02-02-attempt-no-moment");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("quarantines a command sensor after two identical-input flaps and manual promote clears it", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-flaky-sensor-"));
     try {

@@ -2502,6 +2502,41 @@ jobs:
 `;
 }
 
+// The deterministic "your diff repeated a documented lesson" catches — the signal a developer most
+// needs surfaced first, distinct from setup/baseline gates about the repo's own knowledge layer.
+const CONTENT_CATCH_CODES = new Set(["sensor-block", "precommit-policy-block"]);
+// Setup/baseline gates — about the repo's knowledge layer being cold, NOT the change just made.
+const SETUP_GATE_CODES = new Set([
+  "briefing-missing",
+  "session-recap-missing",
+  "decision-coverage-missing",
+  "bootstrap-incomplete",
+  "enforcement-score-below-threshold",
+]);
+
+/**
+ * When the gate blocks, lead with WHY in one line so the two very different failures never blur:
+ * a documented lesson refusing THIS change vs. the repo's baseline not being set up yet. Without
+ * this, a sensor block on a cold repo is buried among bootstrap/score noise and the developer can't
+ * tell "I repeated a mistake" from "this repo isn't initialized" (found e2e-testing the cold path).
+ */
+function printBlockHeadline(report: EnforcementReport): void {
+  const blocking = report.categories?.blocking ?? report.findings.filter((f) => f.severity === "error");
+  if (blocking.length === 0) return;
+  const catches = blocking.filter((f) => CONTENT_CATCH_CODES.has(f.code));
+  console.log();
+  if (catches.length > 0) {
+    console.log(ui.red(ui.bold("🛡️  A documented lesson refused this commit — about the change you just made:")));
+    for (const c of catches) {
+      const id = c.memory_ids?.[0] ?? c.code;
+      console.log(`    ${ui.red("•")} ${ui.bold(id)}  ${c.message.split("\n")[0]}`);
+    }
+  } else if (blocking.every((f) => SETUP_GATE_CODES.has(f.code))) {
+    console.log(ui.yellow(ui.bold("⚙  Setup gate — about your repo's baseline, not the change you just made.")));
+    console.log(ui.dim("    Fill the knowledge layer once (bootstrap / load a briefing); later commits pass silently."));
+  }
+}
+
 function printReport(report: EnforcementReport, json: boolean, explain = false): void {
   if (json) {
     console.log(JSON.stringify(report, null, 2));
@@ -2510,6 +2545,8 @@ function printReport(report: EnforcementReport, json: boolean, explain = false):
   console.log(ui.bold(`Hivelore enforcement — ${report.mode}${report.actor ? ` · ${report.actor}` : ""}`));
   console.log(ui.dim(`  root: ${report.root}`));
   console.log(ui.dim(`  score: ${report.score.score}% / threshold ${report.score.threshold}%`));
+
+  if (report.should_block) printBlockHeadline(report);
 
   if (explain) {
     printFindingGroup("Blocking", report.categories.blocking, "error");
