@@ -6,6 +6,29 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.38.0] — scaffold_test MCP tool + monorepo-aware framework detection
+
+> Two follow-ups to post-incident scaffolding: agents can scaffold in-session, and detection is
+> monorepo-aware.
+
+### Added
+- **`scaffold_test` MCP tool** (enforcement profile). The in-session mirror of `hivelore sensors
+  scaffold`: an agent goes from a captured lesson to a pending post-incident test without leaving the
+  conversation. Writes the stub (or previews with `write: false`), returns `run_command` +
+  `propose_command`, refuses to clobber an existing file, and — like the CLI — **never arms a
+  sensor** (`propose_sensor` stays the sole validated writer).
+
+### Changed
+- **Monorepo-aware framework detection.** Scaffolding now detects the test framework and file
+  location from the package that OWNS the lesson's anchor paths, not the repo root: a lesson under
+  `packages/api/` scaffolds a test into `packages/api/tests/incidents/…` using that package's
+  framework. `detectTestFrameworkForPaths` walks up from each anchor path to the nearest enclosing
+  manifest (`package.json` / `go.mod` / a python signal).
+- **Single shared detector.** Framework detection is now one implementation: the pure decision
+  (`pickTestFramework` / `normalizeFramework`) lives in `@hivelore/core`, the FS walking in
+  `@hivelore/mcp`, and the CLI imports it — removing the CLI's duplicate detector.
+
+
 ## [0.37.0] — post-incident test scaffolding — mem_tried → sensors scaffold → command sensor
 
 > The behaviour bridge's on-ramp. A command sensor needs a test to route as its oracle — and someone
