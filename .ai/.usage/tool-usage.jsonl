@@ -247,3 +247,11 @@
 {"tool":"mem_session_end","at":"2026-07-03T13:51:28.749Z","summary":"Test the freshly published 0.33.0 globally on real repos (express, vite, synthet"}
 {"tool":"mem_tried","at":"2026-07-03T13:56:36.826Z","summary":"Relied on `pnpm -r build` (tsup) + full test suite as pre-push verification for "}
 {"tool":"mem_session_end","at":"2026-07-03T14:02:51.990Z","summary":"Test the freshly published 0.33.0 globally on real repos, then fix every first-h"}
+{"tool":"get_briefing","at":"2026-07-03T15:41:56.243Z","summary":"Implémenter intégralement la spécification docs/specs/self-auditing-gate.md en trois phases: ledger/quarantaine, reçu de prévention CI, puis détection des ratés du gate, avec tests et release 0.35.0."}
+{"tool":"mem_tried","at":"2026-07-03T15:46:23.166Z","summary":"typechecking CLI immediately after adding a new core export"}
+{"tool":"mem_save","at":"2026-07-03T15:47:33.511Z","summary":"sensor-ledger-ndjson-rolling-window"}
+{"tool":"mem_save","at":"2026-07-03T15:47:33.547Z","summary":"command-sensor-flap-identical-content"}
+{"tool":"mem_save","at":"2026-07-03T15:47:33.577Z","summary":"gate-passes-as-synthetic-ledger-row"}
+{"tool":"mem_tried","at":"2026-07-03T15:54:51.911Z","summary":"duplicating --json on a Commander parent command and its receipt subcommand"}
+{"tool":"mem_tried","at":"2026-07-03T16:00:23.466Z","summary":"applying the gate-miss sync integration as one broad context-sensitive patch"}
+{"tool":"mem_session_end","at":"2026-07-03T16:10:37.136Z","summary":"Implémenter intégralement docs/specs/self-auditing-gate.md en trois phases et pr"}

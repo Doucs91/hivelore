@@ -6,6 +6,45 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.35.0] — the self-auditing gate — flaky quarantine, prevention receipts, gate-miss drafts
+
+Hivelore's gate now audits its own reliability, learns deterministically from misses, and makes its
+prevented-work value visible. All runtime evidence stays local under `.ai/.runtime/`; only reviewed
+conclusions change the shared corpus.
+
+### Sensor trust
+- **Rolling sensor evaluation ledger.** Every regex/shell/test evaluation records fired, silent, or
+  unrunnable outcome, stage, HEAD, duration/exit code, and a SHA-256 of scoped file contents. The
+  best-effort NDJSON ledger rolls from 10,000 to the newest 8,000 rows and can never break a commit.
+- **Flaky command sensors quarantine themselves.** Two fired↔silent transitions on identical scoped
+  content within 30 days immediately downgrade a block to warn in memory; `hivelore sync` persists
+  the demotion and one idempotent quarantine note. `doctor`/the gate show `sensor-flaky`; 20+ silent
+  evaluations across 30+ days show `sensor-never-fired`. Manual `sensors promote` clears quarantine.
+
+### Prevention receipts
+- **`hivelore stats receipt [--since 7d] [--json]`.** Aggregates the prevention event log, usage
+  counters, memory titles, sensor metadata, and current-vs-previous window trend into Slack-ready
+  text or a stable JSON object.
+- **One PR receipt comment.** Generated enforcement workflows capture this run's sensor findings,
+  always upsert `<!-- haive:prevention-receipt -->` on pull requests, show the weekly totals, and
+  silently skip when the token, PR permissions, or `gh` are unavailable. The original gate status
+  is restored after commenting, so reporting never masks a failure.
+
+### Gate-miss learning loop
+- **Incremental git watch during `hivelore sync`.** The first run initializes at HEAD; later syncs
+  scan only the saved SHA..HEAD range for existing deterministic revert/hotfix signals. Each new
+  signal creates one deduplicated `status: proposed`, `gate-miss` lesson with commit/path provenance.
+- **Gate-pass cross-reference.** Successful pre-commit/CI runs write a synthetic local ledger row.
+  Reverting one of those SHAs annotates the draft that the gate passed it and includes a
+  `proposed_sensor_seed` hint; nothing is auto-validated or auto-blocking. `doctor` lists pending
+  gate-miss drafts for human review.
+
+### Tests
+- Added pure ledger/flap/window/receipt/git-watch tests plus CLI E2E coverage for alternating
+  command-oracle quarantine and re-promotion, receipt aggregation/workflow generation, and the full
+  pass-A → revert-B → one proposed gate-miss → idempotent second-sync loop.
+
+
 ## [0.34.1] — typecheck fix for the first-hour release
 
 - Fix a `tsc --noEmit` error in the 0.34.0 init report initializer (`bridgeTargets: []` inferred as
