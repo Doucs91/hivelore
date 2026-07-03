@@ -6,6 +6,34 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.37.0] — post-incident test scaffolding — mem_tried → sensors scaffold → command sensor
+
+> The behaviour bridge's on-ramp. A command sensor needs a test to route as its oracle — and someone
+> has to write it. This release generates that test from the lesson, closing the loop
+> `mem_tried → sensors scaffold → (write assertion) → propose --kind test`.
+
+### Added
+- **`hivelore sensors scaffold <memory-id>`.** Turns an attempt/gotcha lesson into a PENDING test
+  file the team fills in, then arms as a command-sensor oracle. It:
+  - detects the repo's test framework (vitest / jest / pytest / go; `--framework` to override),
+  - writes a stub whose header carries the incident's provenance (memory id, incident, why, expected),
+    with the test left pending (`it.todo` / `@pytest.mark.skip` / `t.Skip`) so the suite stays green
+    until you write the assertion,
+  - prints the exact `sensors propose --kind test --command "<runner> <path>"` line to arm it.
+  - `--out` / `--stdout` / `--force` for placement and preview; refuses to clobber an existing file.
+- The generator (`scaffoldPostIncidentTest`, `parseLessonFields`, `lessonShortName` in
+  `@hivelore/core`) is pure and unit-tested; the CLI owns framework detection and file writing.
+
+### Changed
+- **`hivelore memory tried` nudges toward a real test.** When a regex can't express the mistake, the
+  output points to `sensors scaffold <id>` as the behaviour-bridge path.
+
+### Notes
+- Scaffolding **never arms a sensor** — `propose_sensor` stays the sole validated writer (silent on
+  current code, fires on the bad example). The stub is deliberately pending so an empty test can't
+  masquerade as a passing oracle.
+
+
 ## [0.36.0] — positioning: enforcement-first top-line, incident→test provenance, shareable receipt, cold-repo gate headline
 
 > A positioning-driven release: sharpen the wedge (Hivelore is the deterministic policy gate, not a

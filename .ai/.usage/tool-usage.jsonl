@@ -261,3 +261,5 @@
 {"tool":"mem_save","at":"2026-07-03T20:18:14.662Z","summary":"sensor-incident-provenance-on-frontmatter"}
 {"tool":"mem_session_end","at":"2026-07-03T20:34:55.249Z","summary":"Implement, from a positioning analysis, the four \"what I'd do\" recommendations a"}
 {"tool":"mem_tried","at":"2026-07-03T20:42:12.777Z","summary":"Running `hivelore release tag` right after the release commit"}
+{"tool":"get_briefing","at":"2026-07-03T22:08:52.586Z","summary":"Add a feature that generates a post-incident test skeleton from a mem_tried/attempt memory: a pure core generator + a CLI `hivelore sensors scaffold <memory-id>` command that detects the repo's test framework and writes a pending test file, then prints the sensors propose --kind test wiring command."}
+{"tool":"mem_save","at":"2026-07-03T22:18:20.518Z","summary":"scaffold-generates-pending-test-never-arms"}
