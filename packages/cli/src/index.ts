@@ -58,7 +58,7 @@ declare const __HAIVE_VERSION__: string;
 
 program
   .name("hivelore")
-  .description("Hivelore - repo-native memory and context policy for coding-agent harnesses")
+  .description("Hivelore - the deterministic policy gate for agent-written code (rules live as repo-native team memory)")
   .version(__HAIVE_VERSION__)
   .option("--advanced", "show maintenance and experimental commands in help")
   // Agents guess flags by analogy (`--content` for `--body`, `--summary` for `--goal`) and a

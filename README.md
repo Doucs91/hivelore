@@ -7,11 +7,11 @@
 <h1 align="center">Hivelore</h1>
 
 <p align="center">
-  <strong>Your team's hard-won lessons, briefed into every agent session — and enforced at commit time.</strong><br/>
-  <em>Repo-native memory and context policy for coding-agent harnesses. Formerly published as <code>hAIve</code> (<code>@hiveai/*</code>).</em>
+  <strong>The deterministic policy gate for agent-written code — it refuses the commit that repeats a mistake your team already paid for.</strong><br/>
+  <em>A repo-native context policy for coding-agent harnesses; the rules live as team memory. Formerly published as <code>hAIve</code> (<code>@hiveai/*</code>).</em>
 </p>
 
-Hivelore is the team-knowledge layer inside an AI coding-agent harness. It gives agents a feedforward briefing before work starts, then adds feedback gates in MCP, Git hooks, CI, and wrappers so changes cannot quietly bypass repo policy.
+Hivelore is the **enforcement layer** inside an AI coding-agent harness. It briefs agents with the team's non-obvious knowledge before they act, then turns each hard-won lesson into a **deterministic gate** — in MCP, Git hooks, and CI — that blocks the change about to repeat it. Same diff, same verdict, on every machine. **Memory is the substrate; the gate is the product.**
 
 A capable model already knows generic best practice. What it *cannot* guess is your team's arbitrary, repo-specific knowledge: that public ids are `id + 100000` prefixed `AC-`, that the status field must be `"OK"`/`"KO"`, that you never edit an applied migration. Left to itself, a confident agent invents a plausible answer - clean, tested, green, and **wrong by policy**. Hivelore carries that unguessable knowledge into the task and blocks the change that's about to violate it.
 
