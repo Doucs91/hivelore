@@ -87,7 +87,9 @@ describe("Hivelore CLI integration", () => {
   });
 
   it("init creates the .ai/ structure and bridges", async () => {
-    await run(workDir, ["init", "--dir", workDir]);
+    // --bridge-targets all: the default is now auto-detection (machine/repo clients + AGENTS.md);
+    // this test exercises the full generation path independent of the machine it runs on.
+    await run(workDir, ["init", "--dir", workDir, "--bridge-targets", "all"]);
     expect(existsSync(path.join(workDir, ".ai"))).toBe(true);
     expect(existsSync(path.join(workDir, ".ai/project-context.md"))).toBe(true);
     expect(existsSync(path.join(workDir, ".ai/memories/personal"))).toBe(true);

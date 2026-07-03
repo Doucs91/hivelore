@@ -33,14 +33,31 @@ export async function loadMemory(filePath: string): Promise<LoadedMemory> {
 }
 
 export async function loadMemoriesFromDir(dir: string): Promise<LoadedMemory[]> {
+  return (await loadMemoriesFromDirDetailed(dir)).loaded;
+}
+
+export interface InvalidMemoryFile {
+  filePath: string;
+  error: string;
+}
+
+/**
+ * Like loadMemoriesFromDir, but also reports files that failed to parse instead of
+ * dropping them silently — a corrupt frontmatter otherwise makes a team lesson
+ * vanish without any signal. Surfaced by `hivelore doctor`.
+ */
+export async function loadMemoriesFromDirDetailed(
+  dir: string,
+): Promise<{ loaded: LoadedMemory[]; invalid: InvalidMemoryFile[] }> {
   const files = await listMarkdownFilesRecursive(dir);
-  const out: LoadedMemory[] = [];
+  const loaded: LoadedMemory[] = [];
+  const invalid: InvalidMemoryFile[] = [];
   for (const file of files) {
     try {
-      out.push(await loadMemory(file));
-    } catch {
-      // Skip unparseable files in v0.1; future: surface a warning channel.
+      loaded.push(await loadMemory(file));
+    } catch (err) {
+      invalid.push({ filePath: file, error: err instanceof Error ? err.message.split("\n")[0]! : String(err) });
     }
   }
-  return out;
+  return { loaded, invalid };
 }

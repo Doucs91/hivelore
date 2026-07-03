@@ -8,6 +8,7 @@ import { readdir, readFile } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { findDocFile } from "../utils/doc-files.js";
 
 const IGNORE_DIRS = new Set([
   "node_modules", "dist", "build", ".next", ".nuxt", ".svelte-kit",
@@ -305,15 +306,12 @@ export async function generateBootstrapContext(root: string): Promise<string> {
 
   // 2. README excerpt
   let readmeSummary = "";
-  for (const name of ["README.md", "readme.md", "README"]) {
-    const p = path.join(root, name);
-    if (existsSync(p)) {
-      try {
-        const content = await readFile(p, "utf8");
-        readmeSummary = readmeExcerpt(content);
-        break;
-      } catch { /* ignore */ }
-    }
+  const readmeName = findDocFile(root, "readme");
+  if (readmeName) {
+    try {
+      const content = await readFile(path.join(root, readmeName), "utf8");
+      readmeSummary = readmeExcerpt(content);
+    } catch { /* ignore */ }
   }
 
   // 3. Directory structure
@@ -381,7 +379,8 @@ export async function generateBootstrapContext(root: string): Promise<string> {
     "",
     `## Gotchas`,
     `TODO — known traps, surprising behavior, things newcomers stub their toes on.`,
-    `(Run \`hivelore memory import-changelog\` or \`hivelore memory import README.md\` to seed these automatically.)`,
+    `(Seed these with \`hivelore memory import --from ${findDocFile(root, "changelog") ?? "CHANGELOG.md"} --changelog\`` +
+    ` or \`hivelore memory import --from ${findDocFile(root, "readme") ?? "README.md"}\` via your AI client.)`,
     "",
   ];
 

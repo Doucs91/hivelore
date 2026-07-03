@@ -6,6 +6,53 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.34.0] — the first hour — init that respects your machine, your stack, and your readme
+
+> Field-tested the published package on fresh clones of express and vite. The gate engine held;
+> every defect found was in the first hour of a new user's experience. This release fixes all of them.
+
+### Changed
+- **Bridges: generate for the agents you actually use.** `hivelore init` default moved from all 12
+  bridge files to `--bridge-targets auto`: clients detected via machine signals (`~/.claude`,
+  `~/.cursor`, `~/.gemini`, `~/.continue`, windsurf/zed/aider configs, VS Code extensions for
+  copilot/cline/roo/cody), the currently-running agent's env vars, and bridge files already in the
+  repo — plus AGENTS.md always (the cross-tool standard). On a typical machine that is ~5 files at
+  the repo root instead of 14. `--bridge-targets all` restores the old behavior; the Cursor MCP
+  nudge rule is only written when cursor is a target. The init report lists the actual targets.
+- **Stack detection ignores fixture universes.** Nested-manifest scanning skips
+  playground/examples/fixtures/e2e/demo/bench/sandbox dirs, `template-*`-style scaffolding families,
+  and doc sites (docs/website — VitePress→vue, Docusaurus→react are the docs' stack, not the
+  product's). On the vite repo this cuts seeding from 6 irrelevant stacks (react, vue, tailwind,
+  express…) to exactly vite + typescript. Real monorepos (apps/web with next, apps/api with nest)
+  still detect fully.
+- **Stack-pack seeds are never auto-anchored.** The corpus auto-fix matched export names against
+  generic seed prose and anchored a React useEffect gotcha to a docs data file on a non-React repo.
+  Seeds now stay unanchored/background until someone anchors them deliberately; normal memories keep
+  the auto-anchor fix.
+
+### Fixed
+- **The first suggested command works now.** init's closing hint printed
+  `hivelore memory import README.md` — missing the required `--from`, blind to the file's actual
+  casing (express ships `Readme.md`), and printed even when no readme exists. init and the
+  bootstrap template now detect the real filename case-insensitively, print
+  `memory import --from <file> --changelog` (direct, no AI) vs `--from <file>` (AI-client prompt)
+  honestly, and stay silent when the file is absent. Same fix for the bootstrap README excerpt.
+- **Corrupt memory files are no longer silently invisible.** A memory with broken frontmatter was
+  skipped without any signal — a lost team lesson. `loadMemoriesFromDirDetailed` (core) reports
+  parse failures and `hivelore doctor` surfaces them as `invalid-memory-files` (warn) with the path
+  and the YAML error.
+- **Stale references to removed surface.** doctor and get_briefing hints no longer recommend
+  `mem_observe` (removed in 0.32.0); the runtime README no longer mentions `runtime_journal_append`;
+  doctor's stale-memory fix no longer suggests the removed `memory edit`.
+- **One code-map option set.** autopilot repair and `index code` hand-rolled shorter exclude lists
+  (re-including test dirs) than init/sync; all callers now extend the exported
+  `CODE_MAP_DEFAULT_EXCLUDE` baseline, so successive code-maps agree on which files exist.
+
+### Tests
+- +11 tests (684 total): findDocFile casing, bridge detection (machine/env/repo-file signals, bare-
+  machine fallback), seed non-anchoring vs normal-memory anchoring, detailed loader on corrupt files.
+
+
 ## [0.33.0] — the behaviour bridge — command sensors route your own tests to lessons
 
 > The three-harness table said "Behaviour: ⛔ out of scope". This release moves it to 🟡 Bridged —

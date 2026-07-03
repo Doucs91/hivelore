@@ -223,20 +223,7 @@ async function refreshCodeMap(
   const existing = await loadCodeMap(paths);
   if (existing && !force) return false;
 
-  const map = await buildCodeMap(root, {
-    includeUntracked: true,
-    excludeDirs: [
-      "node_modules",
-      "dist",
-      "build",
-      "out",
-      ".git",
-      ".next",
-      ".turbo",
-      ".vitest-cache",
-      "coverage",
-    ],
-  });
+  const map = await buildCodeMap(root, { includeUntracked: true });
   if (
     existing &&
     existing.root === map.root &&

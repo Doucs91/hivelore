@@ -3,6 +3,7 @@ import path from "node:path";
 import { Command } from "commander";
 import {
   buildCodeMap,
+  CODE_MAP_DEFAULT_EXCLUDE,
   codeMapPath,
   findProjectRoot,
   loadCodeMap,
@@ -66,18 +67,7 @@ export function registerIndexCode(program: Command): Command {
       ui.info(`Indexing source files in ${root}…`);
       const map = await buildCodeMap(root, {
         includeUntracked: true,
-        excludeDirs: [
-          "node_modules",
-          "dist",
-          "build",
-          "out",
-          ".git",
-          ".next",
-          ".turbo",
-          ".vitest-cache",
-          "coverage",
-          ...extraExcludes,
-        ],
+        excludeDirs: [...CODE_MAP_DEFAULT_EXCLUDE, ...extraExcludes],
       });
 
       await saveCodeMap(paths, map);

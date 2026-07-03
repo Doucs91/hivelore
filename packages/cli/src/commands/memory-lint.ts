@@ -142,12 +142,16 @@ export async function lintMemoriesAsync(
       });
     }
 
-    const suggestedAnchors = suggestAnchors(root, { filePath, memory }, codeMap, trackedFiles);
-    // Stack-pack seeds are framework-level guidance with no natural file anchor; they already
-    // carry `needs_anchor` and their bodies say to anchor-or-replace when they become repo policy.
-    // Flagging them on the very first `hivelore memory lint` run buries real findings in seed noise.
-    const isUnanchoredSeed = fm.tags.includes("stack-pack") && fm.tags.includes("needs_anchor");
-    if (ANCHOR_TYPES.has(fm.type) && fm.anchor.paths.length === 0 && fm.status === "validated" && !isUnanchoredSeed) {
+    // Stack-pack seeds are framework-level guidance with no natural file anchor; their bodies say
+    // to anchor-or-replace when they become repo policy. They are excluded from BOTH the missing-
+    // anchor finding and the auto-anchor fix: suggestAnchors matches export names against the body,
+    // and generic seed prose ("cleanup", "signal", "index") matches arbitrary exports — in the
+    // field this anchored a React useEffect gotcha to a docs data file on a non-React repo.
+    const isStackSeed = fm.tags.includes("stack-pack");
+    const suggestedAnchors = isStackSeed
+      ? { paths: [], symbols: [] }
+      : suggestAnchors(root, { filePath, memory }, codeMap, trackedFiles);
+    if (ANCHOR_TYPES.has(fm.type) && fm.anchor.paths.length === 0 && fm.status === "validated" && !isStackSeed) {
       out.push({
         file: filePath,
         id: fm.id,

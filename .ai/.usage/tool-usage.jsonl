@@ -242,3 +242,5 @@
 {"tool":"mem_session_end","at":"2026-07-02T22:24:52.497Z","summary":"Reduce the product surface: delete the unused long tail, merge duplicate verbs, "}
 {"tool":"mem_save","at":"2026-07-02T23:10:09.073Z","summary":"command-sensors-behaviour-bridge"}
 {"tool":"mem_session_end","at":"2026-07-02T23:13:40.079Z","summary":"Implement the validated command-sensors scope: behaviour bridge routing the team"}
+{"tool":"get_briefing","at":"2026-07-03T03:35:48.180Z","summary":"Fix first-hour UX issues found in global testing: broken init suggestion (memory import without --from, wrong readme case), misleading \"seed instantly\" wording, stack-pack seed noise on large repos (generic gotchas anchored to arbitrary files), reduce init root footprint (14 bridge files — detect actual clients), doctor should report corrupt/unparseable memory files, code-map initial ranking inconsistency (examples/ over lib/ before first sync)"}
+{"tool":"mem_save","at":"2026-07-03T13:48:18.659Z","summary":"init-bridges-detected-clients-default"}

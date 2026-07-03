@@ -23,7 +23,7 @@ import {
   isStackPackSeed,
   loadCodeMap,
   loadConfig,
-  loadMemoriesFromDir,
+  loadMemoriesFromDirDetailed,
   loadUsageIndex,
   readUsageEvents,
   resolveHaivePaths,
@@ -170,16 +170,31 @@ export function registerDoctor(program: Command): void {
       }
 
       // ── 3. Memories ───────────────────────────────────────────────────────
-      const memories: LoadedMemory[] = existsSync(paths.memoriesDir)
-        ? await loadMemoriesFromDir(paths.memoriesDir)
-        : [];
+      const memoriesDetailed = existsSync(paths.memoriesDir)
+        ? await loadMemoriesFromDirDetailed(paths.memoriesDir)
+        : { loaded: [], invalid: [] };
+      const memories: LoadedMemory[] = memoriesDetailed.loaded;
       const now = Date.now();
+
+      if (memoriesDetailed.invalid.length > 0) {
+        const listed = memoriesDetailed.invalid
+          .slice(0, 5)
+          .map((f) => `${path.relative(root, f.filePath)} (${f.error})`)
+          .join("; ");
+        findings.push({
+          severity: "warn",
+          code: "invalid-memory-files",
+          message:
+            `${memoriesDetailed.invalid.length} memory file(s) failed to parse and are INVISIBLE to briefings and the gate: ${listed}`,
+          fix: "Fix the frontmatter (or delete the file) — a corrupt memory is a silently lost team lesson.",
+        });
+      }
 
       if (memories.length === 0) {
         findings.push({
           severity: "info",
           code: "no-memories",
-          message: "No memories yet. Capture knowledge as agents work via mem_save / mem_observe / mem_tried.",
+          message: "No memories yet. Capture knowledge as agents work via mem_save / mem_tried.",
         });
       } else {
         const usage = await loadUsageIndex(paths);
@@ -190,7 +205,7 @@ export function registerDoctor(program: Command): void {
             severity: "warn",
             code: "stale-memories",
             message: `${stale.length} memor${stale.length === 1 ? "y" : "ies"} marked stale (anchored code drifted).`,
-            fix: "hivelore memory verify --update    # re-check anchors\nhaive memory edit <id>           # manually refresh body",
+            fix: "hivelore memory verify --update    # re-check anchors\nhivelore memory update <id>        # manually refresh body",
           });
         }
 

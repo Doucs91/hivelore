@@ -83,7 +83,7 @@ export class SessionTracker {
 
     const save = async (): Promise<void> => {
       const writingTools = this.events.filter((e) =>
-        ["mem_save", "mem_tried", "mem_observe", "mem_update", "bootstrap_project_save"].includes(e.tool),
+        ["mem_save", "mem_tried", "mem_update", "bootstrap_project_save"].includes(e.tool),
       );
       const totalCalls = this.events.length;
 

@@ -833,8 +833,8 @@ export async function getBriefing(
     }
     if (input.task && outputMemories.length > 0 && actionRequired.length === 0) {
       hints.push(
-        "After completing the task: capture new gotchas with mem_observe, " +
-        "failed approaches with mem_tried, validated patterns with mem_save.",
+        "After completing the task: capture failed approaches with mem_tried, " +
+        "new gotchas and validated patterns with mem_save.",
       );
     }
     if (

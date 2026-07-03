@@ -22,6 +22,8 @@ import {
   type GitCommit,
 } from "@hivelore/core";
 import { setUiJsonMode, ui } from "../utils/ui.js";
+import { findDocFile } from "../utils/doc-files.js";
+import { detectBridgeTargets } from "../utils/bridge-detect.js";
 import { writeBridgeFiles } from "../utils/bridge-files.js";
 import { setupAgentMode } from "./agent.js";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
@@ -246,9 +248,9 @@ export function registerInit(program: Command): void {
     .option("--no-bridges", "do not generate any native agent bridge files")
     .option(
       "--bridge-targets <list>",
-      `which agent bridges to generate: 'all' (default) | comma-list.\n` +
+      `which agent bridges to generate: 'auto' (default — clients detected on this machine/repo, plus AGENTS.md) | 'all' | comma-list.\n` +
       `  Available: ${BRIDGE_TARGETS.join(", ")}. Each carries top memories + block sensors.`,
-      "all",
+      "auto",
     )
     .option("--with-ci", "write a GitHub Actions workflow (.github/workflows/haive-sync.yml) — included automatically in autopilot mode")
     .option(
@@ -334,6 +336,7 @@ export function registerInit(program: Command): void {
         gitRevertsFound: 0,
         gitRecurring: 0,
         bridgesWritten: 0,
+        bridgeTargets: [],
       };
 
       if (existsSync(paths.haiveDir)) {
@@ -430,12 +433,15 @@ export function registerInit(program: Command): void {
       // memories + block sensors — not an empty template. Idempotent: existing
       // files keep their manual content, only the hivelore marker blocks refresh.
       if (opts.bridges) {
-        const targets = resolveBridgeTargets(opts.bridgeTargets);
+        const targets = resolveBridgeTargets(opts.bridgeTargets, root);
         const res = await writeBridgeFiles(root, paths, { targets });
         // The "always use the MCP" Cursor nudge is complementary to the memories bridge.
-        await writeCursorHaiveRule(root);
+        if (targets.includes("cursor")) {
+          await writeCursorHaiveRule(root);
+        }
         const made = res.created.length + res.updated.length;
         report.bridgesWritten = made;
+        report.bridgeTargets = targets;
         if (res.created.length > 0) {
           ui.success(`Generated ${res.created.length} agent bridge(s): ${res.created.join(", ")}`);
         }
@@ -578,10 +584,18 @@ export function registerInit(program: Command): void {
           console.log(ui.dim("  Review .ai/project-context.md and fill in the TODO sections."));
           console.log(ui.dim("  Or invoke the MCP prompt `bootstrap_project` for a richer AI-generated version."));
         }
-        console.log();
-        console.log(ui.dim("  Seed more memories instantly:"));
-        console.log(ui.dim("    hivelore memory import-changelog   — from CHANGELOG.md"));
-        console.log(ui.dim("    hivelore memory import README.md   — from README / docs"));
+        const changelogFile = findDocFile(root, "changelog");
+        const readmeFile = findDocFile(root, "readme");
+        if (changelogFile || readmeFile) {
+          console.log();
+          console.log(ui.dim("  Seed more memories:"));
+          if (changelogFile) {
+            console.log(ui.dim(`    hivelore memory import --from ${changelogFile} --changelog   — extract breaking-change gotchas (no AI needed)`));
+          }
+          if (readmeFile) {
+            console.log(ui.dim(`    hivelore memory import --from ${readmeFile}   — prepare an import prompt for your AI client`));
+          }
+        }
       } else {
         console.log(ui.bold("Next steps:"));
         if (!wantBootstrap) {
@@ -621,7 +635,19 @@ async function resolveStacksToSeed(
  * sub-packages or nested repos rather than the root manifest. Best-effort; returns undefined if none.
  */
 async function collectNestedPackageDeps(root: string): Promise<Record<string, string> | undefined> {
-  const SKIP = new Set(["node_modules", "dist", "build", "out", ".git", ".next", "coverage", "vendor"]);
+  const SKIP = new Set([
+    "node_modules", "dist", "build", "out", ".git", ".next", "coverage", "vendor",
+    // Fixture/demo trees describe what the project TESTS AGAINST, not what it is built with.
+    // Vite's playground/ pulls react+vue+tailwind+express into detection and seeds four
+    // irrelevant stack packs on a build-tool repo.
+    "playground", "playgrounds", "example", "examples", "fixtures", "__fixtures__",
+    "e2e", "test", "tests", "demo", "demos", "template", "templates", "bench", "benchmarks", "samples", "sandbox",
+    // Doc sites are built with their own framework (VitePress→vue, Docusaurus→react) — that is
+    // the DOCS' stack, not the product's.
+    "docs", "doc", "website",
+  ]);
+  // Scaffolding dirs come in prefixed families (create-vite ships template-vue, template-react, …).
+  const SKIP_PREFIX = /^(template|example|fixture|demo|sample)s?-/;
   const merged: Record<string, string> = {};
   let found = false;
   async function scan(dir: string, depth: number): Promise<void> {
@@ -629,7 +655,7 @@ async function collectNestedPackageDeps(root: string): Promise<Record<string, st
     let entries;
     try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
     for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith(".") || SKIP.has(entry.name)) continue;
+      if (!entry.isDirectory() || entry.name.startsWith(".") || SKIP.has(entry.name) || SKIP_PREFIX.test(entry.name)) continue;
       const sub = path.join(dir, entry.name);
       const pkgPath = path.join(sub, "package.json");
       if (existsSync(pkgPath)) {
@@ -814,6 +840,7 @@ interface InitReport {
   gitRevertsFound: number;
   gitRecurring: number;
   bridgesWritten: number;
+  bridgeTargets: string[];
 }
 
 function printInitReport(r: InitReport): void {
@@ -831,7 +858,7 @@ function printInitReport(r: InitReport): void {
     lines.push(`  Total ready : ${r.totalMemories} lesson(s), ${r.totalSensors} sensor(s) — 0 written by hand`);
   }
   if (r.bridgesWritten > 0) {
-    lines.push(`  Reach       : ${r.bridgesWritten} agent bridge(s) generated (Cursor, Cline, Copilot, Roo, Gemini, …)`);
+    lines.push(`  Reach       : ${r.bridgesWritten} agent bridge(s) generated (${r.bridgeTargets.join(", ")})`);
   }
 
   if (lines.length === 0) return;
@@ -865,10 +892,18 @@ async function writeCursorHaiveRule(root: string): Promise<void> {
   ui.success(`Created Cursor rule ${relPath}`);
 }
 
-/** Resolve the `--bridge-targets` option ('all' | comma-list) into concrete targets. */
-function resolveBridgeTargets(opt: string | undefined): BridgeTarget[] {
-  const raw = (opt ?? "all").trim().toLowerCase();
-  if (raw === "" || raw === "all") return [...BRIDGE_TARGETS];
+/** Resolve the `--bridge-targets` option ('auto' | 'all' | comma-list) into concrete targets. */
+function resolveBridgeTargets(opt: string | undefined, root: string): BridgeTarget[] {
+  const raw = (opt ?? "auto").trim().toLowerCase();
+  if (raw === "all") return [...BRIDGE_TARGETS];
+  if (raw === "" || raw === "auto") {
+    const detection = detectBridgeTargets(root);
+    const named = detection.targets
+      .map((t) => (detection.reasons[t] === "repo file" ? `${t} (already in repo)` : t))
+      .join(", ");
+    ui.info(`Bridge targets (detected): ${named} — pass --bridge-targets all for every supported client`);
+    return detection.targets;
+  }
   const requested = raw.split(",").map((t) => t.trim()).filter(Boolean);
   const valid = requested.filter((t): t is BridgeTarget => (BRIDGE_TARGETS as string[]).includes(t));
   const invalid = requested.filter((t) => !(BRIDGE_TARGETS as string[]).includes(t));
@@ -883,8 +918,6 @@ const RUNTIME_README_BODY = `# .ai/.runtime — disposable local layer
 Not team truth. Use for machine-local session notes or tooling scratch files.
 Official memories belong in .ai/memories/ (versioned in Git).
 Only .gitignore and this README are meant to commit; everything else stays untracked.
-
-Session continuity (local): agents may append \`session-journal.ndjson\` via MCP \`runtime_journal_append\` or \`hivelore runtime journal append\`.
 `;
 
 const RUNTIME_GITIGNORE_BODY = `*

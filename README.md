@@ -141,7 +141,7 @@ Memory tools remember; Hivelore's difference is that a remembered lesson can **r
 that repeats it**. Try it on any git repo:
 
 ```bash
-hivelore init -y                     # .ai/ layer + git hooks + 12 agent bridges
+hivelore init -y                     # .ai/ layer + git hooks + bridges for the agents you actually use (detected)
 
 # 1. Capture a failed approach (agents do this via the mem_tried MCP tool)
 hivelore memory tried \

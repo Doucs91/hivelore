@@ -43,7 +43,7 @@ export interface BuildCodeMapOptions {
   includeUntracked?: boolean;
 }
 
-const DEFAULT_INCLUDE = [
+export const CODE_MAP_DEFAULT_INCLUDE = [
   ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts",
   ".java", ".kt",
   ".py",
@@ -53,7 +53,10 @@ const DEFAULT_INCLUDE = [
   ".cs",
   ".php",
 ];
-const DEFAULT_EXCLUDE = [
+// Exported so every caller (init, sync, autopilot repair, index-code) EXTENDS the same
+// baseline instead of hand-rolling a shorter list — divergent lists made successive
+// code-maps disagree on which files exist (test dirs in one build, absent in the next).
+export const CODE_MAP_DEFAULT_EXCLUDE = [
   "node_modules",
   "dist",
   "build",
@@ -96,8 +99,8 @@ export async function buildCodeMap(
   root: string,
   options: BuildCodeMapOptions = {},
 ): Promise<CodeMap> {
-  const include = new Set(options.includeExtensions ?? DEFAULT_INCLUDE);
-  const exclude = new Set(options.excludeDirs ?? DEFAULT_EXCLUDE);
+  const include = new Set(options.includeExtensions ?? CODE_MAP_DEFAULT_INCLUDE);
+  const exclude = new Set(options.excludeDirs ?? CODE_MAP_DEFAULT_EXCLUDE);
   const files: Record<string, CodeFileEntry> = {};
 
   for await (const abs of collectSourceFiles(root, include, exclude, options.includeUntracked)) {
@@ -126,8 +129,8 @@ export async function countSourceFilesOnDisk(
   root: string,
   options: { excludeDirs?: string[] } = {},
 ): Promise<number> {
-  const include = new Set(DEFAULT_INCLUDE);
-  const exclude = new Set([...DEFAULT_EXCLUDE, ...(options.excludeDirs ?? [])]);
+  const include = new Set(CODE_MAP_DEFAULT_INCLUDE);
+  const exclude = new Set([...CODE_MAP_DEFAULT_EXCLUDE, ...(options.excludeDirs ?? [])]);
   let count = 0;
   for await (const _file of walkSourceFiles(root, include, exclude)) count++;
   return count;
