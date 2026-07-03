@@ -6,6 +6,37 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.36.0] — positioning: enforcement-first top-line, incident→test provenance, shareable receipt, cold-repo gate headline
+
+> A positioning-driven release: sharpen the wedge (Hivelore is the deterministic policy gate, not a
+> memory layer), push the behaviour-harness story forward (link a lesson to the incident its test
+> guards), make the prevention receipt a growth loop, and fix the cold-repo first impression.
+
+### Added
+- **Incident provenance on sensors (behaviour-harness increment).** A sensor can carry an optional
+  `incident` ref (ticket / prod id). It surfaces at the gate (`↩ guards incident: prod #442`) and in
+  the prevention receipt (`↩ incident: …`), turning "a test failed" into "this reproduces the
+  incident the test exists to prevent" — the link a plain CI test can't express. Set it via
+  `hivelore sensors propose --incident`, `propose_sensor`, or the `mem_tried` sensor block. Provenance
+  lives on the committed sensor frontmatter (team truth); the receipt derives it by lookup, so
+  `PreventionEvent` is unchanged and old logs stay valid.
+- **`hivelore stats receipt --share`.** Emits a Markdown block ready to paste into Slack or a PR —
+  incident provenance included, plus a subtle Hivelore attribution footer so shared proof markets the
+  tool. An empty window renders a forward CTA (turn a past incident into a guardrail) instead of a
+  dead zero, so the receipt is useful on day one. The CI PR comment carries the same attribution.
+
+### Changed
+- **Positioning leads with enforcement.** The README top-line, CLI root description, and package
+  descriptions now lead with "the deterministic policy gate for agent-written code"; memory is framed
+  as the substrate, not the pitch — differentiating from the crowded agent-memory market where no tool
+  enforces.
+- **Blocked-gate output leads with a headline.** `enforce check` now says WHY it blocked in one line:
+  a content catch (`sensor-block` / `precommit-policy-block`) → "🛡️ A documented lesson refused this
+  commit — about the change you just made" (naming the memory id); only setup/baseline gates → "⚙
+  Setup gate — about your repo's baseline, not the change you just made." Fixes the cold-repo first
+  impression where a real sensor block was buried among bootstrap/score noise.
+
+
 ## [0.35.1] — quarantine keeps its promise — promoted_at, durable gate-miss drafts
 
 > Verification pass on 0.35.0 (review + fresh e2e on sandbox repos). The three features work as
