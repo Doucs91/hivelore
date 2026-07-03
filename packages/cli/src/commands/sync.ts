@@ -5,6 +5,7 @@ import path from "node:path";
 import { Command } from "commander";
 import {
   DEFAULT_AUTO_PROMOTE_RULE,
+  assessSensorHealth,
   buildFrontmatter,
   findProjectRoot,
   getUsage,
@@ -14,11 +15,13 @@ import {
   loadCodeMap,
   loadConfig,
   loadMemoriesFromDir,
+  loadSensorLedger,
   loadUsageIndex,
   pullCrossRepoSources,
   resolveHaivePaths,
   resolveManifestFiles,
   serializeMemory,
+  withQuarantineNote,
   trackDependencies,
   verifyAnchor,
   watchContracts,
@@ -111,6 +114,28 @@ export function registerSync(program: Command): void {
       let revalidated = 0;
       let promoted = 0;
       let autoApproved = 0;
+      let quarantined = 0;
+
+      // Corpus-touching quarantine pass. The gate only downgrades flaky command sensors in memory;
+      // sync persists the conclusion so every machine sees the same warn severity.
+      const sensorHealth = new Map(
+        assessSensorHealth(await loadSensorLedger(paths)).map((health) => [health.memory_id, health]),
+      );
+      const quarantineCandidates = await loadMemoriesFromDir(paths.memoriesDir);
+      for (const { memory, filePath } of quarantineCandidates) {
+        const sensor = memory.frontmatter.sensor;
+        const health = sensorHealth.get(memory.frontmatter.id);
+        if (!sensor || (sensor.kind !== "shell" && sensor.kind !== "test") ||
+            sensor.severity !== "block" || !health?.quarantine_pending) continue;
+        if (!dryRun) {
+          const at = new Date().toISOString();
+          await writeFile(filePath, serializeMemory({
+            frontmatter: { ...memory.frontmatter, sensor: { ...sensor, severity: "warn" } },
+            body: withQuarantineNote(memory.body, at, health.flap_count),
+          }), "utf8");
+        }
+        quarantined++;
+      }
 
       if (opts.verify !== false) {
         const memories = await loadMemoriesFromDir(paths.memoriesDir);
@@ -260,7 +285,7 @@ export function registerSync(program: Command): void {
 
       const autoApprovedNote = autoApproved > 0 ? ` · ${autoApproved} auto-approved` : "";
       log(
-        `${ui.dim("sync:")} ${staleMarked} stale · ${revalidated} revalidated · ${promoted} promoted${autoApprovedNote}${sinceReport ? ` · ${sinceReport.added.length}+/${sinceReport.modified.length}~/${sinceReport.removed.length}- since ${opts.since}` : ""}`,
+        `${ui.dim("sync:")} ${staleMarked} stale · ${revalidated} revalidated · ${promoted} promoted · ${quarantined} quarantined${autoApprovedNote}${sinceReport ? ` · ${sinceReport.added.length}+/${sinceReport.modified.length}~/${sinceReport.removed.length}- since ${opts.since}` : ""}`,
       );
       if (!opts.quiet && draftCount > 0) {
         log(

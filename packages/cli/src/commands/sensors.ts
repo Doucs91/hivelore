@@ -6,10 +6,13 @@ import { promisify } from "node:util";
 import { Command } from "commander";
 import {
   extractSensorExamples,
+  appendSensorEvaluations,
+  assessSensorHealth,
   findProjectRoot,
   isRetiredMemory,
   judgeProposedSensor,
   loadConfig,
+  loadSensorLedger,
   loadMemoriesFromDir,
   recordPreventionHits,
   resolveHaivePaths,
@@ -17,14 +20,17 @@ import {
   selectCommandSensors,
   sensorPatternBrittleness,
   sensorSelfCheck,
+  sensorAppliesToPath,
   scannableSensorTargets,
   serializeMemory,
+  withoutQuarantineNote,
   type CommandSensorSpec,
   type Memory,
   type Sensor,
 } from "@hivelore/core";
 import { readPresumedCorrectTargets } from "@hivelore/mcp";
 import { executeCommandSensors } from "../utils/command-sensors.js";
+import { commandScopeHash, evaluation, gitHeadSha } from "../utils/sensor-evaluations.js";
 import { ui } from "../utils/ui.js";
 
 const exec = promisify(execFile);
@@ -142,12 +148,44 @@ export function registerSensors(program: Command): void {
       const commandHits: Array<{ memory_id: string; severity: "warn" | "block"; message: string; matched_line: string; output_tail?: string }> = [];
       const commandUnrunnable: Array<{ memory_id: string; reason: string; command: string }> = [];
       const commandSkipped: string[] = [];
+      const ledgerRows = [] as import("@hivelore/core").SensorEvaluation[];
+      const headSha = await gitHeadSha(root);
+      for (const memory of memories) {
+        const sensor = memory.frontmatter.sensor;
+        if (!sensor || sensor.kind !== "regex") continue;
+        const anchors = memory.frontmatter.anchor.paths;
+        const applicable = targets.some((target) => sensorAppliesToPath(sensor, anchors, target.path));
+        if (!applicable) continue;
+        ledgerRows.push(evaluation({
+          memory_id: memory.frontmatter.id,
+          kind: "regex",
+          stage: "manual",
+          head_sha: headSha,
+          scope_hash: "",
+          outcome: hits.some((hit) => hit.memory_id === memory.frontmatter.id) ? "fired" : "silent",
+        }));
+      }
       if (commandSpecs.length > 0 && runCommands) {
-        for (const run of await executeCommandSensors(commandSpecs, root)) {
+        const runs = await executeCommandSensors(commandSpecs, root);
+        for (const run of runs) {
+          const spec = commandSpecs.find((candidate) => candidate.memory_id === run.memory_id)!;
+          ledgerRows.push(evaluation({
+            memory_id: run.memory_id,
+            kind: run.kind,
+            stage: "manual",
+            head_sha: headSha,
+            scope_hash: await commandScopeHash(root, spec),
+            outcome: run.status === "failed" ? "fired" : run.status === "passed" ? "silent" : "unrunnable",
+          }, { exit_code: run.exit_code, duration_ms: run.duration_ms }));
+        }
+        const prior = await loadSensorLedger(paths);
+        const health = new Map(assessSensorHealth([...prior, ...ledgerRows]).map((h) => [h.memory_id, h]));
+        for (const run of runs) {
+          const quarantined = health.get(run.memory_id)?.quarantine_pending === true;
           if (run.status === "failed") {
             commandHits.push({
               memory_id: run.memory_id,
-              severity: run.severity,
+              severity: quarantined ? "warn" : run.severity,
               message: run.message,
               matched_line: `command failed (exit ${run.exit_code}, ${run.duration_ms}ms): ${run.command}`,
               ...(run.output_tail ? { output_tail: run.output_tail } : {}),
@@ -159,6 +197,7 @@ export function registerSensors(program: Command): void {
       } else if (commandSpecs.length > 0) {
         for (const spec of commandSpecs) commandSkipped.push(spec.memory_id);
       }
+      await appendSensorEvaluations(paths, ledgerRows);
 
       // Outcome measurement: a sensor firing on a real diff is a *prevention* event — the encoded
       // lesson intercepted a known mistake before it landed. THE shared recorder bumps impact
@@ -294,7 +333,7 @@ export function registerSensors(program: Command): void {
           ...found.memory.frontmatter,
           sensor: { ...sensor, severity },
         },
-        body: found.memory.body,
+        body: severity === "block" ? withoutQuarantineNote(found.memory.body) : found.memory.body,
       };
       await writeFile(found.filePath, serializeMemory(next), "utf8");
       ui.success(`Updated ${id}: sensor severity=${severity}`);

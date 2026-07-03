@@ -14,6 +14,7 @@ import { isSyntheticSuggestionQuery } from "./memory-suggest.js";
 declare const __HAIVE_VERSION__: string;
 import {
   codeMapPath,
+  assessSensorHealth,
   countSourceFilesOnDisk,
   extractReferencedPaths,
   sensorPatternBrittleness,
@@ -24,6 +25,7 @@ import {
   loadCodeMap,
   loadConfig,
   loadMemoriesFromDirDetailed,
+  loadSensorLedger,
   loadUsageIndex,
   readUsageEvents,
   resolveHaivePaths,
@@ -360,6 +362,30 @@ export function registerDoctor(program: Command): void {
             `commit and can't be trusted as protection: ${firesOnCurrent.slice(0, 3).join(", ")}` +
             `${firesOnCurrent.length > 3 ? ", …" : ""}.`,
           fix: "Make the pattern discriminating (add an 'absent' companion), or demote: `hivelore sensors promote <id> --severity warn`",
+        });
+      }
+
+      // Command-oracle accountability: identical source inputs must produce identical outcomes.
+      const sensorHealth = assessSensorHealth(await loadSensorLedger(paths));
+      for (const health of sensorHealth.filter((h) => h.quarantine_pending)) {
+        const last = health.flaps.at(-1)!;
+        findings.push({
+          severity: "warn",
+          code: "sensor-flaky",
+          section: "Protection" as DoctorSection,
+          message:
+            `${health.memory_id} flapped ${health.flap_count}× on identical inputs. Last contradiction: ` +
+            `${last.previous.at} ${last.previous.outcome} → ${last.current.at} ${last.current.outcome}.`,
+          fix: "Run `hivelore sync` to demote it, fix the oracle, then `hivelore sensors promote <id> --yes`.",
+        });
+      }
+      for (const health of sensorHealth.filter((h) => h.never_fired)) {
+        findings.push({
+          severity: "info",
+          code: "sensor-never-fired",
+          section: "Protection" as DoctorSection,
+          message: `${health.memory_id} was evaluated ${health.evaluation_count} times across 30+ days and never fired — retirement candidate.`,
+          fix: "Review the sensor manually; no automatic delete/retire command is provided.",
         });
       }
 

@@ -1548,6 +1548,62 @@ describe("Hivelore CLI integration", () => {
     }
   });
 
+  it("quarantines a command sensor after two identical-input flaps and manual promote clears it", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-flaky-sensor-"));
+    try {
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/check.ts"), "export const stable = true;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+
+      await writeFile(path.join(repo, "oracle.mjs"), [
+        "import { existsSync, readFileSync, writeFileSync } from 'node:fs';",
+        "const file = '.oracle-counter';",
+        "const n = (existsSync(file) ? Number(readFileSync(file, 'utf8')) : 0) + 1;",
+        "writeFileSync(file, String(n));",
+        "process.exit(n % 2 === 0 ? 1 : 0);",
+      ].join("\n"), "utf8");
+      const id = "2026-07-03-attempt-flaky-oracle";
+      const memoryFile = path.join(repo, `.ai/memories/team/${id}.md`);
+      await writeFile(memoryFile, [
+        "---", `id: ${id}`, "scope: team", "type: attempt", "status: validated",
+        "created_at: 2026-07-03T00:00:00.000Z", "anchor:", "  paths: [src/]", "  symbols: []", "tags: []",
+        "sensor:", "  kind: test", "  command: node oracle.mjs", "  message: Flaky invariant failed.",
+        "  severity: block", "  paths: [src/]", "---", "# Flaky oracle", "",
+      ].join("\n"), "utf8");
+      await writeFile(path.join(repo, "change.diff"), [
+        "diff --git a/src/check.ts b/src/check.ts", "--- a/src/check.ts", "+++ b/src/check.ts",
+        "@@ -1 +1 @@", "+export const stable = true;", "",
+      ].join("\n"), "utf8");
+
+      const check = ["sensors", "check", "--commands", "--diff-file", "change.diff", "--json", "--dir", repo];
+      await run(repo, check); // pass
+      await runAllowFailure(repo, check); // fail: first flap
+      await run(repo, check); // pass: second flap
+      const fourth = JSON.parse((await run(repo, check)).stdout) as { command_hits: Array<{ severity: string }> };
+      expect(fourth.command_hits[0]?.severity).toBe("warn");
+
+      await run(repo, ["sync", "--no-verify", "--no-promote", "--no-bridges", "--no-deps", "--no-contracts", "--no-cross-repo", "--dir", repo]);
+      let content = await readFile(memoryFile, "utf8");
+      expect(content).toContain("severity: warn");
+      expect(content.match(/^> Quarantined /gm)).toHaveLength(1);
+      await run(repo, ["sync", "--no-verify", "--no-promote", "--no-bridges", "--no-deps", "--no-contracts", "--no-cross-repo", "--dir", repo]);
+      content = await readFile(memoryFile, "utf8");
+      expect(content.match(/^> Quarantined /gm)).toHaveLength(1);
+
+      await run(repo, ["sensors", "promote", id, "--yes", "--dir", repo]);
+      content = await readFile(memoryFile, "utf8");
+      expect(content).toContain("severity: block");
+      expect(content).not.toContain("> Quarantined");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("finish gate blocks shippable work left as an uncommitted local diff", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-finish-dirty-"));
     try {

@@ -6,6 +6,8 @@ import { promisify } from "node:util";
 import { Command } from "commander";
 import {
   antiPatternGateParams,
+  appendSensorEvaluations,
+  assessSensorHealth,
   assessBootstrapState,
   isSensorScannablePath,
   findProjectRoot,
@@ -19,6 +21,7 @@ import {
   loadConfig,
   detectAgentContext,
   loadMemoriesFromDir,
+  loadSensorLedger,
   memoryMatchesAnchorPaths,
   readRecentBriefingMarker,
   recordPreventionHits,
@@ -28,6 +31,7 @@ import {
   saveConfig,
   selectCommandSensors,
   sensorTargetsFromDiff,
+  sensorAppliesToPath,
   SESSION_RECAP_TTL_MS,
   verifyAnchor,
   writeBriefingMarker,
@@ -40,6 +44,7 @@ import { getBriefing, preCommitCheck } from "@hivelore/mcp";
 import { ui } from "../utils/ui.js";
 import { installClaudeHooksAtPath, uninstallClaudeHooksAtPath, defaultClaudeSettingsPath } from "../utils/claude-hooks.js";
 import { executeCommandSensors } from "../utils/command-sensors.js";
+import { commandScopeHash, evaluation, gitHeadSha } from "../utils/sensor-evaluations.js";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
 
 declare const __HAIVE_VERSION__: string;
@@ -1145,7 +1150,7 @@ async function buildEnforcementReport(
   }
 
   const hasErrors = effectiveFindings.some((f) => f.severity === "error");
-  return withCategories({
+  const report = withCategories({
     root,
     initialized,
     mode,
@@ -1158,6 +1163,18 @@ async function buildEnforcementReport(
     should_block: mode === "strict" && hasErrors,
     findings: effectiveFindings,
   });
+  if (!report.should_block && (stage === "pre-commit" || stage === "ci")) {
+    const headSha = await gitHeadSha(root);
+    await appendSensorEvaluations(paths, [evaluation({
+      memory_id: "__gate__",
+      kind: "shell",
+      stage,
+      head_sha: headSha,
+      scope_hash: "",
+      outcome: "silent",
+    })]);
+  }
+  return report;
 }
 
 function withCategories(report: Omit<EnforcementReport, "categories">): EnforcementReport {
@@ -1368,7 +1385,7 @@ async function runPrecommitPolicy(
   // (see 2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate). Run them here
   // so a promoted block sensor actually blocks and warn sensors surface in the gate,
   // covering convention/architecture sensors the fuzzy anti-pattern matcher skips.
-  const sensorFindings = await runSensorGate(paths, snapshot.diff);
+  const sensorFindings = await runSensorGate(paths, snapshot.diff, stage);
 
   // Review-level anti-patterns must stay VISIBLE in the gate output even when nothing blocks.
   // History (see 2026-05-07-attempt-strict-precommit-gate-on-haive): making them block spammed
@@ -1467,6 +1484,7 @@ async function runPrecommitPolicy(
 async function runSensorGate(
   paths: ReturnType<typeof resolveHaivePaths>,
   diff: string,
+  stage: "pre-commit" | "ci",
 ): Promise<EnforcementFinding[]> {
   if (!diff || !existsSync(paths.memoriesDir)) return [];
   try {
@@ -1483,10 +1501,24 @@ async function runSensorGate(
     const findings: EnforcementFinding[] = [];
     const seen = new Set<string>();
     const firedIds = new Set<string>();
+    const ledgerRows = [] as import("@hivelore/core").SensorEvaluation[];
+    const headSha = await gitHeadSha(paths.root);
 
     // ── Computational layer 1: deterministic regex sensors ──
     const regexSensorMemories = scannable.filter((m) => m.frontmatter.sensor!.kind === "regex");
     const hits = regexSensorMemories.length > 0 ? runSensors(regexSensorMemories, targets) : [];
+    for (const memory of regexSensorMemories) {
+      const sensor = memory.frontmatter.sensor!;
+      if (!targets.some((target) => sensorAppliesToPath(sensor, memory.frontmatter.anchor.paths, target.path))) continue;
+      ledgerRows.push(evaluation({
+        memory_id: memory.frontmatter.id,
+        kind: "regex",
+        stage,
+        head_sha: headSha,
+        scope_hash: "",
+        outcome: hits.some((hit) => hit.memory_id === memory.frontmatter.id) ? "fired" : "silent",
+      }));
+    }
     for (const hit of hits) {
       if (seen.has(hit.memory_id)) continue;
       seen.add(hit.memory_id);
@@ -1518,7 +1550,37 @@ async function runSensorGate(
     if (config?.enforcement?.runCommandSensors === true) {
       const changedPaths = targets.map((t) => t.path).filter(Boolean);
       const specs = selectCommandSensors(scannable, changedPaths).filter((sp) => !seen.has(sp.memory_id));
-      for (const run of await executeCommandSensors(specs, paths.root)) {
+      const runs = await executeCommandSensors(specs, paths.root);
+      for (const run of runs) {
+        const spec = specs.find((candidate) => candidate.memory_id === run.memory_id)!;
+        ledgerRows.push(evaluation({
+          memory_id: run.memory_id,
+          kind: run.kind,
+          stage,
+          head_sha: headSha,
+          scope_hash: await commandScopeHash(paths.root, spec),
+          outcome: run.status === "failed" ? "fired" : run.status === "passed" ? "silent" : "unrunnable",
+        }, { exit_code: run.exit_code, duration_ms: run.duration_ms }));
+      }
+      const prior = await loadSensorLedger(paths);
+      const health = new Map(assessSensorHealth([...prior, ...ledgerRows]).map((h) => [h.memory_id, h]));
+      for (const run of runs) {
+        const sensorHealth = health.get(run.memory_id);
+        const quarantined = sensorHealth?.quarantine_pending === true;
+        if (quarantined && run.severity === "block") {
+          const last = sensorHealth.flaps.at(-1)!;
+          findings.push({
+            severity: "warn",
+            code: "sensor-flaky",
+            message:
+              `Command sensor ${run.memory_id} flapped ${sensorHealth.flap_count}× on identical inputs; ` +
+              `treated as warn pending sync quarantine. Last contradiction: ` +
+              `${last.previous.at} ${last.previous.outcome} → ${last.current.at} ${last.current.outcome}.`,
+            fix: "Run `hivelore sync`, fix the flaky oracle, then re-promote with `hivelore sensors promote <id> --yes`.",
+            impact: 5,
+            memory_ids: [run.memory_id],
+          });
+        }
         if (run.status === "passed") continue;
         seen.add(run.memory_id);
         if (run.status === "unrunnable") {
@@ -1536,7 +1598,7 @@ async function runSensorGate(
         }
         firedIds.add(run.memory_id);
         const outputBlock = run.output_tail ? `\n${run.output_tail}` : "";
-        if (run.severity === "block") {
+        if (run.severity === "block" && !quarantined) {
           findings.push({
             severity: "error",
             code: "sensor-block",
@@ -1557,6 +1619,8 @@ async function runSensorGate(
         }
       }
     }
+
+    await appendSensorEvaluations(paths, ledgerRows);
 
     // OUTCOME measurement — the formerly-missing leg of the loop. A sensor firing in the gate is a
     // prevention event (a documented mistake intercepted before it landed). Funnel through THE shared
