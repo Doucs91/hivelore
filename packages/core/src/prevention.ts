@@ -29,7 +29,13 @@ export interface PreventionEvent {
   id: string;
   /** Which gate path recorded it. */
   source: PreventionSource;
+  /** Optional detail for receipts; absent on logs written before v0.35.0. */
+  kind?: "regex" | "shell" | "test";
+  stage?: "pre-commit" | "pre-push" | "ci" | "manual";
+  exit_code?: number;
 }
+
+export type PreventionEventDetail = Pick<PreventionEvent, "kind" | "stage" | "exit_code">;
 
 export function preventionLogPath(paths: HaivePaths): string {
   return path.join(paths.haiveDir, ".cache", "prevention-log.jsonl");
@@ -59,6 +65,7 @@ export async function recordPreventionHits(
   firedIds: string[],
   source: PreventionSource,
   now: Date = new Date(),
+  details: Record<string, PreventionEventDetail> = {},
 ): Promise<string[]> {
   const unique = [...new Set(firedIds)].filter(Boolean);
   if (unique.length === 0) return [];
@@ -72,9 +79,100 @@ export async function recordPreventionHits(
   await saveUsageIndex(paths, usage).catch(() => { /* best-effort telemetry */ });
   const at = now.toISOString();
   for (const id of recordedIds) {
-    await appendPreventionEvent(paths, { at, id, source }).catch(() => { /* best-effort */ });
+    await appendPreventionEvent(paths, { at, id, source, ...details[id] }).catch(() => { /* best-effort */ });
   }
   return recordedIds;
+}
+
+export interface PreventionReceiptRow {
+  at: string;
+  id: string;
+  title: string;
+  source: PreventionSource;
+  kind: "regex" | "shell" | "test" | null;
+  stage: "pre-commit" | "pre-push" | "ci" | "manual" | null;
+  exit_code: number | null;
+  message: string | null;
+}
+
+export interface PreventionReceipt {
+  generated_at: string;
+  since: string;
+  window_days: number;
+  total: number;
+  previous_total: number;
+  prevented_count_total: number;
+  trend: PreventionTrend;
+  events: PreventionReceiptRow[];
+}
+
+/** Stable, deterministic aggregation used by the CLI and the CI PR comment. */
+export function buildPreventionReceipt(
+  events: PreventionEvent[],
+  memories: LoadedMemory[],
+  usage: UsageIndex,
+  options: { since: Date; now?: Date },
+): PreventionReceipt {
+  const now = options.now ?? new Date();
+  const sinceMs = options.since.getTime();
+  const nowMs = now.getTime();
+  const windowMs = Math.max(1, nowMs - sinceMs);
+  const previousSince = sinceMs - windowMs;
+  const byId = new Map(memories.map((m) => [m.memory.frontmatter.id, m]));
+  const current = events.filter((e) => {
+    const at = Date.parse(e.at);
+    return Number.isFinite(at) && at >= sinceMs && at <= nowMs;
+  });
+  const previousTotal = events.filter((e) => {
+    const at = Date.parse(e.at);
+    return Number.isFinite(at) && at >= previousSince && at < sinceMs;
+  }).length;
+  const rows = current
+    .map((event): PreventionReceiptRow => {
+      const loaded = byId.get(event.id);
+      const sensor = loaded?.memory.frontmatter.sensor;
+      return {
+        at: event.at,
+        id: event.id,
+        title: titleFromMemory(loaded) || event.id,
+        source: event.source,
+        kind: event.kind ?? sensor?.kind ?? (event.source === "sensor" ? "regex" : null),
+        stage: event.stage ?? null,
+        exit_code: event.exit_code ?? null,
+        message: sensor?.message ?? null,
+      };
+    })
+    .sort((a, b) => b.at.localeCompare(a.at));
+  const preventedCountTotal = Object.values(usage.by_id)
+    .reduce((sum, item) => sum + item.prevented_count, 0);
+  return {
+    generated_at: now.toISOString(),
+    since: options.since.toISOString(),
+    window_days: Math.max(1, Math.round(windowMs / MS_PER_DAY)),
+    total: rows.length,
+    previous_total: previousTotal,
+    prevented_count_total: preventedCountTotal,
+    trend: computePreventionTrend(events, now),
+    events: rows,
+  };
+}
+
+export function renderPreventionReceipt(receipt: PreventionReceipt): string {
+  const lines = [
+    `Hivelore prevention receipt — last ${receipt.window_days} days`,
+    `  ${receipt.total} repeat mistake${receipt.total === 1 ? "" : "s"} refused before ${receipt.total === 1 ? "it" : "they"} reached review.`,
+  ];
+  for (const row of receipt.events) {
+    const kind = row.kind ? `${row.kind} sensor` : row.source;
+    const exit = row.exit_code === null ? "" : `, exit ${row.exit_code}`;
+    const stage = row.stage ? ` — caught at ${row.stage}` : "";
+    lines.push(`  ✗→✓ ${row.at.slice(0, 10)}  ${row.id.padEnd(32)} (${kind}${exit}${stage})`);
+  }
+  lines.push(
+    `  Trend: ${receipt.total} this window vs ${receipt.previous_total} previous window ` +
+    `(${receipt.total <= receipt.previous_total ? "recurrences declining" : "recurrences rising"}).`,
+  );
+  return lines.join("\n");
 }
 
 /** Read all catch events (skips malformed lines). */

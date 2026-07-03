@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,4 +30,41 @@ jobs:
         run: pnpm -r build
 
       - name: Enforce Hivelore policy
-        run: node packages/cli/dist/index.js enforce ci
+        id: gate
+        env:
+          HAIVE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HAIVE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set +e
+          node packages/cli/dist/index.js enforce ci --json > "$RUNNER_TEMP/haive-gate.json"
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upsert prevention receipt
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -z "${GH_TOKEN:-}" ] || ! command -v gh >/dev/null 2>&1; then exit 0; fi
+          receipt="$(node packages/cli/dist/index.js stats receipt --since 7d --json 2>/dev/null)" || exit 0
+          gate="$(cat "$RUNNER_TEMP/haive-gate.json" 2>/dev/null)" || gate='{"findings":[]}'
+          body="$(jq -nr --arg marker '<!-- haive:prevention-receipt -->' --argjson receipt "$receipt" --argjson gate "$gate" '
+            $marker + "\n## Hivelore prevention receipt\n\n" +
+            (([$gate.findings[]? | select(.code == "sensor-block" or .code == "sensor-warn") |
+              "- **" + (.memory_ids[0] // "sensor") + "** — " + .message] | if length == 0 then
+              "No documented sensor fired on this PR." else "### Fired on this PR\n" + join("\n") end)) +
+            "\n\nWeekly total: **" + ($receipt.total|tostring) + "** refused; previous window: **" +
+            ($receipt.previous_total|tostring) + "**."
+          ')" || exit 0
+          comments="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate 2>/dev/null)" || exit 0
+          comment_id="$(printf '%s' "$comments" | jq -r '.[] | select(.body | contains("<!-- haive:prevention-receipt -->")) | .id' | head -1)"
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id" -f body="$body" >/dev/null 2>&1 || true
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$body" >/dev/null 2>&1 || true
+          fi
+
+      - name: Fail when enforcement blocked
+        if: steps.gate.outputs.exit_code != '0'
+        run: exit ${{ steps.gate.outputs.exit_code }}

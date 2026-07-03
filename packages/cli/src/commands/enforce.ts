@@ -1531,6 +1531,7 @@ async function runSensorGate(
           message: `Block sensor fired — ${hit.memory_id}: ${hit.message}${where}`,
           fix: "Remove the flagged pattern, or run `hivelore sensors check` to inspect the match.",
           impact: 45,
+          memory_ids: [hit.memory_id],
         });
       } else {
         findings.push({
@@ -1539,6 +1540,7 @@ async function runSensorGate(
           message: `Sensor flagged ${hit.memory_id}: ${hit.message}${where}`,
           fix: "Review the flagged line; `hivelore sensors check` shows the matched code.",
           impact: 5,
+          memory_ids: [hit.memory_id],
         });
       }
     }
@@ -1607,6 +1609,7 @@ async function runSensorGate(
               `command: ${run.command} (exit ${run.exit_code}, ${run.duration_ms}ms)${outputBlock}`,
             fix: "Fix the behaviour the command checks, or run `hivelore sensors check --commands` to inspect it.",
             impact: 45,
+            memory_ids: [run.memory_id],
           });
         } else {
           findings.push({
@@ -1615,6 +1618,7 @@ async function runSensorGate(
             message: `${run.kind} sensor flagged ${run.memory_id}: ${run.message} (exit ${run.exit_code})${outputBlock}`,
             fix: "Review the failing command; `hivelore sensors check --commands` re-runs it.",
             impact: 5,
+            memory_ids: [run.memory_id],
           });
         }
       }
@@ -1627,7 +1631,12 @@ async function runSensorGate(
     // recorder so the installed git-hook gate finally records what it blocks — debounced, so it can't
     // double-count with a prior `sensors check` / `anti_patterns_check` on the same diff.
     if (firedIds.size > 0) {
-      await recordPreventionHits(paths, [...firedIds], "sensor").catch(() => { /* best-effort telemetry */ });
+      const details = Object.fromEntries([...firedIds].map((id) => {
+        const row = ledgerRows.find((entry) => entry.memory_id === id && entry.outcome === "fired");
+        return [id, { kind: row?.kind ?? "regex", stage, ...(row?.exit_code !== undefined ? { exit_code: row.exit_code } : {}) }];
+      }));
+      await recordPreventionHits(paths, [...firedIds], "sensor", new Date(), details)
+        .catch(() => { /* best-effort telemetry */ });
     }
 
     return findings;
@@ -2403,11 +2412,28 @@ _hivelore sync --quiet --since ORIG_HEAD || true
 async function installCiEnforcement(root: string): Promise<void> {
   const workflowPath = path.join(root, ".github", "workflows", "haive-enforcement.yml");
   await mkdir(path.dirname(workflowPath), { recursive: true });
+  const workflow = renderCiEnforcementWorkflow();
   if (existsSync(workflowPath)) {
-    ui.info("GitHub Actions enforcement workflow already exists — skipped");
+    const existing = await readFile(workflowPath, "utf8");
+    const start = "# haive:enforcement-workflow:start";
+    const end = "# haive:enforcement-workflow:end";
+    const startAt = existing.indexOf(start);
+    const endAt = existing.indexOf(end);
+    if (startAt >= 0 && endAt > startAt) {
+      await writeFile(workflowPath, existing.slice(0, startAt) + workflow + existing.slice(endAt + end.length), "utf8");
+      ui.success(`Updated ${path.relative(root, workflowPath)} managed block`);
+    } else {
+      ui.info("GitHub Actions enforcement workflow already exists without Hivelore markers — preserved");
+    }
     return;
   }
-  await writeFile(workflowPath, `name: haive-enforcement
+  await writeFile(workflowPath, workflow, "utf8");
+  ui.success(`Created ${path.relative(root, workflowPath)}`);
+}
+
+function renderCiEnforcementWorkflow(): string {
+  return `# haive:enforcement-workflow:start
+name: haive-enforcement
 
 on:
   pull_request:
@@ -2419,6 +2445,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -2429,12 +2456,44 @@ jobs:
       - name: Install Hivelore
         run: npm install -g @hivelore/cli
       - name: Enforce Hivelore policy
+        id: gate
         env:
           HAIVE_BASE_SHA: \${{ github.event.pull_request.base.sha || github.event.before }}
           HAIVE_HEAD_SHA: \${{ github.event.pull_request.head.sha || github.sha }}
-        run: hivelore enforce ci
-`, "utf8");
-  ui.success(`Created ${path.relative(root, workflowPath)}`);
+        run: |
+          set +e
+          hivelore enforce ci --json > "$RUNNER_TEMP/haive-gate.json"
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upsert prevention receipt
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: \${{ github.token }}
+          PR_NUMBER: \${{ github.event.pull_request.number }}
+        run: |
+          if [ -z "\${GH_TOKEN:-}" ] || ! command -v gh >/dev/null 2>&1; then exit 0; fi
+          receipt="$(hivelore stats receipt --since 7d --json 2>/dev/null)" || exit 0
+          gate="$(cat "$RUNNER_TEMP/haive-gate.json" 2>/dev/null)" || gate='{"findings":[]}'
+          body="$(jq -nr --arg marker '<!-- haive:prevention-receipt -->' --argjson receipt "$receipt" --argjson gate "$gate" '
+            $marker + "\n## Hivelore prevention receipt\n\n" +
+            (([$gate.findings[]? | select(.code == "sensor-block" or .code == "sensor-warn") |
+              "- **" + (.memory_ids[0] // "sensor") + "** — " + .message] | if length == 0 then
+              "No documented sensor fired on this PR." else "### Fired on this PR\n" + join("\n") end)) +
+            "\n\nWeekly total: **" + ($receipt.total|tostring) + "** refused; previous window: **" +
+            ($receipt.previous_total|tostring) + "**."
+          ')" || exit 0
+          comments="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate 2>/dev/null)" || exit 0
+          comment_id="$(printf '%s' "$comments" | jq -r '.[] | select(.body | contains("<!-- haive:prevention-receipt -->")) | .id' | head -1)"
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id" -f body="$body" >/dev/null 2>&1 || true
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$body" >/dev/null 2>&1 || true
+          fi
+      - name: Fail when enforcement blocked
+        if: steps.gate.outputs.exit_code != '0'
+        run: exit \${{ steps.gate.outputs.exit_code }}
+# haive:enforcement-workflow:end
+`;
 }
 
 function printReport(report: EnforcementReport, json: boolean, explain = false): void {

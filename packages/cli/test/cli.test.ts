@@ -124,6 +124,10 @@ describe("Hivelore CLI integration", () => {
     const enforcementWorkflow = await readFile(path.join(workDir, ".github/workflows/haive-enforcement.yml"), "utf8");
     expect(enforcementWorkflow).toContain("HAIVE_BASE_SHA");
     expect(enforcementWorkflow).toContain("HAIVE_HEAD_SHA");
+    expect(enforcementWorkflow).toContain("<!-- haive:prevention-receipt -->");
+    expect(enforcementWorkflow).toContain("hivelore stats receipt --since 7d --json");
+    expect(enforcementWorkflow).toContain("if: always() && github.event_name == 'pull_request'");
+    expect(enforcementWorkflow).toContain("gh api --method PATCH");
     const config = JSON.parse(await readFile(path.join(workDir, ".ai/haive.config.json"), "utf8")) as {
       autopilot?: boolean;
       defaultScope?: string;
@@ -1210,6 +1214,16 @@ describe("Hivelore CLI integration", () => {
       expect(report.prevention.trend.last_7d).toBeGreaterThanOrEqual(1);
       // A single catch is not recurrence.
       expect(report.prevention.recurrence.recurring_count).toBe(0);
+
+      const receipt = await run(repo, ["stats", "receipt", "--since", "7d", "--dir", repo]);
+      expect(receipt.stdout).toContain("Hivelore prevention receipt — last 7 days");
+      expect(receipt.stdout).toContain("2099-01-01-gotcha-forbidden-token");
+      expect(receipt.stdout).toContain("Trend:");
+      const receiptJson = JSON.parse((await run(repo, ["stats", "receipt", "--json", "--dir", repo])).stdout) as {
+        total: number; previous_total: number; events: Array<{ id: string; kind: string }>;
+      };
+      expect(receiptJson.total).toBeGreaterThanOrEqual(1);
+      expect(receiptJson.events[0]).toMatchObject({ id: "2099-01-01-gotcha-forbidden-token", kind: "regex" });
     } finally {
       await rm(repo, { recursive: true, force: true });
     }

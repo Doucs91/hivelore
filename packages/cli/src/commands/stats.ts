@@ -4,9 +4,12 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   aggregateUsage,
+  buildPreventionReceipt,
+  renderPreventionReceipt,
   findProjectRoot,
   loadMemoriesFromDir,
   loadUsageIndex,
+  loadPreventionEvents,
   parseSince,
   readUsageEvents,
   resolveHaivePaths,
@@ -23,9 +26,30 @@ interface StatsOptions {
 }
 
 export function registerStats(program: Command): void {
-  program
+  const stats = program
     .command("stats")
-    .description("Show MCP tool-usage stats over a window (e.g. --since 7d).")
+    .description("Show MCP tool-usage stats and prevention receipts.");
+
+  stats
+    .command("receipt")
+    .description("Show documented mistakes refused by the gate over a time window")
+    .addHelpText("after", "\nParent options also apply: --since <window> (default 7d here), --json, --dir <dir>.")
+    .action(async () => {
+      const opts = stats.opts<{ since?: string; json?: boolean; dir?: string }>();
+      const root = findProjectRoot(opts.dir);
+      const paths = resolveHaivePaths(root);
+      const sinceRaw = stats.getOptionValueSource("since") === "default" ? "7d" : (opts.since ?? "7d");
+      const since = parseSince(sinceRaw) ?? new Date(Date.now() - 7 * 86_400_000);
+      const [events, usage, memories] = await Promise.all([
+        loadPreventionEvents(paths),
+        loadUsageIndex(paths),
+        existsSync(paths.memoriesDir) ? loadMemoriesFromDir(paths.memoriesDir) : Promise.resolve([]),
+      ]);
+      const receipt = buildPreventionReceipt(events, memories, usage, { since });
+      console.log(opts.json ? JSON.stringify(receipt, null, 2) : renderPreventionReceipt(receipt));
+    });
+
+  stats
     .option("--since <window>", "ISO date or relative (e.g. '7d', '24h', '30m')", "30d")
     .option("--json", "emit JSON instead of human-readable output", false)
     .option("--memory-hits", "show top-read memories (which mems are actually being used)", false)

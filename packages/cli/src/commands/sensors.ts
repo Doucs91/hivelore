@@ -203,7 +203,15 @@ export function registerSensors(program: Command): void {
       // lesson intercepted a known mistake before it landed. THE shared recorder bumps impact
       // (debounced) and logs the event, identically to the git-hook gate and the MCP anti-pattern gate.
       const firedIds = [...new Set([...hits, ...commandHits].map((hit) => hit.memory_id))];
-      await recordPreventionHits(paths, firedIds, "sensor");
+      const preventionDetails = Object.fromEntries([
+        ...hits.map((hit) => [hit.memory_id, { kind: "regex" as const, stage: "manual" as const }]),
+        ...commandHits.map((hit) => [hit.memory_id, {
+          kind: commandSpecs.find((spec) => spec.memory_id === hit.memory_id)?.kind ?? "shell",
+          stage: "manual" as const,
+          exit_code: Number(/exit (\d+)/.exec(hit.matched_line)?.[1] ?? 1),
+        }]),
+      ]);
+      await recordPreventionHits(paths, firedIds, "sensor", new Date(), preventionDetails);
 
       const output = {
         scanned: memories.length,

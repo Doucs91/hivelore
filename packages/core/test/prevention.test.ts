@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   briefingProofLine,
+  buildPreventionReceipt,
   computePreventionTrend,
   computeRecurrence,
   renderCaughtForYou,
+  renderPreventionReceipt,
   summarizeCaughtForYou,
   type PreventionEvent,
 } from "../src/prevention.js";
@@ -37,6 +39,28 @@ describe("computePreventionTrend", () => {
     ];
     const t = computePreventionTrend(events, NOW);
     expect(t.last_7d).toBe(1);
+  });
+});
+
+describe("prevention receipt", () => {
+  it("has a stable empty shape", () => {
+    const receipt = buildPreventionReceipt([], [], emptyUsageIndex(), {
+      since: new Date(NOW.getTime() - 7 * 86_400_000), now: NOW,
+    });
+    expect(receipt).toMatchObject({ total: 0, previous_total: 0, window_days: 7, events: [] });
+    expect(renderPreventionReceipt(receipt)).toContain("0 repeat mistakes");
+  });
+
+  it("filters the window, compares the previous window, and exposes stable event keys", () => {
+    const receipt = buildPreventionReceipt([ev(1, "current"), ev(8, "previous"), ev(20, "old")], [], emptyUsageIndex(), {
+      since: new Date(NOW.getTime() - 7 * 86_400_000), now: NOW,
+    });
+    expect(receipt.total).toBe(1);
+    expect(receipt.previous_total).toBe(1);
+    expect(receipt.events[0]).toEqual({
+      at: ev(1, "current").at, id: "current", title: "current", source: "sensor",
+      kind: "regex", stage: null, exit_code: null, message: null,
+    });
   });
 });
 
