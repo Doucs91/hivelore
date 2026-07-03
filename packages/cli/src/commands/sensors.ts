@@ -15,10 +15,14 @@ import {
   loadConfig,
   loadSensorLedger,
   loadMemoriesFromDir,
+  parseLessonFields,
   recordPreventionHits,
   resolveHaivePaths,
   runSensors,
+  scaffoldPostIncidentTest,
   selectCommandSensors,
+  TEST_FRAMEWORKS,
+  type TestFramework,
   sensorPatternBrittleness,
   sensorSelfCheck,
   sensorAppliesToPath,
@@ -73,6 +77,14 @@ interface SensorsProposeOptions {
   incident?: string;
   flags?: string;
   paths?: string;
+  dir?: string;
+}
+
+interface SensorsScaffoldOptions {
+  framework?: string;
+  out?: string;
+  stdout?: boolean;
+  force?: boolean;
   dir?: string;
 }
 
@@ -483,6 +495,71 @@ export function registerSensors(program: Command): void {
     });
 
   sensors
+    .command("scaffold")
+    .description(
+      "Generate a PENDING post-incident test from a lesson (mem_tried/attempt/gotcha) — the on-ramp to\n" +
+      "  a command sensor. Writes a test stub carrying the incident's provenance, then prints the exact\n" +
+      "  `sensors propose --kind test` line to arm it once you've written the assertion. It never arms a\n" +
+      "  sensor itself — propose_sensor stays the sole validated writer.\n\n" +
+      "  Example:\n" +
+      "    hivelore sensors scaffold 2026-07-03-attempt-refund-exceeds-capture --framework vitest",
+    )
+    .argument("<memory-id>", "lesson id to scaffold a test from")
+    .option("--framework <fw>", `test framework: ${TEST_FRAMEWORKS.join(" | ")} (auto-detected when omitted)`)
+    .option("--out <path>", "override the generated test file path (project-relative)")
+    .option("--stdout", "print the test to stdout instead of writing a file", false)
+    .option("--force", "overwrite an existing file at the target path", false)
+    .option("-d, --dir <dir>", "project root")
+    .action(async (id: string, opts: SensorsScaffoldOptions) => {
+      const root = findProjectRoot(opts.dir);
+      const paths = resolveHaivePaths(root);
+      const loaded = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
+      const found = loaded.find(({ memory }) => memory.frontmatter.id === id);
+      if (!found) { ui.error(`No memory found with id ${id}`); process.exitCode = 1; return; }
+
+      const framework = opts.framework ? normalizeFramework(opts.framework) : await detectTestFramework(root);
+      if (!framework) {
+        ui.error(`Unknown --framework "${opts.framework}". Use one of: ${TEST_FRAMEWORKS.join(", ")}.`);
+        process.exitCode = 1;
+        return;
+      }
+
+      const fields = parseLessonFields(found.memory.body);
+      const fm = found.memory.frontmatter;
+      const scaffold = scaffoldPostIncidentTest(
+        {
+          memoryId: id,
+          title: fields.title || id,
+          whyFailed: fields.whyFailed,
+          instead: fields.instead,
+          incident: fm.sensor?.incident,
+          paths: fm.anchor.paths,
+        },
+        { framework, outPath: opts.out },
+      );
+
+      if (opts.stdout) {
+        console.log(scaffold.content);
+        ui.info(`Arm it once written: ${scaffold.proposeCommand}`);
+        return;
+      }
+
+      const abs = path.isAbsolute(scaffold.relPath) ? scaffold.relPath : path.resolve(root, scaffold.relPath);
+      if (existsSync(abs) && !opts.force) {
+        ui.error(`${scaffold.relPath} already exists — pass --force to overwrite, or --out <path> for a different file.`);
+        process.exitCode = 1;
+        return;
+      }
+      await mkdir(path.dirname(abs), { recursive: true });
+      await writeFile(abs, scaffold.content, "utf8");
+      ui.success(`Wrote ${framework} post-incident test → ${scaffold.relPath}`);
+      ui.info("  1. Fill in the assertion (RED on the incident, GREEN once fixed).");
+      ui.info(`  2. Run it: ${scaffold.runCommand}`);
+      ui.info("  3. Arm it as a deterministic gate:");
+      console.log(`     ${scaffold.proposeCommand}`);
+    });
+
+  sensors
     .command("export")
     .description("Export regex sensors into .ai/generated for external toolchains")
     .option("--format <format>", "grep | eslint", "grep")
@@ -597,4 +674,40 @@ function renderGrepScript(rows: Awaited<ReturnType<typeof sensorRows>>): string 
 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+/** Map a user-supplied framework string (with common aliases) to a TestFramework, or null. */
+function normalizeFramework(input: string): TestFramework | null {
+  const v = input.trim().toLowerCase();
+  if (v === "vitest") return "vitest";
+  if (v === "jest") return "jest";
+  if (v === "pytest" || v === "py" || v === "python") return "pytest";
+  if (v === "go" || v === "gotest" || v === "go-test") return "gotest";
+  return null;
+}
+
+/**
+ * Detect the repo's test framework from its manifests. Best-effort with a sensible default (vitest)
+ * so scaffolding never dead-ends — the user can always override with --framework.
+ */
+async function detectTestFramework(root: string): Promise<TestFramework> {
+  try {
+    const pkgPath = path.join(root, "package.json");
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      if (deps.vitest) return "vitest";
+      if (deps.jest || deps["ts-jest"]) return "jest";
+    }
+  } catch {
+    // ignore a malformed package.json — fall through to other signals
+  }
+  if (existsSync(path.join(root, "go.mod"))) return "gotest";
+  for (const signal of ["pyproject.toml", "setup.py", "pytest.ini", "requirements.txt", "tox.ini"]) {
+    if (existsSync(path.join(root, signal))) return "pytest";
+  }
+  return "vitest";
 }

@@ -1604,6 +1604,54 @@ describe("Hivelore CLI integration", () => {
     }
   });
 
+  it("sensors scaffold generates a pending post-incident test + the wiring command from a lesson", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-scaffold-"));
+    try {
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await writeFile(
+        path.join(repo, "package.json"),
+        JSON.stringify({ name: "x", devDependencies: { vitest: "^2" } }),
+        "utf8",
+      );
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/pay.ts"), "export const x = 1;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+
+      const mem = [
+        "---",
+        "id: 2024-03-03-attempt-refund-exceeds-capture",
+        "scope: team", "type: attempt", "status: validated",
+        "created_at: 2024-03-03T00:00:00.000Z",
+        "anchor:", "  paths: [\"src/\"]", "  symbols: []", "tags: []",
+        "---",
+        "# refund exceeded the captured amount", "",
+        "**Why it failed / do NOT use:** prod #442 — refunds must clamp", "",
+        "**Instead, use:** clamp to the capture", "",
+      ].join("\n");
+      await mkdir(path.join(repo, ".ai/memories/team"), { recursive: true });
+      await writeFile(path.join(repo, ".ai/memories/team/2024-03-03-attempt-refund-exceeds-capture.md"), mem, "utf8");
+
+      const out = await run(repo, ["sensors", "scaffold", "2024-03-03-attempt-refund-exceeds-capture", "--dir", repo]);
+      expect(out.stdout).toContain("tests/incidents/refund-exceeds-capture.test.ts");
+      expect(out.stdout).toContain("--kind test"); // prints the arming command, never arms it
+
+      const testFile = await readFile(path.join(repo, "tests/incidents/refund-exceeds-capture.test.ts"), "utf8");
+      expect(testFile).toContain('import { describe, it, expect } from "vitest";');
+      expect(testFile).toContain("it.todo("); // pending — the suite stays green until written
+      expect(testFile).toContain("2024-03-03-attempt-refund-exceeds-capture"); // provenance in the header
+
+      // No sensor was armed by scaffolding (propose_sensor stays the sole writer).
+      const list = await run(repo, ["sensors", "list", "--dir", repo]);
+      expect(list.stdout).not.toContain("2024-03-03-attempt-refund-exceeds-capture");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("quarantines a command sensor after two identical-input flaps and manual promote clears it", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-flaky-sensor-"));
     try {

@@ -148,5 +148,7 @@ export function registerMemoryTried(memory: Command): void {
       } else if (result.hint) {
         ui.warn(result.hint);
       }
+      // Behaviour bridge: when a regex can't express the mistake, route a real test instead.
+      ui.info(`  Prefer a real test? \`hivelore sensors scaffold ${result.id}\` generates a pending test + the wiring command.`);
     });
 }

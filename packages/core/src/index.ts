@@ -36,6 +36,7 @@ export * from "./memory-lifecycle.js";
 export * from "./sensors.js";
 export * from "./sensor-ledger.js";
 export * from "./sensor-suggest.js";
+export * from "./test-scaffold.js";
 export * from "./bootstrap-state.js";
 export * from "./findings.js";
 export * from "./dashboard.js";

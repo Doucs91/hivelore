@@ -107,6 +107,19 @@ and an **unrunnable** command (not found, timeout) warns but never blocks — a 
 masquerade as a failing test. Full behaviour verification (test generation, LLM evals) remains your
 test suite's job.
 
+**The on-ramp (v0.36.0): scaffold the test from the incident.** A command sensor needs a test to
+route — so Hivelore generates the skeleton from the lesson. `hivelore sensors scaffold <memory-id>`
+detects your test framework (vitest / jest / pytest / go), writes a **pending** test carrying the
+incident's provenance in its header, and prints the exact `sensors propose --kind test` line to arm
+it. It never arms a sensor itself (`propose_sensor` stays the sole validated writer); the stub stays
+pending so the suite is green until you write the assertion.
+
+```bash
+hivelore sensors scaffold 2026-07-03-attempt-refund-exceeds-capture
+# → tests/incidents/refund-exceeds-capture.test.ts (pending, provenance in the header)
+#   then: fill the assertion → run it → arm it with the printed propose command.
+```
+
 > See [`STABILITY.md`](./STABILITY.md) for the frozen 1.0 surface and [`CONTRIBUTING.md`](./CONTRIBUTING.md) to extend Hivelore.
 
 ### Executable memory sensors
