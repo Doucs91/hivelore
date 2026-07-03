@@ -6,6 +6,7 @@ import { Command } from "commander";
 import {
   DEFAULT_AUTO_PROMOTE_RULE,
   assessSensorHealth,
+  sensorPromotedAtMap,
   buildFrontmatter,
   existingGateMissShas,
   findProjectRoot,
@@ -124,10 +125,12 @@ export function registerSync(program: Command): void {
 
       // Corpus-touching quarantine pass. The gate only downgrades flaky command sensors in memory;
       // sync persists the conclusion so every machine sees the same warn severity.
-      const sensorHealth = new Map(
-        assessSensorHealth(await loadSensorLedger(paths)).map((health) => [health.memory_id, health]),
-      );
       const quarantineCandidates = await loadMemoriesFromDir(paths.memoriesDir);
+      const sensorHealth = new Map(
+        assessSensorHealth(await loadSensorLedger(paths), new Date(), {
+          promotedAt: sensorPromotedAtMap(quarantineCandidates.map((m) => m.memory.frontmatter)),
+        }).map((health) => [health.memory_id, health]),
+      );
       for (const { memory, filePath } of quarantineCandidates) {
         const sensor = memory.frontmatter.sensor;
         const health = sensorHealth.get(memory.frontmatter.id);
@@ -658,6 +661,7 @@ async function processGateMissWatch(
     readGitCommitsRange(root, plan.range),
     existingGateMissShas(await loadMemoriesFromDir(paths.memoriesDir)),
     gatePassedShas(await loadSensorLedger(paths)),
+    { pathExists: (rel) => existsSync(path.join(root, rel)) },
   );
   const ids: string[] = [];
   for (const proposal of proposals) {

@@ -6,6 +6,27 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.35.1] — quarantine keeps its promise — promoted_at, durable gate-miss drafts
+
+> Verification pass on 0.35.0 (review + fresh e2e on sandbox repos). The three features work as
+> specced; three defects found at the seams, all fixed here.
+
+### Fixed
+- **`sensors promote` actually ends a quarantine.** Promoting a fixed oracle back to `block` was a
+  no-op: the pre-promotion flaps were still inside the 30-day ledger window, so the next commit
+  re-flagged `sensor-flaky` and the next `sync` re-demoted to warn — for up to 30 days. The sensor
+  now records `promoted_at` on promotion and health assessment (gate, sensors check, sync, doctor)
+  ignores evaluations at or before it. New flaps after promotion still quarantine normally.
+- **Gate-miss drafts no longer eat themselves.** Drafts were anchored to the REVERT commit's file
+  list — including files the revert just deleted and `.ai/` corpus files — so the very next `sync`
+  marked them stale (invisible to doctor and briefings). Anchor candidates now exclude `.ai/` and
+  paths that no longer exist on disk; a draft with no surviving path stays unanchored.
+- **Gate-miss sensor hints are no longer shared junk.** The seed was extracted from the draft's own
+  boilerplate ("Subject:", the generated why_failed sentence), producing the same useless pattern
+  for every draft. It is now derived from the commit subject only, falling back to the honest
+  "inspect the revert diff" text.
+
+
 ## [0.35.0] — the self-auditing gate — flaky quarantine, prevention receipts, gate-miss drafts
 
 Hivelore's gate now audits its own reliability, learns deterministically from misses, and makes its

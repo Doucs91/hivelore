@@ -8,6 +8,7 @@ import {
   antiPatternGateParams,
   appendSensorEvaluations,
   assessSensorHealth,
+  sensorPromotedAtMap,
   assessBootstrapState,
   isSensorScannablePath,
   findProjectRoot,
@@ -1565,7 +1566,10 @@ async function runSensorGate(
         }, { exit_code: run.exit_code, duration_ms: run.duration_ms }));
       }
       const prior = await loadSensorLedger(paths);
-      const health = new Map(assessSensorHealth([...prior, ...ledgerRows]).map((h) => [h.memory_id, h]));
+      const promotedAt = sensorPromotedAtMap(scannable.map((m) => m.frontmatter));
+      const health = new Map(
+        assessSensorHealth([...prior, ...ledgerRows], new Date(), { promotedAt }).map((h) => [h.memory_id, h]),
+      );
       for (const run of runs) {
         const sensorHealth = health.get(run.memory_id);
         const quarantined = sensorHealth?.quarantine_pending === true;

@@ -34,6 +34,25 @@ describe("gate miss watch", () => {
     expect(proposeGateMissDrafts([revert], new Set([A]), new Set())).toEqual([]);
   });
 
+  it("drops .ai/ paths and paths the revert deleted from anchor candidates — a draft anchored to a deleted file goes stale on the very next sync", () => {
+    const messy: GitCommit = {
+      ...revert,
+      files: [".ai/code-map.json", ".ai/memories/team/x.md", "src/refund.ts", "src/fee.ts"],
+    };
+    const proposal = proposeGateMissDrafts([messy], new Set(), new Set(), {
+      pathExists: (rel) => rel === "src/refund.ts", // src/fee.ts was deleted by the revert
+    })[0]!;
+    expect(proposal.paths).toEqual(["src/refund.ts"]);
+  });
+
+  it("derives the sensor seed from the commit subject only, never from body/why boilerplate", () => {
+    const proposal = proposeGateMissDrafts([revert], new Set(), new Set())[0]!;
+    const seedLine = proposal.body.split("\n").find((l) => l.startsWith("proposed_sensor_seed:"))!;
+    expect(seedLine).not.toMatch(/Subject\\?s?\*?:/);
+    expect(seedLine).not.toContain("Reverted");
+    expect(seedLine).not.toContain("re-attempting"); // the shared generated why_failed sentence
+  });
+
   it("cross-references a synthetic gate-pass row and includes the sensor hint", () => {
     const row: SensorEvaluation = {
       at: "2026-07-03T00:00:00.000Z", memory_id: "__gate__", kind: "shell",

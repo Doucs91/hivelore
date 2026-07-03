@@ -67,6 +67,13 @@ export const SensorSchema = z.object({
   autogen: z.boolean().default(false),
   /** ISO timestamp of the last time this sensor matched a diff. */
   last_fired: z.string().nullable().default(null),
+  /**
+   * ISO timestamp of the last manual `sensors promote` back to block. Health assessment ignores
+   * ledger evaluations older than this — without it, a promoted sensor whose oracle was FIXED is
+   * re-quarantined on the next commit for up to 30 days (the stale flaps are still in the window),
+   * making the promotion promised by the quarantine note a no-op.
+   */
+  promoted_at: z.string().optional(),
 });
 
 /**

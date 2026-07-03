@@ -39,6 +39,33 @@ describe("sensor ledger health", () => {
     expect(assessSensorHealth([ev(31, "silent"), ev(1, "fired")], NOW)[0]!.flap_count).toBe(0);
   });
 
+  it("ignores evaluations at or before the sensor's promoted_at — a promoted+fixed oracle is not re-quarantined", () => {
+    // Two flaps 5-4-3 days ago quarantined the sensor; the human fixed the oracle and promoted
+    // 2 days ago; since then it consistently fires or stays silent per real input changes.
+    const rows = [
+      ev(5, "fired"), ev(4, "silent"), ev(3, "fired"), // 2 flaps → quarantine_pending
+      ev(1, "silent"), ev(0.5, "silent"),              // post-fix behavior, no contradiction
+    ];
+    const withoutPromotion = assessSensorHealth(rows, NOW)[0]!;
+    expect(withoutPromotion.quarantine_pending).toBe(true);
+
+    const promotedAt = new Map([["sensor-a", new Date(NOW.getTime() - 2 * day).toISOString()]]);
+    const health = assessSensorHealth(rows, NOW, { promotedAt })[0]!;
+    expect(health.flap_count).toBe(0);
+    expect(health.quarantine_pending).toBe(false);
+  });
+
+  it("still detects NEW flaps after promotion", () => {
+    const promotedAt = new Map([["sensor-a", new Date(NOW.getTime() - 3 * day).toISOString()]]);
+    const rows = [
+      ev(5, "fired"), ev(4, "silent"), // pre-promotion, ignored
+      ev(2, "fired"), ev(1, "silent"), ev(0.5, "fired"), // post-promotion: 2 fresh flaps
+    ];
+    const health = assessSensorHealth(rows, NOW, { promotedAt })[0]!;
+    expect(health.flap_count).toBe(2);
+    expect(health.quarantine_pending).toBe(true);
+  });
+
   it("quarantines after two flaps and writes the note idempotently", () => {
     const health = assessSensorHealth([ev(3, "silent"), ev(2, "fired"), ev(1, "silent")], NOW)[0]!;
     expect(health.quarantine_pending).toBe(true);

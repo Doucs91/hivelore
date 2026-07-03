@@ -67,6 +67,15 @@ export function proposeGateMissDrafts(
   commits: GitCommit[],
   existingRevertedShas: Set<string>,
   passedShas: Set<string>,
+  opts: {
+    /**
+     * Returns true when a repo-relative path still exists on disk. Anchor candidates come from
+     * the REVERT commit's file list — files the revert often just deleted. Anchoring a draft to
+     * a deleted path makes the very next `sync` mark it stale, so the learning loop eats its own
+     * drafts before anyone reviews them. When omitted, paths are kept (pure callers/tests).
+     */
+    pathExists?: (rel: string) => boolean;
+  } = {},
 ): GateMissProposal[] {
   const seeds = proposeSeedsFromCommits(commits, commits.length);
   const bySha = new Map(commits.map((commit) => [commit.sha, commit]));
@@ -81,7 +90,12 @@ export function proposeGateMissDrafts(
     if (shaMatches(seen, failedSha)) continue;
     seen.add(failedSha);
     const gatePassed = shaMatches(passedShas, failedSha);
-    const paths = (commit.files ?? []).slice(0, 8);
+    // `.ai/` files are Hivelore's own corpus, never a regression anchor; deleted paths would
+    // stale the draft on the next sync (see pathExists above).
+    const paths = (commit.files ?? [])
+      .filter((p) => !p.startsWith(".ai/"))
+      .filter((p) => opts.pathExists?.(p) ?? true)
+      .slice(0, 8);
     const base =
       `# Gate miss: ${seed.what}\n\n` +
       `A git ${seed.kind} indicates that a change escaped the existing harness. This is a proposed ` +
@@ -94,7 +108,12 @@ export function proposeGateMissDrafts(
     const gateLine = gatePassed
       ? "\nThe gate PASSED this commit — a validated sensor here upgrades the harness.\n"
       : "";
-    const candidate = suggestSensorSeed(base, paths);
+    // Seed from the commit subject ONLY. The body labels ("Subject:", "Reverted SHA:") and the
+    // generated why_failed sentence are boilerplate shared by every draft — token extraction on
+    // them produced the same junk pattern (/Subject\s*:/, "re-attempting") for every gate miss.
+    // A subject-derived hint is weak too, but at least it is about THIS change; when nothing
+    // distinctive survives, the honest "inspect the revert diff" fallback is used instead.
+    const candidate = suggestSensorSeed(seed.what, paths);
     const sensorHint = candidate
       ? `\nproposed_sensor_seed: ${JSON.stringify(candidate)}\n`
       : "\nproposed_sensor_seed: inspect the revert diff, then author a deterministic candidate with `hivelore sensors propose <id>`.\n";

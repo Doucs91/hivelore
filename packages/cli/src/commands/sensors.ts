@@ -8,6 +8,7 @@ import {
   extractSensorExamples,
   appendSensorEvaluations,
   assessSensorHealth,
+  sensorPromotedAtMap,
   findProjectRoot,
   isRetiredMemory,
   judgeProposedSensor,
@@ -179,7 +180,10 @@ export function registerSensors(program: Command): void {
           }, { exit_code: run.exit_code, duration_ms: run.duration_ms }));
         }
         const prior = await loadSensorLedger(paths);
-        const health = new Map(assessSensorHealth([...prior, ...ledgerRows]).map((h) => [h.memory_id, h]));
+        const promotedAt = sensorPromotedAtMap(allSensorMemories.map((m) => m.frontmatter));
+        const health = new Map(
+          assessSensorHealth([...prior, ...ledgerRows], new Date(), { promotedAt }).map((h) => [h.memory_id, h]),
+        );
         for (const run of runs) {
           const quarantined = health.get(run.memory_id)?.quarantine_pending === true;
           if (run.status === "failed") {
@@ -339,7 +343,11 @@ export function registerSensors(program: Command): void {
       const next = {
         frontmatter: {
           ...found.memory.frontmatter,
-          sensor: { ...sensor, severity },
+          // promoted_at makes health assessment ignore pre-promotion ledger rows: promoting is the
+          // human's assertion the oracle was fixed, so old flaps must not re-quarantine it.
+          sensor: severity === "block"
+            ? { ...sensor, severity, promoted_at: new Date().toISOString() }
+            : { ...sensor, severity },
         },
         body: severity === "block" ? withoutQuarantineNote(found.memory.body) : found.memory.body,
       };

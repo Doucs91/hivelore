@@ -15,6 +15,7 @@ declare const __HAIVE_VERSION__: string;
 import {
   codeMapPath,
   assessSensorHealth,
+  sensorPromotedAtMap,
   countSourceFilesOnDisk,
   extractReferencedPaths,
   sensorPatternBrittleness,
@@ -380,7 +381,9 @@ export function registerDoctor(program: Command): void {
       }
 
       // Command-oracle accountability: identical source inputs must produce identical outcomes.
-      const sensorHealth = assessSensorHealth(await loadSensorLedger(paths));
+      const sensorHealth = assessSensorHealth(await loadSensorLedger(paths), new Date(), {
+        promotedAt: sensorPromotedAtMap(memories.map((m) => m.memory.frontmatter)),
+      });
       for (const health of sensorHealth.filter((h) => h.quarantine_pending)) {
         const last = health.flaps.at(-1)!;
         findings.push({

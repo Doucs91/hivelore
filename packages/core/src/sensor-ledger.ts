@@ -140,11 +140,25 @@ export function computeScopeHash(root: string, scopedFiles: string[]): string {
 export function assessSensorHealth(
   evaluations: SensorEvaluation[],
   now: Date = new Date(),
+  opts: {
+    /**
+     * memory_id → ISO timestamp of the sensor's last manual promotion back to block
+     * (sensor.promoted_at). Evaluations at or before it are ignored: the promotion is the
+     * human's assertion that the oracle was fixed, so pre-promotion flaps must not
+     * re-quarantine it.
+     */
+    promotedAt?: ReadonlyMap<string, string>;
+  } = {},
 ): SensorHealth[] {
   const cutoff = now.getTime() - 30 * DAY_MS;
   const byMemory = new Map<string, SensorEvaluation[]>();
   for (const e of evaluations) {
     if (e.memory_id === "__gate__" || (e.kind !== "shell" && e.kind !== "test")) continue;
+    const promotedAtIso = opts.promotedAt?.get(e.memory_id);
+    if (promotedAtIso) {
+      const promoted = Date.parse(promotedAtIso);
+      if (Number.isFinite(promoted) && Date.parse(e.at) <= promoted) continue;
+    }
     const list = byMemory.get(e.memory_id) ?? [];
     list.push(e);
     byMemory.set(e.memory_id, list);
@@ -185,6 +199,17 @@ export function assessSensorHealth(
     });
   }
   return out.sort((a, b) => a.memory_id.localeCompare(b.memory_id));
+}
+
+/** Build the promoted_at map for {@link assessSensorHealth} from memory frontmatters. */
+export function sensorPromotedAtMap(
+  frontmatters: Iterable<{ id: string; sensor?: { promoted_at?: string } | null }>,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const fm of frontmatters) {
+    if (fm.sensor?.promoted_at) out.set(fm.id, fm.sensor.promoted_at);
+  }
+  return out;
 }
 
 export function quarantineNote(at: string, flapCount: number): string {
