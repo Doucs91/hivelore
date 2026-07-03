@@ -177,7 +177,12 @@ describe("Hivelore CLI integration", () => {
   it("sync --inject-bridge injects into both CLAUDE.md and AGENTS.md", async () => {
     const bridgeDir = await mkdtemp(path.join(tmpdir(), "haive-bridge-test-"));
     try {
-      await run(bridgeDir, ["init", "--no-bootstrap", "--stack", "none", "-y", "--dir", bridgeDir]);
+      // Explicit targets: default detection is machine-dependent (a bare CI runner has no
+      // ~/.claude), and this test asserts on the CLAUDE.md bridge specifically.
+      await run(bridgeDir, [
+        "init", "--no-bootstrap", "--stack", "none", "-y",
+        "--bridge-targets", "claude,agents", "--dir", bridgeDir,
+      ]);
       await run(bridgeDir, [
         "memory", "add", "--type", "convention", "--slug", "bridge-demo",
         "--body", "Always use the bridge demo convention.", "--scope", "team", "--dir", bridgeDir,
