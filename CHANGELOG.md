@@ -6,7 +6,21 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
-## [0.39.1] — perfecting the existing: honest oracles, credited stack sensors, output polish
+## [0.39.2] — stack-pack seeds rank when the task is squarely theirs
+
+> Root-caused from the v0.39.1 gauntlet: on a freshly seeded Nest+Next+Prisma repo, the task
+> "add a prisma migration" left `prisma-migrations-never-modify` in `background`
+> (briefing thin, useful=0) — the single most relevant lesson hidden by its own origin tag.
+
+### Fixed
+- **Stack-pack rescue on strong task evidence.** The briefing down-rank that keeps generic seeds
+  from crowding out repo-specific knowledge had a dead escape hatch: it only lifted seeds with a
+  direct anchor, but stack packs ship anchor-less (`needs_anchor`), so they could NEVER rank above
+  background. In the shared classifier (`classifyMemoryPriority`, one source of truth for CLI and
+  MCP), a stack seed with an **exact/literal task hit or strong semantic relevance (cosine ≥ 0.65)**
+  now ranks `useful` — never `must_read`. Weak evidence (tag hits, mid semantic) is still smothered,
+  and env-workaround memories keep the unconditional cap. Threshold calibrated on live scores: the
+  on-topic pack memory measured 0.688–0.755 vs ≤ 0.60 for off-topic neighbours.
 
 > Fixes from a full gauntlet of the installed v0.39.0 — no new surface, the existing one made truthful.
 

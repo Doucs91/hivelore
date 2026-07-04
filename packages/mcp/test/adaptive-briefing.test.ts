@@ -157,3 +157,45 @@ describe("adaptive briefing", () => {
     expect(b.memories[0]?.id).toBe("2024-01-01-convention-graphql");
   });
 });
+
+describe("stack-pack rescue in get_briefing (shared classifier, literal path)", () => {
+  let workDir: string;
+  let ctx: HaiveContext;
+
+  beforeEach(async () => {
+    workDir = await mkdtemp(path.join(tmpdir(), "haive-stackrescue-"));
+    const paths = resolveHaivePaths(workDir);
+    await mkdir(paths.teamDir, { recursive: true });
+    await mkdir(paths.personalDir, { recursive: true });
+    ctx = { paths };
+  });
+  afterEach(async () => { await rm(workDir, { recursive: true, force: true }); });
+
+  const stackMemory = (id: string, body: string): string => [
+    "---", `id: ${id}`, "scope: team", "type: convention", "status: validated",
+    `created_at: ${new Date().toISOString()}`,
+    "anchor:", "  paths: []", "  symbols: []",
+    "tags:", "  - stack-pack", "  - needs_anchor", "---", body, "",
+  ].join("\n");
+
+  it("an exact literal task hit lifts an anchor-less stack seed to useful; unrelated seeds stay background", async () => {
+    const paths = resolveHaivePaths(workDir);
+    await writeFile(
+      path.join(paths.teamDir, "2026-01-01-convention-prisma-migrations-never-modify.md"),
+      stackMemory("2026-01-01-convention-prisma-migrations-never-modify", "# Prisma migrations never modify\n\nNever modify an applied prisma migration."),
+      "utf8",
+    );
+    await writeFile(
+      path.join(paths.teamDir, "2026-01-01-convention-nextjs-metadata-api.md"),
+      stackMemory("2026-01-01-convention-nextjs-metadata-api", "# Nextjs metadata api\n\nUse the metadata API for SEO tags."),
+      "utf8",
+    );
+
+    const out = await getBriefing({ ...baseInput, task: "prisma migrations", files: [] }, ctx);
+    const prisma = out.memories.find((m) => m.id.includes("prisma"));
+    const nextjs = out.memories.find((m) => m.id.includes("nextjs"));
+    expect(prisma?.priority).toBe("useful");
+    // No task overlap: the generic seed stays smothered so it can't crowd the briefing.
+    if (nextjs) expect(nextjs.priority).toBe("background");
+  });
+});

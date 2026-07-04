@@ -404,7 +404,10 @@ describe("Hivelore MCP tools", () => {
       expect(briefing.briefing_quality.level).toBe("strong");
     });
 
-    it("caps unanchored stack-pack seeds at background even on a strong task match", async () => {
+    // v0.39.2: the hard cap's escape hatch (direct anchor) is unreachable for anchor-less stack seeds,
+    // so a STRONG task hit now rescues them to `useful` (never must_read) — see
+    // 2026-07-04-decision-stack-pack-rescue-strong-task-evidence.
+    it("rescues an unanchored stack-pack seed to useful (never must_read) on a strong task match", async () => {
       const seed = await memSave(
         {
           type: "gotcha",
@@ -441,7 +444,7 @@ describe("Hivelore MCP tools", () => {
 
       const seedHit = briefing.memories.find((m) => m.id === seed.id);
       expect(seedHit).toBeDefined();
-      expect(seedHit!.priority).toBe("background");
+      expect(seedHit!.priority).toBe("useful");
     });
 
     it("writes a briefing marker so MCP-native agents satisfy the enforcement gate", async () => {

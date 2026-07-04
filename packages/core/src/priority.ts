@@ -83,6 +83,16 @@ export function classifyMemoryPriority(signals: PrioritySignals): MemoryPriority
   }
 
   if (isStackPackSeed({ tags: signals.tags }) || isEnvWorkaroundMemory({ tags: signals.tags })) {
+    // The down-rank exists to stop generic seeds crowding out repo-specific knowledge on weak
+    // matches (a tag hit, mid semantic). But its documented escape hatch — "a direct anchor already
+    // promoted them" — is dead for stack packs: they ship anchor-less (needs_anchor). So a STRONG
+    // task hit (exact/literal match, or cosine ≥ 0.65) rescues a stack seed to `useful` — the agent
+    // is working squarely in the pack's subject ("add a prisma migration" → the prisma-migrations
+    // rule must not hide in background). Never must_read, and env workarounds keep the hard cap:
+    // their fix is repairing the environment, not surfacing the note.
+    if (isStackPackSeed({ tags: signals.tags }) && (signals.exactTaskMatch || signals.strongSemantic)) {
+      return "useful";
+    }
     return "background";
   }
 

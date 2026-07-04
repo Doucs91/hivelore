@@ -272,3 +272,6 @@
 {"tool":"mem_save","at":"2026-07-04T03:02:45.950Z","summary":"gate-surface-integrity-batch-v0390"}
 {"tool":"mem_session_end","at":"2026-07-04T03:09:54.254Z","summary":"Implement in one pass the six recommendations from the 2026-07-03 harness audit "}
 {"tool":"mem_save","at":"2026-07-04T04:09:29.030Z","summary":"pending-oracle-fake-protection"}
+{"tool":"mem_session_end","at":"2026-07-04T13:26:05.050Z","summary":"Test the installed v0.39.0 end-to-end (gauntlet on a fresh Nest+Next+Prisma mono"}
+{"tool":"mem_relevant_to","at":"2026-07-04T15:56:06.695Z","summary":"Investigate briefing ranking: anchor-less stack pack memories stay background/th"}
+{"tool":"mem_save","at":"2026-07-04T16:02:22.254Z","summary":"stack-pack-rescue-strong-task-evidence"}

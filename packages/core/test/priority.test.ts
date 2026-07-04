@@ -42,3 +42,32 @@ describe("classifyMemoryPriority (shared)", () => {
     expect(priorityRank("useful")).toBeGreaterThan(priorityRank("background"));
   });
 });
+
+describe("stack-pack rescue on STRONG task evidence", () => {
+  it("a strong semantic hit (≥0.65) lifts a stack seed to useful — never must_read", () => {
+    expect(
+      classifyMemoryPriority(prioritySignals({ type: "convention", tags: ["stack-pack"], strongSemantic: true, usefulSemantic: true })),
+    ).toBe("useful");
+    expect(
+      classifyMemoryPriority(prioritySignals({ type: "convention", tags: ["stack-pack"], exactTaskMatch: true })),
+    ).toBe("useful");
+  });
+
+  it("weak evidence (mid semantic, tag hit) still smothers a stack seed to background", () => {
+    expect(
+      classifyMemoryPriority(prioritySignals({ type: "convention", tags: ["stack-pack"], usefulSemantic: true, tagTaskMatch: true })),
+    ).toBe("background");
+  });
+
+  it("env workarounds keep the hard cap even on strong evidence (fix the environment instead)", () => {
+    expect(
+      classifyMemoryPriority(prioritySignals({ type: "gotcha", tags: ["dev-env"], strongSemantic: true, exactTaskMatch: true })),
+    ).toBe("background");
+  });
+
+  it("a direct anchor still promotes a stack seed to must_read (unchanged escape hatch)", () => {
+    expect(
+      classifyMemoryPriority(prioritySignals({ type: "convention", tags: ["stack-pack"], directAnchor: true })),
+    ).toBe("must_read");
+  });
+});
