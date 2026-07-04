@@ -164,3 +164,66 @@ describe("assessBootstrapState", () => {
     expect(a.metrics.mainAreas).toBe(0);
   });
 });
+
+describe("assessBootstrapState — glob-scoped BLOCK sensors credit the areas they guard", () => {
+  const stackMem = (severity: "warn" | "block", scopes: string[]): LoadedMemory =>
+    ({
+      filePath: `/x/${Math.random()}.md`,
+      memory: {
+        frontmatter: {
+          id: "stack",
+          scope: "team",
+          type: "gotcha",
+          status: "validated",
+          anchor: { paths: [], symbols: [] }, // stack packs ship anchor-less (needs_anchor)
+          sensor: { kind: "regex", pattern: "x", paths: scopes, message: "m", severity, autogen: true, last_fired: null },
+        },
+        body: "body",
+      },
+    }) as unknown as LoadedMemory;
+
+  it("a validated block sensor with a glob scope closes the sensor-coverage gap for matching areas", () => {
+    const a = assessBootstrapState({
+      projectContextRaw: FILLED_CONTEXT,
+      memories: [
+        // Anchored memories cover knowledge for both areas; only web has an area sensor.
+        mem({ paths: ["packages/api/a.ts"] }),
+        mem({ paths: ["packages/web/x.ts"], sensor: true }),
+        stackMem("block", ["**/*.ts"]),
+      ],
+      codeFiles: TWO_COMPONENT_FILES,
+      existingModules: ["api", "web"],
+    });
+    expect(a.gaps.find((g) => g.kind === "sensor-coverage")).toBeUndefined();
+  });
+
+  it("warn glob sensors do NOT count — they cannot block a repeat", () => {
+    const a = assessBootstrapState({
+      projectContextRaw: FILLED_CONTEXT,
+      memories: [
+        mem({ paths: ["packages/api/a.ts"] }),
+        mem({ paths: ["packages/web/x.ts"] }),
+        stackMem("warn", ["**"]),
+      ],
+      codeFiles: TWO_COMPONENT_FILES,
+      existingModules: ["api", "web"],
+    });
+    const gap = a.gaps.find((g) => g.kind === "sensor-coverage");
+    expect(gap?.items).toEqual(["packages/api", "packages/web"]);
+  });
+
+  it("a block sensor glob that matches nothing in an area leaves that area uncovered", () => {
+    const a = assessBootstrapState({
+      projectContextRaw: FILLED_CONTEXT,
+      memories: [
+        mem({ paths: ["packages/api/a.ts"] }),
+        mem({ paths: ["packages/web/x.ts"] }),
+        stackMem("block", ["**/*.controller.ts"]), // no controllers in either area
+      ],
+      codeFiles: TWO_COMPONENT_FILES,
+      existingModules: ["api", "web"],
+    });
+    const gap = a.gaps.find((g) => g.kind === "sensor-coverage");
+    expect(gap?.items).toEqual(["packages/api", "packages/web"]);
+  });
+});

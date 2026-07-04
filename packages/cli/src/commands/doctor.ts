@@ -687,8 +687,13 @@ function emit(findings: Finding[], opts: DoctorOptions, repairs: AutopilotRepair
 
   const actions = nextActions(classified);
   if (actions.length > 0) {
-    console.log(ui.bold("Next actions"));
-    for (const action of actions.slice(0, 5)) console.log(`  ${ui.dim("$")} ${action}`);
+    // Distinct from the "Next actions" findings section above — this is the flat command list.
+    console.log(ui.bold("Suggested commands"));
+    for (const action of actions.slice(0, 5)) {
+      // Only shell-prompt-prefix lines that ARE commands; prose fixes read wrong behind a `$`.
+      const isCommand = /^(hivelore|haive|git|npm|pnpm|npx|node|gh|rm|code|cd)\b/.test(action);
+      console.log(`  ${ui.dim(isCommand ? "$" : "→")} ${action}`);
+    }
   } else if (!opts.fix && classified.some((f) => f.fix)) {
     ui.info("Re-run with --fix to see suggested commands.");
   }

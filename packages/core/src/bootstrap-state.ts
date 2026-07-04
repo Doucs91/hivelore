@@ -10,6 +10,7 @@
  * Pure domain logic: no I/O. Callers load memories / code-map / module dirs and pass them in.
  */
 import type { LoadedMemory } from "./loader.js";
+import { globToRegExp, isGlobPath } from "./relevance.js";
 
 /** Top-level directories that contain components in a monorepo. */
 const CONTAINER_DIRS = new Set([
@@ -161,8 +162,34 @@ export function assessBootstrapState(input: BootstrapStateInput): BootstrapAsses
     (c) => !input.existingModules.includes(moduleNameOf(c)),
   );
 
+  // A BLOCK sensor scoped by its own `paths` (globs like `**/*.controller.ts` from stack packs, or
+  // plain dir scopes) genuinely guards every area its scope reaches, even when the carrying memory
+  // has no anchor. Credit it — otherwise init reports "N sensors active" while the bootstrap gate
+  // claims the same areas have no guardrail. Warn sensors stay uncredited: they cannot block a repeat.
+  const blockSensorScopes = input.memories
+    .filter(
+      (m) =>
+        (m.memory.frontmatter.status === "validated" || m.memory.frontmatter.status === "proposed") &&
+        m.memory.frontmatter.sensor?.severity === "block",
+    )
+    .flatMap((m) => m.memory.frontmatter.sensor?.paths ?? []);
+  const areaGuardedByScope = (component: string): boolean => {
+    const files = codeFiles.filter((f) => componentOf(f) === component);
+    return blockSensorScopes.some((rawScope) => {
+      const scope = rawScope.replace(/^\/+/, "").replace(/\/+$/, "");
+      if (!scope) return false;
+      if (isGlobPath(scope)) {
+        const re = globToRegExp(scope);
+        return files.some((f) => re.test(f));
+      }
+      return anchorMatchesComponent(scope, component);
+    });
+  };
+
   const memoryUncovered = components.filter((c) => !areaCovered(c, anchoredMemories));
-  const sensorUncovered = components.filter((c) => !areaCovered(c, sensorMemories));
+  const sensorUncovered = components.filter(
+    (c) => !areaCovered(c, sensorMemories) && !areaGuardedByScope(c),
+  );
 
   const gaps: BootstrapGap[] = [];
 

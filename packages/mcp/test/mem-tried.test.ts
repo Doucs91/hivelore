@@ -201,3 +201,28 @@ describe("memTried — scope defaulting (enforced lessons are team truth)", () =
     expect(out.hint ?? "").not.toMatch(/team-scoped/);
   });
 });
+
+describe("memTried — slug hygiene", () => {
+  let workDir: string;
+  let ctx: HaiveContext;
+
+  beforeEach(async () => {
+    workDir = await mkdtemp(path.join(tmpdir(), "haive-tried-slug-"));
+    const paths = resolveHaivePaths(workDir);
+    await mkdir(paths.haiveDir, { recursive: true });
+    ctx = { paths };
+  });
+
+  afterEach(async () => {
+    await rm(workDir, { recursive: true, force: true });
+  });
+
+  it("never ends the permanent id on a connective after the 5-word cut", async () => {
+    const out = await memTried(
+      { what: "contract drift between api and web mapper", why_failed: "x", scope: "team", tags: [], paths: [] },
+      ctx,
+    );
+    expect(out.id.endsWith("-and")).toBe(false);
+    expect(out.id).toMatch(/contract-drift-between-api$/);
+  });
+});

@@ -16,6 +16,8 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   extractSensorExamples,
+  extractTestFilePathsFromCommand,
+  hasPendingTestMarker,
   judgeProposedSensor,
   loadMemoriesFromDir,
   serializeMemory,
@@ -239,6 +241,29 @@ export async function proposeSensor(
   // (the behaviour analogue of "silent on current"). A failing oracle would block every
   // commit; an unrunnable one proves nothing. Both reject `block`; warn is advisory.
   if (kind !== "regex") {
+    // A STILL-PENDING oracle (it.todo / skip stub) passes on anything — arming it as `block`
+    // would report protection that does not exist. Refuse until the assertion is written.
+    const referencedTests = extractTestFilePathsFromCommand(input.command!.trim())
+      .filter((rel) => existsSync(path.resolve(ctx.paths.root, rel)));
+    const pendingTests: string[] = [];
+    for (const rel of referencedTests) {
+      try {
+        if (hasPendingTestMarker(await readFile(path.resolve(ctx.paths.root, rel), "utf8"))) pendingTests.push(rel);
+      } catch { /* unreadable — let the command run speak for itself */ }
+    }
+    if (pendingTests.length > 0 && input.severity === "block") {
+      return {
+        accepted: false,
+        memory_id: input.memory_id,
+        severity: input.severity,
+        reason: "oracle-pending",
+        guidance:
+          `The routed test is still a PENDING stub (${pendingTests.join(", ")}) — it passes on anything, so the ` +
+          "sensor would enforce nothing while reporting protection. Write the assertion (RED on the incident, " +
+          "GREEN once fixed), run it, then re-propose.",
+        self_check: { silent_on_current: false, fires_on_bad: null, fired_on: pendingTests },
+      };
+    }
     const verdictCmd = runCommandForValidation(input.command!.trim(), ctx.paths.root, input.timeout_ms);
     const anchorPathsCmd = input.paths.length > 0 ? input.paths : found.memory.frontmatter.anchor.paths;
     if (verdictCmd.status !== "passed" && input.severity === "block") {
@@ -280,6 +305,9 @@ export async function proposeSensor(
         (verdictCmd.status === "passed"
           ? "Command oracle passes on the current tree; the gate now runs it when the diff touches the sensor's paths (requires enforcement.runCommandSensors=true)."
           : `Accepted at warn severity, but note: ${verdictCmd.status} on the current tree (${verdictCmd.detail}).`) +
+        (pendingTests.length > 0
+          ? ` Note: the routed test is still a PENDING stub (${pendingTests.join(", ")}) — it passes on anything; write the assertion to make this oracle real.`
+          : "") +
         personalScopeNudge,
       self_check: { silent_on_current: verdictCmd.status === "passed", fires_on_bad: null, fired_on: [] },
     };

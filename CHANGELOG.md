@@ -6,6 +6,27 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.39.1] — perfecting the existing: honest oracles, credited stack sensors, output polish
+
+> Fixes from a full gauntlet of the installed v0.39.0 — no new surface, the existing one made truthful.
+
+### Fixed
+- **A pending oracle can no longer arm a block sensor** (`oracle-pending` rejection). A scaffolded
+  stub (`it.todo`/skip) passes on anything, so `sensors propose --kind test` used to accept it and
+  report protection that enforced nothing. `propose_sensor` now extracts the test files referenced
+  by the command and rejects a `block` proposal while any is still pending; `warn` is accepted with
+  an explicit pending-stub note. (Core: `hasPendingTestMarker`, `extractTestFilePathsFromCommand`.)
+- **Bootstrap gate now credits glob-scoped BLOCK sensors.** Stack packs ship anchor-less memories
+  with glob sensor scopes (`**/*.controller.ts`), so `init` reported "N sensors active" while the
+  bootstrap checklist claimed the same areas had "no guardrail". A validated block sensor whose
+  scope matches an area's files now closes that area's `sensor-coverage` gap; warn sensors still
+  don't count (they cannot block a repeat).
+- **Doctor output polish**: the trailing command list is now titled "Suggested commands" (it
+  duplicated the "Next actions" findings header), and prose fixes are prefixed `→` instead of a
+  misleading shell `$`.
+- **`mem_tried` slug hygiene**: the permanent id can no longer end on a connective after the 5-word
+  cut (`…-contract-drift-between-api-and` → `…-contract-drift-between-api`).
+
 ## [0.39.0] — gate-surface integrity + behaviour-loop accounting
 
 > Six hardening steps from a full harness audit: the gate now watches its own surface (a diff that

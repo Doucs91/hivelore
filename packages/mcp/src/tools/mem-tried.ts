@@ -90,13 +90,16 @@ export async function memTried(
     throw new Error(`No .ai/ directory at ${ctx.paths.root}. Run 'hivelore init' first.`);
   }
 
-  const slug = input.what
+  // Ids are permanent: don't let the 5-word cut end on a connective ("…-between-api-AND").
+  const SLUG_STOPWORDS = new Set(["and", "or", "the", "a", "an", "of", "to", "in", "for", "with", "on", "at", "by"]);
+  const words = input.what
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, "")
     .trim()
     .split(/\s+/)
-    .slice(0, 5)
-    .join("-");
+    .slice(0, 5);
+  while (words.length > 2 && SLUG_STOPWORDS.has(words[words.length - 1]!)) words.pop();
+  const slug = words.join("-");
 
   // An enforced lesson is TEAM truth: a sensor that lives on a personal (gitignored) memory only
   // guards the machine that captured it — the incident would repeat on every other clone. So a

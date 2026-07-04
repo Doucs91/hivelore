@@ -270,3 +270,5 @@
 {"tool":"scaffold_test","at":"2026-07-04T01:14:19.189Z","summary":"2026-07-03-attempt-typechecking-cli-immediately-after-adding"}
 {"tool":"mem_relevant_to","at":"2026-07-04T02:39:25.271Z","summary":"Implement six harness improvements: post-incident-test-unarmed doctor/finish fin"}
 {"tool":"mem_save","at":"2026-07-04T03:02:45.950Z","summary":"gate-surface-integrity-batch-v0390"}
+{"tool":"mem_session_end","at":"2026-07-04T03:09:54.254Z","summary":"Implement in one pass the six recommendations from the 2026-07-03 harness audit "}
+{"tool":"mem_save","at":"2026-07-04T04:09:29.030Z","summary":"pending-oracle-fake-protection"}

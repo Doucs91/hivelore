@@ -7,6 +7,8 @@ import {
   scaffoldPostIncidentTest,
   type PostIncidentLesson,
   assessScaffoldLoop,
+  extractTestFilePathsFromCommand,
+  hasPendingTestMarker,
   buildProposeCommand,
 } from "../src/test-scaffold.js";
 
@@ -201,5 +203,27 @@ describe("buildProposeCommand + proposeCommandOverride", () => {
     expect(scaffold.content).toContain(combined);
     expect(combined).toContain("--kind test");
     expect(combined).toContain("packages/a/src/x.ts,packages/b/src/y.ts");
+  });
+});
+
+describe("pending-oracle helpers", () => {
+  it("hasPendingTestMarker detects todo/skip stubs across frameworks", () => {
+    expect(hasPendingTestMarker('it.todo("reproduces x");')).toBe(true);
+    expect(hasPendingTestMarker("@pytest.mark.skip(reason='TODO')")).toBe(true);
+    expect(hasPendingTestMarker('t.Skip("TODO: write the assertion")')).toBe(true);
+    expect(hasPendingTestMarker('it("guards", () => { expect(1).toBe(1); });')).toBe(false);
+  });
+
+  it("extractTestFilePathsFromCommand pulls test files out of chained oracle commands", () => {
+    expect(
+      extractTestFilePathsFromCommand(
+        'npx vitest run packages/api/tests/incidents/a.test.ts && npx jest "packages/web/tests/incidents/b.test.ts"',
+      ),
+    ).toEqual(["packages/api/tests/incidents/a.test.ts", "packages/web/tests/incidents/b.test.ts"]);
+    expect(extractTestFilePathsFromCommand("pytest tests/incidents/test_refund.py -q")).toEqual([
+      "tests/incidents/test_refund.py",
+    ]);
+    // Non-test tokens (binaries, flags, scripts) are never mistaken for oracle files.
+    expect(extractTestFilePathsFromCommand("node scripts/check.mjs --strict")).toEqual([]);
   });
 });
