@@ -40,8 +40,13 @@ export const AnchorSchema = z.object({
  * (they require I/O and must run from the CLI, not core).
  */
 export const SensorSchema = z.object({
-  kind: z.enum(["regex", "shell", "test"]).default("regex"),
-  /** Regex source (for kind=regex), matched against added diff lines / file content. */
+  kind: z.enum(["regex", "ast", "shell", "test"]).default("regex"),
+  /**
+   * kind=regex: regex source, matched against added diff lines / file content.
+   * kind=ast: an ast-grep structural pattern (e.g. `stripe.paymentIntents.create($$$)`) — matched
+   * on the AST of changed files, so comments and string literals can never false-positive. Requires
+   * the optional `@ast-grep/napi` engine; without it the sensor is unrunnable (warn, never block).
+   */
   pattern: z.string().optional(),
   /**
    * Optional "correct-usage" regex (kind=regex). When `pattern` (the risky call) matches but this

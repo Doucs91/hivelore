@@ -30,7 +30,7 @@ export interface PreventionEvent {
   /** Which gate path recorded it. */
   source: PreventionSource;
   /** Optional detail for receipts; absent on logs written before v0.35.0. */
-  kind?: "regex" | "shell" | "test";
+  kind?: "regex" | "ast" | "shell" | "test";
   stage?: "pre-commit" | "pre-push" | "ci" | "manual";
   exit_code?: number;
 }
@@ -89,7 +89,7 @@ export interface PreventionReceiptRow {
   id: string;
   title: string;
   source: PreventionSource;
-  kind: "regex" | "shell" | "test" | null;
+  kind: "regex" | "ast" | "shell" | "test" | null;
   stage: "pre-commit" | "pre-push" | "ci" | "manual" | null;
   exit_code: number | null;
   message: string | null;

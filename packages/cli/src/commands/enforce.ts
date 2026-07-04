@@ -10,6 +10,7 @@ import {
   assessSensorHealth,
   sensorPromotedAtMap,
   assessBootstrapState,
+  addedLineNumbersFromDiff,
   detectSensorWeakening,
   isSensorScannablePath,
   findProjectRoot,
@@ -43,7 +44,7 @@ import {
   type LoadedMemory,
   type HaiveConfig,
 } from "@hivelore/core";
-import { getBriefing, preCommitCheck } from "@hivelore/mcp";
+import { astEngineAvailable, getBriefing, preCommitCheck, runAstSensorOnContent } from "@hivelore/mcp";
 import { ui } from "../utils/ui.js";
 import { installClaudeHooksAtPath, uninstallClaudeHooksAtPath, defaultClaudeSettingsPath } from "../utils/claude-hooks.js";
 import { executeCommandSensors } from "../utils/command-sensors.js";
@@ -1547,6 +1548,22 @@ async function runPrecommitPolicy(
 }
 
 /**
+ * Staged (index) content of a project-relative path, falling back to the working tree — the
+ * AST sensor layer parses whole files, and at pre-commit the staged blob is the truth.
+ */
+async function stagedFileContent(root: string, rel: string): Promise<string | null> {
+  try {
+    return await runCommand("git", ["show", `:${rel}`], root);
+  } catch {
+    try {
+      return await readFile(path.resolve(root, rel), "utf8");
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
  * Run the repo's regex sensors against the staged diff and turn hits into findings:
  * a `block`-severity sensor → error (fails the gate); a `warn` sensor → warn (visible,
  * non-blocking). Read-only and best-effort: a sensor bug must never break a commit.
@@ -1612,6 +1629,80 @@ async function runSensorGate(
           impact: 5,
           memory_ids: [hit.memory_id],
         });
+      }
+    }
+
+    // ── Computational layer 1b: AST sensors (structural — comments/strings can't false-positive).
+    // Match on the staged content of changed files; fire only when a match intersects added lines.
+    // Engine missing = unrunnable → ONE aggregated warn, never a block (same honesty as commands). ──
+    const astSensorMemories = scannable.filter((m) => m.frontmatter.sensor!.kind === "ast");
+    if (astSensorMemories.length > 0) {
+      const addedByPath = addedLineNumbersFromDiff(diff);
+      if (!(await astEngineAvailable())) {
+        findings.push({
+          severity: "warn",
+          code: "ast-sensor-unrunnable",
+          message:
+            `${astSensorMemories.length} AST sensor(s) could not run — the optional @ast-grep/napi engine is not installed. ` +
+            "Their protection is OFF on this machine.",
+          fix: "Install the engine: `npm i -g @ast-grep/napi` (or add it to the repo devDependencies).",
+          impact: 5,
+        });
+      } else {
+        for (const memory of astSensorMemories) {
+          const sensor = memory.frontmatter.sensor!;
+          if (!sensor.pattern) continue;
+          const applicable = targets.filter((t) => sensorAppliesToPath(sensor, memory.frontmatter.anchor.paths, t.path));
+          if (applicable.length === 0) continue;
+          let fired = false;
+          for (const target of applicable) {
+            const added = addedByPath.get(target.path);
+            if (!added || added.size === 0) continue;
+            const content = await stagedFileContent(paths.root, target.path);
+            if (content === null) continue;
+            const scan = await runAstSensorOnContent({
+              pattern: sensor.pattern,
+              absent: sensor.absent,
+              content,
+              filePath: target.path,
+              addedLines: added,
+            });
+            if (scan.status !== "ok" || scan.matches.length === 0) continue;
+            fired = true;
+            if (seen.has(memory.frontmatter.id)) break;
+            seen.add(memory.frontmatter.id);
+            firedIds.add(memory.frontmatter.id);
+            const where = ` (${target.path}:${scan.matches[0]!.startLine})`;
+            if (sensor.severity === "block") {
+              findings.push({
+                severity: "error",
+                code: "sensor-block",
+                message: `Block AST sensor fired — ${memory.frontmatter.id}: ${sensor.message}${where}${incidentSuffix(sensor.incident)}\n  matched: ${scan.matches[0]!.text}`,
+                fix: "Remove the flagged construct, or run `hivelore sensors check` to inspect the match.",
+                impact: 45,
+                memory_ids: [memory.frontmatter.id],
+              });
+            } else {
+              findings.push({
+                severity: "warn",
+                code: "sensor-warn",
+                message: `AST sensor flagged ${memory.frontmatter.id}: ${sensor.message}${where}${incidentSuffix(sensor.incident)}`,
+                fix: "Review the flagged construct; `hivelore sensors check` shows the matched code.",
+                impact: 5,
+                memory_ids: [memory.frontmatter.id],
+              });
+            }
+            break;
+          }
+          ledgerRows.push(evaluation({
+            memory_id: memory.frontmatter.id,
+            kind: "ast",
+            stage,
+            head_sha: headSha,
+            scope_hash: "",
+            outcome: fired ? "fired" : "silent",
+          }));
+        }
       }
     }
 

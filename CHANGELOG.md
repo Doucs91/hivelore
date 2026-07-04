@@ -6,6 +6,26 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.40.0] — AST sensors: structural precision via ast-grep (excellence plan, Phase 1)
+
+> Reuse over build: the industry-best static rule mechanism (ast-grep structural patterns) becomes a
+> sensor kind, while everything that makes Hivelore unique — provenance + deterministic validation —
+> stays. The regex engine remains the dependency-free default.
+
+### Added
+- **`kind: ast` sensors** (`sensors propose --kind ast --pattern '<ast-grep pattern>'`,
+  `propose_sensor kind:"ast"`). Structural matching on the AST of changed files: comments and string
+  literals can never false-positive (the regex engine's known weakness), `absent` is checked INSIDE
+  the matched node (structural sub-pattern, text fallback for property keys). Fires only when a
+  match intersects the diff's added lines — introduction, not presence (`addedLineNumbersFromDiff`
+  in core). Validation transposes unchanged: silent-on-current (HEAD), fires-on-bad-example,
+  anti-brittleness; a block proposal is rejected when the engine is missing (`ast-engine-missing`) —
+  an unvalidatable guard must not claim to block.
+- **Optional engine, honest degradation.** `@ast-grep/napi` ships as an optionalDependency
+  (cli + mcp, tsup externals per the documented gotcha). Without it: gate warns
+  `ast-sensor-unrunnable` (never blocks), `sensors check` reports the count, doctor says how to
+  install (`ast-engine-missing`). TS/TSX/JS built in; other languages via `@ast-grep/lang-*`.
+
 ## [0.39.3] — behaviour hardening: prove the RED, contain the execution (excellence plan, Phase 4)
 
 ### Added

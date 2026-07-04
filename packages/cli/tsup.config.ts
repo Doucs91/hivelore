@@ -22,6 +22,7 @@ export default defineConfig({
   external: [
     "@hivelore/core",
     "@hivelore/embeddings",
+    "@ast-grep/napi",
     "@xenova/transformers",
     "@modelcontextprotocol/sdk",
     "commander",

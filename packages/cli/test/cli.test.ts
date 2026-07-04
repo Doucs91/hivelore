@@ -1663,6 +1663,57 @@ describe("Hivelore CLI integration", () => {
     }
   });
 
+  it("an AST block sensor fires on a structural introduction but not on the same text in a comment", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-ast-gate-"));
+    try {
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/pay.ts"), "export const ok = 1;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+
+      const mem = [
+        "---", "id: 2024-05-05-attempt-stripe-no-idempotency", "scope: team", "type: attempt", "status: validated",
+        "created_at: 2024-05-05T00:00:00.000Z",
+        "anchor:", "  paths: [\"src/\"]", "  symbols: []", "tags: []",
+        "sensor:", "  kind: ast", "  pattern: \"stripe.paymentIntents.create($$$)\"", "  absent: idempotencyKey",
+        "  message: Pass an idempotencyKey to paymentIntents.create.", "  severity: block", "  paths: [\"src/\"]",
+        "---", "# stripe without idempotency", "",
+      ].join("\n");
+      await mkdir(path.join(repo, ".ai/memories/team"), { recursive: true });
+      await writeFile(path.join(repo, ".ai/memories/team/2024-05-05-attempt-stripe-no-idempotency.md"), mem, "utf8");
+
+      // A comment mentioning the API is NOT an introduction — the regex engine's false-positive class.
+      await writeFile(path.join(repo, "src/pay.ts"), "export const ok = 1;\n// stripe.paymentIntents.create must be idempotent\n", "utf8");
+      await exec("git", ["add", "src/pay.ts"], { cwd: repo });
+      const clean = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { findings: Array<{ code: string; message: string }> };
+      expect(clean.findings.some((f) => f.code === "sensor-block")).toBe(false);
+      await exec("git", ["commit", "-m", "comment only", "--no-verify"], { cwd: repo });
+
+      // The real faulty call blocks, with the matched construct in the finding.
+      await writeFile(
+        path.join(repo, "src/pay.ts"),
+        "export const charge = (a: number) => stripe.paymentIntents.create({ amount: a });\n",
+        "utf8",
+      );
+      await exec("git", ["add", "src/pay.ts"], { cwd: repo });
+      const caught = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { findings: Array<{ code: string; severity: string; message: string }> };
+      const block = caught.findings.find((f) => f.code === "sensor-block");
+      expect(block?.severity).toBe("error");
+      expect(block?.message).toContain("AST sensor");
+      expect(block?.message).toContain("paymentIntents.create");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("a diff that weakens a sensor (block→warn, changed oracle) surfaces a sensor-weakened review finding", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-weakened-"));
     try {

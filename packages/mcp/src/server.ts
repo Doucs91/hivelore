@@ -216,6 +216,14 @@ export {
   type PreCommitCheckOutput,
 } from "./tools/precommit-check.js";
 export { readPresumedCorrectTargets } from "./tools/propose-sensor.js";
+export {
+  astEngineAvailable,
+  astLangForPath,
+  runAstPattern,
+  runAstSensorOnContent,
+  type AstMatch,
+  type AstScanResult,
+} from "./ast-sensors.js";
 export { memTried, type MemTriedOutput } from "./tools/mem-tried.js";
 export { proposeSensor, type ProposeSensorOutput } from "./tools/propose-sensor.js";
 export {

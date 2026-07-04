@@ -14,6 +14,7 @@ import {
   isSensorScannablePath,
   scannableSensorTargets,
   detectSensorWeakening,
+  addedLineNumbersFromDiff,
   scrubbedCommandEnv,
 } from "../src/sensors.js";
 import type { Memory, Sensor } from "../src/types.js";
@@ -515,5 +516,28 @@ describe("scrubbedCommandEnv — oracle containment", () => {
     for (const dropped of ["AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN", "OPENAI_API_KEY", "DATABASE_URL"]) {
       expect(env[dropped], dropped).toBeUndefined();
     }
+  });
+});
+
+describe("addedLineNumbersFromDiff", () => {
+  it("maps added lines to NEW-side line numbers per file (context and removals accounted)", () => {
+    const diff = [
+      "diff --git a/src/a.ts b/src/a.ts",
+      "--- a/src/a.ts",
+      "+++ b/src/a.ts",
+      "@@ -1,4 +1,5 @@",
+      " line1",
+      "-old2",
+      "+new2",
+      "+new3",
+      " line4",
+      "@@ -10,2 +11,3 @@",
+      " ctx",
+      "+tail",
+      "",
+    ].join("\n");
+    const map = addedLineNumbersFromDiff(diff);
+    expect([...map.get("src/a.ts")!].sort((a, b) => a - b)).toEqual([2, 3, 12]);
+    expect(map.has("src/missing.ts")).toBe(false);
   });
 });

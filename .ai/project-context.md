@@ -1,7 +1,7 @@
-# Project context — Hivelore (v0.39.3)
+# Project context — Hivelore (v0.40.0)
 
 > Repo-native memory and context policy for coding-agent harnesses. Built with TypeScript, published as a pnpm workspace monorepo.
-> **Current version**: 0.39.3 — @hivelore/core, cli, mcp, embeddings are versioned together.
+> **Current version**: 0.40.0 — @hivelore/core, cli, mcp, embeddings are versioned together.
 > **Repo**: `/home/sd/Documents/Dev/New idea` (git, branch: main)
 > **Test project**: `sandaga-monorepo/` (gitignored, large Next.js + NestJS marketplace)
 

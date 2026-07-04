@@ -8,6 +8,7 @@ const { version } = JSON.parse(
 const sharedExternal = [
   "@hivelore/core",
   "@hivelore/embeddings",
+  "@ast-grep/napi",
   "@xenova/transformers",
   "@modelcontextprotocol/sdk",
   "zod",

@@ -1,6 +1,6 @@
 {
   "name": "@hivelore/cli",
-  "version": "0.39.3",
+  "version": "0.40.0",
   "description": "Hivelore CLI - the deterministic policy gate for agent-written code (rules live as repo-native team memory)",
   "license": "Apache-2.0",
   "repository": {
@@ -55,5 +55,8 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.14"
+  },
+  "optionalDependencies": {
+    "@ast-grep/napi": "^0.44.1"
   }
 }

@@ -350,6 +350,23 @@ export function registerDoctor(program: Command): void {
         });
       }
 
+      // AST sensors need the optional engine — without it their protection is silently OFF here.
+      const astSensorCount = sensorMemories.filter((m) => m.memory.frontmatter.sensor?.kind === "ast").length;
+      if (astSensorCount > 0) {
+        const { astEngineAvailable } = await import("@hivelore/mcp");
+        if (!(await astEngineAvailable())) {
+          findings.push({
+            severity: "warn",
+            code: "ast-engine-missing",
+            section: "Protection" as DoctorSection,
+            message:
+              `${astSensorCount} AST sensor(s) exist but the optional @ast-grep/napi engine is not installed — ` +
+              "they are unrunnable on this machine (warn-only at the gate, protection OFF).",
+            fix: "npm i -g @ast-grep/napi   # or add it to the repo devDependencies",
+          });
+        }
+      }
+
       // Self-validation: a block sensor that matches the CURRENT (presumed-correct) code false-positives
       // on every commit. It shouldn't be trusted as protection — surface it so it's fixed or demoted.
       const firesOnCurrent: string[] = [];

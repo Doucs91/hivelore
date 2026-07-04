@@ -22,20 +22,25 @@ import {
   judgeProposedSensor,
   loadMemoriesFromDir,
   scrubbedCommandEnv,
+  sensorPatternBrittleness,
   serializeMemory,
   type Sensor,
   type SensorTarget,
 } from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
+import { astEngineAvailable, astLangForPath, runAstSensorOnContent } from "../ast-sensors.js";
 
 export const ProposeSensorInputSchema = {
   memory_id: z.string().min(1).describe("Id of the gotcha/attempt memory this sensor protects."),
   kind: z
-    .enum(["regex", "shell", "test"])
+    .enum(["regex", "ast", "shell", "test"])
     .default("regex")
     .describe(
-      "regex = pattern matched on added diff lines (default). shell|test = a COMMAND the gate runs " +
+      "regex = pattern matched on added diff lines (default). ast = an ast-grep STRUCTURAL pattern " +
+      "(e.g. 'stripe.paymentIntents.create($$$)') matched on the AST of changed files — comments and " +
+      "strings can never false-positive; `absent` is a sub-pattern that must be missing INSIDE the " +
+      "match (requires the optional @ast-grep/napi engine). shell|test = a COMMAND the gate runs " +
       "when the diff touches the sensor's paths — routes the team's own oracle (an existing test, an " +
       "invariant script) to this lesson. Command sensors only execute where enforcement.runCommandSensors=true.",
     ),
@@ -272,6 +277,17 @@ export async function proposeSensor(
         self_check: { silent_on_current: false, fires_on_bad: null, fired_on: [] },
       };
     }
+  } else if (kind === "ast") {
+    if (!input.pattern?.trim()) {
+      return {
+        accepted: false,
+        memory_id: input.memory_id,
+        severity: input.severity,
+        reason: "invalid-pattern",
+        guidance: "kind=ast requires a `pattern` (an ast-grep structural pattern).",
+        self_check: { silent_on_current: false, fires_on_bad: null, fired_on: [] },
+      };
+    }
   } else if (!input.command?.trim()) {
     return {
       accepted: false,
@@ -296,10 +312,116 @@ export async function proposeSensor(
       ? ` Note: this lesson is personal-scoped, so the sensor guards only YOUR machine (personal memories are gitignored). Promote it so the gate travels with the repo: hivelore memory promote ${input.memory_id}.`
       : "";
 
+  // ── AST sensors: same doctrine as regex (silent-on-current, fires-on-bad, anti-brittleness) but
+  // structural — the matcher is the optional ast-grep engine, so "engine missing" must reject a
+  // block proposal (an unvalidatable guard must not claim to block). ──
+  if (kind === "ast") {
+    const pattern = input.pattern!.trim();
+    if (!(await astEngineAvailable()) && input.severity === "block") {
+      return {
+        accepted: false,
+        memory_id: input.memory_id,
+        severity: input.severity,
+        reason: "ast-engine-missing",
+        guidance:
+          "The optional AST engine is not installed, so this proposal cannot be validated — a block " +
+          "sensor is only trusted after proof. Install it (`npm i -g @ast-grep/napi`, or add it to the repo) and re-propose.",
+        self_check: { silent_on_current: false, fires_on_bad: null, fired_on: [] },
+      };
+    }
+    const brittleAst = sensorPatternBrittleness(pattern);
+    if (brittleAst && input.severity === "block") {
+      return {
+        accepted: false,
+        memory_id: input.memory_id,
+        severity: input.severity,
+        reason: "brittle",
+        guidance: `The pattern is brittle (${brittleAst}). Use a durable structural pattern, then re-propose.`,
+        self_check: { silent_on_current: false, fires_on_bad: null, fired_on: [] },
+      };
+    }
+    const anchorPathsAst = input.paths.length > 0 ? input.paths : found.memory.frontmatter.anchor.paths;
+    const currentTargetsAst = await readPresumedCorrectTargets(ctx.paths.root, anchorPathsAst);
+    const firedOnAst: string[] = [];
+    for (const target of currentTargetsAst) {
+      const scan = await runAstSensorOnContent({ pattern, absent: input.absent, content: target.content, filePath: target.path });
+      if (scan.status === "invalid-pattern") {
+        return {
+          accepted: false,
+          memory_id: input.memory_id,
+          severity: input.severity,
+          reason: "invalid-pattern",
+          guidance: `The ast-grep pattern is invalid: ${scan.detail ?? "unparseable"}. Fix it and re-propose.`,
+          self_check: { silent_on_current: false, fires_on_bad: null, fired_on: [] },
+        };
+      }
+      if (scan.status === "ok" && scan.matches.length > 0) firedOnAst.push(target.path);
+    }
+    if (firedOnAst.length > 0 && input.severity === "block") {
+      return {
+        accepted: false,
+        memory_id: input.memory_id,
+        severity: input.severity,
+        reason: "fires-on-current",
+        guidance:
+          `The pattern matches the CURRENT (correct) code in ${firedOnAst.join(", ")}. Add/tighten the ` +
+          "'absent' companion sub-pattern so correct usage is excluded, then re-propose.",
+        self_check: { silent_on_current: false, fires_on_bad: null, fired_on: firedOnAst },
+      };
+    }
+    const badExamplesAst = [
+      ...(input.bad_example ? [input.bad_example] : []),
+      ...extractSensorExamples(found.memory.body),
+    ];
+    let firesOnBadAst: boolean | null = null;
+    if (badExamplesAst.length > 0 && (await astEngineAvailable())) {
+      // Parse examples with the anchor's language (fallback tsx — the most permissive JS grammar).
+      const exampleLang = anchorPathsAst.find((p) => astLangForPath(p) !== null) ?? "example.tsx";
+      firesOnBadAst = false;
+      for (const example of badExamplesAst) {
+        const scan = await runAstSensorOnContent({ pattern, absent: input.absent, content: example, filePath: exampleLang });
+        if (scan.status === "ok" && scan.matches.length > 0) { firesOnBadAst = true; break; }
+      }
+    }
+    if (firesOnBadAst === false && input.severity === "block") {
+      return {
+        accepted: false,
+        memory_id: input.memory_id,
+        severity: input.severity,
+        reason: "missed-bad-example",
+        guidance: "The pattern did not match the bad example structurally, so it won't catch the mistake. Adjust it, then re-propose.",
+        self_check: { silent_on_current: firedOnAst.length === 0, fires_on_bad: false, fired_on: [] },
+      };
+    }
+    const sensorAst: Sensor = {
+      kind: "ast",
+      pattern,
+      ...(input.absent ? { absent: input.absent } : {}),
+      paths: anchorPathsAst,
+      message: input.message?.trim() || deriveMessage(found.memory.body, pattern, input.absent),
+      ...(input.incident?.trim() ? { incident: input.incident.trim() } : {}),
+      severity: input.severity,
+      autogen: false,
+      last_fired: null,
+    };
+    await writeFile(found.filePath, serializeMemory({ frontmatter: { ...found.memory.frontmatter, sensor: sensorAst }, body: found.memory.body }), "utf8");
+    return {
+      accepted: true,
+      memory_id: input.memory_id,
+      severity: input.severity,
+      guidance:
+        "Structural sensor accepted — it matches the AST, so comments/strings can never false-positive." +
+        ((await astEngineAvailable()) ? "" : " Note: the AST engine is not installed here; the sensor is UNRUNNABLE (warn-only) until @ast-grep/napi is available.") +
+        personalScopeNudge,
+      self_check: { silent_on_current: firedOnAst.length === 0, fires_on_bad: firesOnBadAst, fired_on: firedOnAst },
+      file_path: found.filePath,
+    };
+  }
+
   // ── Command sensors: the oracle must PASS on the presumed-correct current tree ──
   // (the behaviour analogue of "silent on current"). A failing oracle would block every
   // commit; an unrunnable one proves nothing. Both reject `block`; warn is advisory.
-  if (kind !== "regex") {
+  if (kind === "shell" || kind === "test") {
     // A STILL-PENDING oracle (it.todo / skip stub) passes on anything — arming it as `block`
     // would report protection that does not exist. Refuse until the assertion is written.
     const referencedTests = extractTestFilePathsFromCommand(input.command!.trim())

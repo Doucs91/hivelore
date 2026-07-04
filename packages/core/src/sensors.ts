@@ -283,6 +283,41 @@ export function selectCommandSensors(
   return specs;
 }
 
+/**
+ * Per-file NEW-side line numbers of added lines in a unified diff. AST sensors match on the full
+ * (parsed) file content, but must only FIRE on introductions — a hit counts when the matched
+ * node's line range intersects the added lines of that file. Pure hunk-header arithmetic.
+ */
+export function addedLineNumbersFromDiff(diff: string): Map<string, Set<number>> {
+  const result = new Map<string, Set<number>>();
+  let currentPath: string | null = null;
+  let newLine = 0;
+  for (const line of diff.split("\n")) {
+    if (line.startsWith("+++ ")) {
+      const raw = line.slice(4).trim();
+      currentPath = raw === "/dev/null" ? null : normalizeProjectPath(raw);
+      continue;
+    }
+    const hunk = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (hunk) {
+      newLine = Number(hunk[1]);
+      continue;
+    }
+    if (!currentPath) continue;
+    if (line.startsWith("+") && !line.startsWith("+++")) {
+      let set = result.get(currentPath);
+      if (!set) result.set(currentPath, (set = new Set()));
+      set.add(newLine);
+      newLine++;
+    } else if (line.startsWith("-") && !line.startsWith("---")) {
+      // removed line: new-side counter does not advance
+    } else if (!line.startsWith("\\")) {
+      newLine++; // context line
+    }
+  }
+  return result;
+}
+
 /** Split a unified diff into per-file targets containing only added lines. */
 export function sensorTargetsFromDiff(diff: string): SensorTarget[] {
   const targets: SensorTarget[] = [];

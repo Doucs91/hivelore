@@ -20,6 +20,7 @@ import {
   recordPreventionHits,
   resolveHaivePaths,
   runSensors,
+  addedLineNumbersFromDiff,
   buildProposeCommand,
   scaffoldPostIncidentTest,
   selectCommandSensors,
@@ -34,7 +35,7 @@ import {
   type Memory,
   type Sensor,
 } from "@hivelore/core";
-import { readPresumedCorrectTargets, detectTestFrameworksForAnchors } from "@hivelore/mcp";
+import { astEngineAvailable, detectTestFrameworksForAnchors, readPresumedCorrectTargets, runAstSensorOnContent } from "@hivelore/mcp";
 import { executeCommandSensors } from "../utils/command-sensors.js";
 import { commandScopeHash, evaluation, gitHeadSha } from "../utils/sensor-evaluations.js";
 import { ui } from "../utils/ui.js";
@@ -153,6 +154,49 @@ export function registerSensors(program: Command): void {
       const targets = scannableSensorTargets(diff);
       const hits = runSensors(memories, targets);
 
+      // ── AST sensors: structural layer (optional engine; unrunnable = reported, never a hit) ──
+      const astMemories = (await runnableSensorMemories(paths, false)).filter(
+        (m) => m.frontmatter.sensor?.kind === "ast" && m.frontmatter.sensor.pattern,
+      );
+      const astHits: typeof hits = [];
+      let astUnrunnable = 0;
+      if (astMemories.length > 0) {
+        if (!(await astEngineAvailable())) {
+          astUnrunnable = astMemories.length;
+        } else {
+          const addedByPath = addedLineNumbersFromDiff(diff);
+          for (const memory of astMemories) {
+            const sensor = memory.frontmatter.sensor!;
+            for (const target of targets) {
+              if (!sensorAppliesToPath(sensor, memory.frontmatter.anchor.paths, target.path)) continue;
+              const added = addedByPath.get(target.path);
+              if (!added || added.size === 0) continue;
+              let content: string | null = null;
+              try {
+                content = (await exec("git", ["show", `:${target.path}`], { cwd: root })).stdout;
+              } catch {
+                try { content = await readFile(path.resolve(root, target.path), "utf8"); } catch { content = null; }
+              }
+              if (content === null) continue;
+              const scan = await runAstSensorOnContent({
+                pattern: sensor.pattern!, absent: sensor.absent, content, filePath: target.path, addedLines: added,
+              });
+              if (scan.status === "ok" && scan.matches.length > 0) {
+                astHits.push({
+                  memory_id: memory.frontmatter.id,
+                  sensor,
+                  file: target.path,
+                  matched_line: `${target.path}:${scan.matches[0]!.startLine}  ${scan.matches[0]!.text}`,
+                  message: sensor.message,
+                  severity: sensor.severity,
+                });
+                break;
+              }
+            }
+          }
+        }
+      }
+
       // ── Command (shell/test) sensors — the deterministic check a regex can't express ──
       // OFF by default: they execute arbitrary repo-authored commands. Opt in per-run with
       // `--commands` or per-repo with `enforcement.runCommandSensors: true`.
@@ -221,9 +265,10 @@ export function registerSensors(program: Command): void {
       // Outcome measurement: a sensor firing on a real diff is a *prevention* event — the encoded
       // lesson intercepted a known mistake before it landed. THE shared recorder bumps impact
       // (debounced) and logs the event, identically to the git-hook gate and the MCP anti-pattern gate.
-      const firedIds = [...new Set([...hits, ...commandHits].map((hit) => hit.memory_id))];
+      const firedIds = [...new Set([...hits, ...astHits, ...commandHits].map((hit) => hit.memory_id))];
       const preventionDetails = Object.fromEntries([
         ...hits.map((hit) => [hit.memory_id, { kind: "regex" as const, stage: "manual" as const }]),
+        ...astHits.map((hit) => [hit.memory_id, { kind: "ast" as const, stage: "manual" as const }]),
         ...commandHits.map((hit) => [hit.memory_id, {
           kind: commandSpecs.find((spec) => spec.memory_id === hit.memory_id)?.kind ?? "shell",
           stage: "manual" as const,
@@ -233,8 +278,9 @@ export function registerSensors(program: Command): void {
       await recordPreventionHits(paths, firedIds, "sensor", new Date(), preventionDetails);
 
       const output = {
-        scanned: memories.length,
-        hits: hits.map((hit) => ({
+        scanned: memories.length + astMemories.length,
+        ast_unrunnable: astUnrunnable,
+        hits: [...hits, ...astHits].map((hit) => ({
           memory_id: hit.memory_id,
           file: hit.file,
           severity: hit.severity,
@@ -248,9 +294,12 @@ export function registerSensors(program: Command): void {
       if (opts.json) {
         console.log(JSON.stringify(output, null, 2));
       } else {
-        const total = hits.length + commandHits.length;
-        console.log(ui.bold(`Hivelore sensors check — ${total} hit(s), ${memories.length} regex + ${commandSpecs.length} command sensor(s)`));
-        for (const hit of hits) {
+        const total = hits.length + astHits.length + commandHits.length;
+        console.log(ui.bold(`Hivelore sensors check — ${total} hit(s), ${memories.length} regex + ${astMemories.length} ast + ${commandSpecs.length} command sensor(s)`));
+        if (astUnrunnable > 0) {
+          console.log(ui.yellow(`  ⚠ ${astUnrunnable} AST sensor(s) unrunnable — install @ast-grep/napi to activate them (never blocks).`));
+        }
+        for (const hit of [...hits, ...astHits]) {
           const marker = hit.severity === "block" ? ui.red("✗") : ui.yellow("⚠");
           console.log(`  ${marker} ${hit.memory_id} ${ui.dim(`(${hit.severity})`)}`);
           if (hit.file) console.log(`     ${ui.dim("file:")} ${hit.file}`);
@@ -274,7 +323,7 @@ export function registerSensors(program: Command): void {
           console.log(ui.dim(`  ${commandSkipped.length} command sensor(s) not run — pass --commands or set enforcement.runCommandSensors.`));
         }
       }
-      if ([...hits, ...commandHits].some((hit) => hit.severity === "block")) process.exitCode = 1;
+      if ([...hits, ...astHits, ...commandHits].some((hit) => hit.severity === "block")) process.exitCode = 1;
     });
 
   sensors
@@ -385,7 +434,7 @@ export function registerSensors(program: Command): void {
       "      --bad-example 'stripe.paymentIntents.create({ amount })'",
     )
     .argument("<memory-id>", "memory id to attach the sensor to")
-    .option("--kind <kind>", "regex (default) | shell | test — command kinds route the team's own oracle to this lesson", "regex")
+    .option("--kind <kind>", "regex (default) | ast (structural — comments/strings can't false-positive) | shell | test (route the team's own oracle)", "regex")
     .option("--pattern <regex>", "kind=regex: regex matching the FAULTY usage")
     .option("--command <cmd>", "kind=shell|test: command the gate runs when the diff touches the sensor's paths")
     .option("--timeout <ms>", "kind=shell|test: max runtime in ms (default 120000)")
@@ -399,11 +448,16 @@ export function registerSensors(program: Command): void {
     .option("--paths <csv>", "override scope paths (defaults to the memory anchors)")
     .option("-d, --dir <dir>", "project root")
     .action(async (id: string, opts: SensorsProposeOptions) => {
-      // ── Command sensors (behaviour bridge): delegate to the shared MCP handler, which
-      // validates that the oracle PASSES on the current tree before trusting it to block. ──
-      if (opts.kind === "shell" || opts.kind === "test") {
-        if (!opts.command?.trim()) {
+      // ── Command + AST sensors: delegate to the shared MCP handler (commands: the oracle must
+      // PASS on the current tree; ast: structural validation via the optional engine). ──
+      if (opts.kind === "shell" || opts.kind === "test" || opts.kind === "ast") {
+        if ((opts.kind === "shell" || opts.kind === "test") && !opts.command?.trim()) {
           ui.error("--kind shell|test requires --command.");
+          process.exitCode = 1;
+          return;
+        }
+        if (opts.kind === "ast" && !opts.pattern?.trim()) {
+          ui.error("--kind ast requires --pattern (an ast-grep structural pattern).");
           process.exitCode = 1;
           return;
         }
@@ -412,12 +466,12 @@ export function registerSensors(program: Command): void {
         const out = await proposeSensor(
           {
             memory_id: id,
-            kind: opts.kind,
-            pattern: undefined,
-            command: opts.command.trim(),
+            kind: opts.kind as "ast" | "shell" | "test",
+            pattern: opts.kind === "ast" ? opts.pattern!.trim() : undefined,
+            command: opts.command?.trim(),
             timeout_ms: opts.timeout ? Math.max(1, Number(opts.timeout)) : undefined,
-            absent: undefined,
-            bad_example: undefined,
+            absent: opts.kind === "ast" ? opts.absent : undefined,
+            bad_example: opts.kind === "ast" ? opts.badExample : undefined,
             severity: (opts.severity === "warn" ? "warn" : "block"),
             message: opts.message,
             incident: opts.incident,
@@ -428,7 +482,7 @@ export function registerSensors(program: Command): void {
           { paths: resolveHaivePaths(root) },
         );
         if (out.accepted) {
-          ui.success(`Command sensor accepted (${out.severity}) on ${id}`);
+          ui.success(`${opts.kind === "ast" ? "AST" : "Command"} sensor accepted (${out.severity}) on ${id}`);
           ui.info(`  ${out.guidance}`);
         } else {
           ui.error(`Rejected (${out.reason}).`);
