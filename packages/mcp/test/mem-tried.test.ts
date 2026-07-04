@@ -138,3 +138,66 @@ describe("memTried — ratchet visibility", () => {
     expect(written).not.toContain("sensor:");
   });
 });
+
+describe("memTried — scope defaulting (enforced lessons are team truth)", () => {
+  let workDir: string;
+  let ctx: HaiveContext;
+
+  beforeEach(async () => {
+    workDir = await mkdtemp(path.join(tmpdir(), "haive-tried-scope-"));
+    const paths = resolveHaivePaths(workDir);
+    await mkdir(paths.haiveDir, { recursive: true });
+    ctx = { paths };
+  });
+
+  afterEach(async () => {
+    await rm(workDir, { recursive: true, force: true });
+  });
+
+  it("defaults to personal when no sensor is attached", async () => {
+    const out = await memTried(
+      { what: "plain lesson", why_failed: "just a note", tags: [], paths: [] },
+      ctx,
+    );
+    expect(out.scope).toBe("personal");
+    expect(out.file_path).toContain(`${path.sep}personal${path.sep}`);
+  });
+
+  it("defaults to TEAM when a one-shot sensor is attached (the gate must travel)", async () => {
+    const out = await memTried(
+      {
+        what: "importing moment.js",
+        why_failed: "bundle bloat — team standard is date-fns",
+        tags: [],
+        paths: ["src/dates.ts"],
+        sensor: {
+          kind: "regex",
+          pattern: "from ['\"]moment['\"]",
+          severity: "block",
+          bad_example: "import moment from 'moment';",
+        },
+      },
+      ctx,
+    );
+    expect(out.scope).toBe("team");
+    expect(out.file_path).toContain(`${path.sep}team${path.sep}`);
+    expect(out.sensor_result?.accepted).toBe(true);
+    expect(out.hint).toMatch(/team-scoped/);
+  });
+
+  it("an explicit scope always wins over the sensor default", async () => {
+    const out = await memTried(
+      {
+        what: "private machine-local trap",
+        why_failed: "only relevant to my setup",
+        scope: "personal",
+        tags: [],
+        paths: ["src/dates.ts"],
+        sensor: { kind: "regex", pattern: "from ['\"]moment['\"]", severity: "warn" },
+      },
+      ctx,
+    );
+    expect(out.scope).toBe("personal");
+    expect(out.hint ?? "").not.toMatch(/team-scoped/);
+  });
+});

@@ -10,6 +10,7 @@ import {
   assessSensorHealth,
   sensorPromotedAtMap,
   assessBootstrapState,
+  detectSensorWeakening,
   isSensorScannablePath,
   findProjectRoot,
   loadCodeMap,
@@ -48,6 +49,7 @@ import { installClaudeHooksAtPath, uninstallClaudeHooksAtPath, defaultClaudeSett
 import { executeCommandSensors } from "../utils/command-sensors.js";
 import { commandScopeHash, evaluation, gitHeadSha } from "../utils/sensor-evaluations.js";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
+import { collectScaffoldLoopGaps, describeScaffoldGap } from "../utils/post-incident-scan.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -514,6 +516,34 @@ function emitPreToolUseContext(text: string): void {
   );
 }
 
+/**
+ * Behaviour-loop accounting at the exit gate: a scaffolded post-incident test whose assertion is
+ * still pending, or whose lesson has no armed command sensor, means the incident is documented but
+ * nothing deterministic guards it yet. Warn-only NUDGE (impact 0) — it must never block a finish,
+ * only make the open loop impossible to close the task around without seeing it.
+ */
+async function checkPostIncidentScaffolds(
+  paths: ReturnType<typeof resolveHaivePaths>,
+): Promise<EnforcementFinding[]> {
+  try {
+    const gaps = await collectScaffoldLoopGaps(paths);
+    if (gaps.length === 0) return [];
+    return [{
+      severity: "warn",
+      code: "post-incident-test-unarmed",
+      message:
+        `${gaps.length} post-incident test(s) are scaffolded but not yet armed as gates: ` +
+        gaps.slice(0, 5).map(describeScaffoldGap).join(", ") +
+        (gaps.length > 5 ? ", …" : "") + ".",
+      fix: "Fill the pending assertion, run the test, then arm it: the scaffold header contains the exact `hivelore sensors propose --kind test` command.",
+      memory_ids: [...new Set(gaps.map((g) => g.memory_id))].slice(0, 10),
+      impact: 0,
+    }];
+  } catch {
+    return []; // best-effort nudge — a scan error must never affect the exit gate
+  }
+}
+
 async function buildFinishReport(dir: string | undefined): Promise<EnforcementReport> {
   const root = findProjectRoot(dir);
   const paths = resolveHaivePaths(root);
@@ -540,6 +570,7 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
   }
 
   findings.push(...await checkFailureCapture(paths, config));
+  findings.push(...await checkPostIncidentScaffolds(paths));
   // First-agent bootstrap: declaring the task done with a still-cold knowledge layer means the first
   // agent never paid the baseline that later agents depend on. Evaluated as "code present" (true) so a
   // codebase blocks; the assessment returns ready on its own for repos with no code areas.
@@ -1142,10 +1173,24 @@ async function buildEnforcementReport(
 
   const score = buildScore(effectiveFindings, config.enforcement?.scoreThreshold);
   if (score.score < score.threshold) {
+    // Name what the score is made of: an unexplained "10% < 85%" is the kind of opaque signal
+    // that trains people to ignore the gate. The top penalties tell the reader what to fix first.
+    const topPenalties = effectiveFindings
+      .map((f) => ({
+        code: f.code,
+        penalty: f.severity === "error" ? (f.impact ?? 25) : f.severity === "warn" ? (f.impact ?? 8) : 0,
+      }))
+      .filter((p) => p.penalty > 0)
+      .sort((a, b) => b.penalty - a.penalty)
+      .slice(0, 3);
     effectiveFindings = [...effectiveFindings, {
       severity: "error",
       code: "enforcement-score-below-threshold",
-      message: `Enforcement score ${score.score}% is below required threshold ${score.threshold}%.`,
+      message:
+        `Enforcement score ${score.score}% is below required threshold ${score.threshold}%` +
+        (topPenalties.length > 0
+          ? ` — top penalties: ${topPenalties.map((p) => `${p.code} (−${p.penalty})`).join(", ")}`
+          : "") + ".",
       fix: "Load the relevant briefing, address policy findings, then rerun `hivelore enforce check`.",
       impact: 0,
     }];
@@ -1359,17 +1404,38 @@ async function runPrecommitPolicy(
   gate: AntiPatternGate,
   stage: "pre-commit" | "ci",
 ): Promise<EnforcementFinding[]> {
-  if (gate === "off") {
-    return [{ severity: "info", code: "precommit-policy-off", message: "Anti-pattern gate is disabled (enforcement.antiPatternGate=off)." }];
-  }
   const snapshot = await getPolicyDiffSnapshot(paths.root, stage);
+  // Gate-surface integrity runs even when the anti-pattern gate is off: a diff that demotes or
+  // unwires a block sensor is a change to the ENFORCEMENT SURFACE itself, and the whole point is
+  // that such a change never lands unmentioned (the gate lives in `.ai/`, editable by the same
+  // agent it constrains). Review-only — legitimate demotions exist.
+  const weakenings = detectSensorWeakening(snapshot.diff);
+  const weakeningFindings: EnforcementFinding[] = weakenings.length > 0
+    ? [{
+        severity: "warn",
+        code: "sensor-weakened",
+        message:
+          `This diff weakens the enforcement surface — ${weakenings.length} sensor change(s) need review: ` +
+          weakenings.slice(0, 5).map((w) => `${w.memory_id} (${w.change}: ${w.detail})`).join(", ") +
+          (weakenings.length > 5 ? ", …" : "") + ".",
+        fix: "If the demotion/removal is intentional, say so in the commit message; otherwise restore the sensor (`hivelore sensors list` shows the current state).",
+        memory_ids: [...new Set(weakenings.map((w) => w.memory_id))].slice(0, 10),
+        impact: 8,
+      }]
+    : [];
+  if (gate === "off") {
+    return [
+      { severity: "info", code: "precommit-policy-off", message: "Anti-pattern gate is disabled (enforcement.antiPatternGate=off)." },
+      ...weakeningFindings,
+    ];
+  }
   const touchedPaths = snapshot.paths;
   if (touchedPaths.length === 0) {
     const code = stage === "ci" ? "no-ci-diff-changes" : "no-staged-changes";
     const message = stage === "ci"
       ? "No changed files found for CI policy diff."
       : "No staged changes found for pre-commit policy.";
-    return [{ severity: "info", code, message }];
+    return [{ severity: "info", code, message }, ...weakeningFindings];
   }
   // The gate→params mapping lives in @hivelore/core so the git-hook path and the
   // standalone `hivelore precommit` command can never drift apart.
@@ -1452,6 +1518,7 @@ async function runPrecommitPolicy(
       },
       ...reviewFinding,
       ...sensorFindings,
+      ...weakeningFindings,
     ];
   }
   // Name the culprits: a CI failure that says "1 blocking anti-pattern" without the memory id
@@ -1475,6 +1542,7 @@ async function runPrecommitPolicy(
     },
     ...reviewFinding,
     ...sensorFindings,
+    ...weakeningFindings,
   ];
 }
 
@@ -1645,8 +1713,18 @@ async function runSensorGate(
     }
 
     return findings;
-  } catch {
-    return []; // best-effort: never break the gate on a sensor error
+  } catch (err) {
+    // Never break a commit on a sensor-machinery error — but never go dark either: a silent
+    // failure here would switch off the entire deterministic layer with zero signal (fail-open).
+    return [{
+      severity: "warn",
+      code: "sensor-gate-errored",
+      message:
+        `The sensor gate itself errored, so NO sensors were evaluated on this diff: ` +
+        `${err instanceof Error ? err.message : String(err)}`.slice(0, 400),
+      fix: "Run `hivelore sensors check` to reproduce, and `hivelore doctor` for setup drift. The lessons' protection is OFF until this is fixed.",
+      impact: 5,
+    }];
   }
 }
 

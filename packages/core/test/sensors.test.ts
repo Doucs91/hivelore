@@ -13,6 +13,7 @@ import {
   sensorTargetsFromDiff,
   isSensorScannablePath,
   scannableSensorTargets,
+  detectSensorWeakening,
 } from "../src/sensors.js";
 import type { Memory, Sensor } from "../src/types.js";
 
@@ -443,5 +444,58 @@ describe("extractSensorExamples", () => {
     expect(examples.some((e) => e.includes("paymentIntents.create"))).toBe(true);
     expect(examples).toContain("create()");
     expect(examples).not.toContain("idempotency");
+  });
+});
+
+describe("detectSensorWeakening — gate-surface integrity", () => {
+  const memFile = ".ai/memories/team/2026-07-01-attempt-x.md";
+  const d = (file: string, removed: string[], added: string[], opts: { deleted?: boolean } = {}): string =>
+    [
+      `diff --git a/${file} b/${file}`,
+      `--- a/${file}`,
+      `+++ ${opts.deleted ? "/dev/null" : `b/${file}`}`,
+      "@@ -1,5 +1,5 @@",
+      ...removed.map((l) => `-${l}`),
+      ...added.map((l) => `+${l}`),
+      "",
+    ].join("\n");
+
+  it("flags a block→warn severity demotion", () => {
+    const hits = detectSensorWeakening(d(memFile, ["  severity: block"], ["  severity: warn"]));
+    expect(hits).toHaveLength(1);
+    expect(hits[0]!.change).toBe("severity-demoted");
+    expect(hits[0]!.memory_id).toBe("2026-07-01-attempt-x");
+  });
+
+  it("flags a changed oracle (pattern or command)", () => {
+    const p = detectSensorWeakening(d(memFile, ["  pattern: from ['\"]moment['\"]"], ["  pattern: nothing"]));
+    expect(p.map((h) => h.change)).toContain("oracle-changed");
+    const c = detectSensorWeakening(d(memFile, ["  command: npx vitest run tests/a.test.ts"], ["  command: true"]));
+    expect(c.map((h) => h.change)).toContain("oracle-changed");
+  });
+
+  it("flags a removed oracle and a deleted block-sensor memory", () => {
+    const removedKey = detectSensorWeakening(d(memFile, ["  command: npx vitest run tests/a.test.ts"], []));
+    expect(removedKey.map((h) => h.change)).toContain("oracle-removed");
+    const deleted = detectSensorWeakening(
+      d(memFile, ["sensor:", "  kind: regex", "  pattern: bad", "  severity: block"], [], { deleted: true }),
+    );
+    expect(deleted.map((h) => h.change)).toContain("memory-deleted");
+  });
+
+  it("flags a broadened absent suppression, but NOT a removed absent (that tightens)", () => {
+    const added = detectSensorWeakening(d(memFile, [], ["  absent: idempotencyKey"]));
+    expect(added.map((h) => h.change)).toContain("suppression-broadened");
+    const removed = detectSensorWeakening(d(memFile, ["  absent: idempotencyKey"], []));
+    expect(removed).toHaveLength(0);
+  });
+
+  it("stays silent on additions, non-memory files, and sensor-free memory edits", () => {
+    // Brand-new sensor (added lines only) — never a weakening.
+    expect(detectSensorWeakening(d(memFile, [], ["sensor:", "  pattern: bad", "  severity: block"]))).toHaveLength(0);
+    // Same change outside .ai/memories/ is out of scope.
+    expect(detectSensorWeakening(d("src/config.yml", ["  severity: block"], ["  severity: warn"]))).toHaveLength(0);
+    // Editing prose/verified_at in a memory does not flag.
+    expect(detectSensorWeakening(d(memFile, ["verified_at: '2026-06-01'"], ["verified_at: '2026-07-01'"]))).toHaveLength(0);
   });
 });

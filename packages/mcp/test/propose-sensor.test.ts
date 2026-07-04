@@ -220,3 +220,72 @@ describe("proposeSensor — agent proposes, core validates", () => {
     expect(out.reason).toBe("invalid-regex");
   });
 });
+
+describe("proposeSensor — personal-scope promotion nudge", () => {
+  let workDir: string;
+  let ctx: HaiveContext;
+
+  beforeEach(async () => {
+    workDir = await mkdtemp(path.join(tmpdir(), "haive-propose-nudge-"));
+    const paths = resolveHaivePaths(workDir);
+    await mkdir(paths.haiveDir, { recursive: true });
+    ctx = { paths };
+    await mkdir(path.join(workDir, "src"), { recursive: true });
+    await writeFile(path.join(workDir, "src/pay.ts"), "export const ok = 1;\n", "utf8");
+  });
+
+  afterEach(async () => {
+    await rm(workDir, { recursive: true, force: true });
+  });
+
+  it("nudges promotion when an accepted sensor lands on a personal memory; silent on team", async () => {
+    const personal = await memTried(
+      { what: "personal trap", why_failed: "x", scope: "personal", tags: [], paths: ["src/pay.ts"] },
+      ctx,
+    );
+    const out = await proposeSensor(
+      {
+        memory_id: personal.id,
+        pattern: "moment\\(",
+        bad_example: "const d = moment();",
+        severity: "block",
+        kind: "regex",
+        absent: undefined,
+        command: undefined,
+        timeout_ms: undefined,
+        message: undefined,
+        incident: undefined,
+        flags: undefined,
+        paths: [],
+      },
+      ctx,
+    );
+    expect(out.accepted).toBe(true);
+    expect(out.guidance).toMatch(/personal-scoped/);
+    expect(out.guidance).toMatch(new RegExp(`memory promote ${personal.id}`));
+
+    const team = await memTried(
+      { what: "team trap", why_failed: "x", scope: "team", tags: [], paths: ["src/pay.ts"] },
+      ctx,
+    );
+    const outTeam = await proposeSensor(
+      {
+        memory_id: team.id,
+        pattern: "dayjs\\(",
+        bad_example: "const d = dayjs();",
+        severity: "block",
+        kind: "regex",
+        absent: undefined,
+        command: undefined,
+        timeout_ms: undefined,
+        message: undefined,
+        incident: undefined,
+        flags: undefined,
+        paths: [],
+      },
+      ctx,
+    );
+    expect(outTeam.accepted).toBe(true);
+    expect(outTeam.guidance ?? "").not.toMatch(/personal-scoped/);
+  });
+});

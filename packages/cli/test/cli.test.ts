@@ -1599,6 +1599,9 @@ describe("Hivelore CLI integration", () => {
       const caught = await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--dir", repo]);
       expect(caught.stdout).toContain("A documented lesson refused this commit");
       expect(caught.stdout).toContain("2024-02-02-attempt-no-moment");
+      // The aggregate score names its top penalties instead of an unexplained percentage.
+      expect(caught.stdout).toContain("top penalties:");
+      expect(caught.stdout).toMatch(/top penalties:.*sensor-block \(−45\)/);
     } finally {
       await rm(repo, { recursive: true, force: true });
     }
@@ -1647,6 +1650,57 @@ describe("Hivelore CLI integration", () => {
       // No sensor was armed by scaffolding (propose_sensor stays the sole writer).
       const list = await run(repo, ["sensors", "list", "--dir", repo]);
       expect(list.stdout).not.toContain("2024-03-03-attempt-refund-exceeds-capture");
+
+      // Behaviour-loop accounting: the pending, unarmed scaffold is an OPEN loop — doctor nudges it.
+      const doc = JSON.parse((await runAllowFailure(repo, ["doctor", "--json", "--dir", repo])).stdout) as {
+        findings: Array<{ code: string; severity: string; message: string }>;
+      };
+      const unarmed = doc.findings.find((f) => f.code === "post-incident-test-unarmed");
+      expect(unarmed?.severity).toBe("warn");
+      expect(unarmed?.message).toContain("2024-03-03-attempt-refund-exceeds-capture");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("a diff that weakens a sensor (block→warn, changed oracle) surfaces a sensor-weakened review finding", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-weakened-"));
+    try {
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/d.ts"), "export const x = 1;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+
+      const id = "2024-04-04-attempt-no-moment";
+      const memoryFile = path.join(repo, `.ai/memories/team/${id}.md`);
+      const mem = (severity: string, pattern: string): string => [
+        "---", `id: ${id}`, "scope: team", "type: attempt", "status: validated",
+        "created_at: 2024-04-04T00:00:00.000Z",
+        "anchor:", "  paths: [\"src/\"]", "  symbols: []", "tags: []",
+        "sensor:", "  kind: regex", `  pattern: "${pattern}"`,
+        "  message: Use date-fns.", `  severity: ${severity}`, "  paths: [\"src/\"]",
+        "---", "# no moment", "",
+      ].join("\n");
+      await mkdir(path.join(repo, ".ai/memories/team"), { recursive: true });
+      await writeFile(memoryFile, mem("block", "moment"), "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "arm sensor", "--no-verify"], { cwd: repo });
+
+      // Stage a demotion of the very sensor that guards src/ — the gate must call it out for review.
+      await writeFile(memoryFile, mem("warn", "momentjs-only"), "utf8");
+      await exec("git", ["add", memoryFile], { cwd: repo });
+      const res = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { findings: Array<{ code: string; severity: string; message: string }> };
+      const weakened = res.findings.find((f) => f.code === "sensor-weakened");
+      expect(weakened?.severity).toBe("warn"); // review, never a block — legitimate demotions exist
+      expect(weakened?.message).toContain(id);
+      expect(weakened?.message).toContain("severity-demoted");
+      expect(weakened?.message).toContain("oracle-changed");
     } finally {
       await rm(repo, { recursive: true, force: true });
     }

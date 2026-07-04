@@ -23,8 +23,12 @@ export const MemTriedInputSchema = {
     .describe("What to use or do instead (recommended alternative)"),
   scope: z
     .enum(["personal", "team", "module"])
-    .default("personal")
-    .describe("Visibility scope"),
+    .optional()
+    .describe(
+      "Visibility scope. Defaults to personal — EXCEPT when a one-shot `sensor` is attached: an " +
+      "enforced lesson is team truth (the sensor must travel to every machine and CI), so it " +
+      "defaults to team. Pass scope explicitly to override.",
+    ),
   module: z.string().optional().describe("Module name (required when scope=module)"),
   tags: z.array(z.string()).default([]).describe("Tags for filtering"),
   paths: z
@@ -94,10 +98,15 @@ export async function memTried(
     .slice(0, 5)
     .join("-");
 
+  // An enforced lesson is TEAM truth: a sensor that lives on a personal (gitignored) memory only
+  // guards the machine that captured it — the incident would repeat on every other clone. So a
+  // one-shot sensor flips the default scope to team; an explicit scope always wins.
+  const scope = input.scope ?? (input.sensor ? "team" : "personal");
+
   const baseFm = buildFrontmatter({
     type: "attempt",
     slug,
-    scope: input.scope,
+    scope,
     module: input.module,
     tags: input.tags,
     paths: input.paths,
@@ -154,9 +163,12 @@ export async function memTried(
         ...(verdict.reason ? { reason: verdict.reason } : {}),
         ...(verdict.guidance ? { guidance: verdict.guidance } : {}),
       },
-      hint: verdict.accepted
+      hint: (verdict.accepted
         ? "Loop closed: the attempt is saved AND enforced — the gate now refuses a repeat deterministically."
-        : `Attempt saved, but the sensor was rejected (${verdict.reason}). Revise per the guidance and re-propose with propose_sensor.`,
+        : `Attempt saved, but the sensor was rejected (${verdict.reason}). Revise per the guidance and re-propose with propose_sensor.`) +
+        (input.scope === undefined
+          ? " Saved team-scoped (an enforced lesson must travel with the repo) — pass scope:'personal' to keep it private."
+          : ""),
     };
   }
 

@@ -99,6 +99,7 @@ hivelore memory tried \
   --paths src/payments/ \
   --sensor-command "npx vitest run tests/payments/refund-invariants.spec.ts"
 # → validated (the oracle must PASS on the current tree), then enforced at commit + CI
+#   Saved team-scoped by default: an enforced lesson must travel to every machine and CI.
 ```
 
 Rules that keep it honest: opt-in per repo (`enforcement.runCommandSensors: true` — it executes
@@ -115,7 +116,10 @@ header, and prints the exact `sensors propose --kind test` line to arm it. It ne
 itself (`propose_sensor` stays the sole validated writer); the stub stays pending so the suite is
 green until you write the assertion. In a **monorepo**, the framework and location come from the
 package that owns the lesson's anchor paths (a lesson under `packages/api/` scaffolds into
-`packages/api/tests/…`), not the repo root.
+`packages/api/tests/…`), not the repo root — and a lesson that **spans several packages** scaffolds
+one pending test per owning package, all armed by a single sensor whose oracle chains their run
+commands. A scaffold left pending or never armed is an open loop: `doctor` and `enforce finish`
+nudge it (`post-incident-test-unarmed`) until the oracle is routed.
 
 ```bash
 hivelore sensors scaffold 2026-07-03-attempt-refund-exceeds-capture
@@ -317,6 +321,7 @@ you can send — please [open an issue](https://github.com/Doucs91/hivelore/issu
 | **Briefing loaded** | Agent loaded fresh context breadcrumbs before editing |
 | **Decision coverage** | Changed files are covered by relevant anchored decisions in the last briefing |
 | **Anti-pattern matching** | Anti-patterns relevant to the diff are surfaced at the gate; a **validated block sensor** that fires on the added lines **blocks** the commit. Hardness is tunable via `enforcement.antiPatternGate` (`off` · `review` · `anchored` (default) · `strict`) |
+| **Gate-surface integrity** | A diff that **weakens a sensor** (block→warn demotion, changed/removed oracle, broadened suppression, deleted block-sensor memory) is surfaced for review (`sensor-weakened`) — the gate lives in `.ai/`, so weakening it must never sail through unmentioned |
 | **Stale anchors** | Memories anchored to deleted/moved paths are flagged |
 | **Session recap** | Agent captured what changed and what remains before closing |
 | **CI enforcement** | Required check blocks merge on any gate failure |

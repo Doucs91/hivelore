@@ -265,3 +265,8 @@
 {"tool":"mem_save","at":"2026-07-03T22:18:20.518Z","summary":"scaffold-generates-pending-test-never-arms"}
 {"tool":"mem_session_end","at":"2026-07-03T22:20:31.522Z","summary":"Add a feature to generate a post-incident test skeleton from a mem_tried lesson,"}
 {"tool":"mem_save","at":"2026-07-03T23:23:05.023Z","summary":"scaffold-detection-in-mcp-monorepo-basedir"}
+{"tool":"mem_session_end","at":"2026-07-03T23:25:00.974Z","summary":"Implement the two follow-ups to post-incident scaffolding in one pass: a scaffol"}
+{"tool":"get_briefing","at":"2026-07-04T01:07:52.986Z","summary":"Deep end-to-end analysis of Hivelore itself: audit its positioning on harness engineering (especially the behavior branch: sensors, enforcement gate, behaviour bridge, post-incident tests) and test the CLI + MCP end to end to report strengths and weaknesses."}
+{"tool":"scaffold_test","at":"2026-07-04T01:14:19.189Z","summary":"2026-07-03-attempt-typechecking-cli-immediately-after-adding"}
+{"tool":"mem_relevant_to","at":"2026-07-04T02:39:25.271Z","summary":"Implement six harness improvements: post-incident-test-unarmed doctor/finish fin"}
+{"tool":"mem_save","at":"2026-07-04T03:02:45.950Z","summary":"gate-surface-integrity-batch-v0390"}

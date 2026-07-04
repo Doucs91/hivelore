@@ -20,6 +20,7 @@ import {
   recordPreventionHits,
   resolveHaivePaths,
   runSensors,
+  buildProposeCommand,
   scaffoldPostIncidentTest,
   selectCommandSensors,
   TEST_FRAMEWORKS,
@@ -33,7 +34,7 @@ import {
   type Memory,
   type Sensor,
 } from "@hivelore/core";
-import { readPresumedCorrectTargets, detectTestFrameworkForPaths } from "@hivelore/mcp";
+import { readPresumedCorrectTargets, detectTestFrameworksForAnchors } from "@hivelore/mcp";
 import { executeCommandSensors } from "../utils/command-sensors.js";
 import { commandScopeHash, evaluation, gitHeadSha } from "../utils/sensor-evaluations.js";
 import { ui } from "../utils/ui.js";
@@ -492,6 +493,12 @@ export function registerSensors(program: Command): void {
         `self-check: silent on current=${verdict.self_check.silent_on_current}` +
         (verdict.self_check.fires_on_bad === null ? "; no bad example tested" : `; fires on bad=${verdict.self_check.fires_on_bad}`),
       );
+      if (found.memory.frontmatter.scope === "personal") {
+        ui.warn(
+          `This lesson is personal-scoped — the sensor guards only YOUR machine (personal memories are gitignored). ` +
+          `Promote it so the gate travels with the repo: hivelore memory promote ${id}`,
+        );
+      }
     });
 
   sensors
@@ -518,46 +525,64 @@ export function registerSensors(program: Command): void {
       if (!found) { ui.error(`No memory found with id ${id}`); process.exitCode = 1; return; }
 
       const fm = found.memory.frontmatter;
-      const detected = await detectTestFrameworkForPaths(root, fm.anchor.paths ?? []);
-      const framework = opts.framework ? normalizeFramework(opts.framework) : detected.framework;
-      if (!framework) {
+      const forced = opts.framework ? normalizeFramework(opts.framework) : null;
+      if (opts.framework && !forced) {
         ui.error(`Unknown --framework "${opts.framework}". Use one of: ${TEST_FRAMEWORKS.join(", ")}.`);
         process.exitCode = 1;
         return;
       }
+      // Multi-package lessons: one scaffold per OWNING package. An explicit --out pins one file.
+      const allGroups = await detectTestFrameworksForAnchors(root, fm.anchor.paths ?? []);
+      const groups = opts.out ? allGroups.slice(0, 1) : allGroups;
 
       const fields = parseLessonFields(found.memory.body);
-      const scaffold = scaffoldPostIncidentTest(
-        {
-          memoryId: id,
-          title: fields.title || id,
-          whyFailed: fields.whyFailed,
-          instead: fields.instead,
-          incident: fm.sensor?.incident,
-          paths: fm.anchor.paths,
-        },
-        { framework, outPath: opts.out, baseDir: detected.baseDir },
+      const lesson = {
+        memoryId: id,
+        title: fields.title || id,
+        whyFailed: fields.whyFailed,
+        instead: fields.instead,
+        incident: fm.sensor?.incident,
+        paths: fm.anchor.paths,
+      };
+      let scaffolds = groups.map((g) =>
+        scaffoldPostIncidentTest(lesson, { framework: forced ?? g.framework, outPath: opts.out, baseDir: g.baseDir }),
       );
+      let proposeCmd = scaffolds[0]!.proposeCommand;
+      if (scaffolds.length > 1) {
+        // A memory carries ONE sensor: the shared proposal chains every package's run command.
+        proposeCmd = buildProposeCommand(lesson, scaffolds.map((s) => s.runCommand).join(" && "));
+        scaffolds = groups.map((g) =>
+          scaffoldPostIncidentTest(lesson, { framework: forced ?? g.framework, baseDir: g.baseDir, proposeCommandOverride: proposeCmd }),
+        );
+      }
 
       if (opts.stdout) {
-        console.log(scaffold.content);
-        ui.info(`Arm it once written: ${scaffold.proposeCommand}`);
+        for (const scaffold of scaffolds) {
+          if (scaffolds.length > 1) ui.info(`--- ${scaffold.relPath} ---`);
+          console.log(scaffold.content);
+        }
+        ui.info(`Arm ${scaffolds.length > 1 ? "them" : "it"} once written: ${proposeCmd}`);
         return;
       }
 
-      const abs = path.isAbsolute(scaffold.relPath) ? scaffold.relPath : path.resolve(root, scaffold.relPath);
-      if (existsSync(abs) && !opts.force) {
-        ui.error(`${scaffold.relPath} already exists — pass --force to overwrite, or --out <path> for a different file.`);
-        process.exitCode = 1;
-        return;
+      for (const scaffold of scaffolds) {
+        const abs = path.isAbsolute(scaffold.relPath) ? scaffold.relPath : path.resolve(root, scaffold.relPath);
+        if (existsSync(abs) && !opts.force) {
+          ui.error(`${scaffold.relPath} already exists — pass --force to overwrite, or --out <path> for a different file.`);
+          process.exitCode = 1;
+          return;
+        }
+        await mkdir(path.dirname(abs), { recursive: true });
+        await writeFile(abs, scaffold.content, "utf8");
+        ui.success(`Wrote ${scaffold.framework} post-incident test → ${scaffold.relPath}`);
       }
-      await mkdir(path.dirname(abs), { recursive: true });
-      await writeFile(abs, scaffold.content, "utf8");
-      ui.success(`Wrote ${framework} post-incident test → ${scaffold.relPath}`);
+      if (scaffolds.length > 1) {
+        ui.info(`  Lesson spans ${scaffolds.length} packages — one pending test per owning package, ONE sensor arms them all.`);
+      }
       ui.info("  1. Fill in the assertion (RED on the incident, GREEN once fixed).");
-      ui.info(`  2. Run it: ${scaffold.runCommand}`);
+      ui.info(`  2. Run ${scaffolds.length > 1 ? "them" : "it"}: ${scaffolds.map((s) => s.runCommand).join("  &&  ")}`);
       ui.info("  3. Arm it as a deterministic gate:");
-      console.log(`     ${scaffold.proposeCommand}`);
+      console.log(`     ${proposeCmd}`);
     });
 
   sensors

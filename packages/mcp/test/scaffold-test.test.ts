@@ -107,3 +107,72 @@ describe("scaffoldTest — MCP tool", () => {
     expect(res.error).toContain("No memory found");
   });
 });
+
+describe("scaffoldTest — multi-package lessons (one scaffold per owning package)", () => {
+  let workDir: string;
+  let ctx: HaiveContext;
+
+  beforeEach(async () => {
+    workDir = await mkdtemp(path.join(tmpdir(), "haive-scaffold-multi-"));
+    const paths = resolveHaivePaths(workDir);
+    await mkdir(paths.haiveDir, { recursive: true });
+    await mkdir(path.join(workDir, "packages/api/src"), { recursive: true });
+    await writeFile(path.join(workDir, "packages/api/package.json"), JSON.stringify({ devDependencies: { vitest: "^2" } }), "utf8");
+    await mkdir(path.join(workDir, "packages/web/src"), { recursive: true });
+    await writeFile(path.join(workDir, "packages/web/package.json"), JSON.stringify({ devDependencies: { jest: "^29" } }), "utf8");
+    ctx = { paths };
+  });
+
+  afterEach(async () => {
+    await rm(workDir, { recursive: true, force: true });
+  });
+
+  it("writes one pending test per owning package sharing ONE chained propose_command", async () => {
+    const tried = await memTried(
+      {
+        what: "contract drift between api and web",
+        why_failed: "the api response shape changed without the web mapper",
+        scope: "team",
+        tags: [],
+        paths: ["packages/api/src/handler.ts", "packages/web/src/mapper.ts"],
+      },
+      ctx,
+    );
+    const out = await scaffoldTest({ memory_id: tried.id, framework: undefined, out_path: undefined, write: true }, ctx);
+    expect(out.ok).toBe(true);
+    expect(out.scaffolds).toHaveLength(2);
+    const [api, web] = out.scaffolds!;
+    expect(api!.path).toContain("packages/api/tests/incidents/");
+    expect(api!.framework).toBe("vitest");
+    expect(web!.path).toContain("packages/web/tests/incidents/");
+    expect(web!.framework).toBe("jest");
+    expect(api!.written).toBe(true);
+    expect(web!.written).toBe(true);
+    // ONE sensor arms them all: the proposal chains both run commands and scopes all anchors.
+    expect(out.propose_command).toContain(api!.run_command);
+    expect(out.propose_command).toContain(web!.run_command);
+    expect(out.propose_command).toContain("&&");
+    expect(out.propose_command).toContain("packages/api/src/handler.ts,packages/web/src/mapper.ts");
+    // Every generated file embeds the SHARED propose command, not a per-file one.
+    const apiContent = await readFile(path.join(workDir, api!.path), "utf8");
+    expect(apiContent).toContain("&&");
+    expect(out.notice).toMatch(/2 packages/);
+  });
+
+  it("keeps the single-package shape unchanged (no scaffolds array, per-file propose)", async () => {
+    const tried = await memTried(
+      {
+        what: "api-only lesson",
+        why_failed: "x",
+        scope: "team",
+        tags: [],
+        paths: ["packages/api/src/handler.ts"],
+      },
+      ctx,
+    );
+    const out = await scaffoldTest({ memory_id: tried.id, framework: undefined, out_path: undefined, write: false }, ctx);
+    expect(out.ok).toBe(true);
+    expect(out.scaffolds).toBeUndefined();
+    expect(out.propose_command).not.toContain("&&");
+  });
+});

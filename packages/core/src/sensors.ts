@@ -334,6 +334,123 @@ export function scannableSensorTargets(diff: string): SensorTarget[] {
   return all.filter((t) => isSensorScannablePath(t.path));
 }
 
+// ── Gate-surface integrity: a diff that WEAKENS a sensor deserves review ─────────────────────────
+
+export interface SensorWeakening {
+  /** The `.ai/memories/**` file whose sensor the diff weakens. */
+  file: string;
+  /** Memory id derived from the filename (best-effort). */
+  memory_id: string;
+  change: "severity-demoted" | "oracle-changed" | "oracle-removed" | "sensor-removed" | "memory-deleted" | "suppression-broadened";
+  detail: string;
+}
+
+interface DiffFileChange {
+  path: string;
+  deleted: boolean;
+  removed: string[];
+  added: string[];
+}
+
+/** Per-file removed/added lines from a unified diff (context lines are ignored). */
+function diffFileChanges(diff: string): DiffFileChange[] {
+  const files: DiffFileChange[] = [];
+  let current: DiffFileChange | null = null;
+  let oldPath: string | null = null;
+  for (const line of diff.split("\n")) {
+    if (line.startsWith("--- ")) {
+      const raw = line.slice(4).trim();
+      oldPath = raw === "/dev/null" ? null : normalizeProjectPath(raw);
+      continue;
+    }
+    if (line.startsWith("+++ ")) {
+      const raw = line.slice(4).trim();
+      const newPath = raw === "/dev/null" ? null : normalizeProjectPath(raw);
+      current = {
+        path: newPath ?? oldPath ?? "",
+        deleted: newPath === null,
+        removed: [],
+        added: [],
+      };
+      files.push(current);
+      continue;
+    }
+    if (!current) continue;
+    if (line.startsWith("-") && !line.startsWith("---")) current.removed.push(line.slice(1));
+    else if (line.startsWith("+") && !line.startsWith("+++")) current.added.push(line.slice(1));
+  }
+  return files;
+}
+
+const SENSOR_ORACLE_KEY_RE = /^\s*(pattern|command):\s*(.*)$/;
+const SENSOR_ABSENT_KEY_RE = /^\s*absent:\s*(.*)$/;
+const SEVERITY_BLOCK_RE = /^\s*severity:\s*['"]?block['"]?\s*$/;
+const SEVERITY_WARN_RE = /^\s*severity:\s*['"]?warn['"]?\s*$/;
+const SENSOR_BLOCK_START_RE = /^\s*sensor:\s*$/;
+
+/**
+ * Detect diff hunks that WEAKEN the enforcement surface: demoting a block sensor to warn, changing
+ * or removing its oracle (`pattern`/`command`), broadening its `absent` suppression, deleting the
+ * whole sensor block, or deleting a memory file that carried a block sensor.
+ *
+ * Rationale: the gate is written in `.ai/` — the same tree the agent it constrains can edit. A
+ * legitimate demotion exists (that's why this yields REVIEW findings, never blocks), but a weakening
+ * that sails through unmentioned is exactly how a documented lesson silently stops protecting.
+ * Deterministic, pure, diff-text only. Additions (new sensors) never flag; removing `absent`
+ * TIGHTENS a sensor and never flags.
+ */
+export function detectSensorWeakening(diff: string): SensorWeakening[] {
+  const weakenings: SensorWeakening[] = [];
+  for (const file of diffFileChanges(diff)) {
+    if (!file.path.startsWith(".ai/memories/") || !file.path.endsWith(".md")) continue;
+    const memoryId = file.path.replace(/^.*\//, "").replace(/\.md$/, "");
+    const flag = (change: SensorWeakening["change"], detail: string): void => {
+      weakenings.push({ file: file.path, memory_id: memoryId, change, detail });
+    };
+
+    const removedBlockSeverity = file.removed.some((l) => SEVERITY_BLOCK_RE.test(l));
+
+    if (file.deleted) {
+      if (file.removed.some((l) => SENSOR_BLOCK_START_RE.test(l)) && removedBlockSeverity) {
+        flag("memory-deleted", "memory file with a block sensor deleted");
+      }
+      continue;
+    }
+
+    if (removedBlockSeverity && file.added.some((l) => SEVERITY_WARN_RE.test(l))) {
+      flag("severity-demoted", "severity: block → warn");
+    }
+
+    for (const line of file.removed) {
+      const m = line.match(SENSOR_ORACLE_KEY_RE);
+      if (!m) continue;
+      const key = m[1]!;
+      const replacement = file.added.find((l) => l.match(SENSOR_ORACLE_KEY_RE)?.[1] === key);
+      if (replacement === undefined) {
+        flag("oracle-removed", `sensor ${key} removed`);
+      } else if (replacement.trim() !== line.trim()) {
+        flag("oracle-changed", `sensor ${key} changed`);
+      }
+    }
+
+    // `absent` suppresses matches: ADDING or CHANGING it broadens what the sensor ignores.
+    const removedAbsent = file.removed.find((l) => SENSOR_ABSENT_KEY_RE.test(l));
+    const addedAbsent = file.added.find((l) => SENSOR_ABSENT_KEY_RE.test(l));
+    if (addedAbsent !== undefined && addedAbsent.trim() !== removedAbsent?.trim()) {
+      flag("suppression-broadened", removedAbsent === undefined ? "absent marker added" : "absent marker changed");
+    }
+
+    if (
+      file.removed.some((l) => SENSOR_BLOCK_START_RE.test(l)) &&
+      removedBlockSeverity &&
+      !file.added.some((l) => SENSOR_BLOCK_START_RE.test(l))
+    ) {
+      flag("sensor-removed", "block sensor block deleted");
+    }
+  }
+  return weakenings;
+}
+
 // ── Self-validation: a generated sensor must prove it discriminates before it can block ──────────
 
 export interface SensorSelfCheck {

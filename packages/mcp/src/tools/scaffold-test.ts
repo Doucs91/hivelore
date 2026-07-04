@@ -13,11 +13,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import {
+  buildProposeCommand,
   loadMemoriesFromDir,
   normalizeFramework,
   parseLessonFields,
   pickTestFramework,
   scaffoldPostIncidentTest,
+  type PostIncidentLesson,
   type TestFramework,
 } from "@hivelore/core";
 import type { HaiveContext } from "../context.js";
@@ -30,41 +32,77 @@ const PY_SIGNALS = ["pyproject.toml", "setup.py", "pytest.ini", "requirements.tx
  * (package.json / go.mod / a python signal); falls back to the repo root with a vitest default. This
  * is FS I/O, so it lives in the MCP layer (imported by the CLI too) rather than in pure core.
  */
+async function detectForAnchor(
+  root: string,
+  rel: string,
+): Promise<{ framework: TestFramework; baseDir: string } | null> {
+  let dir = path.resolve(root, rel);
+  try {
+    if (!statSync(dir).isDirectory()) dir = path.dirname(dir);
+  } catch {
+    if (path.extname(dir)) dir = path.dirname(dir); // non-existent anchor that looks like a file
+  }
+  while (dir.startsWith(root)) {
+    const pkgJson = path.join(dir, "package.json");
+    const hasPkg = existsSync(pkgJson);
+    const goMod = existsSync(path.join(dir, "go.mod"));
+    const pySignal = PY_SIGNALS.some((s) => existsSync(path.join(dir, s)));
+    if (hasPkg || goMod || pySignal) {
+      let pkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> } | null = null;
+      if (hasPkg) {
+        try {
+          pkg = JSON.parse(await readFile(pkgJson, "utf8"));
+        } catch {
+          pkg = null;
+        }
+      }
+      const baseDir = path.relative(root, dir).split(path.sep).join("/");
+      return { framework: pickTestFramework(pkg, { goMod, pySignal }), baseDir };
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir || dir === root) break;
+    dir = parent;
+  }
+  return null;
+}
+
 export async function detectTestFrameworkForPaths(
   root: string,
   anchorPaths: string[],
 ): Promise<{ framework: TestFramework; baseDir: string }> {
   const starts = anchorPaths.length > 0 ? anchorPaths : ["."];
   for (const rel of starts) {
-    let dir = path.resolve(root, rel);
-    try {
-      if (!statSync(dir).isDirectory()) dir = path.dirname(dir);
-    } catch {
-      if (path.extname(dir)) dir = path.dirname(dir); // non-existent anchor that looks like a file
-    }
-    while (dir.startsWith(root)) {
-      const pkgJson = path.join(dir, "package.json");
-      const hasPkg = existsSync(pkgJson);
-      const goMod = existsSync(path.join(dir, "go.mod"));
-      const pySignal = PY_SIGNALS.some((s) => existsSync(path.join(dir, s)));
-      if (hasPkg || goMod || pySignal) {
-        let pkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> } | null = null;
-        if (hasPkg) {
-          try {
-            pkg = JSON.parse(await readFile(pkgJson, "utf8"));
-          } catch {
-            pkg = null;
-          }
-        }
-        const baseDir = path.relative(root, dir).split(path.sep).join("/");
-        return { framework: pickTestFramework(pkg, { goMod, pySignal }), baseDir };
-      }
-      const parent = path.dirname(dir);
-      if (parent === dir || dir === root) break;
-      dir = parent;
-    }
+    const found = await detectForAnchor(root, rel);
+    if (found) return found;
   }
   return { framework: "vitest", baseDir: "" };
+}
+
+export interface AnchorFrameworkGroup {
+  framework: TestFramework;
+  baseDir: string;
+  /** The anchor paths owned by this package (subset of the lesson's anchors). */
+  anchors: string[];
+}
+
+/**
+ * Group a lesson's anchor paths by OWNING package: one entry per distinct enclosing manifest dir,
+ * in first-anchor order. A lesson that spans several packages gets one scaffold per package instead
+ * of "first anchor wins". Anchors with no enclosing manifest fall back to the repo root + vitest.
+ */
+export async function detectTestFrameworksForAnchors(
+  root: string,
+  anchorPaths: string[],
+): Promise<AnchorFrameworkGroup[]> {
+  const starts = anchorPaths.length > 0 ? anchorPaths : ["."];
+  const groups = new Map<string, AnchorFrameworkGroup>();
+  for (const rel of starts) {
+    const found = (await detectForAnchor(root, rel)) ?? { framework: "vitest" as TestFramework, baseDir: "" };
+    const existing = groups.get(found.baseDir);
+    if (existing) existing.anchors.push(rel);
+    else groups.set(found.baseDir, { ...found, anchors: [rel] });
+  }
+  return [...groups.values()];
 }
 
 export const ScaffoldTestInputSchema = {
@@ -99,6 +137,19 @@ export interface ScaffoldTestOutput {
   written?: boolean;
   already_exists?: boolean;
   notice?: string;
+  /**
+   * One entry per generated test. A lesson whose anchors span several packages scaffolds one test
+   * per OWNING package; they share a single propose_command (a memory carries one sensor) whose
+   * command chains every run command.
+   */
+  scaffolds?: Array<{
+    framework: TestFramework;
+    path: string;
+    run_command: string;
+    content: string;
+    written: boolean;
+    already_exists: boolean;
+  }>;
 }
 
 export async function scaffoldTest(input: ScaffoldTestInput, ctx: HaiveContext): Promise<ScaffoldTestOutput> {
@@ -109,47 +160,84 @@ export async function scaffoldTest(input: ScaffoldTestInput, ctx: HaiveContext):
   }
 
   const anchorPaths = found.memory.frontmatter.anchor.paths ?? [];
-  const detected = await detectTestFrameworkForPaths(ctx.paths.root, anchorPaths);
-  const framework = input.framework ? normalizeFramework(input.framework) ?? detected.framework : detected.framework;
+  // Multi-package lessons: one scaffold per OWNING package (no more "first anchor wins").
+  // An explicit out_path pins a single file, so only the first group is used in that case.
+  const allGroups = await detectTestFrameworksForAnchors(ctx.paths.root, anchorPaths);
+  const groups = input.out_path ? allGroups.slice(0, 1) : allGroups;
+  const frameworkFor = (detected: TestFramework): TestFramework =>
+    input.framework ? normalizeFramework(input.framework) ?? detected : detected;
 
   const fields = parseLessonFields(found.memory.body);
-  const scaffold = scaffoldPostIncidentTest(
-    {
-      memoryId: input.memory_id,
-      title: fields.title || input.memory_id,
-      whyFailed: fields.whyFailed,
-      instead: fields.instead,
-      incident: found.memory.frontmatter.sensor?.incident,
-      paths: anchorPaths,
-    },
-    { framework, outPath: input.out_path, baseDir: detected.baseDir },
-  );
+  const lesson: PostIncidentLesson = {
+    memoryId: input.memory_id,
+    title: fields.title || input.memory_id,
+    whyFailed: fields.whyFailed,
+    instead: fields.instead,
+    incident: found.memory.frontmatter.sensor?.incident,
+    paths: anchorPaths,
+  };
 
-  const abs = path.isAbsolute(scaffold.relPath) ? scaffold.relPath : path.resolve(ctx.paths.root, scaffold.relPath);
-  let written = false;
-  let alreadyExists = false;
-  if (input.write) {
-    if (existsSync(abs)) {
-      alreadyExists = true;
-    } else {
-      await mkdir(path.dirname(abs), { recursive: true });
-      await writeFile(abs, scaffold.content, "utf8");
-      written = true;
-    }
+  // Pass 1: per-group scaffolds (collects each run command). A memory carries ONE sensor, so when
+  // several packages are involved, pass 2 re-renders every file with the SHARED propose command
+  // whose oracle chains all run commands.
+  let scaffolds = groups.map((g) =>
+    scaffoldPostIncidentTest(lesson, { framework: frameworkFor(g.framework), outPath: input.out_path, baseDir: g.baseDir }),
+  );
+  let proposeCommand = scaffolds[0]!.proposeCommand;
+  if (scaffolds.length > 1) {
+    proposeCommand = buildProposeCommand(lesson, scaffolds.map((s) => s.runCommand).join(" && "));
+    scaffolds = groups.map((g) =>
+      scaffoldPostIncidentTest(lesson, {
+        framework: frameworkFor(g.framework),
+        baseDir: g.baseDir,
+        proposeCommandOverride: proposeCommand,
+      }),
+    );
   }
 
+  const results: NonNullable<ScaffoldTestOutput["scaffolds"]> = [];
+  for (const scaffold of scaffolds) {
+    const abs = path.isAbsolute(scaffold.relPath) ? scaffold.relPath : path.resolve(ctx.paths.root, scaffold.relPath);
+    let written = false;
+    let alreadyExists = false;
+    if (input.write) {
+      if (existsSync(abs)) {
+        alreadyExists = true;
+      } else {
+        await mkdir(path.dirname(abs), { recursive: true });
+        await writeFile(abs, scaffold.content, "utf8");
+        written = true;
+      }
+    }
+    results.push({
+      framework: scaffold.framework,
+      path: scaffold.relPath,
+      run_command: scaffold.runCommand,
+      content: scaffold.content,
+      written,
+      already_exists: alreadyExists,
+    });
+  }
+
+  const first = results[0]!;
+  const anyExisting = results.some((r) => r.already_exists);
   return {
     ok: true,
     memory_id: input.memory_id,
-    framework,
-    path: scaffold.relPath,
-    run_command: scaffold.runCommand,
-    propose_command: scaffold.proposeCommand,
-    content: scaffold.content,
-    written,
-    already_exists: alreadyExists,
-    notice: alreadyExists
-      ? "File already exists — not overwritten. Delete it or pass out_path to write elsewhere."
-      : "PENDING test scaffolded. Fill in the assertion (RED on the incident, GREEN once fixed), run it, then arm it with propose_command — propose_sensor stays the sole validated writer.",
+    framework: first.framework,
+    path: first.path,
+    run_command: first.run_command,
+    propose_command: proposeCommand,
+    content: first.content,
+    written: first.written,
+    already_exists: first.already_exists,
+    ...(results.length > 1 ? { scaffolds: results } : {}),
+    notice:
+      (results.length > 1
+        ? `Lesson spans ${results.length} packages — one pending test per owning package; ONE propose_command arms them all (chained oracle). `
+        : "") +
+      (anyExisting
+        ? "Some file(s) already exist — not overwritten. Delete them or pass out_path to write elsewhere."
+        : "PENDING test scaffolded. Fill in the assertion (RED on the incident, GREEN once fixed), run it, then arm it with propose_command — propose_sensor stays the sole validated writer."),
   };
 }

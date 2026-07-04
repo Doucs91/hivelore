@@ -221,6 +221,8 @@ export { proposeSensor, type ProposeSensorOutput } from "./tools/propose-sensor.
 export {
   scaffoldTest,
   detectTestFrameworkForPaths,
+  detectTestFrameworksForAnchors,
+  type AnchorFrameworkGroup,
   type ScaffoldTestOutput,
 } from "./tools/scaffold-test.js";
 export {

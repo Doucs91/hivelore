@@ -35,6 +35,7 @@ import {
   type UsageEvent,
 } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
+import { collectScaffoldLoopGaps, describeScaffoldGap } from "../utils/post-incident-scan.js";
 
 interface DoctorOptions {
   json?: boolean;
@@ -443,6 +444,22 @@ export function registerDoctor(program: Command): void {
 
       findings.push(...await collectHarnessCoverageFindings(codeMap, memories));
       findings.push(...await collectSemanticIndexFindings(paths, config, memories.length, codeMap));
+
+      // ── Behaviour-loop accounting: scaffolded post-incident tests that never became gates ──
+      try {
+        const scaffoldGaps = await collectScaffoldLoopGaps(paths);
+        if (scaffoldGaps.length > 0) {
+          findings.push({
+            severity: "warn",
+            code: "post-incident-test-unarmed",
+            message:
+              `${scaffoldGaps.length} post-incident test(s) are scaffolded but not armed as gates — the incident is documented, nothing deterministic guards it yet: ` +
+              scaffoldGaps.slice(0, 5).map(describeScaffoldGap).join(", ") +
+              (scaffoldGaps.length > 5 ? ", …" : "") + ".",
+            fix: "Fill the pending assertion, run it, then arm it with the `hivelore sensors propose --kind test` command in the scaffold header.",
+          });
+        }
+      } catch { /* best-effort — a scan error must not break doctor */ }
 
       // ── 5. Usage log signals ──────────────────────────────────────────────
       const events = await readUsageEvents(paths);

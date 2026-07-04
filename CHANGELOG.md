@@ -6,6 +6,44 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.39.0] — gate-surface integrity + behaviour-loop accounting
+
+> Six hardening steps from a full harness audit: the gate now watches its own surface (a diff that
+> weakens a sensor is called out), never fails dark, explains its score, keeps enforced lessons
+> team-scoped, nudges open behaviour loops closed, and scaffolds multi-package lessons properly.
+
+### Added
+- **`sensor-weakened` review finding** (`enforce check` / `ci`, all `antiPatternGate` modes incl.
+  `off`). The gate lives in `.ai/` — the same tree the agent it constrains can edit. A staged diff
+  that demotes a block sensor to warn, changes/removes its oracle (`pattern`/`command`), broadens
+  its `absent` suppression, deletes the sensor block, or deletes a memory carrying a block sensor
+  now surfaces a warn finding naming each change. Review-only, never blocks (legitimate demotions
+  exist); removing `absent` TIGHTENS a sensor and never flags. Pure detector:
+  `detectSensorWeakening` in `@hivelore/core`.
+- **`post-incident-test-unarmed` nudge** (doctor + `enforce finish`, warn, zero score impact). A
+  scaffolded post-incident test whose assertion is still pending (`it.todo`/skip), or whose lesson
+  has no armed shell/test sensor, is an OPEN behaviour loop — the incident is documented but nothing
+  deterministic guards it. Cross-checked via the scaffold's provenance marker
+  (`assessScaffoldLoop` in core; collector scans `incidents/` directories).
+- **Multi-package scaffolds.** A lesson whose anchors span several packages now scaffolds **one
+  pending test per owning package** (framework and location per package) instead of "first anchor
+  wins" — in both `hivelore sensors scaffold` and the `scaffold_test` MCP tool (new `scaffolds[]`
+  in the output). A memory carries ONE sensor, so all generated tests share a single
+  `propose_command` whose oracle chains every run command (`… && …`).
+
+### Changed
+- **Enforced lessons default to team scope.** `mem_tried` with a one-shot `sensor` (MCP and
+  `hivelore memory tried --sensor-*`) now defaults `scope` to **team** instead of personal: a
+  sensor on a personal (gitignored) memory only guards the machine that captured it. An explicit
+  scope always wins. `propose_sensor` additionally nudges promotion whenever an accepted sensor
+  lands on a personal memory.
+- **The enforcement score names its top penalties.** `enforcement-score-below-threshold` now reads
+  `… below required threshold 85% — top penalties: sensor-block (−45), …` instead of an unexplained
+  percentage.
+- **The sensor gate never fails dark.** An internal error in the gate's sensor machinery used to
+  silently skip ALL sensors (fail-open); it now emits a `sensor-gate-errored` warn finding saying
+  protection is off until fixed — still never blocks a commit on harness breakage.
+
 ## [0.38.0] — scaffold_test MCP tool + monorepo-aware framework detection
 
 > Two follow-ups to post-incident scaffolding: agents can scaffold in-session, and detection is

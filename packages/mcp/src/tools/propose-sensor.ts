@@ -228,6 +228,13 @@ export async function proposeSensor(
     throw new Error(`No memory found with id ${input.memory_id}`);
   }
 
+  // A sensor on a personal (gitignored) memory only guards THIS machine — the lesson would still
+  // repeat on every other clone and in CI. Nudge promotion whenever an accepted sensor lands on one.
+  const personalScopeNudge =
+    found.memory.frontmatter.scope === "personal"
+      ? ` Note: this lesson is personal-scoped, so the sensor guards only YOUR machine (personal memories are gitignored). Promote it so the gate travels with the repo: hivelore memory promote ${input.memory_id}.`
+      : "";
+
   // ── Command sensors: the oracle must PASS on the presumed-correct current tree ──
   // (the behaviour analogue of "silent on current"). A failing oracle would block every
   // commit; an unrunnable one proves nothing. Both reject `block`; warn is advisory.
@@ -270,9 +277,10 @@ export async function proposeSensor(
       memory_id: input.memory_id,
       severity: input.severity,
       guidance:
-        verdictCmd.status === "passed"
+        (verdictCmd.status === "passed"
           ? "Command oracle passes on the current tree; the gate now runs it when the diff touches the sensor's paths (requires enforcement.runCommandSensors=true)."
-          : `Accepted at warn severity, but note: ${verdictCmd.status} on the current tree (${verdictCmd.detail}).`,
+          : `Accepted at warn severity, but note: ${verdictCmd.status} on the current tree (${verdictCmd.detail}).`) +
+        personalScopeNudge,
       self_check: { silent_on_current: verdictCmd.status === "passed", fires_on_bad: null, fired_on: [] },
     };
   }
@@ -335,6 +343,7 @@ export async function proposeSensor(
     accepted: true,
     memory_id: input.memory_id,
     severity: input.severity,
+    ...(personalScopeNudge ? { guidance: personalScopeNudge.trim() } : {}),
     self_check,
     file_path: found.filePath,
   };

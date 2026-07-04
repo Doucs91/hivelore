@@ -55,7 +55,7 @@ export function registerMemoryTried(memory: Command): void {
     .requiredOption("--what <text>", "what approach was tried (short, descriptive title)")
     .requiredOption("--why-failed <text>", "why it failed or should NOT be used (include the exact error if possible)")
     .option("--instead <text>", "the correct approach to use instead")
-    .option("--scope <scope>", "personal | team | module", "personal")
+    .option("--scope <scope>", "personal | team | module (default: personal — team when a --sensor-* option arms the lesson, so the gate travels)")
     .option("--module <name>", "module name (required when scope=module)")
     .option("--tags <csv>", "comma-separated tags")
     .option("--paths <csv>", "anchor paths, comma-separated")
@@ -88,7 +88,8 @@ export function registerMemoryTried(memory: Command): void {
             why_failed: opts.whyFailed,
             instead: opts.instead,
             // "shared" is a legacy MemoryScope alias not accepted by mem_tried — normalize to team.
-            scope: opts.scope === "shared" ? "team" : (opts.scope ?? "personal"),
+            // Undefined stays undefined: mem_tried defaults it (team when a sensor is attached).
+            scope: opts.scope === "shared" ? "team" : opts.scope,
             module: opts.module,
             tags: parseCsv(opts.tags),
             paths: parseCsv(opts.paths ?? opts.files),
@@ -126,7 +127,7 @@ export function registerMemoryTried(memory: Command): void {
       }
 
       ui.success(`Recorded: ${path.relative(root, result.file_path)}`);
-      ui.info(`id=${result.id}  type=attempt  status=validated (auto-approved)`);
+      ui.info(`id=${result.id}  type=attempt  scope=${result.scope}  status=validated (auto-approved)`);
 
       if (result.sensor_result) {
         if (result.sensor_result.accepted) {
