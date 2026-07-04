@@ -215,6 +215,30 @@ export interface CommandSensorSpec {
 }
 
 /**
+ * Environment allowlist for command-sensor execution (and validation). Command sensors run
+ * repo-authored commands; the executor must not hand them the caller's full environment — cloud
+ * credentials, tokens, and API keys have no business inside a test oracle. Exact names cover the
+ * basics a test runner needs; prefixes cover locale/Node/npm knobs. Everything else is dropped.
+ * Pure: callers pass process.env and spread the result into their exec options.
+ */
+const COMMAND_ENV_EXACT = new Set([
+  "PATH", "HOME", "LANG", "LANGUAGE", "TMPDIR", "TMP", "TEMP", "TERM", "SHELL", "USER", "LOGNAME",
+  "PWD", "CI", "COLORTERM", "TZ",
+]);
+const COMMAND_ENV_PREFIXES = ["LC_", "NODE_", "NVM_", "npm_", "HIVELORE_", "HAIVE_"];
+
+export function scrubbedCommandEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const out: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (value === undefined) continue;
+    if (COMMAND_ENV_EXACT.has(key) || COMMAND_ENV_PREFIXES.some((p) => key.startsWith(p))) {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+/**
  * Render the incident-provenance suffix appended to a fired sensor's message. Empty when the sensor
  * carries no `incident` — so the behaviour-harness link ("guards the incident this test exists for")
  * shows up wherever a sensor speaks, without every call site re-deriving the copy.

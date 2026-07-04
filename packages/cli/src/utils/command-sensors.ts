@@ -18,7 +18,7 @@
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { CommandSensorSpec } from "@hivelore/core";
+import { scrubbedCommandEnv, type CommandSensorSpec } from "@hivelore/core";
 
 const exec = promisify(execFile);
 
@@ -66,7 +66,9 @@ export async function executeCommandSensor(
       cwd: root,
       timeout: timeoutMs,
       maxBuffer: 8 * 1024 * 1024,
-      env: { ...process.env, HIVELORE_SENSOR: spec.memory_id },
+      // Scrubbed on purpose: a repo-authored oracle gets a test-runner environment, not the
+      // caller's credentials (cloud keys, tokens). See scrubbedCommandEnv in core.
+      env: { ...scrubbedCommandEnv(process.env), HIVELORE_SENSOR: spec.memory_id },
     });
     return {
       ...base,

@@ -68,6 +68,13 @@ export const SensorSchema = z.object({
    * the incident the test exists to prevent". Surfaced in the block message and the prevention receipt.
    */
   incident: z.string().optional(),
+  /**
+   * kind=shell|test only: the oracle was PROVEN to fail (RED) on the incident state at arming time
+   * (`sensors propose --red-ref`): the command passed on the presumed-correct tree AND failed on
+   * the replayed incident tree. Distinguishes "a test is routed" from "the test demonstrably
+   * catches the incident". Surfaced in the prevention receipt.
+   */
+  red_proven: z.boolean().optional(),
   /** `warn` surfaces in review; `block` can hard-block the commit (only when the gate opts in). */
   severity: z.enum(["warn", "block"]).default("warn"),
   /** True when Hivelore generated this sensor automatically (vs. hand-authored). */

@@ -12,7 +12,8 @@
  */
 import { execSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, rmSync, symlinkSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   extractSensorExamples,
@@ -20,6 +21,7 @@ import {
   hasPendingTestMarker,
   judgeProposedSensor,
   loadMemoriesFromDir,
+  scrubbedCommandEnv,
   serializeMemory,
   type Sensor,
   type SensorTarget,
@@ -76,6 +78,15 @@ export const ProposeSensorInputSchema = {
       "'2026-06 refund overcharge'). Turns 'a test failed' into 'this reproduces the incident the test " +
       "exists to prevent'. Surfaced in the block message and the prevention receipt. Strongly recommended " +
       "for command/test sensors routed from a post-incident test.",
+    ),
+  red_ref: z
+    .string()
+    .optional()
+    .describe(
+      "kind=shell|test: prove the oracle actually catches the incident. A git ref (commit/branch) of " +
+      "the PRE-FIX state; validation replays it in a scratch worktree and requires the command to FAIL " +
+      "there (RED) in addition to passing on the current tree (GREEN). On success the sensor records " +
+      "red_proven: true — 'the test demonstrably catches the incident', shown in the prevention receipt.",
     ),
   flags: z.string().optional().describe("Optional regex flags (e.g. 'i' for case-insensitive)."),
   paths: z
@@ -166,6 +177,8 @@ function runCommandForValidation(
       timeout: timeoutMs,
       maxBuffer: 8 * 1024 * 1024,
       stdio: ["ignore", "pipe", "pipe"],
+      // Same containment as the gate executor: an oracle gets a test-runner env, not credentials.
+      env: { ...scrubbedCommandEnv(process.env), HIVELORE_SENSOR: "validation" },
     });
     return { status: "passed", detail: "exit 0" };
   } catch (err) {
@@ -176,6 +189,52 @@ function runCommandForValidation(
       return { status: "unrunnable", detail: e.status === 126 ? "command found but not executable" : "command not found" };
     }
     return { status: "failed", detail: out || `exit ${e.status ?? "?"}` };
+  }
+}
+
+/**
+ * Prove the oracle goes RED on the incident: replay `redRef` (the pre-fix state) in a scratch
+ * `git worktree`, symlink the main tree's node_modules into it (a bare worktree has none — the
+ * documented reason the HEAD-baseline trick doesn't transfer to command sensors), and require the
+ * command to FAIL there. "unrunnable" is NOT proof — the oracle said nothing.
+ */
+function proveRedOnIncident(
+  command: string,
+  root: string,
+  redRef: string,
+  timeoutMs?: number,
+): { proven: boolean; reason?: "red-ref-invalid" | "red-not-proven" | "red-unrunnable"; detail: string } {
+  const worktree = path.join(os.tmpdir(), `hivelore-red-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  let added = false;
+  try {
+    try {
+      execSync(`git worktree add --detach ${JSON.stringify(worktree)} ${JSON.stringify(redRef)}`, {
+        cwd: root, stdio: ["ignore", "pipe", "pipe"], timeout: 60_000,
+      });
+      added = true;
+    } catch (err) {
+      const e = err as { stderr?: Buffer };
+      return { proven: false, reason: "red-ref-invalid", detail: (e.stderr?.toString() ?? String(err)).slice(0, 300) };
+    }
+    const mainModules = path.join(root, "node_modules");
+    const wtModules = path.join(worktree, "node_modules");
+    if (existsSync(mainModules) && !existsSync(wtModules)) {
+      try { symlinkSync(mainModules, wtModules, "dir"); } catch { /* best-effort — the run will tell */ }
+    }
+    const run = runCommandForValidation(command, worktree, timeoutMs);
+    if (run.status === "failed") return { proven: true, detail: run.detail };
+    if (run.status === "passed") {
+      return { proven: false, reason: "red-not-proven", detail: "oracle PASSED on the incident state — it does not catch the incident" };
+    }
+    return { proven: false, reason: "red-unrunnable", detail: run.detail };
+  } finally {
+    if (added) {
+      try {
+        execSync(`git worktree remove --force ${JSON.stringify(worktree)}`, { cwd: root, stdio: "ignore", timeout: 60_000 });
+      } catch {
+        try { rmSync(worktree, { recursive: true, force: true }); } catch { /* leave for tmp cleanup */ }
+      }
+    }
   }
 }
 
@@ -266,6 +325,32 @@ export async function proposeSensor(
     }
     const verdictCmd = runCommandForValidation(input.command!.trim(), ctx.paths.root, input.timeout_ms);
     const anchorPathsCmd = input.paths.length > 0 ? input.paths : found.memory.frontmatter.anchor.paths;
+
+    // Prove-RED (optional): GREEN on current is necessary but weak — it cannot distinguish "the
+    // test catches the incident" from "the test passes on everything". A red_ref makes the claim
+    // demonstrable: the same oracle must FAIL on the replayed pre-fix state.
+    let redProven = false;
+    if (input.red_ref?.trim()) {
+      const red = proveRedOnIncident(input.command!.trim(), ctx.paths.root, input.red_ref.trim(), input.timeout_ms);
+      if (!red.proven && input.severity === "block") {
+        return {
+          accepted: false,
+          memory_id: input.memory_id,
+          severity: input.severity,
+          reason: red.reason ?? "red-not-proven",
+          guidance:
+            red.reason === "red-ref-invalid"
+              ? `red_ref could not be checked out (${red.detail}). Pass a valid commit/ref of the pre-fix state.`
+              : red.reason === "red-unrunnable"
+                ? `The oracle could not RUN on the incident state (${red.detail}) — it proves nothing there. Fix the command or drop red_ref.`
+                : "The oracle PASSED on the incident state, so it does not catch the incident it claims to guard. " +
+                  "Strengthen the assertion until it goes RED on red_ref, then re-propose. Output: " + red.detail.slice(0, 300),
+          self_check: { silent_on_current: verdictCmd.status === "passed", fires_on_bad: false, fired_on: [] },
+        };
+      }
+      redProven = red.proven;
+    }
+
     if (verdictCmd.status !== "passed" && input.severity === "block") {
       return {
         accepted: false,
@@ -288,6 +373,7 @@ export async function proposeSensor(
       paths: anchorPathsCmd,
       message: input.message?.trim() || deriveMessage(found.memory.body, input.command!.trim(), undefined),
       ...(input.incident?.trim() ? { incident: input.incident.trim() } : {}),
+      ...(redProven ? { red_proven: true } : {}),
       severity: input.severity,
       autogen: false,
       last_fired: null,
@@ -305,11 +391,15 @@ export async function proposeSensor(
         (verdictCmd.status === "passed"
           ? "Command oracle passes on the current tree; the gate now runs it when the diff touches the sensor's paths (requires enforcement.runCommandSensors=true)."
           : `Accepted at warn severity, but note: ${verdictCmd.status} on the current tree (${verdictCmd.detail}).`) +
+        (redProven
+          ? " RED proven: the oracle demonstrably FAILS on the incident state (red_ref) — recorded as red_proven."
+          : " Tip: pass red_ref (the pre-fix commit) to PROVE the oracle catches the incident, not merely that it passes today.") +
         (pendingTests.length > 0
           ? ` Note: the routed test is still a PENDING stub (${pendingTests.join(", ")}) — it passes on anything; write the assertion to make this oracle real.`
           : "") +
         personalScopeNudge,
-      self_check: { silent_on_current: verdictCmd.status === "passed", fires_on_bad: null, fired_on: [] },
+      self_check: { silent_on_current: verdictCmd.status === "passed", fires_on_bad: redProven ? true : null, fired_on: [] },
+      file_path: found.filePath,
     };
   }
 

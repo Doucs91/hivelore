@@ -46,6 +46,7 @@ export const MemTriedInputSchema = {
       severity: z.enum(["warn", "block"]).default("block").describe("block = deterministic gate refusal"),
       message: z.string().optional().describe("Self-correction message shown when the sensor fires"),
       incident: z.string().optional().describe("Provenance: the incident this sensor guards (e.g. 'prod #442') — surfaced when it fires and in the receipt"),
+      red_ref: z.string().optional().describe("kind=shell|test: pre-fix commit/ref — the oracle must FAIL on it (proves the test catches the incident; records red_proven)"),
       bad_example: z.string().optional().describe("kind=regex: code snippet the sensor MUST fire on (validation)"),
     })
     .optional()
@@ -149,6 +150,7 @@ export async function memTried(
         severity: input.sensor.severity ?? "block",
         message: input.sensor.message,
         incident: input.sensor.incident,
+        red_ref: input.sensor.red_ref,
         bad_example: input.sensor.bad_example,
         flags: undefined,
         paths: [],

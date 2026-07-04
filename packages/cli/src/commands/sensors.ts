@@ -76,6 +76,7 @@ interface SensorsProposeOptions {
   severity?: string;
   message?: string;
   incident?: string;
+  redRef?: string;
   flags?: string;
   paths?: string;
   dir?: string;
@@ -393,6 +394,7 @@ export function registerSensors(program: Command): void {
     .option("--severity <severity>", "block | warn", "block")
     .option("--message <text>", "fix message shown when it fires")
     .option("--incident <ref>", "provenance: the incident this sensor guards (e.g. 'prod #442') — shown when it fires and in the receipt")
+    .option("--red-ref <ref>", "kind=shell|test: pre-fix commit/ref — validation replays it in a scratch worktree and requires the oracle to FAIL there (records red_proven)")
     .option("--flags <flags>", "regex flags (e.g. i)")
     .option("--paths <csv>", "override scope paths (defaults to the memory anchors)")
     .option("-d, --dir <dir>", "project root")
@@ -419,6 +421,7 @@ export function registerSensors(program: Command): void {
             severity: (opts.severity === "warn" ? "warn" : "block"),
             message: opts.message,
             incident: opts.incident,
+            red_ref: opts.redRef,
             flags: undefined,
             paths: opts.paths ? opts.paths.split(",").map((p) => p.trim()).filter(Boolean) : [],
           },

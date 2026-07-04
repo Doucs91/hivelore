@@ -104,9 +104,13 @@ hivelore memory tried \
 
 Rules that keep it honest: opt-in per repo (`enforcement.runCommandSensors: true` — it executes
 repo-authored commands), a proposal whose oracle *fails on the presumed-correct tree* is rejected,
-and an **unrunnable** command (not found, timeout) warns but never blocks — a broken harness must not
-masquerade as a failing test. Full behaviour verification (test generation, LLM evals) remains your
-test suite's job.
+an oracle that is still a **pending stub** cannot arm a block sensor, and an **unrunnable** command
+(not found, timeout) warns but never blocks — a broken harness must not masquerade as a failing test.
+Commands run with a **scrubbed environment** (test-runner basics only — no cloud credentials or
+tokens). And you can make the guarantee demonstrable: `--red-ref <pre-fix-commit>` replays the
+incident in a scratch worktree and requires the oracle to FAIL there — the sensor then records
+`red_proven: true`, shown in the prevention receipt. Full behaviour verification (test generation,
+LLM evals) remains your test suite's job.
 
 **The on-ramp (v0.36.0): scaffold the test from the incident.** A command sensor needs a test to
 route — so Hivelore generates the skeleton from the lesson. `hivelore sensors scaffold <memory-id>`

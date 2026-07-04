@@ -14,6 +14,7 @@ import {
   isSensorScannablePath,
   scannableSensorTargets,
   detectSensorWeakening,
+  scrubbedCommandEnv,
 } from "../src/sensors.js";
 import type { Memory, Sensor } from "../src/types.js";
 
@@ -497,5 +498,22 @@ describe("detectSensorWeakening — gate-surface integrity", () => {
     expect(detectSensorWeakening(d("src/config.yml", ["  severity: block"], ["  severity: warn"]))).toHaveLength(0);
     // Editing prose/verified_at in a memory does not flag.
     expect(detectSensorWeakening(d(memFile, ["verified_at: '2026-06-01'"], ["verified_at: '2026-07-01'"]))).toHaveLength(0);
+  });
+});
+
+describe("scrubbedCommandEnv — oracle containment", () => {
+  it("keeps the test-runner basics and drops everything else (credentials, tokens)", () => {
+    const env = scrubbedCommandEnv({
+      PATH: "/usr/bin", HOME: "/home/u", LANG: "C.UTF-8", TERM: "xterm", CI: "1",
+      NODE_OPTIONS: "--max-old-space-size=4096", npm_config_registry: "https://r", LC_ALL: "C",
+      HIVELORE_SENSOR: "x", NVM_DIR: "/nvm",
+      AWS_SECRET_ACCESS_KEY: "leak", GITHUB_TOKEN: "leak", OPENAI_API_KEY: "leak", DATABASE_URL: "leak",
+    });
+    for (const kept of ["PATH", "HOME", "LANG", "TERM", "CI", "NODE_OPTIONS", "npm_config_registry", "LC_ALL", "HIVELORE_SENSOR", "NVM_DIR"]) {
+      expect(env[kept], kept).toBeDefined();
+    }
+    for (const dropped of ["AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN", "OPENAI_API_KEY", "DATABASE_URL"]) {
+      expect(env[dropped], dropped).toBeUndefined();
+    }
   });
 });

@@ -389,3 +389,84 @@ describe("proposeSensor — a PENDING oracle must not arm a block sensor", () =>
     expect(block.accepted).toBe(true);
   });
 });
+
+describe("proposeSensor — prove-RED (red_ref) and env containment", () => {
+  let workDir: string;
+  let ctx: HaiveContext;
+  let lessonId: string;
+  let incidentSha: string;
+  const oracle = `node -e "process.exit(require('fs').readFileSync('src/x.txt','utf8').includes('good')?0:1)"`;
+
+  beforeEach(async () => {
+    workDir = await mkdtemp(path.join(tmpdir(), "haive-red-"));
+    const paths = resolveHaivePaths(workDir);
+    await mkdir(paths.haiveDir, { recursive: true });
+    ctx = { paths };
+    const { execSync } = await import("node:child_process");
+    const git = (cmd: string) => execSync(cmd, { cwd: workDir, stdio: "pipe" });
+    git("git init -b main");
+    git("git config user.email t@t.co && git config user.name T");
+    await mkdir(path.join(workDir, "src"), { recursive: true });
+    // Incident state: the bug is present (oracle FAILS here).
+    await writeFile(path.join(workDir, "src/x.txt"), "bad\n", "utf8");
+    git("git add -A && git commit -m incident");
+    incidentSha = execSync("git rev-parse HEAD", { cwd: workDir, encoding: "utf8" }).trim();
+    // Fixed state at HEAD (oracle PASSES here).
+    await writeFile(path.join(workDir, "src/x.txt"), "good\n", "utf8");
+    git("git add -A && git commit -m fix");
+    const tried = await memTried(
+      { what: "x.txt regressed to bad", why_failed: "incident", scope: "team", tags: [], paths: ["src/x.txt"] },
+      ctx,
+    );
+    lessonId = tried.id;
+  });
+
+  afterEach(async () => {
+    await rm(workDir, { recursive: true, force: true });
+  });
+
+  const propose = (command: string, red_ref?: string, severity: "warn" | "block" = "block") =>
+    proposeSensor(
+      {
+        memory_id: lessonId, kind: "test", command, severity, red_ref,
+        pattern: undefined, absent: undefined, bad_example: undefined,
+        timeout_ms: undefined, message: undefined, incident: undefined, flags: undefined, paths: [],
+      },
+      ctx,
+    );
+
+  it("accepts with red_proven when the oracle is GREEN on HEAD and RED on the incident ref", async () => {
+    const out = await propose(oracle, incidentSha);
+    expect(out.accepted).toBe(true);
+    expect(out.guidance).toMatch(/RED proven/);
+    const { readFile: rf } = await import("node:fs/promises");
+    const written = await rf(out.file_path!, "utf8");
+    expect(written).toContain("red_proven: true");
+  });
+
+  it("rejects red-not-proven when the oracle also passes on the incident state", async () => {
+    const out = await propose('node -e "process.exit(0)"', incidentSha);
+    expect(out.accepted).toBe(false);
+    expect(out.reason).toBe("red-not-proven");
+  });
+
+  it("rejects red-ref-invalid on a bogus ref, and without red_ref behavior is unchanged", async () => {
+    const bad = await propose(oracle, "not-a-real-ref-xyz");
+    expect(bad.accepted).toBe(false);
+    expect(bad.reason).toBe("red-ref-invalid");
+    const plain = await propose(oracle);
+    expect(plain.accepted).toBe(true);
+    expect(plain.guidance).toMatch(/pass red_ref/);
+  });
+
+  it("runs the oracle with a scrubbed env — a block proposal whose command asserts the secret is ABSENT passes", async () => {
+    process.env.TEST_SECRET_X_HIVE = "leak";
+    try {
+      const out = await propose('test -z "$TEST_SECRET_X_HIVE"');
+      // Scrubbed env → the var is invisible → command exits 0 on current tree → accepted.
+      expect(out.accepted).toBe(true);
+    } finally {
+      delete process.env.TEST_SECRET_X_HIVE;
+    }
+  });
+});

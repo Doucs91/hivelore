@@ -61,7 +61,7 @@ describe("prevention receipt", () => {
     expect(receipt.previous_total).toBe(1);
     expect(receipt.events[0]).toEqual({
       at: ev(1, "current").at, id: "current", title: "current", source: "sensor",
-      kind: "regex", stage: null, exit_code: null, message: null, incident: null,
+      kind: "regex", stage: null, exit_code: null, message: null, incident: null, red_proven: false,
     });
   });
 

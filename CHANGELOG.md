@@ -6,6 +6,24 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.39.3] — behaviour hardening: prove the RED, contain the execution (excellence plan, Phase 4)
+
+### Added
+- **Prove-RED arming** (`sensors propose --red-ref <ref>` / `propose_sensor red_ref`). GREEN on the
+  current tree cannot distinguish "the test catches the incident" from "the test passes on
+  everything". `red_ref` (the pre-fix commit) is replayed in a scratch `git worktree` (main tree's
+  `node_modules` symlinked in) and the oracle must FAIL there. Success records `red_proven: true`
+  on the sensor and shows `✓ RED-proven` in the prevention receipt; a block proposal whose oracle
+  passes on the incident state is rejected (`red-not-proven`), an unrunnable replay proves nothing
+  (`red-unrunnable`), a bad ref is `red-ref-invalid`. Without `red_ref`, behavior is unchanged —
+  the acceptance guidance now suggests it.
+
+### Changed
+- **Command sensors run env-scrubbed** (gate executor + validation): a repo-authored oracle gets a
+  test-runner environment (PATH/HOME/locale/TMP/CI + `NODE_*`/`npm_*`/`NVM_*`/`LC_*`/`HIVELORE_*`),
+  not the caller's credentials — cloud keys and tokens are no longer visible to sensor commands.
+  Pure allowlist in core (`scrubbedCommandEnv`).
+
 ## [0.39.2] — stack-pack seeds rank when the task is squarely theirs
 
 > Root-caused from the v0.39.1 gauntlet: on a freshly seeded Nest+Next+Prisma repo, the task

@@ -95,6 +95,8 @@ export interface PreventionReceiptRow {
   message: string | null;
   /** Incident provenance from the sensor frontmatter — the behaviour-harness link, when present. */
   incident: string | null;
+  /** The oracle was proven RED on the incident state at arming time (red_ref replay). */
+  red_proven: boolean;
 }
 
 export interface PreventionReceipt {
@@ -143,6 +145,7 @@ export function buildPreventionReceipt(
         exit_code: event.exit_code ?? null,
         message: sensor?.message ?? null,
         incident: sensor?.incident ?? null,
+        red_proven: sensor?.red_proven === true,
       };
     })
     .sort((a, b) => b.at.localeCompare(a.at));
@@ -170,7 +173,8 @@ export function renderPreventionReceipt(receipt: PreventionReceipt): string {
     const exit = row.exit_code === null ? "" : `, exit ${row.exit_code}`;
     const stage = row.stage ? ` — caught at ${row.stage}` : "";
     const incident = row.incident ? `  ↩ incident: ${row.incident}` : "";
-    lines.push(`  ✗→✓ ${row.at.slice(0, 10)}  ${row.id.padEnd(32)} (${kind}${exit}${stage})${incident}`);
+    const red = row.red_proven ? "  ✓ RED-proven" : "";
+    lines.push(`  ✗→✓ ${row.at.slice(0, 10)}  ${row.id.padEnd(32)} (${kind}${exit}${stage})${incident}${red}`);
   }
   lines.push(
     `  Trend: ${receipt.total} this window vs ${receipt.previous_total} previous window ` +

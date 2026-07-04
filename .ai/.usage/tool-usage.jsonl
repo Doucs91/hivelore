@@ -276,3 +276,4 @@
 {"tool":"mem_relevant_to","at":"2026-07-04T15:56:06.695Z","summary":"Investigate briefing ranking: anchor-less stack pack memories stay background/th"}
 {"tool":"mem_save","at":"2026-07-04T16:02:22.254Z","summary":"stack-pack-rescue-strong-task-evidence"}
 {"tool":"mem_session_end","at":"2026-07-04T16:08:25.434Z","summary":"Investigate why stack-pack memories never rank above background in briefings, fi"}
+{"tool":"mem_save","at":"2026-07-04T21:31:09.463Z","summary":"prove-red-and-env-scrub-phase4"}
