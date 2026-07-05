@@ -266,9 +266,11 @@ THAT is the moment to discuss a service — not before.
 
 ## Completion checklist
 
-- [ ] Phase 1 — AST sensors (ast-grep engine, unrunnable-honesty, validation transposed)
-- [ ] Phase 2 — Passive capture distills proposed lessons (no new surface, autopilot exception)
-- [ ] Phase 3 — PR loop (`ingest --from github-pr`, action `/hivelore remember`, ack)
-- [ ] Phase 4 — Prove-RED + env-scrubbed executor
-- [ ] Phase 5 — Eval golden set (gate-miss cases, adversarial tier family, CI bar)
-- [ ] Phase 6 — (gated) org scope via git mount
+- [x] Phase 1 — AST sensors (ast-grep engine, unrunnable-honesty, validation transposed) — **v0.40.0**
+- [x] Phase 2 — Passive capture distills proposed lessons (no new surface, autopilot exception) — **v0.41.0**
+- [x] Phase 3 — PR loop (`ingest --from github-pr`, action `/hivelore remember`, ack) — **v0.42.0**
+- [x] Phase 4 — Prove-RED + env-scrubbed executor — **v0.39.3**
+- [x] Phase 5 — Eval golden set (gate-miss cases, adversarial tier family, CI bar) — **v0.42.1**
+  - Deviation: the CI bar rides the existing authored-only score + tier-contract hard fail instead
+    of a threshold bump; the tier contract exits non-zero on violation regardless of --fail-under.
+- [ ] Phase 6 — (gated) org scope via git mount — **awaiting Sady's GO**
