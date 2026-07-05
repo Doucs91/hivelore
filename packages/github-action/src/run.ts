@@ -347,8 +347,73 @@ function setOutput(key: string, value: string): void {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+// ── /hivelore remember — the PR loop's capture ack (excellence plan, Phase 3) ────────────────────
+// A reviewer replies `/hivelore remember <rule>` on a thread; the action acknowledges it
+// (CodeRabbit's "Learnings added" moment) and hands back the exact local command that persists the
+// thread as a proposed memory. The action never commits to the repo itself — persisting stays a
+// deliberate, reviewable step (`hivelore ingest --from github-pr <n>`).
+const REMEMBER_RE = /^\/?hivelore\s+remember\b\s*/i;
+
+async function handleRememberComment(eventName: string): Promise<boolean> {
+  const eventPath = process.env["GITHUB_EVENT_PATH"];
+  if (!eventPath || !fs.existsSync(eventPath)) return false;
+  let event: {
+    comment?: { id?: number; body?: string; path?: string; user?: { login?: string } };
+    pull_request?: { number?: number };
+    issue?: { number?: number; pull_request?: unknown };
+  };
+  try {
+    event = JSON.parse(fs.readFileSync(eventPath, "utf8"));
+  } catch {
+    return false;
+  }
+  const body = (event.comment?.body ?? "").trim();
+  if (!REMEMBER_RE.test(body)) {
+    console.log("Hivelore: comment does not start with /hivelore remember — nothing to do.");
+    return true; // it WAS a comment event; there is no PR scan to run
+  }
+  const instruction = body.replace(REMEMBER_RE, "").trim().slice(0, 500);
+  const prNumber = event.pull_request?.number ?? event.issue?.number;
+  if (!prNumber || !instruction) return true;
+
+  const [owner, repo] = GH_REPO.split("/") as [string, string];
+  const octokit = getOctokit(GH_TOKEN);
+  const filePart = event.comment?.path ? ` (anchored to \`${event.comment.path}\`)` : "";
+  const ack = [
+    `🧠 **Hivelore — learning candidate captured**${filePart}`,
+    "",
+    `> ${instruction}`,
+    "",
+    "Persist it as a proposed team memory (reviewable, git-native):",
+    "```bash",
+    `hivelore ingest --from github-pr ${prNumber}`,
+    "```",
+    "Then approve/refine it — and consider `hivelore sensors propose` to turn it into a deterministic gate.",
+  ].join("\n");
+
+  if (eventName === "pull_request_review_comment" && event.comment?.id) {
+    await octokit.rest.pulls.createReplyForReviewComment({
+      owner, repo, pull_number: prNumber, comment_id: event.comment.id, body: ack,
+    });
+  } else {
+    await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: ack });
+  }
+  console.log(`Hivelore: acknowledged /hivelore remember on PR #${prNumber}.`);
+  return true;
+}
+
 async function main(): Promise<void> {
   try {
+    const eventName = process.env["GITHUB_EVENT_NAME"] ?? "";
+    if (eventName === "pull_request_review_comment" || eventName === "issue_comment") {
+      const handled = await handleRememberComment(eventName);
+      if (handled) {
+        setOutput("memories_found", "0");
+        setOutput("action_required_count", "0");
+        setOutput("comment_url", "");
+        return;
+      }
+    }
     const changedFiles = CHANGED_FILES_RAW
       .split("\n")
       .map((f) => f.trim())

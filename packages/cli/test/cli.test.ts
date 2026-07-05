@@ -1663,6 +1663,56 @@ describe("Hivelore CLI integration", () => {
     }
   });
 
+  it("ingest --from github-pr turns review-thread instructions into proposed review-learning memories (idempotent)", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-pr-ingest-"));
+    try {
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await mkdir(path.join(repo, "src/payments"), { recursive: true });
+      await writeFile(path.join(repo, "src/payments/refund.ts"), "export const r = 1;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+
+      const payload = [
+        {
+          id: 100, path: "src/payments/refund.ts", line: 3,
+          body: "Never refund more than the captured amount — clamp it.",
+          user: { login: "sady", type: "User" },
+          html_url: "https://github.com/o/r/pull/7#discussion_r100",
+          pull_request_url: "https://api.github.com/repos/o/r/pulls/7",
+        },
+        { id: 101, body: "LGTM 🚀", user: { login: "sady", type: "User" } },
+        {
+          id: 102, body: "You must always await this call.",
+          user: { login: "bot-reviewer", type: "Bot" },
+        },
+      ];
+      await writeFile(path.join(repo, "comments.json"), JSON.stringify(payload), "utf8");
+
+      const out = await run(repo, ["ingest", "--from", "github-pr", "comments.json", "--dir", repo]);
+      expect(out.stdout).toContain("review-learning");
+
+      const teamDir = path.join(repo, ".ai/memories/team");
+      const memoryFiles = await readdir(teamDir);
+      const learningFile = memoryFiles.find((f) => f.includes("never-refund"));
+      expect(learningFile).toBeDefined();
+      const content = await readFile(path.join(teamDir, learningFile!), "utf8");
+      expect(content).toContain("status: proposed");
+      expect(content).toContain("- review-learning");
+      expect(content).toContain("src/payments/refund.ts");
+      expect(content).toContain("PR #7");
+
+      // Idempotent per thread: re-ingesting the same payload creates nothing new.
+      const again = await run(repo, ["ingest", "--from", "github-pr", "comments.json", "--dir", repo]);
+      expect(again.stdout).toContain("already ingested");
+      expect((await readdir(teamDir)).length).toBe(memoryFiles.length);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("session end --auto distills failure observations into proposed auto-captured drafts (no dupes, never validated)", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-autocapture-"));
     try {

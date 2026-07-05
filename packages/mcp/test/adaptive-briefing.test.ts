@@ -199,3 +199,31 @@ describe("stack-pack rescue in get_briefing (shared classifier, literal path)", 
     if (nextjs) expect(nextjs.priority).toBe("background");
   });
 });
+
+describe("review-learning ranking", () => {
+  let workDir: string;
+  let ctx: HaiveContext;
+
+  beforeEach(async () => {
+    workDir = await mkdtemp(path.join(tmpdir(), "haive-review-rank-"));
+    const paths = resolveHaivePaths(workDir);
+    await mkdir(paths.teamDir, { recursive: true });
+    await mkdir(paths.personalDir, { recursive: true });
+    ctx = { paths };
+  });
+  afterEach(async () => { await rm(workDir, { recursive: true, force: true }); });
+
+  it("an anchored review learning reaches must_read when its file is edited", async () => {
+    const fm = [
+      "---", "id: 2026-07-05-convention-never-refund-more-than", "scope: team", "type: convention",
+      "status: validated", `created_at: ${new Date().toISOString()}`,
+      "anchor:", '  paths: ["src/payments/refund.ts"]', "  symbols: []",
+      "tags:", "  - review-learning", "---",
+      "# Review learning: never refund more than the captured amount", "",
+    ].join("\n");
+    await writeFile(path.join(resolveHaivePaths(workDir).teamDir, "2026-07-05-convention-never-refund-more-than.md"), fm, "utf8");
+    const out = await getBriefing({ ...baseInput, task: "adjust refunds", files: ["src/payments/refund.ts"] }, ctx);
+    const learning = out.memories.find((m) => m.id.includes("never-refund"));
+    expect(learning?.priority).toBe("must_read");
+  });
+});

@@ -6,6 +6,25 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.42.0] — the PR loop: review replies become proposed lessons (excellence plan, Phase 3)
+
+> The git-native version of CodeRabbit's "Learnings" — with the step no inferential reviewer can
+> take: a review learning can graduate into a deterministic blocking sensor.
+
+### Added
+- **`hivelore ingest --from github-pr <number|url|comments.json>`.** Pulls a PR's review-thread
+  comments (via `gh api`, or a recorded JSON for offline/CI) and keeps HUMAN instructions —
+  imperative shapes ("never/always/must/prefer/instead of") or the explicit
+  `/hivelore remember` marker; bots, questions, and "LGTM" are dropped. Each kept thread becomes a
+  `proposed` **convention** tagged `review-learning`, anchored to the thread's file, carrying PR/
+  author/URL provenance, deduped per thread via the existing `ingest:` topic (idempotent re-runs;
+  the latest reply in a thread wins). Pure converter in core (`extractReviewLearnings`,
+  `reviewLearningsToDrafts`).
+- **GitHub Action: `/hivelore remember` ack.** On `pull_request_review_comment` / `issue_comment`
+  events, a reply starting with `/hivelore remember <rule>` gets an acknowledgment comment (the
+  "learning captured" moment) with the ready-to-run `ingest --from github-pr` command. The Action
+  never commits to the repo — persisting stays a deliberate, reviewable local step.
+
 ## [0.41.0] — passive capture: failures distill into proposed lessons (excellence plan, Phase 2)
 
 > The claude-mem pipeline shape, finished on our own infra: the PostToolUse hook already observed

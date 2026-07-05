@@ -481,6 +481,12 @@ MCP profiles keep the product focused:
 Cockpit over the CLI's observability) and a [GitHub Action](./packages/github-action) (posts relevant
 team memories as a PR comment so reviewers and agents never miss a non-obvious constraint).
 
+**The PR loop.** Review feedback is team truth in the making: reply **`/hivelore remember <rule>`**
+on any review thread and the Action acknowledges it with the exact persist command; or run
+`hivelore ingest --from github-pr <number>` to turn a PR's human review instructions
+("never…", "always…", "prefer X instead") into `proposed`, file-anchored memories — each one a
+candidate for `sensors propose`, which is the step no inferential review bot can take.
+
 ---
 
 ## Adaptive briefing

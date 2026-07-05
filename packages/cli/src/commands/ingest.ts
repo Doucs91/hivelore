@@ -29,8 +29,10 @@ import {
   findProjectRoot,
   loadMemoriesFromDir,
   memoryFilePath,
+  extractReviewLearnings,
   parseFindings,
   resolveHaivePaths,
+  reviewLearningsToDrafts,
   serializeMemory,
   type FindingSeverity,
   type MemoryDraft,
@@ -38,7 +40,7 @@ import {
 import { ui } from "../utils/ui.js";
 
 interface IngestOptions {
-  from?: "sarif" | "sonar" | "sonar-api" | "eslint" | "npm-audit";
+  from?: "sarif" | "sonar" | "sonar-api" | "eslint" | "npm-audit" | "github-pr";
   dryRun?: boolean;
   scope?: "personal" | "team" | "module";
   module?: string;
@@ -76,10 +78,15 @@ export function registerIngest(program: Command): void {
       "    hivelore ingest --from sonar-api --sonar-component my_project --min-severity major\n\n" +
       "  Generate the input reports:\n" +
       "    eslint -f json -o eslint-report.json .      # --from eslint\n" +
-      "    npm audit --json > audit.json               # --from npm-audit\n",
+      "    npm audit --json > audit.json               # --from npm-audit\n\n" +
+      "  Review learnings (the PR loop — a reviewer reply becomes a proposed memory):\n" +
+      "    hivelore ingest --from github-pr 123          # fetches review threads via gh\n" +
+      "    hivelore ingest --from github-pr comments.json --dry-run\n" +
+      "    Kept: human replies that read as instructions (never/always/must/prefer…) or carry\n" +
+      "    the explicit marker (reply \`/hivelore remember <rule>\` on the thread).\n",
     )
-    .argument("[file]", "path to the findings report JSON (required for --from sarif|sonar|eslint|npm-audit)")
-    .requiredOption("--from <format>", "report format: sarif | sonar | sonar-api | eslint | npm-audit")
+    .argument("[file]", "findings report JSON — or, for --from github-pr, a PR number/URL (fetched via gh) or a recorded comments JSON")
+    .requiredOption("--from <format>", "report format: sarif | sonar | sonar-api | eslint | npm-audit | github-pr")
     .option("--dry-run", "show what would be created without writing", false)
     .option("--scope <scope>", "memory scope: personal | team | module", "team")
     .option("--module <name>", "module name (required when scope=module)")
@@ -96,7 +103,7 @@ export function registerIngest(program: Command): void {
     .option("-d, --dir <dir>", "project root")
     .action(async (file: string | undefined, opts: IngestOptions) => {
       const format = opts.from;
-      const VALID_FORMATS = ["sarif", "sonar", "sonar-api", "eslint", "npm-audit"] as const;
+      const VALID_FORMATS = ["sarif", "sonar", "sonar-api", "eslint", "npm-audit", "github-pr"] as const;
       if (!format || !(VALID_FORMATS as readonly string[]).includes(format)) {
         ui.error(`--from must be one of: ${VALID_FORMATS.join(", ")}`);
         process.exitCode = 1;
@@ -122,11 +129,29 @@ export function registerIngest(program: Command): void {
       }
 
       // `sonar-api` parses with the same Sonar reader; only the source differs (HTTP vs file).
-      const parseFormat: "sarif" | "sonar" | "eslint" | "npm-audit" =
-        format === "sonar-api" ? "sonar" : format;
+      // github-pr never reaches parseFindings (it has its own converter below) — cast is safe.
+      const parseFormat = (format === "sonar-api" ? "sonar" : format) as "sarif" | "sonar" | "eslint" | "npm-audit";
 
       let raw: string;
-      if (format === "sonar-api") {
+      if (format === "github-pr") {
+        if (!file) {
+          ui.error("--from github-pr needs a PR number/URL or a recorded comments JSON file.");
+          process.exitCode = 1;
+          return;
+        }
+        const asPath = path.resolve(root, file);
+        if (existsSync(asPath)) {
+          raw = await readFile(asPath, "utf8");
+        } else {
+          const fetched = await fetchPrReviewComments(root, file);
+          if (!fetched.ok) {
+            ui.error(fetched.error);
+            process.exitCode = 1;
+            return;
+          }
+          raw = fetched.json;
+        }
+      } else if (format === "sonar-api") {
         const fetched = await fetchSonarIssues(opts);
         if (!fetched.ok) {
           ui.error(fetched.error);
@@ -157,7 +182,23 @@ export function registerIngest(program: Command): void {
 
       let drafts: MemoryDraft[];
       let findingsCount = 0;
-      try {
+      if (format === "github-pr") {
+        try {
+          const payload = JSON.parse(raw) as unknown;
+          findingsCount = Array.isArray(payload) ? payload.length : 0;
+          const learnings = extractReviewLearnings(payload);
+          drafts = reviewLearningsToDrafts(learnings, {
+            scope: opts.scope ?? "team",
+            module: opts.module,
+            author: opts.author,
+            ...(opts.limit ? { limit: Math.max(0, Number.parseInt(opts.limit, 10) || 0) } : {}),
+          });
+        } catch (err) {
+          ui.error(`Failed to parse the PR comments payload: ${err instanceof Error ? err.message : String(err)}`);
+          process.exitCode = 1;
+          return;
+        }
+      } else try {
         const findings = parseFindings(parseFormat, raw, { cwd: root });
         findingsCount = findings.length;
         drafts = draftsFromFindings(findings, {
@@ -302,6 +343,40 @@ async function fetchSonarIssues(opts: IngestOptions): Promise<SonarFetchResult> 
     return {
       ok: false,
       error: `Could not reach SonarQube at ${baseUrl}: ${err instanceof Error ? err.message : String(err)}. File-based ingest (--from sonar) still works.`,
+    };
+  }
+}
+
+type PrFetchResult = { ok: true; json: string } | { ok: false; error: string };
+
+/**
+ * Fetch a PR's review-thread comments via the gh CLI (`repos/:owner/:repo/pulls/:n/comments`).
+ * gh supplies auth and pagination; when it is missing or unauthenticated the error says exactly
+ * that — a recorded JSON file works identically for offline/CI use.
+ */
+async function fetchPrReviewComments(root: string, ref: string): Promise<PrFetchResult> {
+  const numberMatch = ref.match(/^(\d+)$/) ?? ref.match(/\/pull\/(\d+)/);
+  if (!numberMatch) {
+    return { ok: false, error: `"${ref}" is neither a comments JSON file, a PR number, nor a PR URL.` };
+  }
+  const prNumber = numberMatch[1];
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const run = promisify(execFile);
+  try {
+    const { stdout } = await run(
+      "gh",
+      ["api", `repos/{owner}/{repo}/pulls/${prNumber}/comments`, "--paginate"],
+      { cwd: root, maxBuffer: 16 * 1024 * 1024 },
+    );
+    return { ok: true, json: stdout };
+  } catch (err) {
+    const e = err as { stderr?: string; message?: string };
+    return {
+      ok: false,
+      error:
+        `Could not fetch PR #${prNumber} review comments via gh: ${(e.stderr || e.message || String(err)).slice(0, 200)}. ` +
+        "Install/authenticate the gh CLI, or pass a recorded comments JSON file instead.",
     };
   }
 }
