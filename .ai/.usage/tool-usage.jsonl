@@ -312,3 +312,14 @@
 {"tool":"mem_tried","at":"2026-07-05T06:59:18.645Z","summary":"Restaurer plusieurs oracles et ajouter leurs remplaçants dans un seul patch"}
 {"tool":"mem_tried","at":"2026-07-05T07:03:26.780Z","summary":"Conserver les anciens sensors tout en laissant les cas eval modernes attendre le"}
 {"tool":"mem_tried","at":"2026-07-05T07:05:08.459Z","summary":"Pointer le corpus eval vers deux nouvelles mémoires sans valider leur chargement"}
+{"tool":"mem_tried","at":"2026-07-05T16:07:22.734Z","summary":"Compter sur `enforce finish --wait` pour attendre CI malgré un bootstrap incompl"}
+{"tool":"get_briefing","at":"2026-07-05T16:07:28.320Z","summary":"Compléter le bootstrap obligatoire pour les modules benchmarks, engram et GitHub Action avec contextes, mémoires ancrées et guardrails fiables avant le gate finish."}
+{"tool":"mem_save","at":"2026-07-05T16:09:03.807Z","summary":"benchmark-claims-require-decision-ready-evidence"}
+{"tool":"mem_save","at":"2026-07-05T16:09:03.975Z","summary":"engram-is-a-nested-reference-repository"}
+{"tool":"mem_save","at":"2026-07-05T16:09:04.133Z","summary":"github-review-text-is-untrusted-data"}
+{"tool":"mem_save","at":"2026-07-05T16:09:14.020Z","summary":"unsupported-benchmark-claims"}
+{"tool":"propose_sensor","at":"2026-07-05T16:09:28.749Z","summary":"2026-07-05-gotcha-unsupported-benchmark-claims"}
+{"tool":"propose_sensor","at":"2026-07-05T16:09:29.010Z","summary":"2026-07-05-gotcha-engram-is-a-nested-reference-repository"}
+{"tool":"propose_sensor","at":"2026-07-05T16:09:29.216Z","summary":"2026-07-05-gotcha-github-review-text-is-untrusted-data"}
+{"tool":"mem_tried","at":"2026-07-05T16:15:46.900Z","summary":"Ajouter un nouveau sensor discriminant avec `absent` sous le gate strict de weak"}
+{"tool":"mem_relevant_to","at":"2026-07-05T16:15:51.003Z","summary":"Corriger detectSensorWeakening pour ne pas signaler l'ajout d'un nouveau sensor "}

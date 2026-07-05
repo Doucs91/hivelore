@@ -114,6 +114,24 @@
       "diff": "diff --git a/packages/cli/src/commands/enforce.ts b/packages/cli/src/commands/enforce.ts\n+++ b/packages/cli/src/commands/enforce.ts\n@@\n+const antiPatternGate = 'off';\n",
       "paths": ["packages/cli/src/commands/enforce.ts"],
       "expect_fire_ids": ["2026-05-31-gotcha-enforcement-is-process-not-violation"]
+    },
+    {
+      "name": "unsupported benchmark superiority claim",
+      "diff": "diff --git a/benchmarks/agent-benchmark/RESULTS.md b/benchmarks/agent-benchmark/RESULTS.md\n+++ b/benchmarks/agent-benchmark/RESULTS.md\n@@\n+This benchmark proves Hivelore has a strong speed advantage.\n",
+      "paths": ["benchmarks/agent-benchmark/RESULTS.md"],
+      "expect_fire_ids": ["2026-07-05-gotcha-unsupported-benchmark-claims"]
+    },
+    {
+      "name": "Engram secret leakage guard",
+      "diff": "diff --git a/engram/.env b/engram/.env\n+++ b/engram/.env\n@@\n+ENGRAM_API_KEY=hardcoded-secret\n",
+      "paths": ["engram/.env"],
+      "expect_fire_ids": ["2026-07-05-gotcha-engram-is-a-nested-reference-repository"]
+    },
+    {
+      "name": "GitHub review text execution guard",
+      "diff": "diff --git a/packages/github-action/src/run.ts b/packages/github-action/src/run.ts\n+++ b/packages/github-action/src/run.ts\n@@\n+execSync(comment.body);\n",
+      "paths": ["packages/github-action/src/run.ts"],
+      "expect_fire_ids": ["2026-07-05-gotcha-github-review-text-is-untrusted-data"]
     }
   ]
 }

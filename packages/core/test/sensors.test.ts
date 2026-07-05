@@ -451,10 +451,10 @@ describe("extractSensorExamples", () => {
 
 describe("detectSensorWeakening — gate-surface integrity", () => {
   const memFile = ".ai/memories/team/2026-07-01-attempt-x.md";
-  const d = (file: string, removed: string[], added: string[], opts: { deleted?: boolean } = {}): string =>
+  const d = (file: string, removed: string[], added: string[], opts: { deleted?: boolean; created?: boolean } = {}): string =>
     [
       `diff --git a/${file} b/${file}`,
-      `--- a/${file}`,
+      `--- ${opts.created ? "/dev/null" : `a/${file}`}`,
       `+++ ${opts.deleted ? "/dev/null" : `b/${file}`}`,
       "@@ -1,5 +1,5 @@",
       ...removed.map((l) => `-${l}`),
@@ -494,7 +494,9 @@ describe("detectSensorWeakening — gate-surface integrity", () => {
 
   it("stays silent on additions, non-memory files, and sensor-free memory edits", () => {
     // Brand-new sensor (added lines only) — never a weakening.
-    expect(detectSensorWeakening(d(memFile, [], ["sensor:", "  pattern: bad", "  severity: block"]))).toHaveLength(0);
+    expect(detectSensorWeakening(d(memFile, [], ["sensor:", "  pattern: bad", "  absent: safe", "  severity: block"]))).toHaveLength(0);
+    // Brand-new memory with a discriminating sensor — `absent` is not a broadening of prior state.
+    expect(detectSensorWeakening(d(memFile, [], ["sensor:", "  pattern: bad", "  absent: safe", "  severity: block"], { created: true }))).toHaveLength(0);
     // Same change outside .ai/memories/ is out of scope.
     expect(detectSensorWeakening(d("src/config.yml", ["  severity: block"], ["  severity: warn"]))).toHaveLength(0);
     // Editing prose/verified_at in a memory does not flag.

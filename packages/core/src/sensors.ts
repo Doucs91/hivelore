@@ -406,6 +406,7 @@ export interface SensorWeakening {
 
 interface DiffFileChange {
   path: string;
+  created: boolean;
   deleted: boolean;
   removed: string[];
   added: string[];
@@ -427,6 +428,7 @@ function diffFileChanges(diff: string): DiffFileChange[] {
       const newPath = raw === "/dev/null" ? null : normalizeProjectPath(raw);
       current = {
         path: newPath ?? oldPath ?? "",
+        created: oldPath === null && newPath !== null,
         deleted: newPath === null,
         removed: [],
         added: [],
@@ -469,6 +471,10 @@ export function detectSensorWeakening(diff: string): SensorWeakening[] {
 
     const removedBlockSeverity = file.removed.some((l) => SEVERITY_BLOCK_RE.test(l));
 
+    // A newly-created memory cannot weaken a pre-existing enforcement surface. In particular,
+    // a discriminating sensor commonly introduces `pattern`, `absent`, and `severity` together.
+    if (file.created) continue;
+
     if (file.deleted) {
       if (file.removed.some((l) => SENSOR_BLOCK_START_RE.test(l)) && removedBlockSeverity) {
         flag("memory-deleted", "memory file with a block sensor deleted");
@@ -495,7 +501,13 @@ export function detectSensorWeakening(diff: string): SensorWeakening[] {
     // `absent` suppresses matches: ADDING or CHANGING it broadens what the sensor ignores.
     const removedAbsent = file.removed.find((l) => SENSOR_ABSENT_KEY_RE.test(l));
     const addedAbsent = file.added.find((l) => SENSOR_ABSENT_KEY_RE.test(l));
-    if (addedAbsent !== undefined && addedAbsent.trim() !== removedAbsent?.trim()) {
+    const addingNewSensorBlock =
+      file.added.some((l) => SENSOR_BLOCK_START_RE.test(l)) &&
+      !file.removed.some((l) =>
+        SENSOR_BLOCK_START_RE.test(l) || SENSOR_ORACLE_KEY_RE.test(l) ||
+        SEVERITY_BLOCK_RE.test(l) || SEVERITY_WARN_RE.test(l)
+      );
+    if (!addingNewSensorBlock && addedAbsent !== undefined && addedAbsent.trim() !== removedAbsent?.trim()) {
       flag("suppression-broadened", removedAbsent === undefined ? "absent marker added" : "absent marker changed");
     }
 

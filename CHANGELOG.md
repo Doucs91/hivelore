@@ -6,6 +6,15 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.43.1]
+
+- Completed bootstrap coverage for the benchmark fixtures, nested Engram reference checkout, and
+  GitHub Action with focused module contexts and anchored team knowledge.
+- Added validated block sensors preventing unsupported benchmark superiority claims, Engram secret
+  leakage, and execution of untrusted GitHub review text.
+- Restored the strict finish gate after the new code-map exposed previously uncovered top-level areas.
+
+
 ## [0.43.0] — harness assurance: proven behaviour, structural rules, and review learning persistence
 
 ### Security

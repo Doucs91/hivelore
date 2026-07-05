@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-07-05T07:07:20.018Z",
+  "saved_at": "2026-07-05T16:17:41.113Z",
   "k": 8,
   "spec_source": ".ai/eval/spec.json + synthesized anchored retrieval",
   "report": {
@@ -15,10 +15,10 @@
             "2026-07-05-attempt-assuming-stale-cli-dist-was",
             "2026-07-05-attempt-removing-the-local-config-load",
             "2026-06-04-decision-precommit-autobrief-and-briefing-json",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
             "2026-07-05-attempt-appeler-hivelore-enforce-precommit-comme",
-            "2026-07-02-decision-process-gates-bind-agents-not-humans",
             "2026-06-02-architecture-cli-command-surface",
-            "2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate"
+            "2026-07-02-decision-process-gates-bind-agents-not-humans"
           ],
           "hits": [
             "2026-05-07-attempt-strict-precommit-gate-on-haive"
@@ -293,8 +293,8 @@
             "2026-05-07-attempt-strict-precommit-gate-on-haive",
             "2026-05-07-attempt-using-haive-init-name-in",
             "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
-            "2026-07-05-attempt-restaurer-plusieurs-oracles-et-ajouter",
-            "2026-06-03-attempt-running-dependent-package-typecheck-before"
+            "2026-07-05-attempt-pointer-le-corpus-eval-vers",
+            "2026-07-05-attempt-compter-sur-enforce-finish-wait"
           ],
           "hits": [
             "2026-07-04-attempt-valider-un-conflit-git-sans"
@@ -335,12 +335,12 @@
           "surfaced_ids": [
             "2026-07-05-attempt-appeler-hivelore-enforce-precommit-comme",
             "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
             "2026-07-03-attempt-running-hivelore-release-tag-right",
             "2026-06-02-architecture-cli-command-surface",
             "2026-07-05-attempt-running-cli-integration-tests-after",
             "2026-07-05-attempt-removing-the-local-config-load",
-            "2026-07-05-attempt-patching-the-first-nearby-warn",
-            "2026-07-05-attempt-assuming-stale-cli-dist-was"
+            "2026-07-05-attempt-patching-the-first-nearby-warn"
           ],
           "hits": [
             "2026-07-05-attempt-appeler-hivelore-enforce-precommit-comme"
@@ -386,7 +386,7 @@
             "2026-06-02-attempt-running-vitest-with-runinband-in",
             "2026-06-02-architecture-cli-command-surface",
             "2026-07-05-attempt-patching-the-first-nearby-warn",
-            "2026-07-05-attempt-removing-the-local-config-load"
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
           ],
           "hits": [
             "2026-07-05-attempt-assuming-stale-cli-dist-was"
@@ -407,12 +407,35 @@
             "2026-06-03-attempt-running-dependent-package-typecheck-before",
             "2026-07-05-gotcha-prevention-receipt-null-total-from-legacy-usage",
             "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-07-03-decision-sensor-incident-provenance-on-frontmatter",
             "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate",
-            "2026-07-04-decision-prove-red-and-env-scrub-phase4",
-            "2026-07-03-decision-sensor-incident-provenance-on-frontmatter"
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4"
           ],
           "hits": [
             "2026-07-05-attempt-combining-the-prevention-null-fix"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-attempt-compter-sur-enforce-finish-wait",
+          "expect_ids": [
+            "2026-07-05-attempt-compter-sur-enforce-finish-wait"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-attempt-compter-sur-enforce-finish-wait",
+            "2026-07-05-gotcha-unsupported-benchmark-claims",
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data",
+            "2026-07-05-decision-pr-loop-review-learnings-phase3",
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository",
+            "2026-07-05-attempt-appeler-hivelore-enforce-precommit-comme",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+          ],
+          "hits": [
+            "2026-07-05-attempt-compter-sur-enforce-finish-wait"
           ],
           "misses": [],
           "precision": 0.125,
@@ -426,13 +449,13 @@
           ],
           "surfaced_ids": [
             "2026-07-05-attempt-conserver-les-anciens-sensors-tout",
-            "2026-07-05-attempt-excuter-la-regression-gate-avec",
             "2026-07-05-attempt-pointer-le-corpus-eval-vers",
+            "2026-07-05-attempt-excuter-la-regression-gate-avec",
             "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-07-05-attempt-compter-sur-enforce-finish-wait",
             "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
-            "2026-05-07-attempt-using-haive-init-name-in",
-            "2026-05-07-attempt-strict-precommit-gate-on-haive",
-            "2026-07-05-attempt-restaurer-plusieurs-oracles-et-ajouter"
+            "2026-05-07-attempt-using-haive-init-name-in"
           ],
           "hits": [
             "2026-07-05-attempt-conserver-les-anciens-sensors-tout"
@@ -450,12 +473,12 @@
           "surfaced_ids": [
             "2026-07-05-attempt-excuter-la-regression-gate-avec",
             "2026-07-05-attempt-conserver-les-anciens-sensors-tout",
+            "2026-07-05-attempt-pointer-le-corpus-eval-vers",
             "2026-06-03-attempt-committing-lot-b-before-refreshing",
             "2026-06-02-architecture-cli-command-surface",
-            "2026-07-05-attempt-pointer-le-corpus-eval-vers",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
             "2026-06-06-decision-harness-quality-batch-v0270",
-            "2026-07-05-decision-eval-golden-set-tier-contract-phase5",
-            "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
+            "2026-07-05-decision-eval-golden-set-tier-contract-phase5"
           ],
           "hits": [
             "2026-07-05-attempt-excuter-la-regression-gate-avec"
@@ -496,12 +519,12 @@
           "surfaced_ids": [
             "2026-07-05-attempt-patching-the-failing-eval-sensor",
             "2026-07-05-attempt-testing-the-parsed-sensor-regex",
+            "2026-07-05-attempt-pointer-le-corpus-eval-vers",
             "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
             "2026-05-07-attempt-using-haive-init-name-in",
             "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
             "2026-05-07-attempt-strict-precommit-gate-on-haive",
-            "2026-07-05-attempt-patching-the-first-nearby-warn",
-            "2026-06-03-attempt-committing-lot-b-before-refreshing"
+            "2026-07-05-attempt-patching-the-first-nearby-warn"
           ],
           "hits": [
             "2026-07-05-attempt-patching-the-failing-eval-sensor"
@@ -541,13 +564,13 @@
           ],
           "surfaced_ids": [
             "2026-07-05-attempt-pointer-le-corpus-eval-vers",
-            "2026-07-05-attempt-excuter-la-regression-gate-avec",
             "2026-07-05-attempt-conserver-les-anciens-sensors-tout",
+            "2026-07-05-attempt-excuter-la-regression-gate-avec",
             "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
             "2026-07-04-attempt-valider-un-conflit-git-sans",
+            "2026-07-05-attempt-compter-sur-enforce-finish-wait",
             "2026-07-05-attempt-restaurer-plusieurs-oracles-et-ajouter",
-            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
-            "2026-05-07-attempt-using-haive-init-name-in"
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
           ],
           "hits": [
             "2026-07-05-attempt-pointer-le-corpus-eval-vers"
@@ -567,10 +590,10 @@
             "2026-05-07-attempt-strict-precommit-gate-on-haive",
             "2026-07-05-attempt-assuming-stale-cli-dist-was",
             "2026-07-05-attempt-patching-the-first-nearby-warn",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
             "2026-06-02-architecture-cli-command-surface",
             "2026-07-05-attempt-running-cli-integration-tests-after",
-            "2026-07-05-attempt-searching-source-with-an-rg",
-            "2026-07-05-attempt-appeler-hivelore-enforce-precommit-comme"
+            "2026-07-05-attempt-searching-source-with-an-rg"
           ],
           "hits": [
             "2026-07-05-attempt-removing-the-local-config-load"
@@ -591,9 +614,9 @@
             "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
             "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
             "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-07-05-attempt-compter-sur-enforce-finish-wait",
             "2026-05-07-attempt-using-haive-init-name-in",
-            "2026-07-04-attempt-valider-un-conflit-git-sans",
-            "2026-07-05-attempt-patching-the-failing-eval-sensor"
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
           ],
           "hits": [
             "2026-07-05-attempt-restaurer-plusieurs-oracles-et-ajouter"
@@ -685,7 +708,7 @@
             "2026-07-05-attempt-running-cli-integration-tests-after",
             "2026-07-05-attempt-patching-the-first-nearby-warn",
             "2026-07-05-attempt-appeler-hivelore-enforce-precommit-comme",
-            "2026-07-02-decision-surface-reduction-one-verb-per-job"
+            "2026-07-03-attempt-running-hivelore-release-tag-right"
           ],
           "hits": [
             "2026-07-05-attempt-searching-source-with-an-rg"
@@ -726,12 +749,12 @@
           "surfaced_ids": [
             "2026-07-05-attempt-testing-the-parsed-sensor-regex",
             "2026-07-05-attempt-patching-the-failing-eval-sensor",
+            "2026-07-05-attempt-pointer-le-corpus-eval-vers",
             "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
             "2026-05-07-attempt-strict-precommit-gate-on-haive",
-            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
             "2026-05-07-attempt-using-haive-init-name-in",
-            "2026-07-05-attempt-testing-an-astgrep-nothas-rule",
-            "2026-07-05-attempt-using-a-javascript-raw-template"
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-07-05-attempt-testing-an-astgrep-nothas-rule"
           ],
           "hits": [
             "2026-07-05-attempt-testing-the-parsed-sensor-regex"
@@ -776,8 +799,8 @@
             "2026-06-03-attempt-running-dependent-package-typecheck-before",
             "2026-07-03-decision-sensor-incident-provenance-on-frontmatter",
             "2026-06-02-architecture-core-pure-domain-layer",
-            "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate",
-            "2026-07-04-decision-prove-red-and-env-scrub-phase4"
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4",
+            "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate"
           ],
           "hits": [
             "2026-07-05-gotcha-prevention-receipt-null-total-from-legacy-usage"
@@ -983,8 +1006,8 @@
             "2026-07-05-attempt-patching-ast-optional-dependencies",
             "2026-07-05-convention-hivelore-workspace-dependencies",
             "2026-05-28-decision-ship-embeddings-with-cli-mcp",
-            "2026-07-05-attempt-using-a-javascript-raw-template",
-            "2026-07-05-attempt-restaurer-plusieurs-oracles-et-ajouter"
+            "2026-07-05-attempt-restaurer-plusieurs-oracles-et-ajouter",
+            "2026-07-05-attempt-using-a-javascript-raw-template"
           ],
           "hits": [
             "2026-04-27-gotcha-mcp-exports-package-json"
@@ -1004,8 +1027,8 @@
             "2026-06-02-architecture-cli-command-surface",
             "2026-04-28-architecture-adding-new-mcp-tool",
             "2026-07-03-attempt-relied-on-pnpm-r-build",
-            "2026-04-27-decision-zod-error-formatting-no-direct-import",
             "2026-07-04-attempt-typechecking-cli-before-rebuilding-mcp",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
             "2026-06-02-convention-tool-ui-english-user-content-any-language",
             "2026-06-02-architecture-mcp-tool-contract"
           ],
@@ -1050,10 +1073,10 @@
             "2026-06-02-convention-verify-pipelines-before-closing",
             "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
             "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-07-05-gotcha-unsupported-benchmark-claims",
             "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
             "2026-07-05-attempt-running-cli-integration-tests-after",
-            "2026-05-07-attempt-strict-precommit-gate-on-haive",
-            "2026-05-07-attempt-using-haive-init-name-in"
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
           ],
           "hits": [
             "2026-04-28-decision-benchmark-results-v027-token-reduction"
@@ -1118,8 +1141,8 @@
             "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
             "2026-04-27-gotcha-mcp-exports-package-json",
             "2026-05-28-decision-ship-embeddings-with-cli-mcp",
-            "2026-07-05-attempt-patching-ast-optional-dependencies",
             "2026-07-05-convention-hivelore-workspace-dependencies",
+            "2026-07-05-attempt-patching-ast-optional-dependencies",
             "2026-07-05-convention-hivelore-mcp-package-export",
             "2026-06-03-attempt-running-dependent-package-typecheck-before",
             "2026-07-02-decision-hivelore-rename-compat-strategy"
@@ -1186,8 +1209,8 @@
           "surfaced_ids": [
             "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
             "2026-05-04-decision-v091-bugfixes-overview",
-            "2026-04-25-architecture-pure-tool-handlers",
             "2026-07-05-attempt-assuming-stale-cli-dist-was",
+            "2026-04-25-architecture-pure-tool-handlers",
             "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
             "2026-06-02-architecture-mcp-tool-contract",
             "2026-06-02-architecture-core-pure-domain-layer",
@@ -1234,9 +1257,9 @@
             "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
             "2026-04-27-gotcha-mcp-exports-package-json",
             "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-convention-hivelore-mcp-package-export",
             "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
             "2026-07-05-attempt-patching-ast-optional-dependencies",
-            "2026-07-05-convention-hivelore-mcp-package-export",
             "2026-07-05-convention-hivelore-workspace-dependencies"
           ],
           "hits": [
@@ -1467,7 +1490,7 @@
             "2026-06-04-decision-stack-pack-dedup-by-signature-and-coverage-self-exempt",
             "2026-07-05-attempt-removing-the-local-config-load",
             "2026-07-02-decision-process-gates-bind-agents-not-humans",
-            "2026-07-03-attempt-running-hivelore-release-tag-right"
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
           ],
           "hits": [
             "2026-06-02-decision-ci-decision-coverage-local-marker"
@@ -1605,7 +1628,7 @@
             "2026-06-07-decision-first-agent-bootstrap-gate",
             "2026-06-02-architecture-cli-command-surface",
             "2026-07-02-decision-process-gates-bind-agents-not-humans",
-            "2026-06-09-gotcha-sensors-check-self-match-on-ai-files"
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
           ],
           "hits": [
             "2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate"
@@ -1674,7 +1697,7 @@
             "2026-07-05-attempt-combining-the-prevention-null-fix",
             "2026-06-02-architecture-cli-command-surface",
             "2026-07-02-decision-surface-reduction-one-verb-per-job",
-            "2026-04-25-architecture-pure-tool-handlers"
+            "2026-07-05-attempt-assuming-stale-cli-dist-was"
           ],
           "hits": [
             "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate"
@@ -1740,8 +1763,8 @@
             "2026-06-02-architecture-cli-command-surface",
             "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
             "2026-04-25-architecture-pure-tool-handlers",
-            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
             "2026-06-02-architecture-mcp-tool-contract",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
             "2026-06-06-decision-harness-quality-batch-v0270",
             "2026-06-04-decision-precommit-autobrief-and-briefing-json"
           ],
@@ -1789,7 +1812,7 @@
             "2026-06-02-architecture-core-pure-domain-layer",
             "2026-07-05-attempt-excuter-la-regression-gate-avec",
             "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
-            "2026-04-25-architecture-pure-tool-handlers"
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
           ],
           "hits": [
             "2026-06-06-decision-harness-quality-batch-v0270"
@@ -1877,11 +1900,11 @@
             "2026-06-07-decision-first-agent-bootstrap-gate",
             "2026-05-07-attempt-strict-precommit-gate-on-haive",
             "2026-06-02-architecture-cli-command-surface",
-            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
             "2026-06-02-architecture-mcp-tool-contract",
-            "2026-04-25-architecture-pure-tool-handlers",
-            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
-            "2026-07-05-attempt-patching-the-first-nearby-warn"
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-07-05-attempt-patching-the-first-nearby-warn",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
           ],
           "hits": [
             "2026-06-07-decision-first-agent-bootstrap-gate"
@@ -1971,8 +1994,8 @@
             "2026-06-02-architecture-cli-command-surface",
             "2026-04-25-architecture-pure-tool-handlers",
             "2026-06-07-gotcha-autogen-sensor-inverted-when-companion-longer-than-call",
-            "2026-06-02-architecture-core-pure-domain-layer",
             "2026-07-04-decision-gate-surface-integrity-batch-v0390",
+            "2026-06-02-architecture-core-pure-domain-layer",
             "2026-06-06-decision-harness-quality-batch-v0270"
           ],
           "hits": [
@@ -1992,8 +2015,8 @@
             "2026-06-08-decision-validated-by-provenance-human-agent-auto",
             "2026-06-02-architecture-mcp-tool-contract",
             "2026-04-25-architecture-pure-tool-handlers",
-            "2026-06-02-architecture-cli-command-surface",
             "2026-07-03-decision-sensor-incident-provenance-on-frontmatter",
+            "2026-06-02-architecture-cli-command-surface",
             "2026-06-02-architecture-core-pure-domain-layer",
             "2026-07-03-decision-sensor-promoted-at-quarantine-reset",
             "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1"
@@ -2019,7 +2042,7 @@
             "2026-06-02-architecture-cli-command-surface",
             "2026-07-03-attempt-running-hivelore-release-tag-right",
             "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate",
-            "2026-07-05-attempt-appeler-hivelore-enforce-precommit-comme"
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
           ],
           "hits": [
             "2026-06-09-gotcha-sensors-check-self-match-on-ai-files"
@@ -2063,8 +2086,8 @@
             "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
             "2026-07-02-decision-surface-reduction-one-verb-per-job",
             "2026-07-05-attempt-patching-the-first-nearby-warn",
-            "2026-07-03-attempt-running-hivelore-release-tag-right",
             "2026-07-05-attempt-removing-the-local-config-load",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
             "2026-07-05-attempt-appeler-hivelore-enforce-precommit-comme"
           ],
           "hits": [
@@ -2085,10 +2108,10 @@
             "2026-05-07-attempt-strict-precommit-gate-on-haive",
             "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
             "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
             "2026-07-03-attempt-running-hivelore-release-tag-right",
             "2026-07-05-attempt-removing-the-local-config-load",
-            "2026-07-05-attempt-assuming-stale-cli-dist-was",
-            "2026-07-05-attempt-patching-the-first-nearby-warn"
+            "2026-07-05-attempt-assuming-stale-cli-dist-was"
           ],
           "hits": [
             "2026-07-02-decision-process-gates-bind-agents-not-humans"
@@ -2110,8 +2133,8 @@
             "2026-06-02-architecture-cli-command-surface",
             "2026-07-05-attempt-patching-the-first-nearby-warn",
             "2026-04-25-architecture-pure-tool-handlers",
-            "2026-07-05-attempt-assuming-stale-cli-dist-was",
-            "2026-07-03-attempt-running-hivelore-release-tag-right"
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-07-05-attempt-assuming-stale-cli-dist-was"
           ],
           "hits": [
             "2026-07-02-decision-review-warnings-aggregated-and-head-baseline"
@@ -2270,9 +2293,9 @@
             "2026-07-05-attempt-patching-the-first-nearby-warn",
             "2026-05-07-attempt-strict-precommit-gate-on-haive",
             "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
             "2026-07-05-attempt-searching-source-with-an-rg",
-            "2026-07-05-attempt-appeler-hivelore-enforce-precommit-comme",
-            "2026-07-05-attempt-assuming-stale-cli-dist-was"
+            "2026-07-05-attempt-appeler-hivelore-enforce-precommit-comme"
           ],
           "hits": [
             "2026-07-03-decision-command-sensor-flap-identical-content"
@@ -2290,12 +2313,12 @@
           "surfaced_ids": [
             "2026-07-03-decision-gate-passes-as-synthetic-ledger-row",
             "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
             "2026-07-05-attempt-assuming-stale-cli-dist-was",
             "2026-06-02-architecture-cli-command-surface",
             "2026-07-03-attempt-running-hivelore-release-tag-right",
             "2026-07-05-attempt-searching-source-with-an-rg",
-            "2026-07-05-attempt-patching-the-first-nearby-warn",
-            "2026-07-05-attempt-appeler-hivelore-enforce-precommit-comme"
+            "2026-07-05-attempt-patching-the-first-nearby-warn"
           ],
           "hits": [
             "2026-07-03-decision-gate-passes-as-synthetic-ledger-row"
@@ -2430,8 +2453,8 @@
             "2026-07-03-decision-sensor-incident-provenance-on-frontmatter",
             "2026-06-02-architecture-cli-command-surface",
             "2026-07-05-attempt-running-sensors-check-against",
-            "2026-07-04-attempt-typechecking-cli-before-rebuilding-mcp",
             "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-07-04-attempt-typechecking-cli-before-rebuilding-mcp",
             "2026-07-03-decision-command-sensor-flap-identical-content",
             "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1"
           ],
@@ -2452,11 +2475,11 @@
             "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
             "2026-07-04-decision-prove-red-and-env-scrub-phase4",
             "2026-07-05-attempt-testing-an-astgrep-nothas-rule",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
             "2026-05-07-attempt-strict-precommit-gate-on-haive",
             "2026-07-02-decision-review-warnings-aggregated-and-head-baseline",
             "2026-07-04-decision-gate-surface-integrity-batch-v0390",
-            "2026-04-25-architecture-pure-tool-handlers",
-            "2026-07-05-attempt-running-the-full-verification-chain"
+            "2026-04-25-architecture-pure-tool-handlers"
           ],
           "hits": [
             "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1"
@@ -2476,10 +2499,10 @@
             "2026-05-07-attempt-strict-precommit-gate-on-haive",
             "2026-07-04-decision-prove-red-and-env-scrub-phase4",
             "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
             "2026-07-02-decision-review-warnings-aggregated-and-head-baseline",
             "2026-07-02-decision-surface-reduction-one-verb-per-job",
-            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
-            "2026-04-25-architecture-pure-tool-handlers"
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1"
           ],
           "hits": [
             "2026-07-04-decision-gate-surface-integrity-batch-v0390"
@@ -2502,7 +2525,7 @@
             "2026-06-03-attempt-running-dependent-package-typecheck-before",
             "2026-04-25-architecture-pure-tool-handlers",
             "2026-07-04-gotcha-red-ref-shell-interpolation-risk",
-            "2026-06-02-architecture-cli-command-surface"
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
           ],
           "hits": [
             "2026-07-04-decision-prove-red-and-env-scrub-phase4"
@@ -2545,13 +2568,36 @@
             "2026-07-03-decision-scaffold-generates-pending-test-never-arms",
             "2026-07-05-attempt-running-the-full-verification-chain",
             "2026-04-25-architecture-pure-tool-handlers",
-            "2026-06-02-architecture-mcp-tool-contract",
             "2026-07-04-decision-prove-red-and-env-scrub-phase4",
+            "2026-06-02-architecture-mcp-tool-contract",
             "2026-07-02-decision-command-sensors-behaviour-bridge",
-            "2026-06-02-architecture-core-pure-domain-layer"
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390"
           ],
           "hits": [
             "2026-07-04-gotcha-pending-oracle-fake-protection"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+          "expect_ids": [
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-07-05-attempt-appeler-hivelore-enforce-precommit-comme",
+            "2026-07-05-attempt-removing-the-local-config-load",
+            "2026-07-05-attempt-assuming-stale-cli-dist-was",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-patching-the-first-nearby-warn",
+            "2026-07-05-attempt-running-cli-integration-tests-after"
+          ],
+          "hits": [
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
           ],
           "misses": [],
           "precision": 0.125,
@@ -2590,8 +2636,8 @@
             "2026-07-05-convention-ci-enforces-eval-regressions",
             "2026-07-03-attempt-relied-on-pnpm-r-build",
             "2026-07-05-attempt-applying-ci-and-repository-enforcement",
-            "2026-04-25-convention-always-run-tests-before-commit",
             "2026-06-02-gotcha-commit-message-body-skip-ci-skips-whole-push",
+            "2026-04-25-convention-always-run-tests-before-commit",
             "2026-07-04-attempt-running-root-pnpm-test-before",
             "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
             "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
@@ -2616,8 +2662,8 @@
             "2026-06-02-architecture-cli-command-surface",
             "2026-05-28-decision-ship-embeddings-with-cli-mcp",
             "2026-07-05-attempt-patching-ast-optional-dependencies",
-            "2026-07-04-attempt-rebuilding-only-core-before",
-            "2026-07-05-convention-hivelore-workspace-dependencies"
+            "2026-07-05-convention-hivelore-workspace-dependencies",
+            "2026-07-04-attempt-rebuilding-only-core-before"
           ],
           "hits": [
             "2026-07-05-convention-hivelore-mcp-package-export"
@@ -2674,6 +2720,29 @@
           "best_rank": 1
         },
         {
+          "name": "2026-07-05-decision-benchmark-claims-require-decision-ready-evidence",
+          "expect_ids": [
+            "2026-07-05-decision-benchmark-claims-require-decision-ready-evidence"
+          ],
+          "surfaced_ids": [
+            "2026-06-03-attempt-committing-lot-b-before-refreshing",
+            "2026-07-05-gotcha-unsupported-benchmark-claims",
+            "2026-05-29-skill-save-decision-or-gotcha-mid-task",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-compter-sur-enforce-finish-wait",
+            "2026-07-05-attempt-running-cli-integration-tests-after",
+            "2026-05-29-skill-close-session-properly",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import"
+          ],
+          "hits": [],
+          "misses": [
+            "2026-07-05-decision-benchmark-claims-require-decision-ready-evidence"
+          ],
+          "precision": 0,
+          "recall": 0,
+          "best_rank": null
+        },
+        {
           "name": "2026-07-05-decision-eval-golden-set-tier-contract-phase5",
           "expect_ids": [
             "2026-07-05-decision-eval-golden-set-tier-contract-phase5"
@@ -2726,16 +2795,85 @@
           ],
           "surfaced_ids": [
             "2026-07-05-decision-pr-loop-review-learnings-phase3",
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data",
             "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-compter-sur-enforce-finish-wait",
             "2026-06-02-architecture-core-pure-domain-layer",
             "2026-06-02-decision-tools-must-be-environment-independent",
             "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
-            "2026-05-07-attempt-strict-precommit-gate-on-haive",
-            "2026-07-05-decision-eval-golden-set-tier-contract-phase5",
-            "2026-07-04-decision-prove-red-and-env-scrub-phase4"
+            "2026-05-07-attempt-strict-precommit-gate-on-haive"
           ],
           "hits": [
             "2026-07-05-decision-pr-loop-review-learnings-phase3"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-gotcha-engram-is-a-nested-reference-repository",
+          "expect_ids": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository",
+            "2026-07-05-attempt-using-a-javascript-raw-template",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-29-skill-save-decision-or-gotcha-mid-task",
+            "2026-07-05-attempt-restaurer-plusieurs-oracles-et-ajouter",
+            "2026-07-05-attempt-compter-sur-enforce-finish-wait",
+            "2026-05-29-skill-capture-failed-approach-immediately",
+            "2026-05-29-skill-close-session-properly"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-gotcha-github-review-text-is-untrusted-data",
+          "expect_ids": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data",
+            "2026-07-05-attempt-using-a-javascript-raw-template",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-29-skill-save-decision-or-gotcha-mid-task",
+            "2026-07-05-attempt-restaurer-plusieurs-oracles-et-ajouter",
+            "2026-07-05-attempt-compter-sur-enforce-finish-wait",
+            "2026-05-29-skill-capture-failed-approach-immediately",
+            "2026-05-29-skill-close-session-properly"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-gotcha-unsupported-benchmark-claims",
+          "expect_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims",
+            "2026-07-05-attempt-using-a-javascript-raw-template",
+            "2026-05-07-attempt-strict-precommit-gate-on-haive",
+            "2026-05-29-skill-save-decision-or-gotcha-mid-task",
+            "2026-07-05-attempt-restaurer-plusieurs-oracles-et-ajouter",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-compter-sur-enforce-finish-wait",
+            "2026-07-05-attempt-running-cli-integration-tests-after"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
           ],
           "misses": [],
           "precision": 0.125,
@@ -2801,7 +2939,7 @@
             "2026-07-05-attempt-assuming-stale-cli-dist-was",
             "2026-06-03-attempt-running-dependent-package-typecheck-before",
             "2026-07-02-decision-surface-reduction-one-verb-per-job",
-            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+            "2026-04-27-gotcha-embeddings-load-error-double-print"
           ],
           "hits": [
             "2026-04-25-gotcha-tsup-externals-required"
@@ -2843,8 +2981,8 @@
             "2026-04-28-gotcha-serializememory-undefined-values-crash",
             "2026-06-02-architecture-core-pure-domain-layer",
             "2026-04-27-gotcha-mcp-exports-package-json",
-            "2026-07-03-decision-scaffold-generates-pending-test-never-arms",
             "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-07-03-decision-scaffold-generates-pending-test-never-arms",
             "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
             "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
             "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
@@ -3042,9 +3180,9 @@
           "best_rank": 2
         }
       ],
-      "mean_precision": 0.123,
-      "mean_recall": 0.985,
-      "mrr": 0.963
+      "mean_precision": 0.122,
+      "mean_recall": 0.978,
+      "mrr": 0.958
     },
     "sensors": {
       "cases": [
@@ -3131,11 +3269,53 @@
           ],
           "misses": [],
           "recall": 1
+        },
+        {
+          "name": "unsupported benchmark superiority claim",
+          "expect_fire_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "fired_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "Engram secret leakage guard",
+          "expect_fire_ids": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "fired_ids": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "GitHub review text execution guard",
+          "expect_fire_ids": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "fired_ids": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "misses": [],
+          "recall": 1
         }
       ],
       "catch_rate": 1
     },
-    "score": 99
+    "score": 98
   },
   "authored_report": {
     "retrieval": {
@@ -3199,7 +3379,7 @@
             "2026-07-05-attempt-assuming-stale-cli-dist-was",
             "2026-06-03-attempt-running-dependent-package-typecheck-before",
             "2026-07-02-decision-surface-reduction-one-verb-per-job",
-            "2026-05-07-attempt-strict-precommit-gate-on-haive"
+            "2026-04-27-gotcha-embeddings-load-error-double-print"
           ],
           "hits": [
             "2026-04-25-gotcha-tsup-externals-required"
@@ -3241,8 +3421,8 @@
             "2026-04-28-gotcha-serializememory-undefined-values-crash",
             "2026-06-02-architecture-core-pure-domain-layer",
             "2026-04-27-gotcha-mcp-exports-package-json",
-            "2026-07-03-decision-scaffold-generates-pending-test-never-arms",
             "2026-05-07-attempt-using-haive-init-name-in",
+            "2026-07-03-decision-scaffold-generates-pending-test-never-arms",
             "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
             "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
             "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
@@ -3529,6 +3709,48 @@
           ],
           "misses": [],
           "recall": 1
+        },
+        {
+          "name": "unsupported benchmark superiority claim",
+          "expect_fire_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "fired_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "Engram secret leakage guard",
+          "expect_fire_ids": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "fired_ids": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "GitHub review text execution guard",
+          "expect_fire_ids": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "fired_ids": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "misses": [],
+          "recall": 1
         }
       ],
       "catch_rate": 1
@@ -3537,10 +3759,10 @@
   },
   "gate_precision": {
     "sensor_catches": 0,
-    "anti_pattern_catches": 77,
-    "useful": 78,
+    "anti_pattern_catches": 99,
+    "useful": 100,
     "rejections": 2,
-    "precision": 0.975,
+    "precision": 0.98,
     "suggestion": null
   }
 }
