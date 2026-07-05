@@ -1415,6 +1415,16 @@ describe("Hivelore CLI integration", () => {
       await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
       await run(repo, ["index", "code", "--dir", repo]);
 
+      // A committed map can retain paths from an ignored/nested checkout that is absent in CI.
+      // Those stale entries must not manufacture bootstrap areas in the current checkout.
+      const codeMapFile = path.join(repo, ".ai/code-map.json");
+      const codeMap = JSON.parse(await readFile(codeMapFile, "utf8")) as { files: Record<string, unknown> };
+      const sampleEntry = Object.values(codeMap.files)[0];
+      codeMap.files["ignored-ref/a.ts"] = sampleEntry;
+      codeMap.files["ignored-ref/b.ts"] = sampleEntry;
+      codeMap.files["ignored-ref/c.ts"] = sampleEntry;
+      await writeFile(codeMapFile, JSON.stringify(codeMap, null, 2), "utf8");
+
       // Stage a production-code change on a cold corpus → the gate must block.
       await writeFile(path.join(repo, "packages/api/a.ts"), "export function getUser(){ return 2 }\n", "utf8");
       await exec("git", ["add", "packages/api/a.ts"], { cwd: repo });

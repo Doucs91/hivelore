@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-07-05T06:57:28.028Z",
+  "generated_at": "2026-07-05T16:32:06.078Z",
   "root": "/home/sd/Documents/Dev/New idea",
   "files": {
     "packages/cli/src/commands/agent.ts": {
@@ -144,7 +144,7 @@
           "line": 80
         }
       ],
-      "loc": 602
+      "loc": 606
     },
     "packages/cli/src/commands/index-code.ts": {
       "exports": [
@@ -3275,45 +3275,45 @@
           "name": "detectSensorWeakening",
           "kind": "function",
           "description": "Detect diff hunks that WEAKEN the enforcement surface: demoting a block sensor to warn, changing or removing its oracle (`pattern`/`command`), broadening its `absent` suppression, deleting the whole sensor block, or deleting a memory file that carried a block sensor.",
-          "line": 461
+          "line": 463
         },
         {
           "name": "SensorSelfCheck",
           "kind": "interface",
           "description": "── Self-validation: a generated sensor must prove it discriminates before it can block ──────────",
-          "line": 515
+          "line": 527
         },
         {
           "name": "sensorSelfCheck",
           "kind": "function",
           "description": "Validate a sensor before it is trusted to hard-block.",
-          "line": 537
+          "line": 549
         },
         {
           "name": "ProposedSensorVerdict",
           "kind": "interface",
-          "line": 562
+          "line": 574
         },
         {
           "name": "judgeProposedSensor",
           "kind": "function",
           "description": "Decide whether a PROPOSED sensor may be trusted at its severity.",
-          "line": 578
+          "line": 590
         },
         {
           "name": "extractSensorExamples",
           "kind": "function",
           "description": "Pull candidate bad-code examples from a lesson body: fenced code blocks and inline code spans that look like code (contain a call/dot/assignment).",
-          "line": 601
+          "line": 613
         },
         {
           "name": "addedLinesFromDiff",
           "kind": "function",
           "description": "Extract the added lines from a unified diff (lines starting with a single `+`, excluding the `+++` file header).",
-          "line": 619
+          "line": 631
         }
       ],
-      "loc": 628
+      "loc": 640
     },
     "packages/core/src/skill-activation.ts": {
       "exports": [
@@ -4730,20 +4730,20 @@
         {
           "name": "GetBriefingZod",
           "kind": "const",
-          "line": 158
+          "line": 166
         },
         {
           "name": "GetBriefingInput",
           "kind": "type",
-          "line": 159
+          "line": 167
         },
         {
           "name": "getBriefing",
           "kind": "function",
-          "line": 161
+          "line": 169
         }
       ],
-      "loc": 1058
+      "loc": 1075
     },
     "packages/mcp/src/tools/get-project-context.ts": {
       "exports": [

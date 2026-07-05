@@ -1,5 +1,6 @@
 import { readFile, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import path from "node:path";
 import {
   assessBootstrapState,
   loadCodeMap,
@@ -36,7 +37,9 @@ async function currentAssessment(ctx: HaiveContext): Promise<BootstrapAssessment
   return assessBootstrapState({
     projectContextRaw,
     memories,
-    codeFiles: codeMap ? Object.keys(codeMap.files) : [],
+    codeFiles: codeMap
+      ? Object.keys(codeMap.files).filter((file) => existsSync(path.join(ctx.paths.root, file)))
+      : [],
     existingModules,
   });
 }

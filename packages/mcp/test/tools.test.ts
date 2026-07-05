@@ -1018,6 +1018,11 @@ describe("Hivelore MCP tools", () => {
 
   describe("first-agent bootstrap directive (get_briefing)", () => {
     async function writeCodeMap(files: string[]): Promise<void> {
+      for (const file of files) {
+        const absolute = path.join(workDir, file);
+        await mkdir(path.dirname(absolute), { recursive: true });
+        await writeFile(absolute, "export const fixture = true;\n", "utf8");
+      }
       const map = {
         version: 1,
         generated_at: new Date().toISOString(),

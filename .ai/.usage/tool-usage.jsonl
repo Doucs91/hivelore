@@ -323,3 +323,15 @@
 {"tool":"propose_sensor","at":"2026-07-05T16:09:29.216Z","summary":"2026-07-05-gotcha-github-review-text-is-untrusted-data"}
 {"tool":"mem_tried","at":"2026-07-05T16:15:46.900Z","summary":"Ajouter un nouveau sensor discriminant avec `absent` sous le gate strict de weak"}
 {"tool":"mem_relevant_to","at":"2026-07-05T16:15:51.003Z","summary":"Corriger detectSensorWeakening pour ne pas signaler l'ajout d'un nouveau sensor "}
+{"tool":"mem_tried","at":"2026-07-05T16:24:17.884Z","summary":"S'appuyer sur la chaîne locale verte avant le gate final v0.43.1"}
+{"tool":"mem_relevant_to","at":"2026-07-05T16:26:06.597Z","summary":"Rendre l'eval authored reproductible entre le poste local et une CI propre en ex"}
+{"tool":"mem_tried","at":"2026-07-05T16:27:40.247Z","summary":"Ajouter `memory_scopes`/`deterministic` au briefing sans couvrir le scope shared"}
+{"tool":"mem_tried","at":"2026-07-05T16:27:59.133Z","summary":"Typechecker CLI après avoir seulement typechecké la nouvelle API MCP"}
+{"tool":"mem_tried","at":"2026-07-05T16:30:12.080Z","summary":"Patcher le mode déterministe et son test dans un bloc multi-fichiers mal ciblé"}
+{"tool":"mem_tried","at":"2026-07-05T16:38:02.886Z","summary":"Ancrer les politiques benchmarks/engram dans leurs contextes sous .ai/modules"}
+{"tool":"mem_relevant_to","at":"2026-07-05T16:38:44.098Z","summary":"Faire ignorer au bootstrap les entrées code-map absentes du checkout courant afi"}
+{"tool":"mem_tried","at":"2026-07-05T16:41:17.301Z","summary":"Reproduire le clean CI après filtrage des code-map paths absents"}
+{"tool":"mem_tried","at":"2026-07-05T16:41:48.621Z","summary":"Reproduire CI eval puis enforcement dans le même worktree"}
+{"tool":"mem_tried","at":"2026-07-05T16:43:54.154Z","summary":"Filtrer les entrées code-map absentes sans adapter le fixture bootstrap MCP"}
+{"tool":"mem_tried","at":"2026-07-05T16:47:52.734Z","summary":"Taguer puis pousser v0.43.2 sans refetch après les workflows haive-sync"}
+{"tool":"mem_tried","at":"2026-07-05T16:48:06.459Z","summary":"Utiliser `git fetch origin --tags` avant le rebase"}

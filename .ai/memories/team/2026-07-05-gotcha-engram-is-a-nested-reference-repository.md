@@ -2,11 +2,10 @@
 id: 2026-07-05-gotcha-engram-is-a-nested-reference-repository
 scope: team
 type: gotcha
-status: stale
+status: validated
 anchor:
   paths:
-    - engram/README.md
-    - engram/.git/HEAD
+    - .ai/modules/engram/context.md
   symbols: []
 sensor:
   kind: regex
@@ -27,8 +26,8 @@ tags:
   - boundary
 created_at: '2026-07-05T16:09:04.109Z'
 expires_when: null
-verified_at: '2026-07-05T16:21:36.239Z'
-stale_reason: 'anchor path(s) no longer exist: engram/README.md, engram/.git/HEAD'
+verified_at: '2026-07-05T16:49:08.451Z'
+stale_reason: null
 related_ids: []
 last_read_at: null
 topic: 'competitor:engram-boundary'

@@ -2,10 +2,10 @@
 id: 2026-07-05-decision-benchmark-claims-require-decision-ready-evidence
 scope: team
 type: decision
-status: stale
+status: validated
 anchor:
   paths:
-    - benchmarks/agent-benchmark/RESULTS.md
+    - .ai/modules/benchmarks/context.md
     - packages/cli/src/commands/benchmark.ts
   symbols: []
 tags:
@@ -14,8 +14,8 @@ tags:
   - harness-engineering
 created_at: '2026-07-05T16:09:03.946Z'
 expires_when: null
-verified_at: '2026-07-05T16:21:36.204Z'
-stale_reason: 'anchor path(s) no longer exist: benchmarks/agent-benchmark/RESULTS.md'
+verified_at: '2026-07-05T16:49:08.042Z'
+stale_reason: null
 related_ids: []
 last_read_at: null
 topic: 'benchmark:evidence-grade'

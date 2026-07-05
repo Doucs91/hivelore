@@ -568,6 +568,10 @@ hivelore selftest                                # Self-test MCP tools (latency 
 `hivelore eval` auto-synthesizes retrieval cases from anchored memories and, when present, also loads
 `.ai/eval/spec.json` for labeled retrieval/sensor cases. This repo uses that file to keep executable
 memory sensors in CI, so a broken guardrail is caught before release.
+Committed regression baselines use only versioned team/module memories and deterministic
+anchor/lexical ranking; local usage counters, personal memories, and optional embedding caches cannot
+make a baseline pass locally but fail in a clean CI clone. Semantic search remains exercised by the
+embeddings/search test suites.
 
 `hivelore doctor` reports local setup drift that can make agents misdiagnose the repo: missing `pnpm`,
 stale workspace `dist` artifacts, global CLI/MCP version skew, outdated code-search indexes, and low

@@ -13,9 +13,16 @@ const baseInput = {
   format: "full" as const, symbols: [] as string[], min_semantic_score: 0,
 };
 
-async function writeMemory(dir: string, id: string, body: string, anchorPath: string, type = "convention"): Promise<void> {
+async function writeMemory(
+  dir: string,
+  id: string,
+  body: string,
+  anchorPath: string,
+  type = "convention",
+  scope: "personal" | "team" | "module" = "team",
+): Promise<void> {
   const fm = [
-    "---", `id: ${id}`, "scope: team", `type: ${type}`, "status: validated",
+    "---", `id: ${id}`, `scope: ${scope}`, `type: ${type}`, "status: validated",
     `created_at: ${new Date().toISOString()}`,
     "anchor:", `  paths: ["${anchorPath}"]`, "  symbols: []", "tags: []", "---",
   ].join("\n");
@@ -119,6 +126,27 @@ describe("adaptive briefing", () => {
     expect(b.memories[0]?.impact_tier).toBe("high");
     const unused = b.memories.find((m) => m.id === "2024-01-01-convention-unused");
     expect(unused?.impact_score ?? 0).toBeLessThan(b.memories[0]!.impact_score ?? 0);
+  });
+
+  it("supports a deterministic shared-corpus view for portable evals", async () => {
+    await writeMemory(ctx.paths.teamDir!, "2024-01-01-convention-shared", "# Shared rule\n\nUse the shared invariant.", "src/svc.ts");
+    await writeMemory(ctx.paths.personalDir!, "2024-01-01-convention-private", "# Private rule\n\nUse a local workaround.", "src/svc.ts", "convention", "personal");
+
+    const idx = await loadUsageIndex(ctx.paths);
+    for (let i = 0; i < 5; i++) recordApplied(idx, "2024-01-01-convention-shared");
+    await saveUsageIndex(ctx.paths, idx);
+
+    const b = await getBriefing({
+      ...baseInput,
+      task: "edit the service",
+      files: ["src/svc.ts"],
+      memory_scopes: ["team", "module"],
+      deterministic: true,
+    }, ctx);
+    expect(b.memories.map((m) => m.id)).toContain("2024-01-01-convention-shared");
+    expect(b.memories.map((m) => m.id)).not.toContain("2024-01-01-convention-private");
+    expect(b.memories.find((m) => m.id === "2024-01-01-convention-shared")?.impact_score).toBe(0);
+    expect(b.search_mode).toBe("literal");
   });
 
   it("progressive disclosure: suppresses a lexically-matching skill whose activation does not fire", async () => {

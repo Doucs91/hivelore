@@ -2,10 +2,10 @@
 id: 2026-07-05-gotcha-unsupported-benchmark-claims
 scope: team
 type: gotcha
-status: stale
+status: validated
 anchor:
   paths:
-    - benchmarks/agent-benchmark/RESULTS.md
+    - .ai/modules/benchmarks/context.md
     - packages/cli/src/commands/benchmark.ts
   symbols: []
 sensor:
@@ -28,8 +28,8 @@ tags:
   - claims
 created_at: '2026-07-05T16:09:14.160Z'
 expires_when: null
-verified_at: '2026-07-05T16:21:36.267Z'
-stale_reason: 'anchor path(s) no longer exist: benchmarks/agent-benchmark/RESULTS.md'
+verified_at: '2026-07-05T16:49:08.836Z'
+stale_reason: null
 related_ids: []
 last_read_at: null
 topic: 'benchmark:unsupported-claims'

@@ -1022,7 +1022,11 @@ async function checkBootstrapComplete(
 
   const memories = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
   const codeMap = await loadCodeMap(paths);
-  const codeFiles = codeMap ? Object.keys(codeMap.files) : [];
+  // A committed code-map may contain files from a developer's ignored benchmark checkout or a
+  // nested reference repo. A clean CI clone cannot be required to document code that is not there.
+  const codeFiles = codeMap
+    ? Object.keys(codeMap.files).filter((file) => existsSync(path.join(paths.root, file)))
+    : [];
 
   let existingModules: string[] = [];
   try {

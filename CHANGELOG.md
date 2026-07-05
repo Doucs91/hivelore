@@ -6,6 +6,16 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.43.2]
+
+- Made committed eval baselines portable: authored retrieval now ranks only shared team/module
+  memories with deterministic anchor/lexical scoring, independent of personal usage and embeddings caches.
+- Anchored benchmark and nested-reference policies to files present in clean clones, eliminating
+  false stale-memory enforcement failures in CI.
+- Documented and regression-tested sensor-weakening detection so a newly created discriminating
+  sensor with `absent` is not misclassified as a suppression broadening.
+
+
 ## [0.43.1]
 
 - Completed bootstrap coverage for the benchmark fixtures, nested Engram reference checkout, and

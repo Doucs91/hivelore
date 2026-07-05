@@ -119,6 +119,14 @@ export const GetBriefingInputSchema = {
     .default(false)
     .describe("Include stale memories (excluded by default — they may be outdated)"),
   track: z.boolean().default(true).describe("Increment read_count on returned memories"),
+  memory_scopes: z
+    .array(z.enum(["personal", "team", "module", "shared"]))
+    .optional()
+    .describe("Restrict the candidate corpus to selected scopes. Omit to include every scope."),
+  deterministic: z
+    .boolean()
+    .optional()
+    .describe("Ignore machine-local usage/impact signals so repeated evaluations rank the shared corpus reproducibly."),
   format: z
     .enum(["full", "compact", "actions"])
     .default("full")
@@ -176,12 +184,15 @@ export async function getBriefing(
   let searchMode: BriefingOutput["search_mode"] = "literal";
   let usage: UsageIndex = { version: 1, updated_at: "", by_id: {} };
   let byId = new Map<string, LoadedMemory>();
+  const allowedScopes = input.memory_scopes ? new Set(input.memory_scopes) : null;
+  const scopeAllowed = (loaded: LoadedMemory): boolean =>
+    allowedScopes === null || allowedScopes.has(loaded.memory.frontmatter.scope);
 
   // ── Session recap ──────────────────────────────────────────────────────
   let lastSession: BriefingOutput["last_session"] | undefined;
 
   if (existsSync(ctx.paths.memoriesDir)) {
-    const allLoaded = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+    const allLoaded = (await loadMemoriesFromDir(ctx.paths.memoriesDir)).filter(scopeAllowed);
 
     const recaps = allLoaded
       .filter(({ memory }) => memory.frontmatter.type === "session_recap")
@@ -225,17 +236,23 @@ export async function getBriefing(
       if (memoryHasExcludedTag(memory.frontmatter, excludeTags)) return false;
       return true;
     });
-    usage = await loadUsageIndex(ctx.paths);
+    usage = input.deterministic
+      ? { version: 1, updated_at: "", by_id: {} }
+      : await loadUsageIndex(ctx.paths);
 
     // byId MUST be populated before the semanticHits loop that uses it.
     // (gotcha: 2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid)
     byId = new Map(allMemories.map((m) => [m.memory.frontmatter.id, m]));
 
-    const semanticHits = input.task && input.semantic
+    // Deterministic callers (notably committed eval baselines) must not depend on whether this
+    // machine happens to have a mutable embeddings cache. Semantic behaviour is covered by the
+    // embeddings/search tests; the portable gate uses shared corpus + lexical/anchor ranking.
+    const semanticEnabled = input.semantic && input.deterministic !== true;
+    const semanticHits = input.task && semanticEnabled
       ? await trySemanticHits(ctx, input.task, allMemories.length * 2)
       : null;
 
-    if (input.task && input.semantic) {
+    if (input.task && semanticEnabled) {
       searchMode = semanticHits ? "semantic" : "literal_fallback";
     }
 
@@ -697,7 +714,7 @@ export async function getBriefing(
     }
   }
   if (existsSync(ctx.paths.memoriesDir)) {
-    const allMems = await loadMemoriesFromDir(ctx.paths.memoriesDir);
+    const allMems = (await loadMemoriesFromDir(ctx.paths.memoriesDir)).filter(scopeAllowed);
     for (const { memory } of allMems) {
       const fm = memory.frontmatter;
       if (!fm.requires_human_approval) continue;
@@ -773,7 +790,7 @@ export async function getBriefing(
       let pcRaw = "";
       try { pcRaw = await readFile(ctx.paths.projectContext, "utf8"); } catch { /* absent */ }
       const allForBootstrap = existsSync(ctx.paths.memoriesDir)
-        ? await loadMemoriesFromDir(ctx.paths.memoriesDir)
+        ? (await loadMemoriesFromDir(ctx.paths.memoriesDir)).filter(scopeAllowed)
         : [];
       const cmForBootstrap = await loadCodeMap(ctx.paths);
       let existingModules: string[] = [];
@@ -784,7 +801,9 @@ export async function getBriefing(
       const bootstrap = assessBootstrapState({
         projectContextRaw: pcRaw,
         memories: allForBootstrap,
-        codeFiles: cmForBootstrap ? Object.keys(cmForBootstrap.files) : [],
+        codeFiles: cmForBootstrap
+          ? Object.keys(cmForBootstrap.files).filter((file) => existsSync(path.join(ctx.paths.root, file)))
+          : [],
         existingModules,
       });
       // Surface the directive only when there are genuine main code areas — that is exactly when the

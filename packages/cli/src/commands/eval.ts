@@ -448,7 +448,8 @@ async function resolveSpec(opts: EvalOptions, root: string, memoriesDir: string)
   if (existsSync(defaultSpec)) {
     const raw = await readFile(defaultSpec, "utf8");
     const explicit = JSON.parse(raw) as EvalSpec;
-    const memories = await loadMemoriesFromDir(memoriesDir);
+    const memories = (await loadMemoriesFromDir(memoriesDir))
+      .filter(({ memory }) => memory.frontmatter.scope !== "personal");
     const synthesized = synthesizeSelfEvalCases(memories, { includeFiles: !opts.semanticOnly });
     return {
       spec: {
@@ -460,7 +461,8 @@ async function resolveSpec(opts: EvalOptions, root: string, memoriesDir: string)
       authored: countCases(explicit),
     };
   }
-  const memories = await loadMemoriesFromDir(memoriesDir);
+  const memories = (await loadMemoriesFromDir(memoriesDir))
+    .filter(({ memory }) => memory.frontmatter.scope !== "personal");
   const synthesized = synthesizeSelfEvalCases(memories, { includeFiles: !opts.semanticOnly });
   return {
     spec: { retrieval: synthesized },
@@ -487,6 +489,8 @@ async function runRetrieval(
       semantic: true,
       include_stale: false,
       track: false,
+      memory_scopes: ["team", "module"],
+      deterministic: true,
       format: "compact",
       min_semantic_score: 0,
     },
