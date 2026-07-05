@@ -335,3 +335,4 @@
 {"tool":"mem_tried","at":"2026-07-05T16:43:54.154Z","summary":"Filtrer les entrées code-map absentes sans adapter le fixture bootstrap MCP"}
 {"tool":"mem_tried","at":"2026-07-05T16:47:52.734Z","summary":"Taguer puis pousser v0.43.2 sans refetch après les workflows haive-sync"}
 {"tool":"mem_tried","at":"2026-07-05T16:48:06.459Z","summary":"Utiliser `git fetch origin --tags` avant le rebase"}
+{"tool":"mem_session_end","at":"2026-07-05T16:53:44.007Z","summary":"Implémenter en une passe tous les lots issus de l'audit harness-engineering de H"}
