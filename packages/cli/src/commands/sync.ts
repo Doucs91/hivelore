@@ -246,11 +246,14 @@ export function registerSync(program: Command): void {
             continue;
           }
 
-          // Time-based auto-approve: proposed memories older than N hours → validated
+          // Time-based auto-approve: proposed memories older than N hours → validated.
+          // EXCEPTION: `auto-captured` drafts (passive-capture distillation) never age into
+          // validated — a machine-observed lesson needs an explicit human/agent approve.
           if (
             autoApproveDelayHours !== null &&
             fm.status === "proposed" &&
-            fm.scope === "team"
+            fm.scope === "team" &&
+            !fm.tags.includes("auto-captured")
           ) {
             const ageHours =
               (nowMs - new Date(fm.created_at).getTime()) / (1000 * 60 * 60);

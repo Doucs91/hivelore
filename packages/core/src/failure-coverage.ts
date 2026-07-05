@@ -81,3 +81,60 @@ export function findUncapturedFailures(
   out.sort((a, b) => a.ts.localeCompare(b.ts));
   return out;
 }
+
+// ── Distillation: failure observations → PROPOSED lesson drafts (passive capture, Phase 2) ────────
+
+export interface DistilledFailureLesson {
+  /** Lesson title — becomes the attempt's `# what` heading and its dedup key. */
+  what: string;
+  /** The observed error, verbatim-ish (truncated). */
+  why_failed: string;
+  /** Anchor paths observed on the failing calls (project-relative, caller-normalized). */
+  paths: string[];
+  /** How many times this failure (same normalized summary) was observed — retries included. */
+  occurrences: number;
+}
+
+/** Noise that never deserves a lesson: exploratory lookups whose failure is the answer. */
+const EXPLORATORY_RE = /^(ls|find|grep|rg|cat|head|tail|which|stat)\b/i;
+
+/**
+ * Cluster failure observations by normalized summary and template the top ones into PROPOSED
+ * lesson drafts — the deterministic last leg of the passive-capture pipeline (claude-mem captures
+ * passively; Hivelore additionally turns the failures into REVIEWABLE corpus candidates).
+ *
+ * Deterministic templating only — no LLM. Exploratory lookups (a grep that found nothing) are
+ * dropped; the caller dedups against the corpus and enforces the per-session cap.
+ */
+export function distillFailureObservations(
+  failures: Array<FailureObservation & { files?: string[] }>,
+  options: { max?: number } = {},
+): DistilledFailureLesson[] {
+  const max = options.max ?? 3;
+  const clusters = new Map<string, { first: FailureObservation & { files?: string[] }; count: number; files: Set<string> }>();
+  for (const f of failures) {
+    const summary = f.summary.trim();
+    if (!summary || EXPLORATORY_RE.test(summary.replace(/^Bash:\s*/i, ""))) continue;
+    const key = normalizeSummary(summary);
+    const existing = clusters.get(key);
+    if (existing) {
+      existing.count++;
+      for (const file of f.files ?? []) existing.files.add(file);
+    } else {
+      clusters.set(key, { first: f, count: 1, files: new Set(f.files ?? []) });
+    }
+  }
+  return [...clusters.values()]
+    .sort((a, b) => b.count - a.count || b.first.ts.localeCompare(a.first.ts))
+    .slice(0, max)
+    .map(({ first, count, files }) => {
+      const summary = first.summary.trim();
+      const firstLine = summary.split("\n")[0]!.slice(0, 120);
+      return {
+        what: `${first.tool} failed: ${firstLine}`,
+        why_failed: summary.slice(0, 400),
+        paths: [...files].slice(0, 6),
+        occurrences: count,
+      };
+    });
+}

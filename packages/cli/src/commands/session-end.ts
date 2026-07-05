@@ -10,6 +10,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { Command, Option } from "commander";
 import {
+  distillFailureObservations,
   buildFrontmatter,
   findProjectRoot,
   loadConfig,
@@ -245,6 +246,87 @@ function runGit(cwd: string, args: string[]): Promise<string> {
   });
 }
 
+async function readObservationList(paths: ReturnType<typeof resolveHaivePaths>): Promise<Observation[]> {
+  const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
+  if (!existsSync(obsFile)) return [];
+  const raw = await readFile(obsFile, "utf8").catch(() => "");
+  const out: Observation[] = [];
+  for (const line of raw.split("\n")) {
+    if (!line.trim()) continue;
+    try { out.push(JSON.parse(line) as Observation); } catch { /* skip corrupt rows */ }
+  }
+  return out;
+}
+
+/**
+ * Passive capture, last leg (excellence plan Phase 2): distill the session's failure observations
+ * into PROPOSED lesson drafts so the corpus candidate exists without agent discipline — the
+ * claude-mem pipeline shape, ending in reviewable team-truth candidates instead of private notes.
+ *
+ * Boundaries: deterministic templating only (no LLM), born `proposed` + tagged `auto-captured`
+ * (autopilot's time-based auto-approve skips that tag — a machine-observed draft needs a human or
+ * an explicit approve), never a sensor, capped per session, deduped against existing attempts.
+ */
+async function autoCaptureFailureLessons(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  root: string,
+  observations: Observation[],
+): Promise<{ written: number; ids: string[] }> {
+  const failures = observations
+    .filter((o) => o.failure_hint)
+    .map((o) => ({
+      ts: o.ts,
+      tool: o.tool,
+      summary: o.summary,
+      files: (o.files ?? []).map((f) => normalizeAnchorPath(root, f)).filter((f) => existsSync(path.resolve(root, f))),
+    }));
+  if (failures.length === 0) return { written: 0, ids: [] };
+  const lessons = distillFailureObservations(failures, { max: 3 });
+  if (lessons.length === 0) return { written: 0, ids: [] };
+
+  const existing = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
+  const normalizeTitle = (t: string): string => t.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 120);
+  const existingTitles = new Set(
+    existing
+      .filter(({ memory }) => memory.frontmatter.type === "attempt")
+      .map(({ memory }) => normalizeTitle(memory.body.match(/^#\s+(.+)$/m)?.[1] ?? "")),
+  );
+
+  let written = 0;
+  const ids: string[] = [];
+  for (const lesson of lessons) {
+    if (existingTitles.has(normalizeTitle(lesson.what))) continue;
+    const slug = lesson.what
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "")
+      .trim()
+      .split(/\s+/)
+      .slice(0, 6)
+      .join("-") || "auto-captured-failure";
+    const baseFm = buildFrontmatter({
+      type: "attempt",
+      slug,
+      scope: "personal",
+      tags: ["auto-captured"],
+      paths: lesson.paths,
+    });
+    const frontmatter = { ...baseFm, status: "proposed" as const };
+    const file = memoryFilePath(paths, frontmatter.scope, frontmatter.id, frontmatter.module);
+    if (existsSync(file)) continue;
+    const body =
+      `# ${lesson.what}\n\n` +
+      `**Why it failed / do NOT use:** ${lesson.why_failed}\n\n` +
+      `_Auto-captured from session observations (${lesson.occurrences} occurrence${lesson.occurrences === 1 ? "" : "s"}). ` +
+      `Review: refine and approve (\`hivelore memory approve ${frontmatter.id}\`), or reject it._\n`;
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, serializeMemory({ frontmatter, body }), "utf8").catch(() => { /* best-effort */ });
+    existingTitles.add(normalizeTitle(lesson.what));
+    written++;
+    ids.push(frontmatter.id);
+  }
+  return { written, ids };
+}
+
 async function observationStart(paths: ReturnType<typeof resolveHaivePaths>): Promise<string | null> {
   const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
   if (!existsSync(obsFile)) return null;
@@ -335,11 +417,23 @@ export function registerSessionEnd(session: Command): void {
       let accomplished = opts.accomplished ?? (opts as { summary?: string }).summary;
       const caughtSince = opts.auto ? await observationStart(paths) : null;
       if (opts.auto) {
+        // Passive capture: distill this session's failures into proposed drafts BEFORE the recap,
+        // so the recap (and the finish gate's nag) can point at concrete candidates instead of
+        // asking the agent to re-type what the harness already observed.
+        const autoCaptured = await autoCaptureFailureLessons(paths, root, await readObservationList(paths))
+          .catch(() => ({ written: 0, ids: [] as string[] }));
         const synth = await buildAutoRecap(paths);
         if (!synth) return; // nothing observed — silently no-op
         goal = goal ?? synth.goal;
         accomplished = accomplished ?? synth.accomplished;
         opts.discoveries = opts.discoveries ?? synth.discoveries;
+        if (autoCaptured.written > 0) {
+          const note =
+            `${autoCaptured.written} failure(s) auto-captured as proposed lesson(s): ${autoCaptured.ids.join(", ")} — ` +
+            "review with `hivelore memory list --status proposed` (approve, refine, or reject).";
+          opts.discoveries = opts.discoveries ? `${opts.discoveries}\n${note}` : note;
+          if (!opts.quiet) ui.info(note);
+        }
         if (!resolvedFiles && synth.files.length) resolvedFiles = synth.files.join(",");
       }
 

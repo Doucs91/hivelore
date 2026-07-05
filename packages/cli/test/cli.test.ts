@@ -1663,6 +1663,58 @@ describe("Hivelore CLI integration", () => {
     }
   });
 
+  it("session end --auto distills failure observations into proposed auto-captured drafts (no dupes, never validated)", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-autocapture-"));
+    try {
+      await exec("git", ["init", "-b", "main"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/a.ts"), "export const a = 1;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "initial"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+
+      const obs = [
+        { ts: "2026-07-04T10:00:00Z", tool: "Bash", summary: "Bash: pnpm test failed — refund.spec assertion", files: ["src/a.ts"], failure_hint: true },
+        { ts: "2026-07-04T10:02:00Z", tool: "Bash", summary: "Bash: pnpm test failed —   refund.spec assertion", files: ["src/a.ts"], failure_hint: true },
+        { ts: "2026-07-04T10:03:00Z", tool: "Bash", summary: "grep -rn nothing src", failure_hint: true },
+        { ts: "2026-07-04T10:04:00Z", tool: "Edit", summary: "edited src/a.ts", files: ["src/a.ts"] },
+      ].map((o) => JSON.stringify(o)).join("\n") + "\n";
+      const obsFile = path.join(repo, ".ai/.cache/observations.jsonl");
+      await mkdir(path.dirname(obsFile), { recursive: true });
+      await writeFile(obsFile, obs, "utf8");
+
+      const out = await run(repo, ["session", "end", "--auto", "--dir", repo]);
+      expect(out.stdout + out.stderr).toContain("auto-captured as proposed lesson");
+
+      const personal = path.join(repo, ".ai/memories/personal");
+      const drafts: string[] = [];
+      for (const f of await readdir(personal)) {
+        const content = await readFile(path.join(personal, f), "utf8");
+        if (content.includes("type: attempt") && content.includes("- auto-captured")) drafts.push(content);
+      }
+      // One draft for the clustered retry; the exploratory grep is dropped.
+      expect(drafts).toHaveLength(1);
+      expect(drafts[0]).toContain("status: proposed"); // never born validated
+      expect(drafts[0]).toContain("pnpm test failed");
+      expect(drafts[0]).toContain("2 occurrences");
+      expect(drafts[0]).not.toContain("sensor:"); // never armed automatically
+
+      // Idempotence: same observations again → no duplicate draft.
+      await writeFile(obsFile, obs, "utf8");
+      await run(repo, ["session", "end", "--auto", "--dir", repo]);
+      let count = 0;
+      for (const f of await readdir(personal)) {
+        const c = await readFile(path.join(personal, f), "utf8");
+        if (c.includes("type: attempt") && c.includes("- auto-captured")) count++;
+      }
+      expect(count).toBe(1);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("an AST block sensor fires on a structural introduction but not on the same text in a comment", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-ast-gate-"));
     try {

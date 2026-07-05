@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findUncapturedFailures, type FailureObservation } from "../src/failure-coverage.js";
+import { distillFailureObservations, findUncapturedFailures, type FailureObservation } from "../src/failure-coverage.js";
 
 const NOW = new Date("2026-06-02T12:00:00.000Z");
 
@@ -52,5 +52,37 @@ describe("findUncapturedFailures", () => {
   it("skips malformed timestamps", () => {
     const out = findUncapturedFailures([fail("not-a-date")], [], { now: NOW });
     expect(out).toHaveLength(0);
+  });
+});
+
+describe("distillFailureObservations — passive-capture distillation", () => {
+  const f = (ts: string, summary: string, files: string[] = [], tool = "Bash") => ({ ts, tool, summary, files });
+
+  it("clusters retries of the same failure and orders by occurrence count", () => {
+    const lessons = distillFailureObservations([
+      f("2026-07-04T10:00:00Z", "Bash: pnpm test failed — 2 tests failing in refund.spec.ts", ["src/refund.ts"]),
+      f("2026-07-04T10:05:00Z", "Bash: pnpm test failed — 2 tests failing   in refund.spec.ts", ["src/refund.ts"]),
+      f("2026-07-04T10:06:00Z", "Edit failed: file has been modified since read", ["src/other.ts"], "Edit"),
+    ]);
+    expect(lessons).toHaveLength(2);
+    expect(lessons[0]!.occurrences).toBe(2);
+    expect(lessons[0]!.what).toContain("pnpm test failed");
+    expect(lessons[0]!.paths).toEqual(["src/refund.ts"]);
+  });
+
+  it("drops exploratory lookups and caps at max", () => {
+    const lessons = distillFailureObservations(
+      [
+        f("2026-07-04T10:00:00Z", "grep -rn pattern src returned nothing"),
+        f("2026-07-04T10:01:00Z", "ls missing-dir"),
+        f("2026-07-04T10:02:00Z", "npm run build exploded A"),
+        f("2026-07-04T10:03:00Z", "npm run build exploded B"),
+        f("2026-07-04T10:04:00Z", "npm run build exploded C"),
+        f("2026-07-04T10:05:00Z", "npm run build exploded D"),
+      ],
+      { max: 3 },
+    );
+    expect(lessons).toHaveLength(3);
+    expect(lessons.every((l) => !/grep|^ls/.test(l.what))).toBe(true);
   });
 });

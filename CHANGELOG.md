@@ -6,6 +6,25 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.41.0] — passive capture: failures distill into proposed lessons (excellence plan, Phase 2)
+
+> The claude-mem pipeline shape, finished on our own infra: the PostToolUse hook already observed
+> failures; now `session end --auto` turns them into REVIEWABLE corpus candidates — no agent
+> discipline required, no LLM, no new surface.
+
+### Added
+- **Auto-captured lesson drafts.** `session end --auto` (the SessionEnd hook path) clusters the
+  session's failure observations (`distillFailureObservations`, core: retries collapse, exploratory
+  lookups dropped, capped at 3/session) and writes each as a `proposed` **attempt** tagged
+  `auto-captured`, anchored to the observed files, deduped against existing attempts and across
+  re-runs. Boundaries: deterministic templating only, born `proposed` (never validated), never a
+  sensor; autopilot's 72h time-based auto-approve explicitly SKIPS `auto-captured` drafts.
+- **The nag now points at the drafts.** `uncaptured-failures` (enforce finish) and the auto-recap's
+  discoveries list the waiting drafts ("review/approve or reject") instead of asking the agent to
+  re-type what the harness already observed.
+- **Hook-less agents feed the same stream.** `hivelore run --` records a failure observation when
+  the wrapped agent exits non-zero, so wrapper-mode sessions distill too.
+
 ## [0.40.0] — AST sensors: structural precision via ast-grep (excellence plan, Phase 1)
 
 > Reuse over build: the industry-best static rule mechanism (ast-grep structural patterns) becomes a

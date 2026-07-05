@@ -293,6 +293,7 @@ not a missing feature.
 | **Before editing** | `hivelore briefing` | Feedforward context — the CLI mirror of `get_briefing` |
 | **Capture knowledge** | `hivelore memory save` | Record a decision / convention / gotcha |
 | | `hivelore memory tried` | Record a failed approach so it isn't repeated |
+| | *(passive)* | Session failures observed by the hooks are **auto-distilled into `proposed` drafts** at session end — review with `memory list --status proposed`; they never self-validate and never carry sensors |
 | **Retrieve** | `hivelore memory search` · `get` | Find, then read a record |
 | **Feedback** | `hivelore sensors check` | Scan the diff against documented lessons |
 | **Gate** | `hivelore enforce finish` | Exit gate before you call the task done |

@@ -278,3 +278,4 @@
 {"tool":"mem_session_end","at":"2026-07-04T16:08:25.434Z","summary":"Investigate why stack-pack memories never rank above background in briefings, fi"}
 {"tool":"mem_save","at":"2026-07-04T21:31:09.463Z","summary":"prove-red-and-env-scrub-phase4"}
 {"tool":"mem_save","at":"2026-07-04T21:50:42.009Z","summary":"ast-sensors-reuse-astgrep-phase1"}
+{"tool":"mem_save","at":"2026-07-05T02:40:16.708Z","summary":"passive-capture-distillation-phase2"}

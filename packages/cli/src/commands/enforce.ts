@@ -817,11 +817,24 @@ async function checkFailureCapture(
     }];
   }
 
+  // Passive capture (Phase 2) may already have distilled these into proposed drafts — point the
+  // agent at the review step instead of asking it to re-type what the harness observed.
+  const autoDrafts = memories.filter(
+    ({ memory }) =>
+      memory.frontmatter.status === "proposed" && memory.frontmatter.tags.includes("auto-captured"),
+  );
+
   return [{
     severity: gate === "block" ? "error" : "info",
     code: "uncaptured-failures",
-    message: `${uncaptured.length} hard failure(s) this session were never captured as a lesson (mem_tried).`,
-    fix: "Call `mem_tried` (or `hivelore memory tried`) for each real failure so the next session doesn't repeat it. False positives (e.g. a grep that found nothing) can be ignored.",
+    message:
+      `${uncaptured.length} hard failure(s) this session were never captured as a lesson (mem_tried).` +
+      (autoDrafts.length > 0
+        ? ` ${autoDrafts.length} auto-captured draft(s) are waiting for review: ${autoDrafts.slice(0, 3).map(({ memory }) => memory.frontmatter.id).join(", ")}${autoDrafts.length > 3 ? ", …" : ""}.`
+        : ""),
+    fix: autoDrafts.length > 0
+      ? "Review the auto-captured drafts (`hivelore memory list --status proposed`) — approve, refine, or reject; call `mem_tried` only for failures the drafts missed."
+      : "Call `mem_tried` (or `hivelore memory tried`) for each real failure so the next session doesn't repeat it. False positives (e.g. a grep that found nothing) can be ignored.",
     reason: "Harness ratchet: a mistake that isn't written down gets re-introduced. Set enforcement.failureCaptureGate to 'off' to disable, or 'block' to hard-fail.",
     affected_files: uncaptured.slice(0, 8).map((f) => `${f.tool}: ${f.summary}`.slice(0, 100)),
     ...(gate === "block" ? { impact: 30 } : {}),
@@ -895,6 +908,28 @@ export async function runWithEnforcement(
     child.on("close", (code, signal) => {
       if (signal) process.exit(128);
       process.exitCode = code ?? 0;
+      // Passive capture for hook-less agents: a wrapped agent that exits non-zero is a failure
+      // observation, same stream the Claude Code PostToolUse hook feeds — session-end --auto
+      // distills it into a proposed draft. Best-effort, never affects the exit code.
+      if ((code ?? 0) !== 0) {
+        const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
+        void mkdir(path.dirname(obsFile), { recursive: true })
+          .then(() => writeFile(obsFile, "", { flag: "a" }))
+          .then(() => writeFile(
+            obsFile,
+            JSON.stringify({
+              ts: new Date().toISOString(),
+              session_id: sessionId,
+              tool: "AgentRun",
+              summary: `wrapped agent exited ${code}: ${[command, ...args].join(" ").slice(0, 180)}`,
+              failure_hint: true,
+            }) + "\n",
+            { flag: "a" },
+          ))
+          .catch(() => { /* telemetry must never break the wrapper */ })
+          .finally(() => resolve());
+        return;
+      }
       resolve();
     });
   });
