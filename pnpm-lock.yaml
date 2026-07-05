@@ -51,6 +51,18 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     optionalDependencies:
+      '@ast-grep/lang-go':
+        specifier: ^0.0.6
+        version: 0.0.6
+      '@ast-grep/lang-java':
+        specifier: ^0.0.7
+        version: 0.0.7
+      '@ast-grep/lang-python':
+        specifier: ^0.0.6
+        version: 0.0.6
+      '@ast-grep/lang-rust':
+        specifier: ^0.0.7
+        version: 0.0.7
       '@ast-grep/napi':
         specifier: ^0.44.1
         version: 0.44.1
@@ -98,6 +110,9 @@ importers:
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@20.19.39)
 
   packages/mcp:
     dependencies:
@@ -114,6 +129,18 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     optionalDependencies:
+      '@ast-grep/lang-go':
+        specifier: ^0.0.6
+        version: 0.0.6
+      '@ast-grep/lang-java':
+        specifier: ^0.0.7
+        version: 0.0.7
+      '@ast-grep/lang-python':
+        specifier: ^0.0.6
+        version: 0.0.6
+      '@ast-grep/lang-rust':
+        specifier: ^0.0.7
+        version: 0.0.7
       '@ast-grep/napi':
         specifier: ^0.44.1
         version: 0.44.1
@@ -156,6 +183,38 @@ packages:
   '@alcalzone/ansi-tokenize@0.3.0':
     resolution: {integrity: sha512-p+CMKJ93HFmLkjXKlXiVGlMQEuRb6H0MokBSwUsX+S6BRX8eV5naFZpQJFfJHjRZY0Hmnqy1/r6UWl3x+19zYA==}
     engines: {node: '>=18'}
+
+  '@ast-grep/lang-go@0.0.6':
+    resolution: {integrity: sha512-PZap9Rp6t+YKbLjRnFRF5aGBX3/HV9s5Rp7ZPsCM+o3tlTZDo1IqDYnFu+Oeh5Razs2U8K8ccPSJ+GBxalVhWg==}
+    peerDependencies:
+      tree-sitter-cli: 0.25.8
+    peerDependenciesMeta:
+      tree-sitter-cli:
+        optional: true
+
+  '@ast-grep/lang-java@0.0.7':
+    resolution: {integrity: sha512-7muXd2MqUxJ8SrLrXU+JbvU6qSASZ5BZqH/eCDkIIjXge5wMl7kIYxKEgP375W8lnTXQYjM+VgeOkYSU9EexJg==}
+    peerDependencies:
+      tree-sitter-cli: 0.25.8
+    peerDependenciesMeta:
+      tree-sitter-cli:
+        optional: true
+
+  '@ast-grep/lang-python@0.0.6':
+    resolution: {integrity: sha512-eF/bEBspmrxdVuPNihvZDyyJx5qtIpGEMz9l1nNQmrji7NZcUiRNC8WwzYyQCBdy1mj8HZ0Tn4I2q3gp/6Bkiw==}
+    peerDependencies:
+      tree-sitter-cli: 0.25.8
+    peerDependenciesMeta:
+      tree-sitter-cli:
+        optional: true
+
+  '@ast-grep/lang-rust@0.0.7':
+    resolution: {integrity: sha512-CF6jv8XmlVQgr/pFKADM87EkoGiHIrHKsG1wcX2iqgdBX5kW8wH+Zd4GP6SMme2eZogD49f19vRoRTF44iZqzg==}
+    peerDependencies:
+      tree-sitter-cli: 0.25.8
+    peerDependenciesMeta:
+      tree-sitter-cli:
+        optional: true
 
   '@ast-grep/napi-darwin-arm64@0.44.1':
     resolution: {integrity: sha512-JPcb1PvOkwKgccGbBgtoc4e6qfx/luvAtlc6SEtNPhvSwV8qagLb9MCSDcCiuqrqICx3qHj2CXouGbs66lCFvA==}
@@ -214,6 +273,9 @@ packages:
   '@ast-grep/napi@0.44.1':
     resolution: {integrity: sha512-dJAJVYRKmUjXn+4mXUgfRvMrWujB9mLzPSq/2e8J7n6Hn3dY4jpZNpChj6hMi7PlZ2J2c7coAVoDBaax06uvXw==}
     engines: {node: '>= 10'}
+
+  '@ast-grep/setup-lang@0.0.6':
+    resolution: {integrity: sha512-aSYZNF5nGQMxnwiA3Lcc8zi0AtpGlug47ADgqCgP/2n7p922FbnW7vo1rbW4kKjW72B/3mDdN7uvYidv8JnPnw==}
 
   '@azure/abort-controller@2.1.2':
     resolution: {integrity: sha512-nBrLsEWm4J2u5LpAPjxADTlq3trDgVZZXHNKabeXZtpq3d3AbN/KGO82R87rdDz5/lYB024rtEf10/q0urNgsA==}
@@ -2446,6 +2508,26 @@ snapshots:
       ansi-styles: 6.2.3
       is-fullwidth-code-point: 5.1.0
 
+  '@ast-grep/lang-go@0.0.6':
+    dependencies:
+      '@ast-grep/setup-lang': 0.0.6
+    optional: true
+
+  '@ast-grep/lang-java@0.0.7':
+    dependencies:
+      '@ast-grep/setup-lang': 0.0.6
+    optional: true
+
+  '@ast-grep/lang-python@0.0.6':
+    dependencies:
+      '@ast-grep/setup-lang': 0.0.6
+    optional: true
+
+  '@ast-grep/lang-rust@0.0.7':
+    dependencies:
+      '@ast-grep/setup-lang': 0.0.6
+    optional: true
+
   '@ast-grep/napi-darwin-arm64@0.44.1':
     optional: true
 
@@ -2484,6 +2566,9 @@ snapshots:
       '@ast-grep/napi-win32-arm64-msvc': 0.44.1
       '@ast-grep/napi-win32-ia32-msvc': 0.44.1
       '@ast-grep/napi-win32-x64-msvc': 0.44.1
+    optional: true
+
+  '@ast-grep/setup-lang@0.0.6':
     optional: true
 
   '@azure/abort-controller@2.1.2':

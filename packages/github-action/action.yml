@@ -34,6 +34,10 @@ inputs:
     description: "Path to memories directory relative to workspace root."
     required: false
     default: ".ai/memories"
+  persist-review-learnings:
+    description: "Create a reviewable branch/PR containing /hivelore remember lessons."
+    required: false
+    default: "true"
 
 outputs:
   memories-found:
@@ -60,6 +64,7 @@ runs:
 
     - name: Get changed files
       id: changed
+      if: github.event_name == 'pull_request'
       uses: actions/github-script@v7
       with:
         github-token: ${{ inputs.github-token }}
@@ -89,4 +94,5 @@ runs:
         GH_TOKEN: ${{ inputs.github-token }}
         GH_REPO: ${{ github.repository }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
+        PERSIST_REVIEW_LEARNINGS: ${{ inputs.persist-review-learnings }}
       run: node ${{ github.action_path }}/dist/run.js

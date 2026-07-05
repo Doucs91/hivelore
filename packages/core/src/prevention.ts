@@ -150,7 +150,7 @@ export function buildPreventionReceipt(
     })
     .sort((a, b) => b.at.localeCompare(a.at));
   const preventedCountTotal = Object.values(usage.by_id)
-    .reduce((sum, item) => sum + item.prevented_count, 0);
+    .reduce((sum, item) => sum + (item.prevented_count ?? 0), 0);
   return {
     generated_at: now.toISOString(),
     since: options.since.toISOString(),

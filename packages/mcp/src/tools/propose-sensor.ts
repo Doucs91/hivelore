@@ -10,7 +10,7 @@
  *   - FIRES on the bad example (from input, or extracted from the lesson body).
  * A rejected proposal is NOT written; the verdict tells the agent how to revise and re-propose.
  */
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { existsSync, rmSync, symlinkSync } from "node:fs";
 import os from "node:os";
@@ -47,7 +47,15 @@ export const ProposeSensorInputSchema = {
   pattern: z
     .string()
     .optional()
-    .describe("kind=regex: regex matching the FAULTY usage (the risky call/token), e.g. 'stripe\\.paymentIntents\\.create'."),
+    .describe("kind=regex: regex matching the faulty usage; kind=ast: optional structural pattern (may be combined with `rule`)."),
+  rule: z
+    .record(z.unknown())
+    .optional()
+    .describe("kind=ast: full ast-grep Rule object (kind/inside/has/not/all/any/etc.). May be used alone or combined with pattern."),
+  language: z
+    .string()
+    .optional()
+    .describe("kind=ast: explicit built-in/dynamic language name for non-standard file extensions."),
   command: z
     .string()
     .optional()
@@ -149,7 +157,7 @@ export async function readPresumedCorrectTargets(
   for (const rel of relPaths) {
     try {
       // "./" keeps the path relative to cwd even if the project root is a git subdirectory.
-      const content = execSync(`git show ${JSON.stringify(`HEAD:./${rel}`)}`, {
+      const content = execFileSync("git", ["show", `HEAD:./${rel}`], {
         cwd: root,
         encoding: "utf8",
         maxBuffer: 10 * 1024 * 1024,
@@ -177,7 +185,7 @@ function runCommandForValidation(
   timeoutMs = 120_000,
 ): { status: "passed" | "failed" | "unrunnable"; detail: string } {
   try {
-    execSync(`bash -c ${JSON.stringify(command)}`, {
+    execFileSync("bash", ["-c", command], {
       cwd: root,
       timeout: timeoutMs,
       maxBuffer: 8 * 1024 * 1024,
@@ -213,7 +221,7 @@ function proveRedOnIncident(
   let added = false;
   try {
     try {
-      execSync(`git worktree add --detach ${JSON.stringify(worktree)} ${JSON.stringify(redRef)}`, {
+      execFileSync("git", ["worktree", "add", "--detach", worktree, redRef], {
         cwd: root, stdio: ["ignore", "pipe", "pipe"], timeout: 60_000,
       });
       added = true;
@@ -235,7 +243,7 @@ function proveRedOnIncident(
   } finally {
     if (added) {
       try {
-        execSync(`git worktree remove --force ${JSON.stringify(worktree)}`, { cwd: root, stdio: "ignore", timeout: 60_000 });
+        execFileSync("git", ["worktree", "remove", "--force", worktree], { cwd: root, stdio: "ignore", timeout: 60_000 });
       } catch {
         try { rmSync(worktree, { recursive: true, force: true }); } catch { /* leave for tmp cleanup */ }
       }
@@ -278,13 +286,13 @@ export async function proposeSensor(
       };
     }
   } else if (kind === "ast") {
-    if (!input.pattern?.trim()) {
+    if (!input.pattern?.trim() && !input.rule) {
       return {
         accepted: false,
         memory_id: input.memory_id,
         severity: input.severity,
         reason: "invalid-pattern",
-        guidance: "kind=ast requires a `pattern` (an ast-grep structural pattern).",
+        guidance: "kind=ast requires a structural `pattern` or a full ast-grep `rule` object.",
         self_check: { silent_on_current: false, fires_on_bad: null, fired_on: [] },
       };
     }
@@ -316,7 +324,7 @@ export async function proposeSensor(
   // structural — the matcher is the optional ast-grep engine, so "engine missing" must reject a
   // block proposal (an unvalidatable guard must not claim to block). ──
   if (kind === "ast") {
-    const pattern = input.pattern!.trim();
+    const pattern = input.pattern?.trim();
     if (!(await astEngineAvailable()) && input.severity === "block") {
       return {
         accepted: false,
@@ -329,7 +337,7 @@ export async function proposeSensor(
         self_check: { silent_on_current: false, fires_on_bad: null, fired_on: [] },
       };
     }
-    const brittleAst = sensorPatternBrittleness(pattern);
+    const brittleAst = pattern ? sensorPatternBrittleness(pattern) : null;
     if (brittleAst && input.severity === "block") {
       return {
         accepted: false,
@@ -344,7 +352,7 @@ export async function proposeSensor(
     const currentTargetsAst = await readPresumedCorrectTargets(ctx.paths.root, anchorPathsAst);
     const firedOnAst: string[] = [];
     for (const target of currentTargetsAst) {
-      const scan = await runAstSensorOnContent({ pattern, absent: input.absent, content: target.content, filePath: target.path });
+      const scan = await runAstSensorOnContent({ pattern, rule: input.rule, language: input.language, absent: input.absent, content: target.content, filePath: target.path });
       if (scan.status === "invalid-pattern") {
         return {
           accepted: false,
@@ -376,10 +384,10 @@ export async function proposeSensor(
     let firesOnBadAst: boolean | null = null;
     if (badExamplesAst.length > 0 && (await astEngineAvailable())) {
       // Parse examples with the anchor's language (fallback tsx — the most permissive JS grammar).
-      const exampleLang = anchorPathsAst.find((p) => astLangForPath(p) !== null) ?? "example.tsx";
+      const exampleLang = anchorPathsAst.find((p) => astLangForPath(p, input.language) !== null) ?? "example.tsx";
       firesOnBadAst = false;
       for (const example of badExamplesAst) {
-        const scan = await runAstSensorOnContent({ pattern, absent: input.absent, content: example, filePath: exampleLang });
+        const scan = await runAstSensorOnContent({ pattern, rule: input.rule, language: input.language, absent: input.absent, content: example, filePath: exampleLang });
         if (scan.status === "ok" && scan.matches.length > 0) { firesOnBadAst = true; break; }
       }
     }
@@ -395,10 +403,12 @@ export async function proposeSensor(
     }
     const sensorAst: Sensor = {
       kind: "ast",
-      pattern,
+      ...(pattern ? { pattern } : {}),
+      ...(input.rule ? { rule: input.rule } : {}),
+      ...(input.language ? { language: input.language } : {}),
       ...(input.absent ? { absent: input.absent } : {}),
       paths: anchorPathsAst,
-      message: input.message?.trim() || deriveMessage(found.memory.body, pattern, input.absent),
+      message: input.message?.trim() || deriveMessage(found.memory.body, pattern ?? "AST rule", input.absent),
       ...(input.incident?.trim() ? { incident: input.incident.trim() } : {}),
       severity: input.severity,
       autogen: false,
@@ -448,7 +458,8 @@ export async function proposeSensor(
     const verdictCmd = runCommandForValidation(input.command!.trim(), ctx.paths.root, input.timeout_ms);
     const anchorPathsCmd = input.paths.length > 0 ? input.paths : found.memory.frontmatter.anchor.paths;
 
-    // Prove-RED (optional): GREEN on current is necessary but weak — it cannot distinguish "the
+    // Prove-RED: mandatory for block, optional evidence for warn. GREEN on current is necessary
+    // but weak — it cannot distinguish "the
     // test catches the incident" from "the test passes on everything". A red_ref makes the claim
     // demonstrable: the same oracle must FAIL on the replayed pre-fix state.
     let redProven = false;
@@ -488,6 +499,21 @@ export async function proposeSensor(
         self_check: { silent_on_current: false, fires_on_bad: null, fired_on: anchorPathsCmd },
       };
     }
+    // A blocking behavioural claim must be demonstrated, not inferred from GREEN alone. Without
+    // an incident state, an oracle that always exits zero is indistinguishable from a real guard.
+    if (input.severity === "block" && !input.red_ref?.trim()) {
+      return {
+        accepted: false,
+        memory_id: input.memory_id,
+        severity: input.severity,
+        reason: "red-required",
+        guidance:
+          "A blocking shell/test sensor requires `red_ref`: the oracle must PASS on the current " +
+          "tree and FAIL on the pre-fix incident state. Pass the incident commit/ref, or propose " +
+          "the sensor at warn severity until RED can be proven.",
+        self_check: { silent_on_current: true, fires_on_bad: null, fired_on: [] },
+      };
+    }
     const sensorCmd: Sensor = {
       kind,
       command: input.command!.trim(),
@@ -515,7 +541,7 @@ export async function proposeSensor(
           : `Accepted at warn severity, but note: ${verdictCmd.status} on the current tree (${verdictCmd.detail}).`) +
         (redProven
           ? " RED proven: the oracle demonstrably FAILS on the incident state (red_ref) — recorded as red_proven."
-          : " Tip: pass red_ref (the pre-fix commit) to PROVE the oracle catches the incident, not merely that it passes today.") +
+          : " This warn-only oracle is not RED-proven; pass red_ref before promoting it to block.") +
         (pendingTests.length > 0
           ? ` Note: the routed test is still a PENDING stub (${pendingTests.join(", ")}) — it passes on anything; write the assertion to make this oracle real.`
           : "") +

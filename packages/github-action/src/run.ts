@@ -21,6 +21,7 @@ const GH_TOKEN = process.env["GH_TOKEN"] ?? "";
 const GH_REPO = process.env["GH_REPO"] ?? "";
 const PR_NUMBER = parseInt(process.env["PR_NUMBER"] ?? "0", 10);
 const WORKSPACE = process.env["GITHUB_WORKSPACE"] ?? process.cwd();
+const PERSIST_REVIEW_LEARNINGS = process.env["PERSIST_REVIEW_LEARNINGS"] !== "false";
 
 const COMMENT_MARKER = "<!-- haive-pr-memory-check -->";
 
@@ -354,6 +355,88 @@ function setOutput(key: string, value: string): void {
 // deliberate, reviewable step (`hivelore ingest --from github-pr <n>`).
 const REMEMBER_RE = /^\/?hivelore\s+remember\b\s*/i;
 
+export function reviewLearningContent(input: {
+  commentId: number;
+  instruction: string;
+  author: string;
+  path?: string;
+  prNumber: number;
+}): { file: string; content: string } {
+  const day = new Date().toISOString().slice(0, 10);
+  const slug = input.instruction.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").trim().split(/\s+/).slice(0, 6).join("-") || "review-learning";
+  const id = `${day}-convention-${slug}`;
+  const quoted = (value: string): string => JSON.stringify(value);
+  const anchor = input.path ? `  paths:\n    - ${quoted(input.path)}\n` : "  paths: []\n";
+  const content = [
+    "---",
+    `id: ${quoted(id)}`,
+    "type: convention",
+    "scope: team",
+    "status: proposed",
+    `created_at: ${quoted(new Date().toISOString())}`,
+    `updated_at: ${quoted(new Date().toISOString())}`,
+    `author: ${quoted(input.author)}`,
+    `topic: ${quoted(`ingest:github-comment:${input.commentId}`)}`,
+    "tags:",
+    "  - review-learning",
+    "anchor:",
+    "  commit: null",
+    anchor.trimEnd(),
+    "  symbols: []",
+    "---",
+    "",
+    `# Review learning: ${input.instruction.slice(0, 80)}`,
+    "",
+    input.instruction,
+    "",
+    input.path ? `Applies to: \`${input.path}\`` : "Applies repository-wide until refined.",
+    "",
+    `_Captured from PR #${input.prNumber} by @${input.author}. Review, refine, and approve before enforcement._`,
+    "",
+  ].join("\n");
+  return { file: `.ai/memories/team/${id}.md`, content };
+}
+
+async function persistReviewLearning(
+  octokit: ReturnType<typeof getOctokit>,
+  owner: string,
+  repo: string,
+  input: Parameters<typeof reviewLearningContent>[0],
+): Promise<string | null> {
+  const { file, content } = reviewLearningContent(input);
+  const branch = `hivelore/review-learning-${input.commentId}`;
+  const repository = await octokit.rest.repos.get({ owner, repo });
+  const base = repository.data.default_branch;
+  const baseRef = await octokit.rest.git.getRef({ owner, repo, ref: `heads/${base}` });
+  try {
+    await octokit.rest.git.createRef({ owner, repo, ref: `refs/heads/${branch}`, sha: baseRef.data.object.sha });
+  } catch (err) {
+    const status = (err as { status?: number }).status;
+    if (status !== 422) throw err;
+  }
+  let existingSha: string | undefined;
+  try {
+    const existing = await octokit.rest.repos.getContent({ owner, repo, path: file, ref: branch });
+    if (!Array.isArray(existing.data) && existing.data.type === "file") existingSha = existing.data.sha;
+  } catch (err) {
+    if ((err as { status?: number }).status !== 404) throw err;
+  }
+  await octokit.rest.repos.createOrUpdateFileContents({
+    owner, repo, path: file, branch,
+    message: `docs(memory): capture review learning from PR #${input.prNumber}`,
+    content: Buffer.from(content, "utf8").toString("base64"),
+    ...(existingSha ? { sha: existingSha } : {}),
+  });
+  const existingPulls = await octokit.rest.pulls.list({ owner, repo, head: `${owner}:${branch}`, state: "open" });
+  if (existingPulls.data[0]?.html_url) return existingPulls.data[0].html_url;
+  const pull = await octokit.rest.pulls.create({
+    owner, repo, head: branch, base,
+    title: `docs(memory): review learning from PR #${input.prNumber}`,
+    body: `Captures an explicit \`/hivelore remember\` instruction from PR #${input.prNumber} as a proposed, reviewable team memory.`,
+  });
+  return pull.data.html_url;
+}
+
 async function handleRememberComment(eventName: string): Promise<boolean> {
   const eventPath = process.env["GITHUB_EVENT_PATH"];
   if (!eventPath || !fs.existsSync(eventPath)) return false;
@@ -378,16 +461,31 @@ async function handleRememberComment(eventName: string): Promise<boolean> {
 
   const [owner, repo] = GH_REPO.split("/") as [string, string];
   const octokit = getOctokit(GH_TOKEN);
+  const author = event.comment?.user?.login ?? "reviewer";
+  let persistenceUrl: string | null = null;
+  if (PERSIST_REVIEW_LEARNINGS && event.comment?.id) {
+    try {
+      persistenceUrl = await persistReviewLearning(octokit, owner, repo, {
+        commentId: event.comment.id,
+        instruction,
+        author,
+        ...(event.comment.path ? { path: event.comment.path } : {}),
+        prNumber,
+      });
+    } catch (err) {
+      console.warn(`Hivelore: could not persist review learning automatically: ${String(err)}`);
+    }
+  }
   const filePart = event.comment?.path ? ` (anchored to \`${event.comment.path}\`)` : "";
   const ack = [
     `🧠 **Hivelore — learning candidate captured**${filePart}`,
     "",
     `> ${instruction}`,
     "",
-    "Persist it as a proposed team memory (reviewable, git-native):",
-    "```bash",
-    `hivelore ingest --from github-pr ${prNumber}`,
-    "```",
+    persistenceUrl
+      ? `Persisted as a proposed team-memory PR: ${persistenceUrl}`
+      : "Automatic persistence was unavailable. Persist locally with:",
+    ...(persistenceUrl ? [] : ["```bash", `hivelore ingest --from github-pr ${prNumber}`, "```"]),
     "Then approve/refine it — and consider `hivelore sensors propose` to turn it into a deterministic gate.",
   ].join("\n");
 
@@ -513,4 +611,4 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+if (process.env["HIVELORE_ACTION_TEST"] !== "1") main();

@@ -27,11 +27,24 @@ describe("ast-sensors adapter — structural matching (requires @ast-grep/napi d
     expect(await astEngineAvailable()).toBe(true);
   });
 
-  it("maps extensions to built-in languages, null for unsupported", () => {
+  it("maps built-in and installed dynamic language extensions", () => {
     expect(astLangForPath("src/a.ts")).toBe("TypeScript");
     expect(astLangForPath("src/a.tsx")).toBe("Tsx");
     expect(astLangForPath("src/a.mjs")).toBe("JavaScript");
-    expect(astLangForPath("src/a.py")).toBeNull();
+    expect(astLangForPath("src/a.py")).toBe("python");
+    expect(astLangForPath("src/a.go")).toBe("go");
+    expect(astLangForPath("src/a.rs")).toBe("rust");
+    expect(astLangForPath("src/A.java")).toBe("java");
+  });
+
+  it("supports full ast-grep rule objects and dynamic Python parsing", async () => {
+    const rule = { kind: "call_expression", has: { pattern: "stripe.paymentIntents.create" } };
+    expect((await runAstPattern(FAULTY, "src/pay.ts", undefined, "idempotencyKey", rule)).matches).toHaveLength(1);
+    expect((await runAstPattern(CORRECT, "src/pay.ts", undefined, "idempotencyKey", rule)).matches).toHaveLength(0);
+
+    const python = await runAstPattern('print("unsafe")\n', "tools/check.py", "print($A)");
+    expect(python.status).toBe("ok");
+    expect(python.matches).toHaveLength(1);
   });
 
   it("fires on the faulty call but NOT on comments/strings (the regex false-positive class) nor on the correct call", async () => {
@@ -66,7 +79,7 @@ describe("ast-sensors adapter — structural matching (requires @ast-grep/napi d
     const garbage = await runAstPattern("const a = 1;", "src/a.ts", "${{{");
     expect(["ok", "invalid-pattern"]).toContain(garbage.status);
     expect(garbage.matches).toHaveLength(0);
-    expect((await runAstPattern("x = 1", "src/a.py", "x")).status).toBe("unsupported-language");
+    expect((await runAstPattern("x = 1", "src/a.unknown", "x")).status).toBe("unsupported-language");
   });
 });
 

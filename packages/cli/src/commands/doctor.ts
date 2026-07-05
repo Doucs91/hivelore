@@ -349,6 +349,32 @@ export function registerDoctor(program: Command): void {
           fix: "hivelore sensors list   # then `hivelore sensors promote <id>` for a trusted, non-brittle sensor — or retire the noise",
         });
       }
+      const commandSensorMemories = sensorMemories.filter((m) => {
+        const kind = m.memory.frontmatter.sensor?.kind;
+        return kind === "shell" || kind === "test";
+      });
+      if (commandSensorMemories.length > 0 && config.enforcement?.runCommandSensors !== true) {
+        findings.push({
+          severity: "error",
+          code: "command-sensors-disabled",
+          section: "Protection" as DoctorSection,
+          message: `${commandSensorMemories.length} command/test sensor(s) exist but enforcement.runCommandSensors is not true — their behaviour protection is OFF.`,
+          fix: "Set enforcement.runCommandSensors=true after reviewing the repo-authored commands.",
+        });
+      }
+      const unprovenBlocks = commandSensorMemories.filter((m) => {
+        const sensor = m.memory.frontmatter.sensor!;
+        return sensor.severity === "block" && sensor.red_proven !== true;
+      });
+      if (unprovenBlocks.length > 0) {
+        findings.push({
+          severity: "error",
+          code: "command-sensors-block-without-red",
+          section: "Protection" as DoctorSection,
+          message: `${unprovenBlocks.length} blocking command/test sensor(s) predate mandatory prove-RED and cannot substantiate their incident claim.`,
+          fix: "Re-propose each sensor with --red-ref <pre-fix-commit>, or demote it to warn.",
+        });
+      }
 
       // AST sensors need the optional engine — without it their protection is silently OFF here.
       const astSensorCount = sensorMemories.filter((m) => m.memory.frontmatter.sensor?.kind === "ast").length;

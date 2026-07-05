@@ -2,7 +2,7 @@
 id: 2026-06-02-gotcha-decision-coverage-gate-needs-high-max-memories
 scope: team
 type: gotcha
-status: validated
+status: deprecated
 anchor:
   paths:
     - packages/cli/src/commands/briefing.ts
@@ -16,7 +16,7 @@ tags:
 created_at: '2026-06-02T04:17:39.074Z'
 expires_when: null
 verified_at: '2026-07-02T22:21:21.984Z'
-stale_reason: null
+stale_reason: 'Superseded by accumulated briefing markers and autoBrief decision coverage.'
 related_ids: []
 last_read_at: null
 revision_count: 0

@@ -72,6 +72,8 @@ interface SensorsProposeOptions {
   command?: string;
   timeout?: string;
   pattern?: string;
+  rule?: string;
+  language?: string;
   absent?: string;
   badExample?: string;
   severity?: string;
@@ -126,6 +128,7 @@ export function registerSensors(program: Command): void {
         );
         if ("absent" in row && row.absent) console.log(`     ${ui.dim("only when missing:")} ${row.absent}`);
         if (row.paths.length > 0) console.log(`     ${ui.dim("paths:")} ${row.paths.join(", ")}`);
+        if (row.red_proven) console.log(`     ${ui.green("✓ RED-proven")}${row.incident ? ` — ${row.incident}` : ""}`);
         if (row.last_fired) console.log(`     ${ui.dim("last fired:")} ${row.last_fired}`);
         if (brittle) console.log(`     ${ui.yellow("⚠ brittle:")} ${brittle} — consider rewriting or retiring this sensor`);
       }
@@ -179,7 +182,8 @@ export function registerSensors(program: Command): void {
               }
               if (content === null) continue;
               const scan = await runAstSensorOnContent({
-                pattern: sensor.pattern!, absent: sensor.absent, content, filePath: target.path, addedLines: added,
+                pattern: sensor.pattern, rule: sensor.rule, language: sensor.language,
+                absent: sensor.absent, content, filePath: target.path, addedLines: added,
               });
               if (scan.status === "ok" && scan.matches.length > 0) {
                 astHits.push({
@@ -362,6 +366,15 @@ export function registerSensors(program: Command): void {
         process.exitCode = 1;
         return;
       }
+      if (
+        severity === "block" &&
+        (sensor.kind === "shell" || sensor.kind === "test") &&
+        sensor.red_proven !== true
+      ) {
+        ui.error("Refusing to promote an unproven command/test oracle to block. Re-propose it with --red-ref <pre-fix-commit>.");
+        process.exitCode = 1;
+        return;
+      }
 
       // Don't let a brittle pattern become a hard gate — that's how false-positive blocks train
       // agents to ignore the gate (an existential failure mode). Require --force to override.
@@ -436,6 +449,8 @@ export function registerSensors(program: Command): void {
     .argument("<memory-id>", "memory id to attach the sensor to")
     .option("--kind <kind>", "regex (default) | ast (structural — comments/strings can't false-positive) | shell | test (route the team's own oracle)", "regex")
     .option("--pattern <regex>", "kind=regex: regex matching the FAULTY usage")
+    .option("--rule <json>", "kind=ast: full ast-grep Rule JSON (kind/inside/has/not/all/any)")
+    .option("--language <name>", "kind=ast: explicit language for non-standard extensions")
     .option("--command <cmd>", "kind=shell|test: command the gate runs when the diff touches the sensor's paths")
     .option("--timeout <ms>", "kind=shell|test: max runtime in ms (default 120000)")
     .option("--absent <regex>", "regex for the CORRECT-usage marker (makes it discriminate)")
@@ -456,10 +471,22 @@ export function registerSensors(program: Command): void {
           process.exitCode = 1;
           return;
         }
-        if (opts.kind === "ast" && !opts.pattern?.trim()) {
-          ui.error("--kind ast requires --pattern (an ast-grep structural pattern).");
+        if (opts.kind === "ast" && !opts.pattern?.trim() && !opts.rule?.trim()) {
+          ui.error("--kind ast requires --pattern or --rule <json>.");
           process.exitCode = 1;
           return;
+        }
+        let astRule: Record<string, unknown> | undefined;
+        if (opts.rule?.trim()) {
+          try {
+            const parsed = JSON.parse(opts.rule) as unknown;
+            if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("rule must be a JSON object");
+            astRule = parsed as Record<string, unknown>;
+          } catch (err) {
+            ui.error(`--rule must be valid ast-grep Rule JSON: ${err instanceof Error ? err.message : String(err)}`);
+            process.exitCode = 1;
+            return;
+          }
         }
         const root = findProjectRoot(opts.dir);
         const { proposeSensor } = await import("@hivelore/mcp");
@@ -467,7 +494,9 @@ export function registerSensors(program: Command): void {
           {
             memory_id: id,
             kind: opts.kind as "ast" | "shell" | "test",
-            pattern: opts.kind === "ast" ? opts.pattern!.trim() : undefined,
+            pattern: opts.kind === "ast" ? opts.pattern?.trim() : undefined,
+            rule: astRule,
+            language: opts.kind === "ast" ? opts.language : undefined,
             command: opts.command?.trim(),
             timeout_ms: opts.timeout ? Math.max(1, Number(opts.timeout)) : undefined,
             absent: opts.kind === "ast" ? opts.absent : undefined,
@@ -692,10 +721,14 @@ async function sensorRows(paths: ReturnType<typeof resolveHaivePaths>) {
       kind: sensor.kind,
       severity: sensor.severity,
       pattern: sensor.pattern,
+      rule: sensor.rule,
+      language: sensor.language,
       absent: sensor.absent,
       command: sensor.command,
       paths: sensor.paths.length > 0 ? sensor.paths : memory.frontmatter.anchor.paths,
       message: sensor.message,
+      incident: sensor.incident,
+      red_proven: sensor.red_proven === true,
       autogen: sensor.autogen,
       last_fired: sensor.last_fired,
       ...(brittle ? { brittle } : {}),
@@ -758,4 +791,3 @@ function renderGrepScript(rows: Awaited<ReturnType<typeof sensorRows>>): string 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
 }
-

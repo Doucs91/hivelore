@@ -63,6 +63,8 @@ interface BaselineSnapshot {
   k: number;
   spec_source: string;
   report: EvalReport;
+  /** Independent authored cases only; preferred for regression decisions over self-synthesized cases. */
+  authored_report?: EvalReport;
   gate_precision?: GatePrecision;
 }
 
@@ -203,6 +205,11 @@ export function registerEval(program: Command): void {
         resolvedSpec.authored > 0 && resolvedSpec.synthesized > 0 && (authoredRetrievalAgg || sensorAgg)
           ? overallScore(authoredRetrievalAgg, sensorAgg)
           : null;
+      const authoredReport =
+        resolvedSpec.authored > 0 && (authoredRetrievalAgg || sensorAgg)
+          ? buildReport(authoredRetrievalAgg, sensorAgg)
+          : null;
+      const gateReport = authoredReport ?? report;
       const [usage, preventionEvents, config] = await Promise.all([
         loadUsageIndex(paths),
         loadPreventionEvents(paths),
@@ -237,6 +244,7 @@ export function registerEval(program: Command): void {
           k,
           spec_source: resolvedSpec.source,
           report,
+          ...(authoredReport ? { authored_report: authoredReport } : {}),
           gate_precision: gatePrecision,
         };
         await mkdir(path.dirname(baselineFile), { recursive: true });
@@ -260,7 +268,7 @@ export function registerEval(program: Command): void {
           }
         } else {
           const snapshot = JSON.parse(await readFile(baselineFile, "utf8")) as BaselineSnapshot;
-          delta = compareEvalReports(snapshot.report, report);
+          delta = compareEvalReports(snapshot.authored_report ?? snapshot.report, gateReport);
           if (snapshot.gate_precision) {
             gateDelta = compareGatePrecision(snapshot.gate_precision, gatePrecision);
           }
@@ -278,6 +286,7 @@ export function registerEval(program: Command): void {
             ...(authoredScore !== null ? { authored_score: authoredScore } : {}),
           },
           report,
+          ...(authoredReport ? { authored_report: authoredReport } : {}),
           tier_contract: { checks: tierChecks, failures: tierFailures.length },
           proposed_golden_cases: proposedGoldenCount,
           gate_precision: gatePrecision,
@@ -285,7 +294,7 @@ export function registerEval(program: Command): void {
           ...(gateDelta ? { gate_delta: gateDelta } : {}),
         }, null, 2));
         if (tierFailures.length > 0) process.exitCode = 1;
-        applyExitGates(opts, report, delta, gatePrecision, gateDelta);
+        applyExitGates(opts, gateReport, delta, gatePrecision, gateDelta);
         return;
       }
 
@@ -329,7 +338,7 @@ export function registerEval(program: Command): void {
       }
 
       if (tierFailures.length > 0) process.exitCode = 1;
-      applyExitGates(opts, report, delta, gatePrecision, gateDelta);
+      applyExitGates(opts, gateReport, delta, gatePrecision, gateDelta);
     });
 }
 

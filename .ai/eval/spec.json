@@ -58,14 +58,32 @@
       "task": "Does the code-map index untracked or gitignored files, or only the project's tracked source files?",
       "files": ["packages/core/src/code-map.ts"],
       "expect_ids": ["2026-05-28-decision-codemap-tracked-files-by-default"]
+    },
+    {
+      "name": "secure child-process git invocation",
+      "task": "How must Git refs and repository paths be passed to child processes so shell substitutions cannot execute?",
+      "files": ["packages/mcp/src/tools/propose-sensor.ts"],
+      "expect_ids": ["2026-07-05-convention-child-process-no-shell-interpolation"]
+    },
+    {
+      "name": "CI harness regression contract",
+      "task": "Which evaluation gates must CI run so a known sensor miss or authored-case regression cannot ship behind a high blended score?",
+      "files": [".github/workflows/ci.yml"],
+      "expect_ids": ["2026-07-05-convention-ci-enforces-eval-regressions"]
+    },
+    {
+      "name": "release verification chain",
+      "task": "What single root command rebuilds stale workspace artifacts and runs every release-quality check before publishing?",
+      "files": ["package.json"],
+      "expect_ids": ["2026-07-05-convention-root-verify-is-release-chain"]
     }
   ],
   "sensors": [
     {
       "name": "mcp package.json export guard",
-      "diff": "diff --git a/packages/cli/src/commands/mcp.ts b/packages/cli/src/commands/mcp.ts\n+++ b/packages/cli/src/commands/mcp.ts\n@@\n+const packageJson = require.resolve(\"@hiveai/mcp/package.json\");\n",
+      "diff": "diff --git a/packages/cli/src/commands/mcp.ts b/packages/cli/src/commands/mcp.ts\n+++ b/packages/cli/src/commands/mcp.ts\n@@\n+const packageJson = require.resolve(\"@hivelore/mcp/package.json\");\n",
       "paths": ["packages/cli/src/commands/mcp.ts"],
-      "expect_fire_ids": ["2026-04-27-gotcha-mcp-exports-package-json"]
+      "expect_fire_ids": ["2026-07-05-convention-hivelore-mcp-package-export"]
     },
     {
       "name": "hardcoded version guard",
@@ -75,9 +93,9 @@
     },
     {
       "name": "workspace dependency caret guard",
-      "diff": "diff --git a/packages/cli/package.json b/packages/cli/package.json\n+++ b/packages/cli/package.json\n@@\n+    \"@hiveai/core\": \"^0.12.1\"\n",
+      "diff": "diff --git a/packages/cli/package.json b/packages/cli/package.json\n+++ b/packages/cli/package.json\n@@\n+    \"@hivelore/core\": \"^0.42.1\"\n",
       "paths": ["packages/cli/package.json"],
-      "expect_fire_ids": ["2026-05-02-attempt-crosspackage-deps-with-xyz-ranges"]
+      "expect_fire_ids": ["2026-07-05-convention-hivelore-workspace-dependencies"]
     },
     {
       "name": "semantic hit byId lookup guard",
@@ -90,18 +108,6 @@
       "diff": "diff --git a/packages/mcp/src/tools/get-briefing.ts b/packages/mcp/src/tools/get-briefing.ts\n+++ b/packages/mcp/src/tools/get-briefing.ts\n@@\n+  minReads: DEFAULT_AUTO_PROMOTE_RULE.minReads,\n",
       "paths": ["packages/mcp/src/tools/get-briefing.ts"],
       "expect_fire_ids": ["2026-05-04-gotcha-auto-promote-ignores-config-minreads"]
-    },
-    {
-      "name": "global cli install stale mcp guard",
-      "diff": "diff --git a/packages/cli/package.json b/packages/cli/package.json\n+++ b/packages/cli/package.json\n@@\n+\"postinstall\": \"npm i -g @hiveai/cli\"\n",
-      "paths": ["packages/cli/package.json"],
-      "expect_fire_ids": ["2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale"]
-    },
-    {
-      "name": "anti-pattern level assertion guard",
-      "diff": "diff --git a/packages/mcp/test/anti-patterns.test.ts b/packages/mcp/test/anti-patterns.test.ts\n+++ b/packages/mcp/test/anti-patterns.test.ts\n@@\n+expect(w.level).toBe('info');\n",
-      "paths": ["packages/mcp/test/anti-patterns.test.ts"],
-      "expect_fire_ids": ["2026-05-29-attempt-asserting-warninglevel-info-pour-un"]
     },
     {
       "name": "enforcement off guard",

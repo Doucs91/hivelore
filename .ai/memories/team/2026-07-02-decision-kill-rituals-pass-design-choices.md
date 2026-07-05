@@ -2,7 +2,7 @@
 id: 2026-07-02-decision-kill-rituals-pass-design-choices
 scope: team
 type: decision
-status: validated
+status: deprecated
 anchor:
   paths:
     - packages/cli/src/commands/release.ts
@@ -20,7 +20,7 @@ tags:
 created_at: '2026-07-02T17:16:34.975Z'
 expires_when: null
 verified_at: '2026-07-02T22:21:21.999Z'
-stale_reason: null
+stale_reason: 'Historical surface-reduction decision; implementation is complete.'
 related_ids: []
 last_read_at: null
 revision_count: 0

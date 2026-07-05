@@ -134,7 +134,7 @@ describe("proposeSensor — agent proposes, core validates", () => {
     expect(out.self_check.silent_on_current).toBe(true);
   });
 
-  it("command sensor: accepted when the oracle passes on the current tree, persisted with kind", async () => {
+  it("command sensor: a passing oracle can be persisted at warn without RED proof", async () => {
     const out = await proposeSensor(
       {
         memory_id: memoryId,
@@ -144,7 +144,7 @@ describe("proposeSensor — agent proposes, core validates", () => {
         timeout_ms: 30_000,
         absent: undefined,
         bad_example: undefined,
-        severity: "block",
+        severity: "warn",
         message: "Refund invariant broken — see the lesson.",
         flags: undefined,
         paths: [],
@@ -156,7 +156,7 @@ describe("proposeSensor — agent proposes, core validates", () => {
     expect(sensor?.kind).toBe("test");
     expect(sensor?.command).toContain("process.exit(0)");
     expect(sensor?.timeout_ms).toBe(30_000);
-    expect(sensor?.severity).toBe("block");
+    expect(sensor?.severity).toBe("warn");
   });
 
   it("command sensor: a block proposal whose oracle FAILS on the current tree is rejected (fails-on-current)", async () => {
@@ -386,7 +386,8 @@ describe("proposeSensor — a PENDING oracle must not arm a block sensor", () =>
       },
       ctx,
     );
-    expect(block.accepted).toBe(true);
+    expect(block.accepted).toBe(false);
+    expect(block.reason).toBe("red-required");
   });
 });
 
@@ -450,19 +451,27 @@ describe("proposeSensor — prove-RED (red_ref) and env containment", () => {
     expect(out.reason).toBe("red-not-proven");
   });
 
-  it("rejects red-ref-invalid on a bogus ref, and without red_ref behavior is unchanged", async () => {
+  it("rejects red-ref-invalid on a bogus ref, and requires red_ref for block", async () => {
     const bad = await propose(oracle, "not-a-real-ref-xyz");
     expect(bad.accepted).toBe(false);
     expect(bad.reason).toBe("red-ref-invalid");
     const plain = await propose(oracle);
-    expect(plain.accepted).toBe(true);
-    expect(plain.guidance).toMatch(/pass red_ref/);
+    expect(plain.accepted).toBe(false);
+    expect(plain.reason).toBe("red-required");
+  });
+
+  it("passes red_ref to git without shell expansion", async () => {
+    const marker = path.join(workDir, "shell-injection-marker");
+    const out = await propose(oracle, `$(touch ${marker})`);
+    expect(out.accepted).toBe(false);
+    expect(out.reason).toBe("red-ref-invalid");
+    await expect(import("node:fs/promises").then(({ access }) => access(marker))).rejects.toThrow();
   });
 
   it("runs the oracle with a scrubbed env — a block proposal whose command asserts the secret is ABSENT passes", async () => {
     process.env.TEST_SECRET_X_HIVE = "leak";
     try {
-      const out = await propose('test -z "$TEST_SECRET_X_HIVE"');
+      const out = await propose('test -z "$TEST_SECRET_X_HIVE"', undefined, "warn");
       // Scrubbed env → the var is invisible → command exits 0 on current tree → accepted.
       expect(out.accepted).toBe(true);
     } finally {

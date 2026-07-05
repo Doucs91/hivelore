@@ -86,7 +86,7 @@ describe("memTried — ratchet visibility", () => {
     expect(written).toContain("severity: block");
   });
 
-  it("one-shot COMMAND sensor: attaches a behaviour oracle in the same call", async () => {
+  it("one-shot COMMAND sensor: attaches an unproven behaviour oracle at warn", async () => {
     const out = await memTried(
       {
         what: "refund exceeding captured amount",
@@ -101,7 +101,7 @@ describe("memTried — ratchet visibility", () => {
           command: "node -e \"process.exit(0)\"",
           timeout_ms: undefined,
           absent: undefined,
-          severity: "block",
+          severity: "warn",
           message: "Refund invariant broken — see lesson.",
           bad_example: undefined,
         },
@@ -113,6 +113,7 @@ describe("memTried — ratchet visibility", () => {
     const written = await readFile(out.file_path, "utf8");
     expect(written).toContain("kind: test");
     expect(written).toContain("command:");
+    expect(written).toContain("severity: warn");
   });
 
   it("one-shot sensor: a rejected proposal still saves the attempt and reports the verdict", async () => {

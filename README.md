@@ -112,6 +112,11 @@ incident in a scratch worktree and requires the oracle to FAIL there — the sen
 `red_proven: true`, shown in the prevention receipt. Full behaviour verification (test generation,
 LLM evals) remains your test suite's job.
 
+Since v0.43.0, prove-RED is mandatory for a blocking shell/test sensor: an oracle without a
+reproducible incident state remains `warn`. CI can also set `commandSensorUnrunnable: "block"` so a
+missing required oracle fails as a broken harness, and `sensorWeakeningGate: "block"` so protection
+cannot be silently demoted or removed.
+
 **The on-ramp (v0.36.0): scaffold the test from the incident.** A command sensor needs a test to
 route — so Hivelore generates the skeleton from the lesson. `hivelore sensors scaffold <memory-id>`
 (or the `scaffold_test` MCP tool, so agents do it in-session) detects your test framework
@@ -486,6 +491,14 @@ on any review thread and the Action acknowledges it with the exact persist comma
 `hivelore ingest --from github-pr <number>` to turn a PR's human review instructions
 ("never…", "always…", "prefer X instead") into `proposed`, file-anchored memories — each one a
 candidate for `sensors propose`, which is the step no inferential review bot can take.
+With `persist-review-learnings` enabled (default), the Action creates a dedicated branch and PR
+containing the proposed memory; when repository write permission is unavailable, it falls back to
+the local ingest command. Top-level PR comments and review-thread replies follow the same path.
+
+**Structural sensors.** `sensors propose --kind ast` accepts either a concise `--pattern` or a full
+ast-grep `--rule <json>` (`inside`/`has`/`not`/`all`/`any`). JavaScript/TypeScript are built in;
+Python, Go, Rust, and Java are optional language packages shipped with the CLI. Rules still pass
+Hivelore's silent-on-current/fires-on-bad validation before they can block.
 
 ---
 

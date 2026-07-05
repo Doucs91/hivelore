@@ -49,4 +49,4 @@ jobs:
       # Quality gate: Hivelore must keep surfacing the right memories/sensors.
       # Fails the build if briefing retrieval / sensor catch-rate regresses.
       - name: Hivelore eval (retrieval + sensor quality gate)
-        run: node packages/cli/dist/index.js eval --fail-under 80
+        run: node packages/cli/dist/index.js eval --regression-gate --fail-under 80 --fail-under-catch-rate 100

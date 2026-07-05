@@ -1557,6 +1557,13 @@ describe("Hivelore CLI integration", () => {
       const unrun = res2.findings.find((f) => f.code === "command-sensor-unrunnable");
       expect(unrun?.severity).toBe("warn");
       expect(res2.findings.some((f) => f.code === "sensor-block")).toBe(false);
+
+      cfg.enforcement = { ...cfg.enforcement, runCommandSensors: true, commandSensorUnrunnable: "block" };
+      await writeFile(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
+      const strictRes = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { findings: Array<{ code: string; severity: string }> };
+      expect(strictRes.findings.find((f) => f.code === "command-sensor-unrunnable")?.severity).toBe("error");
     } finally {
       await rm(repo, { recursive: true, force: true });
     }
@@ -1708,6 +1715,11 @@ describe("Hivelore CLI integration", () => {
       const again = await run(repo, ["ingest", "--from", "github-pr", "comments.json", "--dir", repo]);
       expect(again.stdout).toContain("already ingested");
       expect((await readdir(teamDir)).length).toBe(memoryFiles.length);
+      const evalSpec = JSON.parse(await readFile(path.join(repo, ".ai/eval/spec.json"), "utf8")) as {
+        proposed_retrieval?: Array<{ expect_ids: string[] }>;
+      };
+      expect(evalSpec.proposed_retrieval).toHaveLength(memoryFiles.length);
+      expect(evalSpec.proposed_retrieval?.[0]?.expect_ids).toContain(memoryFiles[0]!.replace(/\.md$/, ""));
     } finally {
       await rm(repo, { recursive: true, force: true });
     }
@@ -1854,6 +1866,15 @@ describe("Hivelore CLI integration", () => {
       expect(weakened?.message).toContain(id);
       expect(weakened?.message).toContain("severity-demoted");
       expect(weakened?.message).toContain("oracle-changed");
+
+      const cfgPath = path.join(repo, ".ai/haive.config.json");
+      const cfg = JSON.parse(await readFile(cfgPath, "utf8")) as { enforcement?: Record<string, unknown> };
+      cfg.enforcement = { ...cfg.enforcement, sensorWeakeningGate: "block" };
+      await writeFile(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
+      const strict = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { findings: Array<{ code: string; severity: string }> };
+      expect(strict.findings.find((f) => f.code === "sensor-weakened")?.severity).toBe("error");
     } finally {
       await rm(repo, { recursive: true, force: true });
     }
@@ -1884,7 +1905,7 @@ describe("Hivelore CLI integration", () => {
         "---", `id: ${id}`, "scope: team", "type: attempt", "status: validated",
         "created_at: 2026-07-03T00:00:00.000Z", "anchor:", "  paths: [src/]", "  symbols: []", "tags: []",
         "sensor:", "  kind: test", "  command: node oracle.mjs", "  message: Flaky invariant failed.",
-        "  severity: block", "  paths: [src/]", "---", "# Flaky oracle", "",
+        "  red_proven: true", "  severity: block", "  paths: [src/]", "---", "# Flaky oracle", "",
       ].join("\n"), "utf8");
       await writeFile(path.join(repo, "change.diff"), [
         "diff --git a/src/check.ts b/src/check.ts", "--- a/src/check.ts", "+++ b/src/check.ts",
@@ -2199,6 +2220,7 @@ describe("Hivelore CLI integration", () => {
     expect(stdout).toContain("Hivelore Agent Benchmark Report");
     expect(stdout).toContain("sample-haive");
     expect(stdout).toContain("Hivelore impact");
+    expect(stdout).toContain("Evidence grade: **insufficient**");
   });
 
   it("doctor --json reports stale-draft-memories when a draft is older than 30 days", async () => {

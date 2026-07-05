@@ -281,3 +281,34 @@
 {"tool":"mem_save","at":"2026-07-05T02:40:16.708Z","summary":"passive-capture-distillation-phase2"}
 {"tool":"mem_save","at":"2026-07-05T02:48:59.088Z","summary":"pr-loop-review-learnings-phase3"}
 {"tool":"mem_save","at":"2026-07-05T02:57:16.149Z","summary":"eval-golden-set-tier-contract-phase5"}
+{"tool":"get_briefing","at":"2026-07-04T21:27:41.227Z","summary":"Auditer Hivelore de fond en comble, avec un focus sur la branche behavior et son positionnement actuel en harness engineering; exécuter les tests pertinents et identifier forces, faiblesses, lacunes et différenciation concurrentielle."}
+{"tool":"mem_tried","at":"2026-07-04T21:28:56.362Z","summary":"running the full verification chain before refreshing workspace dependencies"}
+{"tool":"mem_tried","at":"2026-07-04T21:29:40.496Z","summary":"rerunning root typecheck after pnpm install without rebuilding core dist"}
+{"tool":"mem_tried","at":"2026-07-04T21:30:09.852Z","summary":"rebuilding only core before the root typecheck"}
+{"tool":"mem_tried","at":"2026-07-04T21:30:48.745Z","summary":"typechecking CLI before rebuilding MCP dist"}
+{"tool":"mem_tried","at":"2026-07-04T21:31:38.042Z","summary":"running root pnpm test before rebuilding CLI dist"}
+{"tool":"mem_save","at":"2026-07-04T21:36:58.871Z","summary":"red-ref-shell-interpolation-risk"}
+{"tool":"mem_session_end","at":"2026-07-04T21:38:26.176Z","summary":"Auditer Hivelore de fond en comble, avec un focus sur son positionnement en harn"}
+{"tool":"mem_relevant_to","at":"2026-07-05T03:19:11.574Z","summary":"Réanalyser entièrement la dernière version de Hivelore après synchronisation, av"}
+{"tool":"mem_tried","at":"2026-07-05T03:23:56.960Z","summary":"Searching source with an rg pattern containing backticks in a shell command"}
+{"tool":"mem_save","at":"2026-07-05T03:26:25.737Z","summary":"prevention-receipt-null-total-from-legacy-usage"}
+{"tool":"mem_tried","at":"2026-07-05T03:27:38.347Z","summary":"Running sensors check against an unstaged scratch-repo diff"}
+{"tool":"mem_session_end","at":"2026-07-05T03:28:29.859Z","summary":"Réanalyser entièrement Hivelore v0.42.1 après synchronisation, avec tests comple"}
+{"tool":"get_briefing","at":"2026-07-05T06:20:54.849Z","summary":"Implémenter en une seule passe tous les correctifs issus de l’audit v0.42.1 : sécurité prove-RED, gates CI stricts, dogfooding, AST rules/langages, boucle PR complète, golden cases, verify, benchmark et nettoyage de compatibilité."}
+{"tool":"mem_tried","at":"2026-07-05T06:25:07.144Z","summary":"Patching AST optional dependencies with an assumed package.json comma context"}
+{"tool":"mem_tried","at":"2026-07-05T06:26:52.168Z","summary":"Testing an ast-grep not-has rule with a bare property identifier pattern"}
+{"tool":"mem_tried","at":"2026-07-05T06:29:24.876Z","summary":"Testing the parsed sensor regex with a doubly escaped Node regex literal"}
+{"tool":"mem_tried","at":"2026-07-05T06:29:52.291Z","summary":"Patching the failing eval sensor with a guessed escaped YAML line"}
+{"tool":"mem_tried","at":"2026-07-05T06:30:26.295Z","summary":"Applying CI and repository enforcement config in one patch with an assumed human"}
+{"tool":"mem_tried","at":"2026-07-05T06:30:59.499Z","summary":"Combining the prevention null fix with a test hunk using an assumed describe nam"}
+{"tool":"mem_tried","at":"2026-07-05T06:33:22.529Z","summary":"Using a JavaScript raw template for a patch containing Markdown backticks"}
+{"tool":"mem_tried","at":"2026-07-05T06:35:36.491Z","summary":"Removing the local config load while adding strict command-sensor policy"}
+{"tool":"mem_tried","at":"2026-07-05T06:44:34.902Z","summary":"Running CLI integration tests after source fixes without rebuilding CLI dist"}
+{"tool":"mem_tried","at":"2026-07-05T06:45:05.217Z","summary":"Assuming stale CLI dist was the only cause of strict-unrunnable test failure"}
+{"tool":"mem_tried","at":"2026-07-05T06:47:28.849Z","summary":"Patching the first nearby warn finding instead of the unrunnable finding"}
+{"tool":"mem_tried","at":"2026-07-05T06:51:57.706Z","summary":"Running the full verification chain before updating the mem_tried one-shot comma"}
+{"tool":"mem_tried","at":"2026-07-05T06:55:39.400Z","summary":"Exécuter la regression gate avec une baseline antérieure aux nouveaux cas author"}
+{"tool":"mem_tried","at":"2026-07-05T06:58:30.414Z","summary":"Appeler `hivelore enforce pre-commit` comme sous-commande"}
+{"tool":"mem_tried","at":"2026-07-05T06:59:18.645Z","summary":"Restaurer plusieurs oracles et ajouter leurs remplaçants dans un seul patch"}
+{"tool":"mem_tried","at":"2026-07-05T07:03:26.780Z","summary":"Conserver les anciens sensors tout en laissant les cas eval modernes attendre le"}
+{"tool":"mem_tried","at":"2026-07-05T07:05:08.459Z","summary":"Pointer le corpus eval vers deux nouvelles mémoires sans valider leur chargement"}

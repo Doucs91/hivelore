@@ -1,7 +1,7 @@
 {
   "name": "hivelore-monorepo",
   "private": true,
-  "version": "0.42.1",
+  "version": "0.43.0",
   "description": "Hivelore - the deterministic policy gate for agent-written code (rules live as repo-native team memory)",
   "license": "Apache-2.0",
   "repository": {
@@ -16,8 +16,9 @@
     "test:watch": "pnpm -r test:watch",
     "typecheck": "pnpm -r typecheck",
     "check:artifacts": "node scripts/verify-build-artifacts.mjs",
+    "verify": "pnpm build && pnpm typecheck && pnpm test && pnpm check:artifacts && node packages/cli/dist/index.js eval --regression-gate --fail-under 80 --fail-under-catch-rate 100",
     "clean": "pnpm -r clean",
-    "publish:all": "pnpm -r build && pnpm -r test && pnpm --filter @hivelore/core publish --access public --no-git-checks && pnpm --filter @hivelore/embeddings publish --access public --no-git-checks && pnpm --filter @hivelore/mcp publish --access public --no-git-checks && pnpm --filter @hivelore/cli publish --access public --no-git-checks"
+    "publish:all": "pnpm verify && pnpm --filter @hivelore/core publish --access public --no-git-checks && pnpm --filter @hivelore/embeddings publish --access public --no-git-checks && pnpm --filter @hivelore/mcp publish --access public --no-git-checks && pnpm --filter @hivelore/cli publish --access public --no-git-checks"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

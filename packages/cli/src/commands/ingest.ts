@@ -24,6 +24,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import {
+  appendProposedRetrievalCases,
   draftsFromFindings,
   filterNewDrafts,
   findProjectRoot,
@@ -228,6 +229,7 @@ export function registerIngest(program: Command): void {
         const created: string[] = [];
         if (!opts.dryRun) {
           for (const draft of fresh) created.push(await writeDraft(paths, draft));
+          if (format === "github-pr") await appendReviewGoldenCases(root, fresh);
         }
         console.log(
           JSON.stringify(
@@ -286,6 +288,7 @@ export function registerIngest(program: Command): void {
         await writeDraft(paths, draft);
         created++;
       }
+      if (format === "github-pr") await appendReviewGoldenCases(root, fresh);
       ui.success(`Created ${created} proposed memory(ies) under ${path.relative(root, paths.memoriesDir)}/`);
       ui.info("Review with `hivelore memory pending`; promote sensors with `hivelore sensors promote <id> --yes`.");
     });
@@ -296,6 +299,20 @@ async function writeDraft(paths: ReturnType<typeof resolveHaivePaths>, draft: Me
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, serializeMemory({ frontmatter: draft.frontmatter, body: draft.body }), "utf8");
   return file;
+}
+
+async function appendReviewGoldenCases(root: string, drafts: MemoryDraft[]): Promise<void> {
+  if (drafts.length === 0) return;
+  const specFile = path.join(root, ".ai", "eval", "spec.json");
+  const current = existsSync(specFile) ? await readFile(specFile, "utf8") : null;
+  const cases = drafts.map((draft) => ({
+    name: `review-learning:${draft.topic}`,
+    task: draft.finding.message,
+    ...(draft.finding.path ? { files: [draft.finding.path] } : {}),
+    expect_ids: [draft.frontmatter.id],
+  }));
+  await mkdir(path.dirname(specFile), { recursive: true });
+  await writeFile(specFile, appendProposedRetrievalCases(current, cases), "utf8");
 }
 
 type SonarFetchResult = { ok: true; json: string } | { ok: false; error: string };
@@ -350,7 +367,9 @@ async function fetchSonarIssues(opts: IngestOptions): Promise<SonarFetchResult> 
 type PrFetchResult = { ok: true; json: string } | { ok: false; error: string };
 
 /**
- * Fetch a PR's review-thread comments via the gh CLI (`repos/:owner/:repo/pulls/:n/comments`).
+ * Fetch both review-thread and top-level PR comments. GitHub emits `/hivelore remember` through
+ * either pull_request_review_comment or issue_comment; ingesting only one endpoint made the
+ * acknowledgement lie for top-level comments.
  * gh supplies auth and pagination; when it is missing or unauthenticated the error says exactly
  * that — a recorded JSON file works identically for offline/CI use.
  */
@@ -364,18 +383,30 @@ async function fetchPrReviewComments(root: string, ref: string): Promise<PrFetch
   const { promisify } = await import("node:util");
   const run = promisify(execFile);
   try {
-    const { stdout } = await run(
-      "gh",
-      ["api", `repos/{owner}/{repo}/pulls/${prNumber}/comments`, "--paginate"],
-      { cwd: root, maxBuffer: 16 * 1024 * 1024 },
-    );
-    return { ok: true, json: stdout };
+    const fetchPages = async (endpoint: string): Promise<unknown[]> => {
+      const { stdout } = await run(
+        "gh",
+        ["api", endpoint, "--paginate", "--slurp"],
+        { cwd: root, maxBuffer: 16 * 1024 * 1024 },
+      );
+      const pages = JSON.parse(stdout) as unknown;
+      return Array.isArray(pages) ? pages.flatMap((page) => Array.isArray(page) ? page : []) : [];
+    };
+    const [reviewComments, issueComments] = await Promise.all([
+      fetchPages(`repos/{owner}/{repo}/pulls/${prNumber}/comments`),
+      fetchPages(`repos/{owner}/{repo}/issues/${prNumber}/comments`),
+    ]);
+    const normalizedIssueComments = issueComments.map((row) => ({
+      ...(row as Record<string, unknown>),
+      pull_request_url: `https://api.github.com/repos/{owner}/{repo}/pulls/${prNumber}`,
+    }));
+    return { ok: true, json: JSON.stringify([...reviewComments, ...normalizedIssueComments]) };
   } catch (err) {
     const e = err as { stderr?: string; message?: string };
     return {
       ok: false,
       error:
-        `Could not fetch PR #${prNumber} review comments via gh: ${(e.stderr || e.message || String(err)).slice(0, 200)}. ` +
+        `Could not fetch PR #${prNumber} comments via gh: ${(e.stderr || e.message || String(err)).slice(0, 200)}. ` +
         "Install/authenticate the gh CLI, or pass a recorded comments JSON file instead.",
     };
   }

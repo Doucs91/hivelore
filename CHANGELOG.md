@@ -6,6 +6,38 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.43.0] — harness assurance: proven behaviour, structural rules, and review learning persistence
+
+### Security
+- Replaced shell-interpolated Git operations in prove-RED and HEAD-baseline reads with
+  `execFileSync` argument arrays; hostile refs/paths can no longer trigger shell expansion.
+- Blocking shell/test sensors now require a replayed pre-fix ref and persist `red_proven: true`.
+
+### Added
+- Full ast-grep Rule objects (`kind`, `inside`, `has`, `not`, `all`, `any`, …), explicit language
+  selection, and optional Python/Go/Rust/Java parsers on the existing AST sensor surface.
+- Strict policies for unrunnable command sensors and sensor weakening; this repo enables both.
+- `/hivelore remember` can persist a proposed team memory on a dedicated review PR. Both review
+  comments and top-level PR comments are ingested, and each learning proposes a golden eval case.
+- `pnpm verify` is the build-first release chain: build, typecheck, tests, artifact verification,
+  authored-case regression gate, and 100% deterministic sensor catch rate.
+- Three dogfood guards: shell-interpolation AST protection plus RED-proven CI/verify command sensors.
+- Benchmark evidence grading requires at least ten paired tasks with correctness, policy,
+  duration, and token outcomes before comparative claims are marked decision-ready.
+
+### Changed
+- Eval baselines now store and compare the independently authored report when available instead of
+  allowing self-synthesized corpus growth to create or hide regressions.
+- CI runs the regression gate and requires 100% sensor catch rate.
+- Sensor promotion refuses command/test oracles that have not proven RED.
+
+### Fixed
+- Prevention receipts treat legacy missing `prevented_count` values as zero instead of emitting
+  `prevented_count_total: null`.
+- Retired the obsolete separate-global-MCP lesson and refreshed active package sensors for the
+  `@hivelore/*` namespace.
+
+
 ## [0.42.1] — eval that would have caught our own bugs (excellence plan, Phase 5)
 
 > The self-synthesized eval scored 100/100 while the stack-pack ranking bug shipped. Golden cases

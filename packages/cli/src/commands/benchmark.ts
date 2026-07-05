@@ -22,6 +22,11 @@ interface AgentBenchmarkRow {
   decision_mentions: number;
   report_tokens_est: number;
   haive_impact: boolean;
+  task_completed: boolean | null;
+  tests_passed: boolean | null;
+  policy_violations: number | null;
+  duration_seconds: number | null;
+  total_tokens: number | null;
 }
 
 export function registerBenchmark(program: Command): void {
@@ -69,7 +74,9 @@ export function registerBenchmark(program: Command): void {
         "   - Hivelore agents must run `hivelore briefing --files ... --task ...` first.",
         "   - Plain agents must not read `.ai` or call Hivelore.",
         "5. Require every agent to write `BENCHMARK_AGENT_REPORT.md`.",
+        "   Its `## Outcome` section must include: Task completed, Tests passed, Policy violations, Duration seconds, Total tokens.",
         "6. Run `hivelore benchmark report --dir <benchmark-root> --out RESULTS.md`.",
+        "7. Do not make comparative claims until evidence_grade=decision-ready (>=10 paired tasks with complete outcomes).",
         "",
         "Recommended metrics: pass rate, test iterations, files read, files changed, visible artifacts, decision quality, and token proxy.",
       ].join("\n"));
@@ -111,15 +118,35 @@ function parseAgentReport(fixture: string, report: string): AgentBenchmarkRow {
     decision_mentions: sectionBulletCount(report, "Key Decisions"),
     report_tokens_est: estimateTokens(report),
     haive_impact: /Hivelore Memory Impact[\s\S]*?\b(yes|directly|changed|shaped|confirmed)\b/i.test(report),
+    task_completed: reportBoolean(report, "Task completed"),
+    tests_passed: reportBoolean(report, "Tests passed"),
+    policy_violations: reportNumber(report, "Policy violations"),
+    duration_seconds: reportNumber(report, "Duration seconds"),
+    total_tokens: reportNumber(report, "Total tokens"),
   };
 }
 
 function summarizeRows(rows: AgentBenchmarkRow[]) {
   const byGroup = (group: AgentBenchmarkRow["group"]) => rows.filter((r) => r.group === group);
+  const haiveRows = byGroup("haive");
+  const plainRows = byGroup("plain");
+  const taskName = (fixture: string): string => fixture.replace(/-(haive|plain)$/, "");
+  const plainTasks = new Set(plainRows.map((row) => taskName(row.fixture)));
+  const pairedTasks = new Set(haiveRows.map((row) => taskName(row.fixture)).filter((name) => plainTasks.has(name))).size;
+  const outcomeComplete = rows.length > 0 && rows.every((row) =>
+    row.task_completed !== null && row.tests_passed !== null && row.policy_violations !== null &&
+    row.duration_seconds !== null && row.total_tokens !== null,
+  );
+  const decisionReady = pairedTasks >= 10 && outcomeComplete;
   return {
     fixtures: rows.length,
-    haive: summarizeGroup(byGroup("haive")),
-    plain: summarizeGroup(byGroup("plain")),
+    paired_tasks: pairedTasks,
+    evidence_grade: decisionReady ? "decision-ready" : "insufficient",
+    evidence_reason: decisionReady
+      ? "At least 10 paired tasks with complete correctness, policy, duration, and token outcomes."
+      : `Need >=10 paired tasks and complete Outcome fields; found ${pairedTasks} pair(s), outcome_complete=${outcomeComplete}.`,
+    haive: summarizeGroup(haiveRows),
+    plain: summarizeGroup(plainRows),
   };
 }
 
@@ -136,6 +163,11 @@ function summarizeGroup(rows: AgentBenchmarkRow[]) {
     decision_mentions: sum("decision_mentions"),
     report_tokens_est: sum("report_tokens_est"),
     haive_impact_count: rows.filter((r) => r.haive_impact).length,
+    completed: rows.filter((r) => r.task_completed === true).length,
+    tests_passed: rows.filter((r) => r.tests_passed === true).length,
+    policy_violations: rows.reduce((total, row) => total + (row.policy_violations ?? 0), 0),
+    duration_seconds: rows.reduce((total, row) => total + (row.duration_seconds ?? 0), 0),
+    total_tokens: rows.reduce((total, row) => total + (row.total_tokens ?? 0), 0),
   };
 }
 
@@ -150,6 +182,8 @@ function renderMarkdown(
     `Benchmark root: \`${root}\``,
     "",
     "## Summary",
+    "",
+    `Evidence grade: **${summary.evidence_grade}** — ${summary.evidence_reason}`,
     "",
     "| Group | Fixtures | Commands | Files read | Files modified | Test iterations | Terminal failures | Decision mentions | Report tokens (est, report only) | Hivelore impact |",
     "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
@@ -173,6 +207,26 @@ function renderMarkdown(
     "",
   ];
   return lines.join("\n");
+}
+
+function reportValue(report: string, label: string): string | null {
+  const match = new RegExp(`^[-*]\\s*${escapeRegExp(label)}\\s*:\\s*(.+)$`, "im").exec(report);
+  return match?.[1]?.trim() ?? null;
+}
+
+function reportBoolean(report: string, label: string): boolean | null {
+  const value = reportValue(report, label);
+  if (!value) return null;
+  if (/^(yes|true|pass|passed|complete|completed)$/i.test(value)) return true;
+  if (/^(no|false|fail|failed|incomplete)$/i.test(value)) return false;
+  return null;
+}
+
+function reportNumber(report: string, label: string): number | null {
+  const value = reportValue(report, label);
+  if (!value) return null;
+  const parsed = Number(value.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function groupLine(label: string, group: ReturnType<typeof summarizeGroup>): string {

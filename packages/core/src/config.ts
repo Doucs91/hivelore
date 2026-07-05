@@ -239,6 +239,13 @@ export interface HaiveConfig {
      */
     runCommandSensors?: boolean;
     /**
+     * CI/strict-gate handling when a shell/test sensor cannot execute. `warn` preserves the
+     * fail-open developer default; `block` treats any configured but broken oracle as a broken harness.
+     */
+    commandSensorUnrunnable?: "warn" | "block";
+    /** Require explicit resolution of a diff that demotes, rewrites, or removes a BLOCK sensor. */
+    sensorWeakeningGate?: "warn" | "block";
+    /**
      * How `hivelore enforce finish` reacts to hard failures observed this session that were never
      * captured as a lesson (`mem_tried`):
      *   - off:   ignore
@@ -325,6 +332,8 @@ export const DEFAULT_CONFIG: HaiveConfig = {
     antiPatternGate: "anchored",
     bootstrapGate: "block",
     humanCommits: "relaxed",
+    commandSensorUnrunnable: "warn",
+    sensorWeakeningGate: "warn",
     scoreThreshold: 80,
     cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",
@@ -360,6 +369,8 @@ export const AUTOPILOT_DEFAULTS: HaiveConfig = {
     antiPatternGate: "anchored",
     bootstrapGate: "block",
     humanCommits: "relaxed",
+    commandSensorUnrunnable: "warn",
+    sensorWeakeningGate: "warn",
     scoreThreshold: 85,
     cleanupGeneratedArtifacts: true,
     toolProfile: "enforcement",

@@ -53,6 +53,16 @@ describe("prevention receipt", () => {
     expect(renderPreventionReceipt(receipt)).toContain("0 repeat mistakes");
   });
 
+  it("treats legacy usage rows without prevented_count as zero", () => {
+    const usage = emptyUsageIndex();
+    usage.by_id["legacy"] = { read_count: 3 } as typeof usage.by_id[string];
+    const receipt = buildPreventionReceipt([], [], usage, {
+      since: new Date(NOW.getTime() - 7 * 86_400_000), now: NOW,
+    });
+    expect(receipt.prevented_count_total).toBe(0);
+    expect(JSON.stringify(receipt)).not.toContain('"prevented_count_total":null');
+  });
+
   it("filters the window, compares the previous window, and exposes stable event keys", () => {
     const receipt = buildPreventionReceipt([ev(1, "current"), ev(8, "previous"), ev(20, "old")], [], emptyUsageIndex(), {
       since: new Date(NOW.getTime() - 7 * 86_400_000), now: NOW,

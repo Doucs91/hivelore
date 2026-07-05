@@ -28,14 +28,37 @@ export interface AstScanResult {
 }
 
 type NapiModule = typeof import("@ast-grep/napi");
+export type AstRule = Record<string, unknown>;
 
 let cachedEngine: NapiModule | null | undefined;
+const registeredDynamicLanguages = new Set<string>();
+
+async function loadDynamicLanguages(engine: NapiModule): Promise<void> {
+  const registrations: Record<string, unknown> = {};
+  const candidates: Array<[string, () => Promise<{ default: unknown }>]> = [
+    ["python", () => import("@ast-grep/lang-python")],
+    ["go", () => import("@ast-grep/lang-go")],
+    ["rust", () => import("@ast-grep/lang-rust")],
+    ["java", () => import("@ast-grep/lang-java")],
+  ];
+  for (const [name, load] of candidates) {
+    try {
+      const mod = await load();
+      registrations[name] = mod.default;
+      registeredDynamicLanguages.add(name);
+    } catch { /* optional language package is not installed */ }
+  }
+  if (Object.keys(registrations).length > 0) {
+    engine.registerDynamicLanguage(registrations as Parameters<NapiModule["registerDynamicLanguage"]>[0]);
+  }
+}
 
 /** Lazy-load @ast-grep/napi once; null when the optional engine is not installed. */
 export async function loadAstEngine(): Promise<NapiModule | null> {
   if (cachedEngine !== undefined) return cachedEngine;
   try {
     cachedEngine = await import("@ast-grep/napi");
+    await loadDynamicLanguages(cachedEngine);
   } catch {
     cachedEngine = null;
   }
@@ -47,11 +70,25 @@ export async function astEngineAvailable(): Promise<boolean> {
 }
 
 /** Map a file extension to a built-in ast-grep language. Unknown → null (unsupported, warn only). */
-export function astLangForPath(filePath: string): "TypeScript" | "Tsx" | "JavaScript" | null {
+export function astLangForPath(filePath: string, explicitLanguage?: string): string | null {
+  if (explicitLanguage) {
+    const normalized = explicitLanguage.toLowerCase();
+    if (["typescript", "tsx", "javascript", "html", "css"].includes(normalized)) {
+      return normalized === "typescript" ? "TypeScript"
+        : normalized === "tsx" ? "Tsx"
+          : normalized === "javascript" ? "JavaScript"
+            : normalized[0]!.toUpperCase() + normalized.slice(1);
+    }
+    return registeredDynamicLanguages.has(normalized) ? normalized : null;
+  }
   const ext = path.extname(filePath).toLowerCase();
   if (ext === ".ts" || ext === ".mts" || ext === ".cts") return "TypeScript";
   if (ext === ".tsx") return "Tsx";
   if (ext === ".js" || ext === ".jsx" || ext === ".mjs" || ext === ".cjs") return "JavaScript";
+  if (ext === ".py" && registeredDynamicLanguages.has("python")) return "python";
+  if (ext === ".go" && registeredDynamicLanguages.has("go")) return "go";
+  if (ext === ".rs" && registeredDynamicLanguages.has("rust")) return "rust";
+  if (ext === ".java" && registeredDynamicLanguages.has("java")) return "java";
   return null;
 }
 
@@ -82,14 +119,18 @@ function absentPresentInNode(node: { find(p: string): unknown; text(): string },
 export async function runAstPattern(
   content: string,
   filePath: string,
-  pattern: string,
+  pattern?: string,
   absent?: string,
+  rule?: AstRule,
+  language?: string,
 ): Promise<AstScanResult> {
   const engine = await loadAstEngine();
   if (!engine) return { status: "engine-missing", matches: [] };
-  const langName = astLangForPath(filePath);
+  const langName = astLangForPath(filePath, language);
   if (!langName) return { status: "unsupported-language", matches: [] };
-  const lang = engine.Lang[langName];
+  const lang = langName in engine.Lang
+    ? engine.Lang[langName as keyof typeof engine.Lang]
+    : langName;
   let root;
   try {
     root = engine.parse(lang, content).root();
@@ -98,7 +139,11 @@ export async function runAstPattern(
   }
   let nodes;
   try {
-    nodes = root.findAll(pattern);
+    const matcher = rule
+      ? { rule: pattern ? { all: [{ pattern }, rule] } : rule }
+      : pattern;
+    if (!matcher) return { status: "invalid-pattern", matches: [], detail: "missing pattern/rule" };
+    nodes = root.findAll(matcher as never);
   } catch (err) {
     return { status: "invalid-pattern", matches: [], detail: String(err).slice(0, 200) };
   }
@@ -122,14 +167,16 @@ export async function runAstPattern(
  */
 export async function runAstSensorOnContent(
   input: {
-    pattern: string;
+    pattern?: string;
+    rule?: AstRule;
+    language?: string;
     absent?: string;
     content: string;
     filePath: string;
     addedLines?: Set<number>;
   },
 ): Promise<AstScanResult> {
-  const scan = await runAstPattern(input.content, input.filePath, input.pattern, input.absent);
+  const scan = await runAstPattern(input.content, input.filePath, input.pattern, input.absent, input.rule, input.language);
   if (scan.status !== "ok" || !input.addedLines || input.addedLines.size === 0) return scan;
   const added = input.addedLines;
   return {

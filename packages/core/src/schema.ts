@@ -48,6 +48,10 @@ export const SensorSchema = z.object({
    * the optional `@ast-grep/napi` engine; without it the sensor is unrunnable (warn, never block).
    */
   pattern: z.string().optional(),
+  /** kind=ast: full ast-grep Rule object (`kind`, `inside`, `has`, `not`, `all`, `any`, …). */
+  rule: z.record(z.unknown()).optional(),
+  /** kind=ast: explicit language name for extensionless/non-standard files (e.g. python, go). */
+  language: z.string().optional(),
   /**
    * Optional "correct-usage" regex (kind=regex). When `pattern` (the risky call) matches but this
    * regex ALSO appears within a small window around the match, the catch is SUPPRESSED — the diff

@@ -38,8 +38,10 @@ export const MemTriedInputSchema = {
   author: z.string().optional().describe("Author handle or email"),
   sensor: z
     .object({
-      kind: z.enum(["regex", "shell", "test"]).default("regex").describe("regex pattern, or a shell/test COMMAND the gate executes (behaviour bridge)"),
-      pattern: z.string().optional().describe("kind=regex: regex matching the FAULTY usage (added diff lines)"),
+      kind: z.enum(["regex", "ast", "shell", "test"]).default("regex").describe("regex/AST pattern, or a shell/test command"),
+      pattern: z.string().optional().describe("kind=regex|ast: pattern matching the faulty usage"),
+      rule: z.record(z.unknown()).optional().describe("kind=ast: full ast-grep Rule object"),
+      language: z.string().optional().describe("kind=ast: explicit built-in/dynamic language"),
       command: z.string().optional().describe("kind=shell|test: command the gate runs when the diff touches the sensor's paths (non-zero exit = lesson fires)"),
       timeout_ms: z.number().int().positive().optional().describe("kind=shell|test: max runtime (default 120000)"),
       absent: z.string().optional().describe("kind=regex: regex marking CORRECT usage nearby — excludes it from firing"),
@@ -144,6 +146,8 @@ export async function memTried(
         memory_id: frontmatter.id,
         kind: input.sensor.kind ?? "regex",
         pattern: input.sensor.pattern,
+        rule: input.sensor.rule,
+        language: input.sensor.language,
         command: input.sensor.command,
         timeout_ms: input.sensor.timeout_ms,
         absent: input.sensor.absent,

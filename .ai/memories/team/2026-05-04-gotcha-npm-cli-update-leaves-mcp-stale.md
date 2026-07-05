@@ -2,7 +2,7 @@
 id: 2026-05-04-gotcha-npm-cli-update-leaves-mcp-stale
 scope: team
 type: gotcha
-status: validated
+status: deprecated
 anchor:
   paths:
     - packages/cli/package.json
@@ -29,7 +29,7 @@ tags:
 created_at: '2026-05-04T01:05:36.619Z'
 expires_when: null
 verified_at: '2026-07-02T22:21:21.949Z'
-stale_reason: null
+stale_reason: 'Superseded: @hivelore/cli now depends on and bundles the matching @hivelore/mcp runtime.'
 related_ids: []
 last_read_at: null
 revision_count: 0

@@ -1149,7 +1149,7 @@ async function buildEnforcementReport(
   }
 
   if (stage === "pre-commit" || stage === "ci") {
-    findings.push(...await runPrecommitPolicy(paths, config.enforcement?.antiPatternGate ?? "anchored", stage));
+    findings.push(...await runPrecommitPolicy(paths, config.enforcement?.antiPatternGate ?? "anchored", stage, config));
   } else if (stage === "local") {
     // The diff-scan layer (anti-pattern matcher + regex/command sensors) runs only at
     // pre-commit/ci — by design, so a bare `enforce check` preview stays fast and quiet on
@@ -1439,6 +1439,7 @@ async function runPrecommitPolicy(
   paths: ReturnType<typeof resolveHaivePaths>,
   gate: AntiPatternGate,
   stage: "pre-commit" | "ci",
+  config: HaiveConfig,
 ): Promise<EnforcementFinding[]> {
   const snapshot = await getPolicyDiffSnapshot(paths.root, stage);
   // Gate-surface integrity runs even when the anti-pattern gate is off: a diff that demotes or
@@ -1448,7 +1449,7 @@ async function runPrecommitPolicy(
   const weakenings = detectSensorWeakening(snapshot.diff);
   const weakeningFindings: EnforcementFinding[] = weakenings.length > 0
     ? [{
-        severity: "warn",
+        severity: config.enforcement?.sensorWeakeningGate === "block" ? "error" : "warn",
         code: "sensor-weakened",
         message:
           `This diff weakens the enforcement surface — ${weakenings.length} sensor change(s) need review: ` +
@@ -1456,7 +1457,7 @@ async function runPrecommitPolicy(
           (weakenings.length > 5 ? ", …" : "") + ".",
         fix: "If the demotion/removal is intentional, say so in the commit message; otherwise restore the sensor (`hivelore sensors list` shows the current state).",
         memory_ids: [...new Set(weakenings.map((w) => w.memory_id))].slice(0, 10),
-        impact: 8,
+        impact: config.enforcement?.sensorWeakeningGate === "block" ? 30 : 8,
       }]
     : [];
   if (gate === "off") {
@@ -1686,7 +1687,7 @@ async function runSensorGate(
       } else {
         for (const memory of astSensorMemories) {
           const sensor = memory.frontmatter.sensor!;
-          if (!sensor.pattern) continue;
+          if (!sensor.pattern && !sensor.rule) continue;
           const applicable = targets.filter((t) => sensorAppliesToPath(sensor, memory.frontmatter.anchor.paths, t.path));
           if (applicable.length === 0) continue;
           let fired = false;
@@ -1697,6 +1698,8 @@ async function runSensorGate(
             if (content === null) continue;
             const scan = await runAstSensorOnContent({
               pattern: sensor.pattern,
+              rule: sensor.rule,
+              language: sensor.language,
               absent: sensor.absent,
               content,
               filePath: target.path,
@@ -1744,7 +1747,7 @@ async function runSensorGate(
     // ── Computational layer 2: shell/test command sensors (a regex can't express) ──
     // OFF by default — they execute arbitrary repo-authored commands. Opt in per-repo with
     // enforcement.runCommandSensors=true (mirrors `hivelore sensors check --commands`).
-    const config = await loadConfig(paths).catch(() => null);
+    const config = await loadConfig(paths).catch(() => ({} as HaiveConfig));
     if (config?.enforcement?.runCommandSensors === true) {
       const changedPaths = targets.map((t) => t.path).filter(Boolean);
       const specs = selectCommandSensors(scannable, changedPaths).filter((sp) => !seen.has(sp.memory_id));
@@ -1786,14 +1789,15 @@ async function runSensorGate(
         seen.add(run.memory_id);
         if (run.status === "unrunnable") {
           // The oracle said NOTHING about the code — a broken harness must not block a commit.
+          const strictUnrunnable = config.enforcement?.commandSensorUnrunnable === "block";
           findings.push({
-            severity: "warn",
+            severity: strictUnrunnable ? "error" : "warn",
             code: "command-sensor-unrunnable",
             message:
               `Command sensor ${run.memory_id} could not run (${run.unrunnable_reason}): \`${run.command}\`` +
               (run.output_tail ? `\n${run.output_tail}` : ""),
             fix: "Fix the sensor's command (or its timeout_ms), or demote it: `hivelore sensors promote <id> --severity warn`.",
-            impact: 5,
+            impact: strictUnrunnable ? 35 : 5,
           });
           continue;
         }

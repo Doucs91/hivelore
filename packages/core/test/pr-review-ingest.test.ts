@@ -34,6 +34,15 @@ describe("extractReviewLearnings — the PR loop's instruction filter", () => {
     expect(learnings[0]!.instruction).toBe("public ids are id + 100000 prefixed AC-");
   });
 
+  it("accepts a normalized top-level PR issue comment without a file anchor", () => {
+    const learnings = extractReviewLearnings([
+      comment({ id: 12, path: undefined, line: undefined, body: "/hivelore remember never log access tokens" }),
+    ]);
+    expect(learnings).toHaveLength(1);
+    expect(learnings[0]!.path).toBeUndefined();
+    expect(reviewLearningsToDrafts(learnings)[0]!.frontmatter.anchor.paths).toEqual([]);
+  });
+
   it("ties replies to their root thread and tolerates garbage payloads", () => {
     const learnings = extractReviewLearnings([
       comment({ id: 10 }),
