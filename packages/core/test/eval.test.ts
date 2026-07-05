@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendProposedRetrievalCases,
+  approveProposedCases,
+  runTierContract,
   aggregateRetrieval,
   aggregateSensors,
   buildReport,
@@ -167,5 +170,42 @@ describe("synthesizeSelfEvalCases", () => {
   it("omits files in semantic-only mode", () => {
     const cases = synthesizeSelfEvalCases([mem("m1", "validated", ["src/a.ts"])], { includeFiles: false });
     expect(cases[0]!.files).toBeUndefined();
+  });
+});
+
+describe("golden-set plumbing (Phase 5)", () => {
+  it("appendProposedRetrievalCases merges without duplicating by name, creating the spec when absent", () => {
+    const first = appendProposedRetrievalCases(null, [
+      { name: "gate-miss:a", task: "revert of refund clamp", expect_ids: ["a"] },
+    ]);
+    const parsed1 = JSON.parse(first) as { proposed_retrieval: unknown[] };
+    expect(parsed1.proposed_retrieval).toHaveLength(1);
+    const second = appendProposedRetrievalCases(first, [
+      { name: "gate-miss:a", task: "dupe", expect_ids: ["a"] },
+      { name: "gate-miss:b", task: "another", expect_ids: ["b"] },
+    ]);
+    const parsed2 = JSON.parse(second) as { proposed_retrieval: Array<{ name: string }> };
+    expect(parsed2.proposed_retrieval.map((c) => c.name)).toEqual(["gate-miss:a", "gate-miss:b"]);
+  });
+
+  it("approveProposedCases moves proposed cases into the scored set exactly once", () => {
+    const raw = appendProposedRetrievalCases(
+      JSON.stringify({ retrieval: [{ name: "hand", task: "t", expect_ids: ["x"] }] }),
+      [{ name: "gate-miss:a", task: "revert", expect_ids: ["a"] }],
+    );
+    const { raw: approved, approved: count } = approveProposedCases(raw);
+    expect(count).toBe(1);
+    const spec = JSON.parse(approved) as { retrieval: Array<{ name: string }>; proposed_retrieval?: unknown };
+    expect(spec.retrieval.map((c) => c.name)).toEqual(["hand", "gate-miss:a"]);
+    expect(spec.proposed_retrieval).toBeUndefined();
+    expect(approveProposedCases(approved).approved).toBe(0);
+  });
+
+  it("runTierContract holds on the current classifier and FAILS if the stack-pack rescue dies", () => {
+    const checks = runTierContract();
+    expect(checks.every((c) => c.pass)).toBe(true);
+    // The family discriminates: the check names cover rescue, crowding guard, env cap, and anchors.
+    expect(checks.map((c) => c.name).join(" ")).toMatch(/rescue/);
+    expect(checks.map((c) => c.name).join(" ")).toMatch(/hard cap/);
   });
 });

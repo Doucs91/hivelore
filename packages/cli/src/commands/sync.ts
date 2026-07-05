@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import {
+  appendProposedRetrievalCases,
   DEFAULT_AUTO_PROMOTE_RULE,
   assessSensorHealth,
   sensorPromotedAtMap,
@@ -295,6 +296,28 @@ export function registerSync(program: Command): void {
       const gateMissIds = await processGateMissWatch(root, paths, dryRun);
       if (gateMissIds.length > 0) {
         log(ui.yellow(`gate-miss: proposed ${gateMissIds.length} lesson(s): ${gateMissIds.join(", ")}`));
+        // Golden-set plumbing (excellence plan, Phase 5): every gate miss is exactly the labeled
+        // retrieval case the self-synthesized eval can't produce — "given the reverted commit's
+        // subject as the task, the new lesson must surface". Proposed only; a human approves it
+        // into the scored set with `hivelore eval --approve-cases`.
+        if (!dryRun) {
+          try {
+            const freshlyLoaded = await loadMemoriesFromDir(paths.memoriesDir);
+            const cases = gateMissIds.flatMap((id) => {
+              const loaded = freshlyLoaded.find((m) => m.memory.frontmatter.id === id);
+              const heading = loaded?.memory.body.match(/^#\s+(.+)$/m)?.[1]?.trim();
+              if (!heading) return [];
+              return [{ name: `gate-miss:${id}`, task: heading, expect_ids: [id] }];
+            });
+            if (cases.length > 0) {
+              const specFile = path.join(root, ".ai", "eval", "spec.json");
+              const raw = existsSync(specFile) ? await readFile(specFile, "utf8") : null;
+              await mkdir(path.dirname(specFile), { recursive: true });
+              await writeFile(specFile, appendProposedRetrievalCases(raw, cases), "utf8");
+              log(ui.dim(`gate-miss: ${cases.length} proposed golden eval case(s) → .ai/eval/spec.json (approve with \`hivelore eval --approve-cases\`)`));
+            }
+          } catch { /* best-effort — golden-set plumbing must never break sync */ }
+        }
       }
 
       const draftMemories = (await loadMemoriesFromDir(paths.memoriesDir)).filter(

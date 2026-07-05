@@ -16,7 +16,9 @@ import {
   loadEvalHistory,
   loadPreventionEvents,
   loadUsageIndex,
+  approveProposedCases,
   overallScore,
+  runTierContract,
   resolveHaivePaths,
   scoreRetrievalCase,
   scoreSensorCase,
@@ -41,6 +43,7 @@ interface EvalOptions {
   top?: string;
   json?: boolean;
   out?: string;
+  approveCases?: boolean;
   failUnder?: string;
   failUnderCatchRate?: string;
   failUnderGatePrecision?: string;
@@ -93,6 +96,7 @@ export function registerEval(program: Command): void {
     .option("--baseline-file <path>", "baseline file to read/write (default: .ai/eval/baseline.json)")
     .option("--fail-on-regression", "with --compare, exit non-zero if the score dropped vs the baseline", false)
     .option("--regression-gate", "CI-safe gate: compare against the baseline IF one exists (fail on regression), else no-op", false)
+    .option("--approve-cases", "approve every proposed golden case (gate-miss labeled) into the scored retrieval set, then exit", false)
     .option("--record", "append this run's score to .ai/.cache/eval-history.jsonl (trend the harness over time)", false)
     .option("--trend", "print the recorded score trend (sparkline + latest/best/delta) and exit", false)
     .option("--ref <ref>", "version/commit label stored with a --record run")
@@ -103,6 +107,23 @@ export function registerEval(program: Command): void {
       if (!existsSync(paths.memoriesDir)) {
         ui.error(`No .ai/memories at ${root}. Run \`hivelore init\` first.`);
         process.exitCode = 1;
+        return;
+      }
+
+      // ── Approve proposed golden cases (gate-miss labeled) into the scored set ──
+      if (opts.approveCases) {
+        const specFile = path.join(root, ".ai", "eval", "spec.json");
+        if (!existsSync(specFile)) {
+          ui.info("No .ai/eval/spec.json — nothing to approve.");
+          return;
+        }
+        const { raw, approved } = approveProposedCases(await readFile(specFile, "utf8"));
+        if (approved === 0) {
+          ui.info("No proposed cases waiting for approval.");
+          return;
+        }
+        await writeFile(specFile, raw, "utf8");
+        ui.success(`Approved ${approved} proposed golden case(s) into the scored retrieval set.`);
         return;
       }
 
@@ -128,6 +149,21 @@ export function registerEval(program: Command): void {
 
       const resolvedSpec = await resolveSpec(opts, root, paths.memoriesDir);
       const spec = resolvedSpec.spec;
+
+      // ── Ranking tier contract: the DESIGNED tier per memory category, run against the
+      // INSTALLED classifier. A failure here is a shipped ranking regression → hard fail.
+      const tierChecks = runTierContract();
+      const tierFailures = tierChecks.filter((c) => !c.pass);
+
+      // Golden cases waiting for approval (gate-miss labeled) are reported, never silently scored.
+      let proposedGoldenCount = 0;
+      try {
+        const specFile = path.join(root, ".ai", "eval", "spec.json");
+        if (!opts.spec && existsSync(specFile)) {
+          const parsed = JSON.parse(await readFile(specFile, "utf8")) as { proposed_retrieval?: unknown[] };
+          proposedGoldenCount = parsed.proposed_retrieval?.length ?? 0;
+        }
+      } catch { /* unreadable spec — the scoring path will complain if it matters */ }
       if ((spec.retrieval?.length ?? 0) === 0 && (spec.sensors?.length ?? 0) === 0) {
         ui.warn("No eval cases (no anchored memories and no --spec). Nothing to score.");
         return;
@@ -242,10 +278,13 @@ export function registerEval(program: Command): void {
             ...(authoredScore !== null ? { authored_score: authoredScore } : {}),
           },
           report,
+          tier_contract: { checks: tierChecks, failures: tierFailures.length },
+          proposed_golden_cases: proposedGoldenCount,
           gate_precision: gatePrecision,
           ...(delta ? { delta } : {}),
           ...(gateDelta ? { gate_delta: gateDelta } : {}),
         }, null, 2));
+        if (tierFailures.length > 0) process.exitCode = 1;
         applyExitGates(opts, report, delta, gatePrecision, gateDelta);
         return;
       }
@@ -267,6 +306,19 @@ export function registerEval(program: Command): void {
         console.log(renderGateDelta(gateDelta));
       }
 
+      if (tierFailures.length > 0) {
+        ui.error(`Ranking tier contract BROKEN — ${tierFailures.length} check(s) violate the designed tiers:`);
+        for (const c of tierFailures) ui.error(`  ✗ ${c.name} (expected ${c.expected}, got ${c.actual})`);
+      } else {
+        ui.info(`Ranking tier contract: ${tierChecks.length}/${tierChecks.length} checks hold.`);
+      }
+      if (proposedGoldenCount > 0) {
+        ui.warn(
+          `${proposedGoldenCount} proposed golden case(s) (gate-miss labeled) await approval — ` +
+          "review .ai/eval/spec.json, then `hivelore eval --approve-cases` to score them.",
+        );
+      }
+
       const md = renderMarkdown(root, k, resolvedSpec, report, gatePrecision, authoredScore);
       if (opts.out) {
         const outFile = path.isAbsolute(opts.out) ? opts.out : path.join(root, opts.out);
@@ -276,6 +328,7 @@ export function registerEval(program: Command): void {
         console.log(md);
       }
 
+      if (tierFailures.length > 0) process.exitCode = 1;
       applyExitGates(opts, report, delta, gatePrecision, gateDelta);
     });
 }

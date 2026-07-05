@@ -6,6 +6,24 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.42.1] — eval that would have caught our own bugs (excellence plan, Phase 5)
+
+> The self-synthesized eval scored 100/100 while the stack-pack ranking bug shipped. Golden cases
+> now come from reality (gate misses), and a ranking tier CONTRACT guards the classifier's designed
+> behavior in every repo's CI.
+
+### Added
+- **Gate misses propose golden eval cases.** When `sync` turns a revert of a gate-passed commit
+  into a gate-miss lesson, it now ALSO appends a labeled retrieval case (task = the lesson's
+  heading, expected = the lesson id) to `.ai/eval/spec.json` under `proposed_retrieval` — never
+  scored until a human runs **`hivelore eval --approve-cases`**. Eval reports waiting cases out
+  loud; approval is idempotent. (Core: `appendProposedRetrievalCases`, `approveProposedCases`.)
+- **Ranking tier contract in every eval run** (`runTierContract`, core): the designed tier per
+  memory category under fixed evidence — stack-pack rescue stays alive on strong evidence, the
+  weak-evidence crowding guard stays, env workarounds keep the hard cap, anchors always win,
+  negative knowledge ranks first. A violated check fails the eval run (exit non-zero) — this is
+  exactly the family that would have caught the dead-escape-hatch ranking bug before release.
+
 ## [0.42.0] — the PR loop: review replies become proposed lessons (excellence plan, Phase 3)
 
 > The git-native version of CodeRabbit's "Learnings" — with the step no inferential reviewer can

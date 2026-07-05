@@ -299,3 +299,89 @@ export function synthesizeSelfEvalCases(
   }
   return cases;
 }
+
+// ── Golden-set plumbing (excellence plan, Phase 5) ────────────────────────────────────────────────
+// The self-synthesized eval scored 100/100 while real ranking bugs shipped. Golden cases must come
+// from reality: every gate miss (a revert of a gate-passed commit) proposes a labeled retrieval
+// case; a human approves it into the scored set. Plus a ranking tier CONTRACT that would have
+// caught the dead-escape-hatch bug (stack packs capped at background forever).
+
+import { classifyMemoryPriority, prioritySignals, type MemoryPriority } from "./priority.js";
+
+/** spec.json superset: `proposed_retrieval` holds candidate cases that are NOT scored until approved. */
+export interface ProposedEvalSpec extends EvalSpec {
+  proposed_retrieval?: RetrievalCase[];
+}
+
+/** Merge new proposed cases into a spec.json payload (dedup by name). Returns pretty JSON. */
+export function appendProposedRetrievalCases(specRaw: string | null, cases: RetrievalCase[]): string {
+  let spec: ProposedEvalSpec = {};
+  if (specRaw?.trim()) {
+    try { spec = JSON.parse(specRaw) as ProposedEvalSpec; } catch { spec = {}; }
+  }
+  const existingNames = new Set([
+    ...(spec.retrieval ?? []).map((c) => c.name),
+    ...(spec.proposed_retrieval ?? []).map((c) => c.name),
+  ]);
+  const fresh = cases.filter((c) => !existingNames.has(c.name));
+  if (fresh.length > 0) spec.proposed_retrieval = [...(spec.proposed_retrieval ?? []), ...fresh];
+  return JSON.stringify(spec, null, 2) + "\n";
+}
+
+/** Approve every proposed case into the scored `retrieval` set. */
+export function approveProposedCases(specRaw: string): { raw: string; approved: number } {
+  let spec: ProposedEvalSpec;
+  try { spec = JSON.parse(specRaw) as ProposedEvalSpec; } catch { return { raw: specRaw, approved: 0 }; }
+  const proposed = spec.proposed_retrieval ?? [];
+  if (proposed.length === 0) return { raw: specRaw, approved: 0 };
+  spec.retrieval = [...(spec.retrieval ?? []), ...proposed];
+  delete spec.proposed_retrieval;
+  return { raw: JSON.stringify(spec, null, 2) + "\n", approved: proposed.length };
+}
+
+export interface TierContractCheck {
+  name: string;
+  expected: MemoryPriority;
+  actual: MemoryPriority;
+  pass: boolean;
+}
+
+/**
+ * Ranking tier contract — the DESIGNED tier for each memory category under fixed evidence,
+ * exercised against the INSTALLED classifier at eval time (so a packaging/regression slip fails CI,
+ * not just the repo's own unit tests). This family is exactly what would have caught the
+ * stack-pack dead-escape-hatch bug (see 2026-07-04-decision-stack-pack-rescue-strong-task-evidence).
+ */
+export function runTierContract(): TierContractCheck[] {
+  const cases: Array<{ name: string; expected: MemoryPriority; signals: Parameters<typeof classifyMemoryPriority>[0] }> = [
+    {
+      name: "stack-pack seed + strong task evidence → useful (rescue path stays alive)",
+      expected: "useful",
+      signals: prioritySignals({ type: "convention", tags: ["stack-pack"], strongSemantic: true, usefulSemantic: true }),
+    },
+    {
+      name: "stack-pack seed + weak evidence → background (crowding guard stays)",
+      expected: "background",
+      signals: prioritySignals({ type: "convention", tags: ["stack-pack"], usefulSemantic: true, tagTaskMatch: true }),
+    },
+    {
+      name: "env workaround + strong evidence → background (hard cap stays)",
+      expected: "background",
+      signals: prioritySignals({ type: "gotcha", tags: ["dev-env"], strongSemantic: true, exactTaskMatch: true }),
+    },
+    {
+      name: "direct anchor → must_read (anchors always win)",
+      expected: "must_read",
+      signals: prioritySignals({ type: "convention", directAnchor: true }),
+    },
+    {
+      name: "attempt + exact task match → must_read (negative knowledge first)",
+      expected: "must_read",
+      signals: prioritySignals({ type: "attempt", exactTaskMatch: true }),
+    },
+  ];
+  return cases.map(({ name, expected, signals }) => {
+    const actual = classifyMemoryPriority(signals);
+    return { name, expected, actual, pass: actual === expected };
+  });
+}
