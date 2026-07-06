@@ -534,6 +534,10 @@ export function registerInit(program: Command): void {
         ".ai/.runtime/*",
         "!.ai/.runtime/.gitignore",
         "!.ai/.runtime/README.md",
+        // Machine-local tool-usage telemetry — like .cache/.runtime, it changes on every invocation
+        // and is never team truth (eval baselines exclude local usage counters). Committing it made the
+        // working tree perpetually dirty and forced a stash before every release.
+        ".ai/.usage/",
       ]);
 
       ui.success(`Hivelore initialized at ${root}${autopilot ? " (autopilot mode)" : ""}`);

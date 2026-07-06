@@ -69,13 +69,25 @@ Examples of things to look for:
 ### 5. Did you find that an existing memory is outdated or wrong?
 → If yes, call **\`mem_update\`** with the correct information, or **\`mem_reject\`** if it's completely wrong
 
+## The bar — capture only what is UNGUESSABLE
+
+A memory earns its place only if it carries *hard-won, repo-specific knowledge a capable teammate could
+NOT infer* from the code, the docs, or common practice. A "decision" that merely restates what the
+implementation already shows, a "convention" that is just standard style, a "gotcha" that is generic
+best practice — these are noise, and noise makes every future briefing worse. **For a routine change,
+capturing nothing is the correct, expected outcome.** Only reach for \`mem_save\` when you can name the
+arbitrary constraint (an invariant, a tradeoff with a real WHY, a footgun that cost you time) that the
+next agent would otherwise get wrong.
+
 ## Rules
 
 - One memory per insight. Don't cram multiple lessons into one body.
 - Anchor memories to file paths when possible (the \`paths\` field) — this enables staleness detection.
 - Prefer \`scope="team"\` for anything a teammate or future agent would benefit from.
-- Skip sections where you genuinely have nothing to add. Don't fabricate memories.
-- **Question 0 is not optional** — always scan your exploration history for code-level discoveries.
+- Skip sections where you genuinely have nothing to add. Don't fabricate memories — an empty post-task
+  is better than a corpus of restated obvious facts.
+- Scan your exploration history for genuine code-level discoveries (failed approaches, real footguns),
+  but hold each to the bar above before saving it.
 
 ### 6. Close the session — always
 Call **\`mem_session_end\`** with:

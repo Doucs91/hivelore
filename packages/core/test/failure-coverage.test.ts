@@ -62,12 +62,47 @@ describe("distillFailureObservations — passive-capture distillation", () => {
     const lessons = distillFailureObservations([
       f("2026-07-04T10:00:00Z", "Bash: pnpm test failed — 2 tests failing in refund.spec.ts", ["src/refund.ts"]),
       f("2026-07-04T10:05:00Z", "Bash: pnpm test failed — 2 tests failing   in refund.spec.ts", ["src/refund.ts"]),
+      // a one-off non-substantive failure is NOT a durable lesson → dropped (signal bar)
       f("2026-07-04T10:06:00Z", "Edit failed: file has been modified since read", ["src/other.ts"], "Edit"),
     ]);
-    expect(lessons).toHaveLength(2);
+    expect(lessons).toHaveLength(1);
     expect(lessons[0]!.occurrences).toBe(2);
     expect(lessons[0]!.what).toContain("pnpm test failed");
     expect(lessons[0]!.paths).toEqual(["src/refund.ts"]);
+  });
+
+  it("signal bar: a one-off SUBSTANTIVE command failure is kept; a one-off ordinary one is dropped", () => {
+    const lessons = distillFailureObservations([
+      f("2026-07-04T10:00:00Z", "Bash: vitest run failed — assertion error in refund.spec.ts", ["src/refund.ts"]),
+      f("2026-07-04T10:01:00Z", "Edit failed: file has been modified since read", ["src/other.ts"], "Edit"),
+    ]);
+    expect(lessons).toHaveLength(1);
+    expect(lessons[0]!.what).toContain("vitest run failed");
+  });
+
+  it("signal bar: a one-off ordinary failure that REPEATS clears the bar (retry loop)", () => {
+    const lessons = distillFailureObservations([
+      f("2026-07-04T10:00:00Z", "Bash: ./deploy.sh crashed at step 3"),
+      f("2026-07-04T10:02:00Z", "Bash: ./deploy.sh crashed at step 3"),
+    ]);
+    expect(lessons).toHaveLength(1);
+    expect(lessons[0]!.occurrences).toBe(2);
+  });
+
+  it("silent until signal: a single ordinary failure produces NO draft", () => {
+    const lessons = distillFailureObservations([
+      f("2026-07-04T10:00:00Z", "Bash: ./deploy.sh crashed at step 3"),
+    ]);
+    expect(lessons).toHaveLength(0);
+  });
+
+  it("drops navigation/setup builtins even when they repeat (cd, mkdir, echo, …)", () => {
+    const lessons = distillFailureObservations([
+      f("2026-07-04T10:00:00Z", "Bash: cd /missing/dir"),
+      f("2026-07-04T10:01:00Z", "Bash: cd /missing/dir"),
+      f("2026-07-04T10:02:00Z", "Bash: mkdir -p /root/protected"),
+    ]);
+    expect(lessons).toHaveLength(0);
   });
 
   it("drops exploratory lookups and caps at max", () => {

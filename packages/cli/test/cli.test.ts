@@ -1438,7 +1438,7 @@ describe("Hivelore CLI integration", () => {
     }
   });
 
-  it("bootstrap gate blocks a cold codebase, then clears once the knowledge layer is filled", async () => {
+  it("bootstrap gate warns locally but blocks at a sharing point on a cold codebase, then clears once filled", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-bootstrap-gate-"));
     try {
       await exec("git", ["init"], { cwd: repo });
@@ -1463,14 +1463,19 @@ describe("Hivelore CLI integration", () => {
       codeMap.files["ignored-ref/c.ts"] = sampleEntry;
       await writeFile(codeMapFile, JSON.stringify(codeMap, null, 2), "utf8");
 
-      // Stage a production-code change on a cold corpus → the gate must block.
+      // Stage a production-code change on a cold corpus. The gate binds the BLOCK to sharing points:
+      //  - pre-commit (local iteration) → warn (must not block quick local work / train --no-verify)
+      //  - pre-push  (a sharing point) → error (the baseline must exist before code is shared)
       await writeFile(path.join(repo, "packages/api/a.ts"), "export function getUser(){ return 2 }\n", "utf8");
       await exec("git", ["add", "packages/api/a.ts"], { cwd: repo });
-      const cold = JSON.parse(
+      const preCommit = JSON.parse(
         (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
       ) as { findings: Array<{ code: string; severity: string }> };
-      const coldFinding = cold.findings.find((f) => f.code === "bootstrap-incomplete");
-      expect(coldFinding?.severity).toBe("error");
+      expect(preCommit.findings.find((f) => f.code === "bootstrap-incomplete")?.severity).toBe("warn");
+      const prePush = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-push", "--json", "--dir", repo])).stdout,
+      ) as { findings: Array<{ code: string; severity: string }> };
+      expect(prePush.findings.find((f) => f.code === "bootstrap-incomplete")?.severity).toBe("error");
 
       // Fill the knowledge layer: real project-context + an anchored memory with a sensor on the area.
       await writeFile(

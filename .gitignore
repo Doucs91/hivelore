@@ -47,3 +47,6 @@ benchmarks/RESULTS.md
 benchmarks/manual-run/fixtures/**/package-lock.json
 # Untracked exploratory POC (ctx -> Hivelore bridge); kept local, not shipped
 ctx-haive-poc/
+
+# Machine-local tool-usage telemetry (never team truth)
+.ai/.usage/

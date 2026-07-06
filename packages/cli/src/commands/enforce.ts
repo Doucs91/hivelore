@@ -573,9 +573,9 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
   findings.push(...await checkFailureCapture(paths, config));
   findings.push(...await checkPostIncidentScaffolds(paths));
   // First-agent bootstrap: declaring the task done with a still-cold knowledge layer means the first
-  // agent never paid the baseline that later agents depend on. Evaluated as "code present" (true) so a
-  // codebase blocks; the assessment returns ready on its own for repos with no code areas.
-  findings.push(...await checkBootstrapComplete(paths, config, true));
+  // agent never paid the baseline that later agents depend on. `finish` is a sharing point (like
+  // pre-push), so it enforces; the assessment returns ready on its own for repos with no code areas.
+  findings.push(...await checkBootstrapComplete(paths, config, true, "pre-push"));
 
   const status = await getGitSyncStatus(root);
   if (!status.available) {
@@ -1013,6 +1013,7 @@ async function checkBootstrapComplete(
   paths: ReturnType<typeof resolveHaivePaths>,
   config: HaiveConfig,
   productionCodeChanged: boolean,
+  stage: "local" | "pre-commit" | "pre-push" | "ci",
 ): Promise<EnforcementFinding[]> {
   const gate = config.enforcement?.bootstrapGate ?? "block";
   if (gate === "off") return [];
@@ -1047,7 +1048,11 @@ async function checkBootstrapComplete(
   // Only enforce where there are genuine main code areas — otherwise (tiny / docs / config-only repo)
   // there is nothing for later coding agents to rely on, so the gate is advisory (info, no score penalty).
   const hasCodeAreas = assessment.metrics.mainAreas > 0;
-  const blocking = gate === "block" && hasCodeAreas && productionCodeChanged;
+  // Bind the block to the SHARING points (pre-push, ci, finish) — the baseline only matters before
+  // other agents see the code. Blocking every local pre-commit trained `--no-verify` and taxed quick
+  // iteration in throwaway/experimental repos; at pre-commit/local the gate is a warn, not an error.
+  const enforcedStage = stage === "pre-push" || stage === "ci";
+  const blocking = gate === "block" && hasCodeAreas && productionCodeChanged && enforcedStage;
   const severity: EnforcementFinding["severity"] = blocking ? "error" : hasCodeAreas ? "warn" : "info";
   return [{
     severity,
@@ -1175,7 +1180,7 @@ async function buildEnforcementReport(
 
   {
     const changed = await getChangedFiles(root, stage).catch(() => [] as string[]);
-    findings.push(...await checkBootstrapComplete(paths, config, changed.some(looksLikeProductionCode)));
+    findings.push(...await checkBootstrapComplete(paths, config, changed.some(looksLikeProductionCode), stage));
   }
 
   // PROCESS gates bind the agent workflow ("consult team knowledge before changing code");

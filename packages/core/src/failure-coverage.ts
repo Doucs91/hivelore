@@ -95,8 +95,26 @@ export interface DistilledFailureLesson {
   occurrences: number;
 }
 
-/** Noise that never deserves a lesson: exploratory lookups whose failure is the answer. */
-const EXPLORATORY_RE = /^(ls|find|grep|rg|cat|head|tail|which|stat)\b/i;
+/**
+ * Noise that never deserves a lesson: exploratory lookups and navigation/setup builtins whose
+ * failure is the answer, not a durable team lesson (a `cd` into a missing dir, a `grep` that found
+ * nothing). Always dropped, regardless of how often they repeat.
+ */
+const EXPLORATORY_RE =
+  /^(ls|find|grep|rg|cat|head|tail|which|stat|cd|pushd|popd|pwd|mkdir|rmdir|echo|printf|touch|cp|mv|rm|export|set|unset|source|test|true|false|sleep|wc|sort|uniq|cut|env|\[|\.)\b/i;
+
+/**
+ * Substantive commands whose FIRST failure is already signal (a broken test/build/typecheck/lint is
+ * worth a lesson even once). Anything else needs a repeat (a retry loop) to clear the signal bar —
+ * that is what keeps the passive-capture drafts silent until there is a real struggle to record.
+ */
+const SUBSTANTIVE_RE =
+  /\b(vitest|jest|mocha|pytest|unittest|go\s+test|cargo|gradle|mvn|tsc|typecheck|eslint|biome|ruff|mypy|flake8|pnpm|npm|yarn|bun|make|docker|compose|terraform|prisma|migrate|migration|build|lint)\b/i;
+
+/** Strip the tool prefix so the command classifiers see the real command text. */
+function commandText(summary: string): string {
+  return summary.replace(/^[A-Za-z_]+:\s*/, "").trim();
+}
 
 /**
  * Cluster failure observations by normalized summary and template the top ones into PROPOSED
@@ -111,20 +129,25 @@ export function distillFailureObservations(
   options: { max?: number } = {},
 ): DistilledFailureLesson[] {
   const max = options.max ?? 3;
-  const clusters = new Map<string, { first: FailureObservation & { files?: string[] }; count: number; files: Set<string> }>();
+  const clusters = new Map<string, { first: FailureObservation & { files?: string[] }; count: number; files: Set<string>; substantive: boolean }>();
   for (const f of failures) {
     const summary = f.summary.trim();
-    if (!summary || EXPLORATORY_RE.test(summary.replace(/^Bash:\s*/i, ""))) continue;
+    const cmd = commandText(summary);
+    if (!summary || EXPLORATORY_RE.test(cmd)) continue;
     const key = normalizeSummary(summary);
     const existing = clusters.get(key);
     if (existing) {
       existing.count++;
       for (const file of f.files ?? []) existing.files.add(file);
     } else {
-      clusters.set(key, { first: f, count: 1, files: new Set(f.files ?? []) });
+      clusters.set(key, { first: f, count: 1, files: new Set(f.files ?? []), substantive: SUBSTANTIVE_RE.test(cmd) });
     }
   }
   return [...clusters.values()]
+    // Signal bar: keep a draft only when there is real signal — a repeat (a retry loop) OR a failure
+    // in a substantive test/build/lint command. A single one-off failure of an ordinary command is
+    // not a durable lesson; drafting it just makes the reviewer triage noise. Silent until signal.
+    .filter((c) => c.count >= 2 || c.substantive)
     .sort((a, b) => b.count - a.count || b.first.ts.localeCompare(a.first.ts))
     .slice(0, max)
     .map(({ first, count, files }) => {

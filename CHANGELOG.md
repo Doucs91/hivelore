@@ -6,6 +6,26 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.49.0] — Less ceremony, more gate
+
+Cut friction so effort concentrates on the un-copyable core. No change touches the deterministic
+sensor/block path.
+
+- **Passive capture is silent until signal.** Failure distillation now always drops navigation/setup
+  builtins (`cd`, `mkdir`, `echo`, `cp`, `mv`, `rm`, `test`, …) and keeps a draft only when the failure
+  *repeats* (a retry loop) or the command is substantive (test/build/typecheck/lint). A one-off ordinary
+  failure — e.g. a `cd` into a missing dir — no longer becomes a proposed "lesson".
+- **Decision memories only for the unguessable.** The `post_task` prompt now states the bar explicitly:
+  for a routine change, capturing nothing is the correct outcome — a corpus of restated obvious facts
+  makes every briefing worse.
+- **Release papercut fixed.** `.ai/.usage/` (machine-local tool-usage telemetry, never team truth) is
+  gitignored by `hivelore init`, so the working tree no longer goes dirty on every invocation.
+- **Bootstrap gate bound to sharing points.** The first-agent bootstrap block now fires only at
+  pre-push / CI / `enforce finish`; at pre-commit and local it is a warning. Quick local iteration and
+  throwaway repos are no longer blocked (which trained `--no-verify`), while a cold repo still can't be
+  shared without its baseline.
+
+
 ## [0.48.0] — Cheaper oracles: property-based and differential scaffolds
 
 - `hivelore sensors scaffold` and the `scaffold_test` MCP tool gained a `--style` axis that lowers the
