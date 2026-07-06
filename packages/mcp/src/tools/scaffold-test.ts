@@ -129,6 +129,18 @@ export const ScaffoldTestInputSchema = {
     .optional()
     .describe("Test framework. Auto-detected from the package that owns the lesson's anchor paths when omitted."),
   out_path: z.string().optional().describe("Override the generated test file path (repo-relative)."),
+  style: z
+    .enum(["example", "property", "differential"])
+    .optional()
+    .describe(
+      "Test shape (default 'example'): 'property' states the invariant once and checks it over many " +
+        "generated inputs (fast-check/Hypothesis); 'differential' asserts the subject agrees with a " +
+        "`reference` implementation for all inputs. Both lower the cost of expressing the invariant.",
+    ),
+  reference: z
+    .string()
+    .optional()
+    .describe("Required for style='differential': import specifier of the reference implementation to compare against."),
   red_ref: z
     .string()
     .optional()
@@ -184,6 +196,10 @@ export async function scaffoldTest(input: ScaffoldTestInput, ctx: HaiveContext):
     return { ok: false, error: `No memory found with id ${input.memory_id}`, memory_id: input.memory_id };
   }
 
+  const style = input.style ?? "example";
+  if (style === "differential" && !input.reference) {
+    return { ok: false, error: "style='differential' requires `reference` (the reference implementation to compare against).", memory_id: input.memory_id };
+  }
   const anchorPaths = found.memory.frontmatter.anchor.paths ?? [];
   // Multi-package lessons: one scaffold per OWNING package (no more "first anchor wins").
   // An explicit out_path pins a single file, so only the first group is used in that case.
@@ -216,8 +232,9 @@ export async function scaffoldTest(input: ScaffoldTestInput, ctx: HaiveContext):
   // Pass 1: per-group scaffolds (collects each run command). A memory carries ONE sensor, so when
   // several packages are involved, pass 2 re-renders every file with the SHARED propose command
   // whose oracle chains all run commands.
+  const styleOpts = { style, reference: input.reference };
   let scaffolds = groups.map((g) =>
-    scaffoldPostIncidentTest(lesson, { framework: frameworkFor(g.framework), outPath: input.out_path, baseDir: g.baseDir }),
+    scaffoldPostIncidentTest(lesson, { framework: frameworkFor(g.framework), outPath: input.out_path, baseDir: g.baseDir, ...styleOpts }),
   );
   let proposeCommand = scaffolds[0]!.proposeCommand;
   if (scaffolds.length > 1) {
@@ -227,6 +244,7 @@ export async function scaffoldTest(input: ScaffoldTestInput, ctx: HaiveContext):
         framework: frameworkFor(g.framework),
         baseDir: g.baseDir,
         proposeCommandOverride: proposeCommand,
+        ...styleOpts,
       }),
     );
   }

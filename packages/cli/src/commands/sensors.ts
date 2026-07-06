@@ -24,6 +24,7 @@ import {
   buildProposeCommand,
   scaffoldPostIncidentTest,
   incidentHintsFromDiff,
+  normalizeScaffoldStyle,
   selectCommandSensors,
   TEST_FRAMEWORKS,
   sensorPatternBrittleness,
@@ -94,6 +95,8 @@ interface SensorsScaffoldOptions {
   stdout?: boolean;
   force?: boolean;
   redRef?: string;
+  style?: string;
+  reference?: string;
   dir?: string;
 }
 
@@ -648,6 +651,16 @@ export function registerSensors(program: Command): void {
       "pre-fix incident commit/ref: the scaffold names the symbols the fix (<ref>..HEAD) touched and " +
         "pre-fills the example around them, so the assertion is a targeted edit, not a blank page",
     )
+    .option(
+      "--style <style>",
+      "test shape: example (default) | property (state the invariant once, checked over many inputs via " +
+        "fast-check/Hypothesis) | differential (assert the subject agrees with a --reference impl)",
+    )
+    .option(
+      "--reference <import>",
+      "differential style only: import specifier of the reference implementation to compare against " +
+        "(e.g. ../legacy/refund or a package name)",
+    )
     .option("-d, --dir <dir>", "project root")
     .action(async (id: string, opts: SensorsScaffoldOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -660,6 +673,17 @@ export function registerSensors(program: Command): void {
       const forced = opts.framework ? normalizeFramework(opts.framework) : null;
       if (opts.framework && !forced) {
         ui.error(`Unknown --framework "${opts.framework}". Use one of: ${TEST_FRAMEWORKS.join(", ")}.`);
+        process.exitCode = 1;
+        return;
+      }
+      const style = opts.style ? normalizeScaffoldStyle(opts.style) : "example";
+      if (opts.style && !style) {
+        ui.error(`Unknown --style "${opts.style}". Use one of: example, property, differential.`);
+        process.exitCode = 1;
+        return;
+      }
+      if (style === "differential" && !opts.reference) {
+        ui.error("--style differential requires --reference <import> (the reference implementation to compare against).");
         process.exitCode = 1;
         return;
       }
@@ -694,15 +718,16 @@ export function registerSensors(program: Command): void {
         paths: fm.anchor.paths,
         incidentHints,
       };
+      const styleOpts = { style: style ?? "example", reference: opts.reference };
       let scaffolds = groups.map((g) =>
-        scaffoldPostIncidentTest(lesson, { framework: forced ?? g.framework, outPath: opts.out, baseDir: g.baseDir }),
+        scaffoldPostIncidentTest(lesson, { framework: forced ?? g.framework, outPath: opts.out, baseDir: g.baseDir, ...styleOpts }),
       );
       let proposeCmd = scaffolds[0]!.proposeCommand;
       if (scaffolds.length > 1) {
         // A memory carries ONE sensor: the shared proposal chains every package's run command.
         proposeCmd = buildProposeCommand(lesson, scaffolds.map((s) => s.runCommand).join(" && "));
         scaffolds = groups.map((g) =>
-          scaffoldPostIncidentTest(lesson, { framework: forced ?? g.framework, baseDir: g.baseDir, proposeCommandOverride: proposeCmd }),
+          scaffoldPostIncidentTest(lesson, { framework: forced ?? g.framework, baseDir: g.baseDir, proposeCommandOverride: proposeCmd, ...styleOpts }),
         );
       }
 

@@ -6,6 +6,21 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.48.0] — Cheaper oracles: property-based and differential scaffolds
+
+- `hivelore sensors scaffold` and the `scaffold_test` MCP tool gained a `--style` axis that lowers the
+  cost of expressing the invariant the behaviour harness leaves to you — without any LLM guessing your
+  assertion:
+  - `--style property` generates a fast-check (vitest/jest) or Hypothesis (pytest) skeleton: state the
+    invariant once and it is checked over many generated inputs. Names the subject from `--red-ref`
+    hints and embeds the lesson's expected-fix text as the invariant comment.
+  - `--style differential --reference <import>` generates a skeleton that asserts the subject *agrees*
+    with a reference implementation for all generated inputs — no invariant to state at all.
+- Every style stays a pending, fully-commented stub (the suite stays green) and arms through the same
+  validated prove-RED path once filled in. New pure core API: `ScaffoldStyle`, `normalizeScaffoldStyle`,
+  and the `style` / `reference` options on `scaffoldPostIncidentTest`. Go emits a gopter hint.
+
+
 ## [0.47.0] — Behaviour coverage closes the loop to action
 
 - `hivelore doctor`'s `behaviour-coverage` finding now points at the exact next command for each

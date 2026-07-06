@@ -143,8 +143,22 @@ export interface TestScaffold {
   proposeCommand: string;
 }
 
+/**
+ * The shape of the generated test — each lowers the cost of expressing the invariant differently:
+ *  - `example`      one input → expected output (default; cheapest to grasp, narrowest coverage).
+ *  - `property`     state the invariant ONCE and let fast-check / Hypothesis check it over many
+ *                   generated inputs — a broader, partial oracle for a one-line-expressible invariant.
+ *  - `differential` state NO invariant: assert the subject AGREES with a reference implementation for
+ *                   all generated inputs (when a second impl or legacy exists — the oracle is redundancy).
+ */
+export type ScaffoldStyle = "example" | "property" | "differential";
+
 export interface ScaffoldOptions {
   framework: TestFramework;
+  /** Test shape (default 'example'). See {@link ScaffoldStyle}. */
+  style?: ScaffoldStyle;
+  /** kind=differential only: import specifier of the reference implementation to compare against. */
+  reference?: string;
   /** Override the generated file path (project-relative). Wins over baseDir. */
   outPath?: string;
   /**
@@ -248,7 +262,25 @@ export function buildProposeCommand(lesson: PostIncidentLesson, runCommand: stri
   return parts.join(" ");
 }
 
-function header(lesson: PostIncidentLesson, comment: (line: string) => string): string {
+/** Map a user string to a scaffold style, or null. */
+export function normalizeScaffoldStyle(input: string): ScaffoldStyle | null {
+  const v = input.trim().toLowerCase();
+  if (v === "example" || v === "property" || v === "differential") return v;
+  return null;
+}
+
+/** One-line description of the chosen style, for the scaffold header. */
+function styleNote(style: ScaffoldStyle, reference?: string): string | undefined {
+  if (style === "property") {
+    return "Style: property-based — state the invariant once; it is checked over many generated inputs.";
+  }
+  if (style === "differential") {
+    return `Style: differential — assert the subject AGREES with the reference (${reference ?? "<reference>"}) for all inputs.`;
+  }
+  return undefined;
+}
+
+function header(lesson: PostIncidentLesson, comment: (line: string) => string, style?: string): string {
   const hints = lesson.incidentHints;
   const fixLines: string[] = [];
   if (hints && (hints.changedSymbols.length > 0 || hints.changedFiles.length > 0)) {
@@ -267,6 +299,7 @@ function header(lesson: PostIncidentLesson, comment: (line: string) => string): 
     ...(lesson.whyFailed ? [`Why: ${oneLine(lesson.whyFailed)}`] : []),
     ...(lesson.instead ? [`Expected / fix: ${oneLine(lesson.instead)}`] : []),
     ...fixLines,
+    ...(style ? [style] : []),
     "",
     "TODO: replace the pending test with a real check that FAILS on the incident and",
     "PASSES once the fix is in place. Then arm it as a deterministic gate:",
@@ -321,9 +354,88 @@ function importSpecifier(file: string): string {
   return file.replace(/\.[cm]?[jt]sx?$/, "");
 }
 
+/**
+ * Property-based body — state the invariant ONCE, checked over many generated inputs (fast-check /
+ * Hypothesis). Cheaper than enumerating example rows: one boolean expression covers the whole domain.
+ * Stays fully commented (green suite; no live fast-check import that may not be installed).
+ */
+function propertyLines(lesson: PostIncidentLesson, lang: "js" | "py" | "go"): string[] {
+  const symbol = lesson.incidentHints?.changedSymbols[0] ?? "subjectUnderTest";
+  const file = lesson.incidentHints?.changedFiles[0];
+  const invariant = lesson.instead ? oneLine(lesson.instead) : undefined;
+  if (lang === "js") {
+    return [
+      `// Property-based guard — state the invariant ONCE; it is checked over many generated inputs.`,
+      `// Add at the top:  import fc from "fast-check";   (npm i -D fast-check)`,
+      `// it("property: the invariant holds for all inputs", () => {`,
+      ...(file ? [`//   import { ${symbol} } from "${importSpecifier(file)}";  // adjust the relative path`] : []),
+      ...(invariant ? [`//   // Invariant (from the lesson): ${invariant}`] : []),
+      `//   fc.assert(fc.property(fc.integer(), fc.integer(), (a, b) =>`,
+      `//     /* the boolean invariant over ${symbol}(a, b) */`,
+      `//   ));`,
+      `// });`,
+    ];
+  }
+  if (lang === "py") {
+    return [
+      `    # Property-based guard — state the invariant once; checked over many generated inputs.`,
+      `    # from hypothesis import given, strategies as st`,
+      `    # @given(st.integers(), st.integers())`,
+      `    # def test_property(a, b):`,
+      ...(invariant ? [`    #     # Invariant (from the lesson): ${invariant}`] : []),
+      `    #     assert (the boolean invariant over ${symbol}(a, b))`,
+    ];
+  }
+  return [`\t// Property-based guard: check the invariant over generated inputs (e.g. github.com/leanovate/gopter). Subject: ${symbol}.`];
+}
+
+/**
+ * Differential body — assert the subject AGREES with a reference implementation for all generated
+ * inputs. No invariant to state at all: the oracle IS the reference (a second impl, a legacy version).
+ * Stays fully commented; the reference specifier is the user's, adjusted by hand.
+ */
+function differentialLines(lesson: PostIncidentLesson, lang: "js" | "py" | "go", reference?: string): string[] {
+  const symbol = lesson.incidentHints?.changedSymbols[0] ?? "subjectUnderTest";
+  const file = lesson.incidentHints?.changedFiles[0];
+  const ref = reference ?? "<REFERENCE>";
+  if (lang === "js") {
+    return [
+      `// Differential guard — no invariant to state: assert the subject AGREES with a reference for all inputs.`,
+      `// Add at the top:  import fc from "fast-check";   (npm i -D fast-check)`,
+      `// it("differential: subject matches the reference for all inputs", () => {`,
+      ...(file ? [`//   import { ${symbol} } from "${importSpecifier(file)}";       // subject`] : []),
+      `//   import { ${symbol} as reference } from "${ref}";  // reference implementation`,
+      `//   fc.assert(fc.property(fc.integer(), fc.integer(), (a, b) =>`,
+      `//     ${symbol}(a, b) === reference(a, b)`,
+      `//   ));`,
+      `// });`,
+    ];
+  }
+  if (lang === "py") {
+    return [
+      `    # Differential guard — assert the subject agrees with a reference for all generated inputs.`,
+      `    # from hypothesis import given, strategies as st`,
+      `    # from ${ref} import ${symbol} as reference`,
+      `    # @given(st.integers(), st.integers())`,
+      `    # def test_differential(a, b):`,
+      `    #     assert ${symbol}(a, b) == reference(a, b)`,
+    ];
+  }
+  return [`\t// Differential guard: assert ${symbol} agrees with the reference (${ref}) over generated inputs (e.g. gopter).`];
+}
+
+/** Choose the commented body block for the requested scaffold style. */
+function bodyLines(lesson: PostIncidentLesson, lang: "js" | "py" | "go", style: ScaffoldStyle, reference?: string): string[] {
+  if (style === "property") return propertyLines(lesson, lang);
+  if (style === "differential") return differentialLines(lesson, lang, reference);
+  return exampleLines(lesson, lang);
+}
+
 /** Build a scaffold for the given lesson + framework. Pure — the caller writes `content` to `relPath`. */
 export function scaffoldPostIncidentTest(lesson: PostIncidentLesson, options: ScaffoldOptions): TestScaffold {
   const framework = options.framework;
+  const style: ScaffoldStyle = options.style ?? "example";
+  const note = styleNote(style, options.reference);
   const short = lessonShortName(lesson.memoryId);
   const desc = oneLine(lesson.title) || short;
   const propose = (run: string): string => options.proposeCommandOverride ?? buildProposeCommand(lesson, run);
@@ -338,12 +450,12 @@ export function scaffoldPostIncidentTest(lesson: PostIncidentLesson, options: Sc
     const hc = (l: string) => (l ? `// ${l}` : "//");
     const importLine = framework === "vitest" ? `import { describe, it, expect } from "vitest";\n\n` : "";
     content =
-      `${header(lesson, hc)}\n` +
+      `${header(lesson, hc, note)}\n` +
       `//   ${propose(runCommand)}\n\n` +
       importLine +
       `describe(${JSON.stringify(desc)}, () => {\n` +
       `  it.todo("reproduces ${lesson.memoryId} and stays fixed");\n\n` +
-      exampleLines(lesson, "js").map((l) => `  ${l}`).join("\n") + "\n" +
+      bodyLines(lesson, "js", style, options.reference).map((l) => `  ${l}`).join("\n") + "\n" +
       `});\n`;
   } else if (framework === "pytest") {
     const fn = snake(short);
@@ -351,12 +463,12 @@ export function scaffoldPostIncidentTest(lesson: PostIncidentLesson, options: Sc
     runCommand = `pytest ${relPath}`;
     const hc = (l: string) => (l ? `# ${l}` : "#");
     content =
-      `${header(lesson, hc)}\n` +
+      `${header(lesson, hc, note)}\n` +
       `#   ${propose(runCommand)}\n\n` +
       `import pytest\n\n\n` +
       `@pytest.mark.skip(reason="TODO: write the post-incident assertion, then arm the sensor")\n` +
       `def test_${fn}():\n` +
-      exampleLines(lesson, "py").join("\n") + "\n";
+      bodyLines(lesson, "py", style, options.reference).join("\n") + "\n";
   } else {
     // gotest
     const fn = pascal(short);
@@ -365,13 +477,13 @@ export function scaffoldPostIncidentTest(lesson: PostIncidentLesson, options: Sc
     runCommand = `go test ./${dir}/`;
     const hc = (l: string) => (l ? `// ${l}` : "//");
     content =
-      `${header(lesson, hc)}\n` +
+      `${header(lesson, hc, note)}\n` +
       `//   ${propose(runCommand)}\n\n` +
       `package incidents\n\n` +
       `import "testing"\n\n` +
       `func Test${fn}(t *testing.T) {\n` +
       `\tt.Skip("TODO: write the post-incident assertion, then arm the sensor")\n` +
-      exampleLines(lesson, "go").join("\n") + "\n" +
+      bodyLines(lesson, "go", style, options.reference).join("\n") + "\n" +
       `}\n`;
   }
 

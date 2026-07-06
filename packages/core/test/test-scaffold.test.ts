@@ -133,6 +133,54 @@ describe("scaffoldPostIncidentTest", () => {
     expect(liveImport).toBeUndefined();
   });
 
+  it("style=property: emits a fast-check property skeleton, still pending, naming the subject + invariant", () => {
+    const s = scaffoldPostIncidentTest(
+      {
+        ...LESSON,
+        instead: "clamp with Math.min(amount, captured)",
+        incidentHints: { changedFiles: ["src/payments/refund.ts"], changedSymbols: ["refund"] },
+      },
+      { framework: "vitest", style: "property" },
+    );
+    expect(hasPendingTestMarker(s.content)).toBe(true); // suite stays green
+    expect(s.content).toContain("Style: property-based");
+    expect(s.content).toContain("fast-check");
+    expect(s.content).toContain("fc.assert(fc.property(fc.integer(), fc.integer(), (a, b) =>");
+    expect(s.content).toContain("the boolean invariant over refund(a, b)");
+    expect(s.content).toContain("Invariant (from the lesson): clamp with Math.min(amount, captured)");
+    // no LIVE fast-check import (must stay commented)
+    expect(s.content.split("\n").some((l) => /^\s*import\s+fc\b/.test(l))).toBe(false);
+  });
+
+  it("style=differential: asserts the subject agrees with the reference, still pending", () => {
+    const s = scaffoldPostIncidentTest(
+      { ...LESSON, incidentHints: { changedFiles: ["src/payments/refund.ts"], changedSymbols: ["refund"] } },
+      { framework: "vitest", style: "differential", reference: "../legacy/refund" },
+    );
+    expect(hasPendingTestMarker(s.content)).toBe(true);
+    expect(s.content).toContain("Style: differential");
+    expect(s.content).toContain('import { refund as reference } from "../legacy/refund";');
+    expect(s.content).toContain("refund(a, b) === reference(a, b)");
+  });
+
+  it("style=property for pytest uses Hypothesis @given", () => {
+    const s = scaffoldPostIncidentTest(
+      { ...LESSON, incidentHints: { changedFiles: ["api/refund.py"], changedSymbols: ["clamp_refund"] } },
+      { framework: "pytest", style: "property" },
+    );
+    expect(s.content).toContain("from hypothesis import given, strategies as st");
+    expect(s.content).toContain("@given(st.integers(), st.integers())");
+    expect(s.content).toContain("clamp_refund(a, b)");
+    expect(hasPendingTestMarker(s.content)).toBe(true);
+  });
+
+  it("default style is unchanged (example) — no property/differential scaffolding leaks in", () => {
+    const s = scaffoldPostIncidentTest(LESSON, { framework: "vitest" });
+    expect(s.content).not.toContain("fast-check");
+    expect(s.content).not.toContain("Style: ");
+    expect(s.content).toContain("it.todo(");
+  });
+
   it("pytest/gotest scaffolds name the subject symbol from hints", () => {
     const hints = { changedFiles: ["api/refund.py"], changedSymbols: ["clamp_refund"] };
     const py = scaffoldPostIncidentTest({ ...LESSON, incidentHints: hints }, { framework: "pytest" });

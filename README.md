@@ -142,6 +142,23 @@ hivelore sensors scaffold 2026-07-03-attempt-refund-exceeds-capture --red-ref <p
 #   then: fill the assertion → run it → arm it with the printed propose command.
 ```
 
+**Lower the cost of expressing the invariant (v0.48.0): `--style`.** The behaviour harness leaves the
+*oracle* to you — so the scaffold offers the two deterministic ways to make that cheaper (no LLM
+guessing your assertion):
+
+- `--style property` — a [fast-check](https://github.com/dubzzz/fast-check) / Hypothesis skeleton:
+  state the invariant **once** (`refund(a, b) ≤ b`) and it is checked over many generated inputs.
+- `--style differential --reference <impl>` — state **no** invariant at all: assert the subject
+  *agrees* with a reference implementation (a legacy version, a second impl) for all generated inputs.
+
+```bash
+hivelore sensors scaffold <lesson> --red-ref <pre-fix-commit> --style property
+hivelore sensors scaffold <lesson> --style differential --reference ../legacy/refund
+```
+
+Both stay pending, commented stubs (the suite stays green) and arm through the same validated
+prove-RED path once you fill them in.
+
 **Measure the behaviour harness (v0.45.0).** `hivelore doctor` reports, per main code area, how much of
 the behaviour surface is guarded: `Behaviour harness: X/N area(s) guarded by a behavioural oracle
 (K armed, P red-proven)` — so the branch's progress is visible, not guesswork. The human `stats receipt`
