@@ -74,6 +74,18 @@ describe("stripTestHunks / isTestPath", () => {
     expect(stripped).not.toContain("serializeMemory");
     expect(stripped).toContain("parseMemory");
   });
+
+  it("does not overflow the stack on a single huge hunk (regression: out.push(...block))", () => {
+    // A staged lockfile / generated file / accidental node_modules produces one hunk with
+    // hundreds of thousands of lines. `out.push(...block)` used to RangeError here and fail the
+    // whole gate closed on an unactionable message; the element-by-element loop must not.
+    const header = "diff --git a/src/generated.ts b/src/generated.ts\n+++ b/src/generated.ts\n";
+    const huge = header + Array.from({ length: 300_000 }, (_, i) => `+export const v${i} = ${i};`).join("\n");
+    expect(() => stripAiDirHunks(huge)).not.toThrow();
+    expect(() => stripTestHunks(huge)).not.toThrow();
+    // Content is preserved (a code file is kept, not an .ai/ or test file).
+    expect(stripTestHunks(stripAiDirHunks(huge))).toContain("export const v299999 = 299999;");
+  });
 });
 
 describe("antiPatternsCheck", () => {
@@ -192,6 +204,47 @@ describe("antiPatternsCheck", () => {
     // …but is not recorded as an outcome.
     const events = await loadPreventionEvents(ctx.paths);
     expect(events).toHaveLength(0);
+  });
+
+  it("caps fuzzy (literal/semantic) corroboration on a huge diff, but keeps anchor matches and sensors", async () => {
+    // A memory matchable ONLY by literal token (anchored elsewhere) and one matchable by anchor.
+    await writeMemory(
+      ctx.paths.teamDir!, "2024-01-01-attempt-frobnicate-big", "attempt",
+      "# frobnicate\n\nThe frobnicate helper corrupts state — never call frobnicate.",
+      { paths: ["src/legacy/frob.ts"] },
+    );
+    await writeMemory(
+      ctx.paths.teamDir!, "2024-01-01-gotcha-anchored-big", "gotcha",
+      "# anchored lesson\n\nThis file has a constraint.",
+      { paths: ["src/target.ts"] },
+    );
+    // > MAX_FUZZY_SCAN_LINES (20_000) added lines, the last of which calls frobnicate.
+    const header = "diff --git a/src/target.ts b/src/target.ts\n+++ b/src/target.ts\n";
+    const body = Array.from({ length: 25_000 }, (_, i) => `+const v${i} = ${i};`);
+    body.push("+const y = frobnicate();");
+    const result = await antiPatternsCheck(
+      { diff: header + body.join("\n"), paths: ["src/target.ts"], limit: 8, semantic: false },
+      ctx,
+    );
+    // Fuzzy layer is skipped → the literal-only match does NOT surface, and a notice explains why.
+    expect(result.notice).toMatch(/very large/i);
+    expect(result.warnings.some((w) => w.id === "2024-01-01-attempt-frobnicate-big")).toBe(false);
+    // Anchor match (path-based) is never capped → it still surfaces.
+    expect(result.warnings.some((w) => w.id === "2024-01-01-gotcha-anchored-big")).toBe(true);
+  });
+
+  it("runs the full fuzzy scan (no notice) on a normal-sized diff", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!, "2024-01-01-attempt-frobnicate-small", "attempt",
+      "# frobnicate\n\nThe frobnicate helper corrupts state — never call frobnicate.",
+      { paths: ["src/legacy/frob.ts"] },
+    );
+    const result = await antiPatternsCheck(
+      { diff: "+const y = frobnicate();", paths: ["src/unrelated/widget.ts"], limit: 8, semantic: false },
+      ctx,
+    );
+    expect(result.notice).toBeUndefined();
+    expect(result.warnings.some((w) => w.id === "2024-01-01-attempt-frobnicate-small")).toBe(true);
   });
 
   it("does NOT record a prevention event for an anchor+literal match without strong semantic (#2a honesty)", async () => {

@@ -798,7 +798,11 @@ async function runnableSensorMemories(
 
 async function stagedDiff(root: string): Promise<string> {
   try {
-    const { stdout } = await exec("git", ["diff", "--cached"], { cwd: root });
+    // maxBuffer must comfortably exceed a large staged diff (default is 1 MB): a big generated
+    // file, a lockfile, or an accidentally staged node_modules produces a multi-MB diff, and the
+    // default would reject it — silently disabling the sensor check on exactly the commits that
+    // most need scanning. The gate's own reader (enforce.ts runCommand) streams and is unbounded.
+    const { stdout } = await exec("git", ["diff", "--cached"], { cwd: root, maxBuffer: 256 * 1024 * 1024 });
     return stdout;
   } catch (err) {
     throw new Error(`git diff --cached failed: ${err instanceof Error ? err.message : String(err)}`);

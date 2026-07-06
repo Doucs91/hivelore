@@ -169,6 +169,14 @@ export function isHaiveOwnedPath(p: string): boolean {
 }
 
 /**
+ * Above this many added lines, the fuzzy corroboration layers (literal token overlap + semantic
+ * embedding) are skipped — they are review-only (never hard-block) and cost O(added-lines × memories).
+ * A human/agent code change is virtually never this large; exceeding it means a generated file,
+ * lockfile, or accidentally staged dependency tree. Anchors and sensors are never subject to this cap.
+ */
+export const MAX_FUZZY_SCAN_LINES = 20_000;
+
+/**
  * Drop hunks for Hivelore-owned files (see {@link isHaiveOwnedPath}) from a unified diff. Anti-patterns
  * are about CODE reintroducing a known mistake — editing Hivelore's own knowledge base or the bridge
  * files it generates from that corpus must never corroborate a literal/semantic match. Without this,
@@ -195,7 +203,11 @@ export function stripTestHunks(diff: string): string {
   let block: string[] = [];
   let keep = true;
   const flush = (): void => {
-    if (keep) out.push(...block);
+    // Push element-by-element, never `out.push(...block)`: a spread passes every element as a
+    // call argument, and a single huge hunk (a staged lockfile, generated file, or an accidentally
+    // staged node_modules) overflows the call-argument limit — RangeError: Maximum call stack size
+    // exceeded — which fails the whole gate closed on an unactionable message. A loop is unbounded.
+    if (keep) for (const l of block) out.push(l);
     block = [];
     keep = true;
   };
@@ -217,7 +229,9 @@ export function stripAiDirHunks(diff: string): string {
   let block: string[] = [];
   let keep = true;
   const flush = (): void => {
-    if (keep) out.push(...block);
+    // Loop, not `out.push(...block)` — see stripTestHunks: a spread over a huge hunk overflows the
+    // call-argument limit and fails the gate closed. A loop scales to any diff size.
+    if (keep) for (const l of block) out.push(l);
     block = [];
     keep = true;
   };
@@ -319,8 +333,22 @@ export async function antiPatternsCheck(
   // bad pattern in code" (they'd self-match the very memory that documents it).
   const scanDiff = input.diff ? stripTestHunks(stripAiDirHunks(input.diff)) : input.diff;
 
+  // Bound the FUZZY corroboration (literal token overlap + semantic embedding) on pathologically
+  // large diffs — a staged lockfile, a generated megafile, or an accidentally staged node_modules.
+  // Both are review-only signals (they never hard-block — only a deterministic sensor does), and
+  // both cost O(added-lines × memories), so on a huge diff they turn a fast gate into a multi-second
+  // stall for zero enforcement value. Anchored lessons (path-based) and sensors (the block path)
+  // run in full regardless; only the fuzzy surfacing is skipped, with a notice.
+  const scanAddedLineCount = scanDiff ? addedLinesFromDiff(scanDiff).split("\n").length : 0;
+  const fuzzyScanTooLarge = scanAddedLineCount > MAX_FUZZY_SCAN_LINES;
+  const notice = fuzzyScanTooLarge
+    ? `Diff is very large (${scanAddedLineCount.toLocaleString()} added lines) — literal/semantic ` +
+      `corroboration skipped for performance; anchored lessons and deterministic sensors were still ` +
+      `evaluated in full. If this staged node_modules or a build artifact, unstage it.`
+    : undefined;
+
   // 2. Literal token overlap from diff
-  if (scanDiff) {
+  if (scanDiff && !fuzzyScanTooLarge) {
     const tokens = tokenizeDiffForLiteral(scanDiff);
     const added = addedLinesFromDiff(scanDiff);
     const addedText = added.trim().length > 0 ? added : scanDiff;
@@ -369,7 +397,7 @@ export async function antiPatternsCheck(
   }
 
   // 3. Semantic search
-  if (input.semantic && scanDiff) {
+  if (input.semantic && scanDiff && !fuzzyScanTooLarge) {
     try {
       const mod = await import("@hivelore/embeddings");
       // Embed the ADDED lines only — "what you INTRODUCED" — not the raw diff. The raw diff carries
@@ -433,5 +461,6 @@ export async function antiPatternsCheck(
   return {
     scanned: negative.length,
     warnings,
+    ...(notice ? { notice } : {}),
   };
 }

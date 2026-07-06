@@ -169,6 +169,7 @@ export async function preCommitCheck(
       relevant_memories: relevant_memories.length,
       stale_anchors: staleHits.length,
     },
+    ...(apResult.notice ? { notice: apResult.notice } : {}),
     warnings: classifiedWarnings,
     relevant_memories,
     stale_anchors: staleHits.map((r) => {

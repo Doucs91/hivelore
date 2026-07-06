@@ -1561,6 +1561,12 @@ async function runPrecommitPolicy(
     } catch { /* best-effort: fatigue guard must never break the gate */ }
   }
 
+  // A large-diff notice (fuzzy corroboration capped) is guidance, not a violation — surface it as
+  // info so an accidentally staged node_modules / build artifact is visible without blocking.
+  const noticeFinding: EnforcementFinding[] = result.notice
+    ? [{ severity: "info", code: "precommit-policy-notice", message: result.notice }]
+    : [];
+
   if (!result.should_block) {
     return [
       {
@@ -1568,6 +1574,7 @@ async function runPrecommitPolicy(
         code: "precommit-policy-pass",
         message: `${stage === "ci" ? "CI" : "Pre-commit"} policy passed for ${touchedPaths.length} changed file(s).`,
       },
+      ...noticeFinding,
       ...reviewFinding,
       ...sensorFindings,
       ...weakeningFindings,
@@ -1592,6 +1599,7 @@ async function runPrecommitPolicy(
       memory_ids: blockingWarnings.slice(0, 10).map((w) => w.id),
       impact: 45,
     },
+    ...noticeFinding,
     ...reviewFinding,
     ...sensorFindings,
     ...weakeningFindings,

@@ -6,6 +6,22 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.44.1] — Large-diff gate robustness
+
+- Fixed a `RangeError: Maximum call stack size exceeded` that crashed the pre-commit gate (and blocked
+  every commit with an unactionable message) on a very large staged diff — a staged `node_modules`, a
+  generated megafile, or a lockfile. `stripAiDirHunks` / `stripTestHunks` now split hunks with a loop
+  instead of `out.push(...block)`, which overflowed the call-argument limit on a single huge hunk.
+- `hivelore sensors check` no longer fails silently (`git diff --cached … maxBuffer length exceeded`)
+  on a multi-MB staged diff: the staged-diff reader now allows up to 256 MB.
+- Capped the review-only fuzzy corroboration (literal token overlap + semantic embedding) at 20,000
+  added lines, cutting a 200k-line diff from ~9 s to ~1.5 s. Anchored lessons and deterministic
+  sensors — the block path — are never capped; above the cap the gate emits a `precommit-policy-notice`
+  info finding ("did you stage node_modules?").
+- `HIVELORE_DEBUG=1` now prints the full stack for a swallowed top-level error, so a crash deep in
+  diff processing can be located instead of surfacing as a bare message.
+
+
 ## [0.44.0] — Harness correctness and evidence hardening
 
 - Fixed manual `sensors check` parity for rule-only AST sensors and added stable JSON proposal

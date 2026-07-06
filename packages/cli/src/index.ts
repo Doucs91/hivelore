@@ -173,7 +173,9 @@ program.parseAsync(process.argv).catch((err: unknown) => {
       console.error(`\x1b[31m✗\x1b[0m ${field}${issue.message}`);
     }
   } else {
-    console.error(err instanceof Error ? err.message : err);
+    // Default to the message so gate output stays clean; set HIVELORE_DEBUG=1 for the full stack
+    // when a swallowed error (e.g. a RangeError deep in diff processing) needs to be located.
+    console.error(err instanceof Error ? (process.env.HIVELORE_DEBUG ? err.stack ?? err.message : err.message) : err);
   }
   process.exit(1);
 });
