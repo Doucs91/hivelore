@@ -4,7 +4,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   aggregateUsage,
+  assessBehaviourCoverage,
   buildPreventionReceipt,
+  loadCodeMap,
+  renderBehaviourCoverageLine,
   renderPreventionReceipt,
   findProjectRoot,
   loadMemoriesFromDir,
@@ -55,6 +58,19 @@ export function registerStats(program: Command): void {
           ? JSON.stringify(receipt, null, 2)
           : renderPreventionReceipt(receipt);
       console.log(output);
+      // Behaviour-harness standing — a "where we are" footer for the human receipt (not the JSON /
+      // share formats, which are structured/attribution surfaces). Best-effort: never break the receipt.
+      if (!opts.json && !sub.share) {
+        try {
+          const codeMap = await loadCodeMap(paths);
+          if (codeMap) {
+            const cov = assessBehaviourCoverage({ memories, codeFiles: Object.keys(codeMap.files) });
+            if (cov.mainAreas.length > 0) {
+              console.log(`\nBehaviour harness: ${renderBehaviourCoverageLine(cov)}.`);
+            }
+          }
+        } catch { /* best-effort footer */ }
+      }
     });
 
   stats

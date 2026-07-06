@@ -38,6 +38,7 @@ export * from "./sensor-ledger.js";
 export * from "./sensor-suggest.js";
 export * from "./test-scaffold.js";
 export * from "./bootstrap-state.js";
+export * from "./behaviour-coverage.js";
 export * from "./findings.js";
 export * from "./dashboard.js";
 export * from "./failure-coverage.js";

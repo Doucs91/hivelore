@@ -79,13 +79,33 @@ export function isTemplateProjectContext(raw: string): boolean {
   return false;
 }
 
-function isProductionCodeFile(file: string): boolean {
+export function isProductionCodeFile(file: string): boolean {
   const base = file.split("/").pop() ?? file;
   if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(base)) return false;
   if (/(^|\/)(test|tests|__tests__|__mocks__|e2e|fixtures)(\/|$)/.test(file)) return false;
   if (base.endsWith(".d.ts")) return false;
   if (base.endsWith(".config.ts") || base.endsWith(".config.js") || base.endsWith(".config.mjs")) return false;
   return true;
+}
+
+/**
+ * The canonical set of "main code areas" for a repo, derived from the code-map's production files.
+ * A container-based component (packages/x, apps/x) is a DECLARED component and always counts; a bare
+ * top-level dir needs {@link MIN_COMPONENT_FILES} files so trivial folders aren't treated as areas.
+ * Shared so bootstrap, behaviour-coverage, and doctor all report the SAME area set and count.
+ */
+export function deriveMainAreas(codeFiles: string[]): string[] {
+  const production = codeFiles.filter(isProductionCodeFile);
+  const fileCounts = new Map<string, number>();
+  for (const f of production) {
+    const c = componentOf(f);
+    if (!c) continue;
+    fileCounts.set(c, (fileCounts.get(c) ?? 0) + 1);
+  }
+  return [...fileCounts.entries()]
+    .filter(([c, n]) => c.includes("/") || n >= MIN_COMPONENT_FILES)
+    .map(([c]) => c)
+    .sort();
 }
 
 /** Derive the component (main code area) a file belongs to. */
@@ -101,7 +121,7 @@ export function moduleNameOf(component: string): string {
   return parts[parts.length - 1] ?? component;
 }
 
-function anchorMatchesComponent(anchorPath: string, component: string): boolean {
+export function anchorMatchesComponent(anchorPath: string, component: string): boolean {
   const a = anchorPath.replace(/^\/+/, "");
   if (!a) return false;
   return (
@@ -127,19 +147,7 @@ export function assessBootstrapState(input: BootstrapStateInput): BootstrapAsses
   const codeFiles = input.codeFiles.filter(isProductionCodeFile);
 
   // Group production files into components and keep the ones large enough to deserve their own knowledge.
-  const fileCounts = new Map<string, number>();
-  for (const f of codeFiles) {
-    const c = componentOf(f);
-    if (!c) continue;
-    fileCounts.set(c, (fileCounts.get(c) ?? 0) + 1);
-  }
-  const components = [...fileCounts.entries()]
-    // A container-based component (packages/x, apps/x — has a "/") is a DECLARED component: it counts
-    // regardless of size. A bare top-level dir needs the file floor so trivial folders aren't treated
-    // as a main area. (Avoids silently hiding small-but-real workspace packages from the gate.)
-    .filter(([c, n]) => c.includes("/") || n >= MIN_COMPONENT_FILES)
-    .map(([c]) => c)
-    .sort();
+  const components = deriveMainAreas(input.codeFiles);
 
   const anchoredMemories = input.memories.filter(
     (m) =>

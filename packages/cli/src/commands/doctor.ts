@@ -15,6 +15,8 @@ declare const __HAIVE_VERSION__: string;
 import {
   codeMapPath,
   assessSensorHealth,
+  assessBehaviourCoverage,
+  renderBehaviourCoverageLine,
   sensorPromotedAtMap,
   countSourceFilesOnDisk,
   extractReferencedPaths,
@@ -487,6 +489,7 @@ export function registerDoctor(program: Command): void {
       }
 
       findings.push(...await collectHarnessCoverageFindings(codeMap, memories));
+      findings.push(...collectBehaviourCoverageFindings(codeMap, memories));
       findings.push(...await collectSemanticIndexFindings(paths, config, memories.length, codeMap));
 
       // ── Behaviour-loop accounting: scaffolded post-incident tests that never became gates ──
@@ -948,6 +951,45 @@ async function collectHarnessCoverageFindings(
   });
 
   return findings;
+}
+
+/**
+ * Behaviour-harness coverage — the visible MEASURE for the branch Hivelore leads. Reports, per main
+ * code area, whether a behavioural oracle (test/shell sensor) guards it, how many are armed (block),
+ * and how many are red-proven. Always info: the behaviour harness is opt-in and the hardest to fill,
+ * so this surfaces progress without nagging (the unarmed-scaffold and command-sensors-disabled
+ * findings already nag on the actionable gaps).
+ */
+function collectBehaviourCoverageFindings(
+  codeMap: Awaited<ReturnType<typeof loadCodeMap>>,
+  memories: LoadedMemory[],
+): Finding[] {
+  if (!codeMap) return [];
+  const codeFiles = Object.keys(codeMap.files);
+  const cov = assessBehaviourCoverage({ memories, codeFiles });
+  if (cov.mainAreas.length === 0) return [];
+
+  const uncoveredHint =
+    cov.uncoveredAreas.length > 0 && cov.totalOracles > 0
+      ? `\n  No behavioural oracle: ${cov.uncoveredAreas.slice(0, 5).map((a) => `\`${a}\``).join(", ")}` +
+        (cov.uncoveredAreas.length > 5 ? `, +${cov.uncoveredAreas.length - 5} more` : "")
+      : "";
+
+  const fix =
+    cov.totalOracles === 0
+      ? "Scaffold a test from an incident (`hivelore sensors scaffold <memory-id>`), then arm it with `hivelore sensors propose --kind test --red-ref <pre-fix-commit>`."
+      : cov.armedOracles < cov.totalOracles || cov.redProvenOracles < cov.armedOracles
+        ? "Arm warn-only oracles to `block` and re-propose with `--red-ref` so each substantiates its incident."
+        : undefined;
+
+  return [{
+    severity: "info",
+    code: "behaviour-coverage",
+    section: "Protection" as DoctorSection,
+    coverage_percent: Math.round((cov.areasWithOracle.length / cov.mainAreas.length) * 100),
+    message: `Behaviour harness: ${renderBehaviourCoverageLine(cov)}.` + uncoveredHint,
+    fix,
+  }];
 }
 
 async function collectSemanticIndexFindings(

@@ -6,6 +6,18 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.45.0] — Behaviour-harness coverage metric
+
+- The behaviour harness (command/test sensors routing a real oracle, optionally red-proven) now has a
+  visible coverage metric. New pure core API `assessBehaviourCoverage({ memories, codeFiles })` reports,
+  per main code area, whether a behavioural oracle guards it, how many are armed (`block`), and how many
+  are red-proven — using the same area derivation as the bootstrap gate (`deriveMainAreas`, now shared).
+- `hivelore doctor` surfaces it as an info finding in the Protection section
+  ("Behaviour harness: X/N area(s) guarded (K armed, P red-proven)", naming uncovered areas), and the
+  human `hivelore stats receipt` prints it as a one-line footer. Always info — the behaviour harness is
+  opt-in, so this measures progress without nagging.
+
+
 ## [0.44.1] — Large-diff gate robustness
 
 - Fixed a `RangeError: Maximum call stack size exceeded` that crashed the pre-commit gate (and blocked
