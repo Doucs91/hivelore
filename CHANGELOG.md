@@ -6,6 +6,16 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.47.0] — Behaviour coverage closes the loop to action
+
+- `hivelore doctor`'s `behaviour-coverage` finding now points at the exact next command for each
+  uncovered area, not just a count. `assessBehaviourCoverage` gained `uncoveredAreaSuggestions`: for
+  every uncovered area it finds a scaffoldable lesson (an anchored attempt/gotcha not yet a behavioural
+  oracle, preferring incident-shaped `attempt`) and doctor prints
+  `hivelore sensors scaffold <id> --red-ref <pre-fix-commit>   # guard <area>` in its Suggested
+  commands — or a `memory tried … then scaffold` line when no lesson exists there yet. Measure → action.
+
+
 ## [0.46.0] — Oracle assist: scaffold the test around the fix
 
 - `hivelore sensors scaffold` and the `scaffold_test` MCP tool gained `--red-ref` / `red_ref`. Given the

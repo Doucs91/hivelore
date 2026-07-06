@@ -5,6 +5,8 @@ import type { LoadedMemory } from "../src/loader.js";
 function mem(opts: {
   id?: string;
   status?: string;
+  type?: "attempt" | "gotcha" | "convention";
+  createdAt?: string;
   anchorPaths?: string[];
   sensor?: {
     kind?: "regex" | "ast" | "shell" | "test";
@@ -19,8 +21,9 @@ function mem(opts: {
       frontmatter: {
         id: opts.id ?? "m",
         scope: "team",
-        type: "attempt",
+        type: opts.type ?? "attempt",
         status: opts.status ?? "validated",
+        created_at: opts.createdAt ?? "2026-01-01T00:00:00.000Z",
         anchor: { paths: opts.anchorPaths ?? [], symbols: [] },
         sensor: opts.sensor
           ? {
@@ -111,6 +114,45 @@ describe("assessBehaviourCoverage", () => {
       codeFiles: TWO_AREAS,
     });
     expect(cov.totalOracles).toBe(0);
+  });
+
+  it("suggests a scaffoldable lesson per uncovered area (prefers attempt, then most recent)", () => {
+    const cov = assessBehaviourCoverage({
+      memories: [
+        // web is covered by an oracle → not a suggestion target
+        mem({ id: "web-oracle", anchorPaths: ["packages/web/x.ts"], sensor: { kind: "test", severity: "block" } }),
+        // api is uncovered but has scaffoldable lessons: a gotcha and a newer attempt → prefer the attempt
+        mem({ id: "api-gotcha", type: "gotcha", anchorPaths: ["packages/api/a.ts"], createdAt: "2026-02-01T00:00:00.000Z" }),
+        mem({ id: "api-attempt", type: "attempt", anchorPaths: ["packages/api/b.ts"], createdAt: "2026-01-01T00:00:00.000Z" }),
+      ],
+      codeFiles: TWO_AREAS,
+    });
+    expect(cov.uncoveredAreas).toEqual(["packages/api"]);
+    const apiSuggestion = cov.uncoveredAreaSuggestions.find((s) => s.area === "packages/api");
+    expect(apiSuggestion?.candidateLessonId).toBe("api-attempt");
+  });
+
+  it("marks an uncovered area with no lesson as having no candidate", () => {
+    const cov = assessBehaviourCoverage({
+      memories: [mem({ id: "web-oracle", anchorPaths: ["packages/web/x.ts"], sensor: { kind: "test", severity: "block" } })],
+      codeFiles: TWO_AREAS,
+    });
+    const apiSuggestion = cov.uncoveredAreaSuggestions.find((s) => s.area === "packages/api");
+    expect(apiSuggestion).toBeDefined();
+    expect(apiSuggestion?.candidateLessonId).toBeUndefined();
+  });
+
+  it("does not offer a lesson that is already a behavioural oracle as a suggestion", () => {
+    const cov = assessBehaviourCoverage({
+      memories: [
+        // this attempt already carries a test oracle → it covers api, so api is not uncovered
+        mem({ id: "api-oracle", type: "attempt", anchorPaths: ["packages/api/a.ts"], sensor: { kind: "test", severity: "warn" } }),
+      ],
+      codeFiles: TWO_AREAS,
+    });
+    expect(cov.uncoveredAreas).toEqual(["packages/web"]);
+    const web = cov.uncoveredAreaSuggestions.find((s) => s.area === "packages/web");
+    expect(web?.candidateLessonId).toBeUndefined();
   });
 
   it("returns no areas when the code-map has no production files", () => {

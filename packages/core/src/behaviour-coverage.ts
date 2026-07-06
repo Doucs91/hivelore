@@ -34,6 +34,16 @@ export interface BehaviourOracleInfo {
   areas: string[];
 }
 
+/** A concrete "how to guard this area" pointer — closes the loop from measure to action. */
+export interface UncoveredAreaSuggestion {
+  area: string;
+  /**
+   * An existing lesson (attempt/gotcha anchored into the area, not yet a behavioural oracle) that a
+   * test can be scaffolded from. Absent → no lesson exists there yet; capture the incident first.
+   */
+  candidateLessonId?: string;
+}
+
 export interface BehaviourCoverageMetrics {
   /** Canonical main code areas (same set the bootstrap gate uses). */
   mainAreas: string[];
@@ -45,6 +55,8 @@ export interface BehaviourCoverageMetrics {
   areasWithRedProven: string[];
   /** Main areas with NO behavioural oracle at all. */
   uncoveredAreas: string[];
+  /** Per uncovered area: the concrete lesson to scaffold a behavioural oracle from (when one exists). */
+  uncoveredAreaSuggestions: UncoveredAreaSuggestion[];
   /** Every behavioural oracle sensor found, with the areas it reaches. */
   oracles: BehaviourOracleInfo[];
   totalOracles: number;
@@ -116,12 +128,37 @@ export function assessBehaviourCoverage(input: BehaviourCoverageInput): Behaviou
   const areasWithRedProven = areasWith((o) => o.red_proven);
   const uncoveredAreas = mainAreas.filter((area) => !areasWithOracle.includes(area));
 
+  // Close the loop from measure → action: for each uncovered area, find a lesson to scaffold a
+  // behavioural oracle from — an anchored attempt/gotcha (validated/proposed) that is NOT already a
+  // command/test sensor. Prefer `attempt` (incident-shaped, so it has a natural red_ref), then the
+  // most recent. The doctor finding turns this into a concrete `sensors scaffold --red-ref` command.
+  const scaffoldableLessons = input.memories.filter((m) => {
+    const fm = m.memory.frontmatter;
+    if (fm.type !== "attempt" && fm.type !== "gotcha") return false;
+    if (fm.status !== "validated" && fm.status !== "proposed") return false;
+    const kind = fm.sensor?.kind;
+    return kind !== "shell" && kind !== "test";
+  });
+  const uncoveredAreaSuggestions: UncoveredAreaSuggestion[] = uncoveredAreas.map((area) => {
+    const candidates = scaffoldableLessons
+      .filter((m) => m.memory.frontmatter.anchor.paths.some((p) => anchorMatchesComponent(p, area)))
+      .sort((a, b) => {
+        const rank = (m: LoadedMemory): number => (m.memory.frontmatter.type === "attempt" ? 0 : 1);
+        const byType = rank(a) - rank(b);
+        if (byType !== 0) return byType;
+        return String(b.memory.frontmatter.created_at ?? "").localeCompare(String(a.memory.frontmatter.created_at ?? ""));
+      });
+    const id = candidates[0]?.memory.frontmatter.id;
+    return id ? { area, candidateLessonId: id } : { area };
+  });
+
   return {
     mainAreas,
     areasWithOracle,
     areasWithArmedOracle,
     areasWithRedProven,
     uncoveredAreas,
+    uncoveredAreaSuggestions,
     oracles,
     totalOracles: oracles.length,
     armedOracles: oracles.filter((o) => o.severity === "block").length,

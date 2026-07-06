@@ -975,12 +975,21 @@ function collectBehaviourCoverageFindings(
         (cov.uncoveredAreas.length > 5 ? `, +${cov.uncoveredAreas.length - 5} more` : "")
       : "";
 
-  const fix =
-    cov.totalOracles === 0
-      ? "Scaffold a test from an incident (`hivelore sensors scaffold <memory-id>`), then arm it with `hivelore sensors propose --kind test --red-ref <pre-fix-commit>`."
-      : cov.armedOracles < cov.totalOracles || cov.redProvenOracles < cov.armedOracles
-        ? "Arm warn-only oracles to `block` and re-propose with `--red-ref` so each substantiates its incident."
-        : undefined;
+  // Close the loop: for each uncovered area, print the exact next command. When a lesson already
+  // exists there, scaffold a behavioural oracle from it (with the just-shipped --red-ref); otherwise
+  // capture the incident first. Falls back to the arm-warn-only hint when every area IS covered.
+  let fix: string | undefined;
+  if (cov.uncoveredAreas.length > 0) {
+    const lines = cov.uncoveredAreaSuggestions.slice(0, 4).map((s) =>
+      s.candidateLessonId
+        ? `hivelore sensors scaffold ${s.candidateLessonId} --red-ref <pre-fix-commit>   # guard ${s.area}`
+        : `hivelore memory tried --paths ${s.area}/ --what "<incident>" --why-failed "<why>"   # then scaffold --red-ref for ${s.area}`,
+    );
+    if (cov.uncoveredAreas.length > 4) lines.push(`# +${cov.uncoveredAreas.length - 4} more uncovered area(s) — run doctor after guarding these`);
+    fix = lines.join("\n");
+  } else if (cov.armedOracles < cov.totalOracles || cov.redProvenOracles < cov.armedOracles) {
+    fix = "Arm warn-only oracles to `block` and re-propose with `--red-ref` so each substantiates its incident.";
+  }
 
   return [{
     severity: "info",

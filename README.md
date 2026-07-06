@@ -145,7 +145,9 @@ hivelore sensors scaffold 2026-07-03-attempt-refund-exceeds-capture --red-ref <p
 **Measure the behaviour harness (v0.45.0).** `hivelore doctor` reports, per main code area, how much of
 the behaviour surface is guarded: `Behaviour harness: X/N area(s) guarded by a behavioural oracle
 (K armed, P red-proven)` — so the branch's progress is visible, not guesswork. The human `stats receipt`
-prints the same line as a footer.
+prints the same line as a footer. Since **v0.47.0** the finding closes the loop to action: for each
+uncovered area it prints the exact `hivelore sensors scaffold <lesson> --red-ref <pre-fix-commit>`
+command in its Suggested commands (or a `memory tried … then scaffold` line when no lesson exists yet).
 
 > See [`STABILITY.md`](./STABILITY.md) for the frozen 1.0 surface and [`CONTRIBUTING.md`](./CONTRIBUTING.md) to extend Hivelore.
 
