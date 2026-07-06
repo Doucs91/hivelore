@@ -11,18 +11,35 @@
 import { existsSync, statSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { z } from "zod";
 import {
   buildProposeCommand,
+  incidentHintsFromDiff,
   loadMemoriesFromDir,
   normalizeFramework,
   parseLessonFields,
   pickTestFramework,
   scaffoldPostIncidentTest,
+  type IncidentHints,
   type PostIncidentLesson,
   type TestFramework,
 } from "@hivelore/core";
 import type { HaiveContext } from "../context.js";
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * Read `git diff <redRef> HEAD -- <paths>` with an argument array (no shell interpolation — see
+ * convention 2026-07-05-convention-child-process-no-shell-interpolation). Large maxBuffer so a big
+ * fix diff is readable; the caller treats any throw as "no hints, use the generic template".
+ */
+async function gitDiffText(root: string, redRef: string, paths: string[]): Promise<string> {
+  const args = ["diff", redRef, "HEAD", "--", ...paths];
+  const { stdout } = await execFileAsync("git", args, { cwd: root, maxBuffer: 64 * 1024 * 1024 });
+  return stdout;
+}
 
 const PY_SIGNALS = ["pyproject.toml", "setup.py", "pytest.ini", "requirements.txt", "tox.ini"];
 
@@ -112,6 +129,14 @@ export const ScaffoldTestInputSchema = {
     .optional()
     .describe("Test framework. Auto-detected from the package that owns the lesson's anchor paths when omitted."),
   out_path: z.string().optional().describe("Override the generated test file path (repo-relative)."),
+  red_ref: z
+    .string()
+    .optional()
+    .describe(
+      "Pre-fix incident commit/ref. When set, the scaffold names the symbols the fix (<red_ref>..HEAD) " +
+        "touched within the lesson's anchor scope and pre-fills the example around them, so the assertion " +
+        "is a targeted edit rather than a blank page. A bad ref falls back to the generic template.",
+    ),
   write: z
     .boolean()
     .default(true)
@@ -168,6 +193,16 @@ export async function scaffoldTest(input: ScaffoldTestInput, ctx: HaiveContext):
     input.framework ? normalizeFramework(input.framework) ?? detected : detected;
 
   const fields = parseLessonFields(found.memory.body);
+  // red_ref: derive the fix's changed symbols/files from `git diff <ref>..HEAD` scoped to the
+  // lesson's anchors. Best-effort — a bad ref just yields the generic template.
+  let incidentHints: IncidentHints | undefined;
+  if (input.red_ref) {
+    try {
+      const diff = await gitDiffText(ctx.paths.root, input.red_ref, anchorPaths);
+      const hints = incidentHintsFromDiff(diff, { redRef: input.red_ref });
+      if (hints.changedSymbols.length > 0 || hints.changedFiles.length > 0) incidentHints = hints;
+    } catch { /* fall back to the generic template */ }
+  }
   const lesson: PostIncidentLesson = {
     memoryId: input.memory_id,
     title: fields.title || input.memory_id,
@@ -175,6 +210,7 @@ export async function scaffoldTest(input: ScaffoldTestInput, ctx: HaiveContext):
     instead: fields.instead,
     incident: found.memory.frontmatter.sensor?.incident,
     paths: anchorPaths,
+    incidentHints,
   };
 
   // Pass 1: per-group scaffolds (collects each run command). A memory carries ONE sensor, so when

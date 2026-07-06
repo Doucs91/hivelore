@@ -5,6 +5,7 @@ import {
   parseLessonFields,
   pickTestFramework,
   scaffoldPostIncidentTest,
+  incidentHintsFromDiff,
   type PostIncidentLesson,
   assessScaffoldLoop,
   extractTestFilePathsFromCommand,
@@ -113,6 +114,86 @@ describe("scaffoldPostIncidentTest", () => {
   it("outPath wins over baseDir", () => {
     const s = scaffoldPostIncidentTest(LESSON, { framework: "vitest", baseDir: "packages/api", outPath: "custom/x.test.ts" });
     expect(s.relPath).toBe("custom/x.test.ts");
+  });
+
+  it("stays a PENDING stub even when enriched with incident hints (suite must stay green)", () => {
+    const s = scaffoldPostIncidentTest(
+      { ...LESSON, incidentHints: { redRef: "abc123", changedFiles: ["src/payments/refund.ts"], changedSymbols: ["refund"] } },
+      { framework: "vitest" },
+    );
+    // still pending (it.todo) and no LIVE import that could fail to resolve
+    expect(hasPendingTestMarker(s.content)).toBe(true);
+    expect(s.content).toContain("it.todo(");
+    // the enriched example names the real subject and stays commented
+    expect(s.content).toContain("Fix (abc123..HEAD) touched: refund in src/payments/refund.ts.");
+    expect(s.content).toContain("//   import { refund } from \"src/payments/refund\";");
+    expect(s.content).toContain("//   expect(refund(/* incident input */)).toBe(/* post-fix expected */);");
+    // the only NON-comment executable line is still the pending todo
+    const liveImport = s.content.split("\n").find((l) => /^\s*import\b/.test(l) && l.includes("refund.ts"));
+    expect(liveImport).toBeUndefined();
+  });
+
+  it("pytest/gotest scaffolds name the subject symbol from hints", () => {
+    const hints = { changedFiles: ["api/refund.py"], changedSymbols: ["clamp_refund"] };
+    const py = scaffoldPostIncidentTest({ ...LESSON, incidentHints: hints }, { framework: "pytest" });
+    expect(py.content).toContain("clamp_refund");
+    expect(py.content).toContain("@pytest.mark.skip");
+    const go = scaffoldPostIncidentTest({ ...LESSON, incidentHints: { changedFiles: ["pay/refund.go"], changedSymbols: ["ClampRefund"] } }, { framework: "gotest" });
+    expect(go.content).toContain("ClampRefund");
+    expect(go.content).toContain("t.Skip(");
+  });
+});
+
+describe("incidentHintsFromDiff", () => {
+  it("extracts changed exported symbols and files from a fix diff", () => {
+    const diff = [
+      "diff --git a/src/payments/refund.ts b/src/payments/refund.ts",
+      "--- a/src/payments/refund.ts",
+      "+++ b/src/payments/refund.ts",
+      "-export function refund(a, c) { return a; }",
+      "+export function refund(a, c) { return Math.min(a, c); }",
+      "+export const CAP = 100;",
+    ].join("\n");
+    const hints = incidentHintsFromDiff(diff, { redRef: "abc123" });
+    expect(hints.redRef).toBe("abc123");
+    expect(hints.changedFiles).toEqual(["src/payments/refund.ts"]);
+    expect(hints.changedSymbols).toEqual(["refund", "CAP"]);
+  });
+
+  it("recognises python def and go func definitions", () => {
+    const diff = [
+      "+++ b/api/refund.py",
+      "+def clamp_refund(amount, captured):",
+      "+++ b/pay/refund.go",
+      "+func ClampRefund(a int) int {",
+      "+func (s *Svc) Charge(x int) {",
+    ].join("\n");
+    const hints = incidentHintsFromDiff(diff);
+    expect(hints.changedSymbols).toEqual(["clamp_refund", "ClampRefund", "Charge"]);
+    expect(hints.changedFiles).toEqual(["api/refund.py", "pay/refund.go"]);
+  });
+
+  it("prioritises the enclosing function (hunk header) over an incidental new const", () => {
+    // The fix changed refund's BODY (signature line untouched) and added an unrelated const. Git puts
+    // the enclosing function in the hunk header, so `refund` must rank ahead of the new `MAX_REFUND`.
+    const diff = [
+      "diff --git a/src/payments/refund.ts b/src/payments/refund.ts",
+      "--- a/src/payments/refund.ts",
+      "+++ b/src/payments/refund.ts",
+      "@@ -1,3 +1,4 @@ export function refund(amount, captured) {",
+      "-  return amount;",
+      "+  return Math.min(amount, captured);",
+      "+export const MAX_REFUND = 100;",
+    ].join("\n");
+    const hints = incidentHintsFromDiff(diff);
+    expect(hints.changedSymbols[0]).toBe("refund");
+    expect(hints.changedSymbols).toContain("MAX_REFUND");
+  });
+
+  it("returns empty hints for a diff with no definitions", () => {
+    const diff = "+++ b/README.md\n+Some prose change with no code.\n";
+    const hints = incidentHintsFromDiff(diff);
+    expect(hints.changedSymbols).toEqual([]);
   });
 });
 

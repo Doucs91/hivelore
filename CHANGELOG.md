@@ -6,6 +6,20 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.46.0] — Oracle assist: scaffold the test around the fix
+
+- `hivelore sensors scaffold` and the `scaffold_test` MCP tool gained `--red-ref` / `red_ref`. Given the
+  pre-fix incident commit, the scaffold names the symbols the fix (`red_ref..HEAD`, scoped to the lesson's
+  anchors) actually touched and pre-fills the commented example around them (`import { refund } …`,
+  `expect(refund(…)).toBe(…)`) instead of a generic `subjectUnderTest()` — turning "fill the assertion"
+  into a targeted edit. New pure core helper `incidentHintsFromDiff(diff)` does the extraction (tracks the
+  enclosing function so a body-only change still names its function; const additions rank second).
+- The enriched example stays a **pending, commented** stub (no live import) so the suite stays green, and
+  the git diff is read without shell interpolation. A bad ref falls back to the generic template. This is a
+  deterministic head-start, never an LLM inventing the assertion; `propose_sensor` remains the sole
+  validated arming path.
+
+
 ## [0.45.0] — Behaviour-harness coverage metric
 
 - The behaviour harness (command/test sensors routing a real oracle, optionally red-proven) now has a

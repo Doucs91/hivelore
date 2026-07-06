@@ -30,6 +30,105 @@ export interface PostIncidentLesson {
   incident?: string;
   /** Anchor paths — used to scope the sensor and to place the test near the code. */
   paths?: string[];
+  /**
+   * Optional facts derived from the incident's fix diff (red_ref..HEAD). When present, the scaffold
+   * names the actual symbols the fix touched and pre-fills the commented example around them, so the
+   * human's "fill the assertion" step is a targeted edit rather than a blank page. Deterministic and
+   * green-preserving: the enriched example stays commented (no live imports that might not resolve).
+   */
+  incidentHints?: IncidentHints;
+}
+
+/** Facts extracted from an incident's fix diff to make a scaffold concrete rather than generic. */
+export interface IncidentHints {
+  /** The pre-fix ref the hints were derived against (for provenance in the header). */
+  redRef?: string;
+  /** Files the fix changed (within the lesson's anchor scope). */
+  changedFiles: string[];
+  /** Symbols the fix added/changed (exported functions/consts/classes; def/func for py/go). */
+  changedSymbols: string[];
+}
+
+/**
+ * Extract the symbols and files a fix touched from its unified diff (`git diff red_ref..HEAD`).
+ * Pure: the caller produces the diff (I/O). Scans ADDED lines for definitions across JS/TS, Python,
+ * and Go — the frameworks the scaffolder targets — so the generated test can name the real subject.
+ */
+export function incidentHintsFromDiff(
+  diff: string,
+  opts: { redRef?: string; limitSymbols?: number } = {},
+): IncidentHints {
+  const changedFiles: string[] = [];
+  // Two signal streams, priority order:
+  //  - `touched`: a CONTAINER definition (function / class / def / func) whose hunk has a change. It
+  //    is tracked from context AND added lines, so it names the symbol the fix changed even when only
+  //    the body changed (git leaves the signature as an unchanged context line) — the common shape.
+  //  - `valueAdded`: const/let/var definitions on ADDED lines. Secondary — catches new values but also
+  //    incidental additions, so it ranks below the touched container.
+  const touched: string[] = [];
+  const valueAdded: string[] = [];
+  // Container definitions (the subject of a behaviour fix). Match anywhere on the line.
+  const CONTAINER_PATTERNS: RegExp[] = [
+    /(?:^|\s)export\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/,
+    /(?:^|\s)export\s+(?:default\s+)?class\s+([A-Za-z_$][\w$]*)/,
+    /(?:^|\s)(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/,
+    /(?:^|\s)class\s+([A-Za-z_$][\w$]*)/,
+    /(?:^|\s)def\s+([A-Za-z_][\w]*)\s*\(/,                 // python
+    /(?:^|\s)func\s+(?:\([^)]*\)\s*)?([A-Za-z_][\w]*)\s*\(/, // go (incl. methods)
+  ];
+  const VALUE_PATTERN = /(?:^|\s)export\s+(?:const|let|var)\s+([A-Za-z_$][\w$]*)/;
+  const containerOf = (text: string): string | null => {
+    for (const re of CONTAINER_PATTERNS) {
+      const m = re.exec(text);
+      if (m?.[1]) return m[1];
+    }
+    return null;
+  };
+
+  let enclosing: string | null = null; // current container symbol in scope within the hunk
+  const markTouched = (sym: string | null): void => {
+    if (sym && !touched.includes(sym)) touched.push(sym);
+  };
+  for (const raw of diff.split("\n")) {
+    if (raw.startsWith("+++ ")) {
+      const p = raw.slice(4).trim().replace(/^b\//, "");
+      if (p && p !== "/dev/null") changedFiles.push(p);
+      enclosing = null;
+      continue;
+    }
+    if (raw.startsWith("@@")) {
+      // A hunk heading may name the enclosing function when the signature is above the window.
+      enclosing = containerOf(raw.replace(/^@@[^@]*@@/, ""));
+      continue;
+    }
+    if (raw.startsWith("---")) continue;
+    const isAdded = raw.startsWith("+");
+    const isRemoved = raw.startsWith("-");
+    const body = isAdded || isRemoved ? raw.slice(1) : raw.replace(/^ /, "");
+    const container = containerOf(body);
+    if (container) enclosing = container; // context or added definition → the symbol now in scope
+    if (isAdded || isRemoved) {
+      // A change inside the current container means the fix touched it.
+      markTouched(enclosing);
+      if (isAdded) {
+        const value = VALUE_PATTERN.exec(body);
+        if (value?.[1]) valueAdded.push(value[1]);
+      }
+    }
+  }
+  const limit = opts.limitSymbols ?? 6;
+  const changedSymbols: string[] = [];
+  const seen = new Set<string>();
+  for (const sym of [...touched, ...valueAdded]) {
+    if (seen.has(sym)) continue;
+    seen.add(sym);
+    changedSymbols.push(sym);
+  }
+  return {
+    ...(opts.redRef ? { redRef: opts.redRef } : {}),
+    changedFiles: [...new Set(changedFiles)],
+    changedSymbols: changedSymbols.slice(0, limit),
+  };
 }
 
 export interface TestScaffold {
@@ -150,17 +249,76 @@ export function buildProposeCommand(lesson: PostIncidentLesson, runCommand: stri
 }
 
 function header(lesson: PostIncidentLesson, comment: (line: string) => string): string {
+  const hints = lesson.incidentHints;
+  const fixLines: string[] = [];
+  if (hints && (hints.changedSymbols.length > 0 || hints.changedFiles.length > 0)) {
+    const ref = hints.redRef ? ` (${hints.redRef}..HEAD)` : "";
+    if (hints.changedSymbols.length > 0) {
+      fixLines.push(`Fix${ref} touched: ${hints.changedSymbols.join(", ")}` +
+        (hints.changedFiles.length > 0 ? ` in ${hints.changedFiles.slice(0, 3).join(", ")}` : "") + ".");
+    } else {
+      fixLines.push(`Fix${ref} touched: ${hints.changedFiles.slice(0, 3).join(", ")}.`);
+    }
+  }
   const lines = [
     `Post-incident guard generated by Hivelore from ${lesson.memoryId}.`,
     ...(lesson.incident ? [`Incident: ${lesson.incident}`] : []),
     `What failed: ${oneLine(lesson.title)}`,
     ...(lesson.whyFailed ? [`Why: ${oneLine(lesson.whyFailed)}`] : []),
     ...(lesson.instead ? [`Expected / fix: ${oneLine(lesson.instead)}`] : []),
+    ...fixLines,
     "",
     "TODO: replace the pending test with a real check that FAILS on the incident and",
     "PASSES once the fix is in place. Then arm it as a deterministic gate:",
   ];
   return lines.map(comment).join("\n");
+}
+
+/**
+ * The commented "suggested example" block. When the incident's fix diff named a subject symbol, the
+ * example calls it by name (so the human fills a targeted assertion); otherwise the generic template.
+ * Stays commented in every case — no live import that might not resolve, so the suite stays green.
+ */
+function exampleLines(lesson: PostIncidentLesson, lang: "js" | "py" | "go"): string[] {
+  const symbol = lesson.incidentHints?.changedSymbols[0];
+  const file = lesson.incidentHints?.changedFiles[0];
+  if (lang === "js") {
+    if (symbol) {
+      return [
+        `// it("guards the incident", () => {`,
+        ...(file ? [`//   import { ${symbol} } from "${importSpecifier(file)}";  // adjust the relative path`] : []),
+        `//   // Reproduce the incident input, then assert the behaviour the fix guarantees:`,
+        `//   expect(${symbol}(/* incident input */)).toBe(/* post-fix expected */);`,
+        `// });`,
+      ];
+    }
+    return [
+      `// it("guards the incident", () => {`,
+      `//   // Arrange the state that caused the incident, then assert the fixed behaviour.`,
+      `//   expect(subjectUnderTest()).toBe(/* expected */);`,
+      `// });`,
+    ];
+  }
+  if (lang === "py") {
+    return symbol
+      ? [
+          `    # Reproduce the incident input, then assert what the fix guarantees:`,
+          `    assert ${symbol}(...) == expected  # ${symbol} was changed by the fix`,
+        ]
+      : [
+          `    # Arrange the state that caused the incident, then assert the fixed behaviour.`,
+          `    assert subject_under_test() == expected`,
+        ];
+  }
+  // go
+  return symbol
+    ? [`\t// Reproduce the incident input, then assert what the fix guarantees (subject: ${symbol}).`]
+    : [`\t// Arrange the state that caused the incident, then assert the fixed behaviour.`];
+}
+
+/** Turn a source file path into an import specifier (drop the extension; keep it relative-looking). */
+function importSpecifier(file: string): string {
+  return file.replace(/\.[cm]?[jt]sx?$/, "");
 }
 
 /** Build a scaffold for the given lesson + framework. Pure — the caller writes `content` to `relPath`. */
@@ -185,10 +343,7 @@ export function scaffoldPostIncidentTest(lesson: PostIncidentLesson, options: Sc
       importLine +
       `describe(${JSON.stringify(desc)}, () => {\n` +
       `  it.todo("reproduces ${lesson.memoryId} and stays fixed");\n\n` +
-      `  // it("guards the incident", () => {\n` +
-      `  //   // Arrange the state that caused the incident, then assert the fixed behaviour.\n` +
-      `  //   expect(subjectUnderTest()).toBe(/* expected */);\n` +
-      `  // });\n` +
+      exampleLines(lesson, "js").map((l) => `  ${l}`).join("\n") + "\n" +
       `});\n`;
   } else if (framework === "pytest") {
     const fn = snake(short);
@@ -201,8 +356,7 @@ export function scaffoldPostIncidentTest(lesson: PostIncidentLesson, options: Sc
       `import pytest\n\n\n` +
       `@pytest.mark.skip(reason="TODO: write the post-incident assertion, then arm the sensor")\n` +
       `def test_${fn}():\n` +
-      `    # Arrange the state that caused the incident, then assert the fixed behaviour.\n` +
-      `    assert subject_under_test() == expected\n`;
+      exampleLines(lesson, "py").join("\n") + "\n";
   } else {
     // gotest
     const fn = pascal(short);
@@ -217,7 +371,7 @@ export function scaffoldPostIncidentTest(lesson: PostIncidentLesson, options: Sc
       `import "testing"\n\n` +
       `func Test${fn}(t *testing.T) {\n` +
       `\tt.Skip("TODO: write the post-incident assertion, then arm the sensor")\n` +
-      `\t// Arrange the state that caused the incident, then assert the fixed behaviour.\n` +
+      exampleLines(lesson, "go").join("\n") + "\n" +
       `}\n`;
   }
 

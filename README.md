@@ -130,11 +130,22 @@ one pending test per owning package, all armed by a single sensor whose oracle c
 commands. A scaffold left pending or never armed is an open loop: `doctor` and `enforce finish`
 nudge it (`post-incident-test-unarmed`) until the oracle is routed.
 
+**Pass the incident and the stub writes itself around the fix (v0.46.0).** Add `--red-ref <pre-fix-commit>`
+and the scaffold names the symbols the fix (`red_ref..HEAD`) actually touched and pre-fills the example
+around them — `import { refund } …`, `expect(refund(/* incident input */)).toBe(/* post-fix expected */)`
+instead of a blank `subjectUnderTest()`. It stays a **pending, commented** stub (no live import, suite
+stays green) — a deterministic head-start, never an LLM guessing your assertion.
+
 ```bash
-hivelore sensors scaffold 2026-07-03-attempt-refund-exceeds-capture
-# → tests/incidents/refund-exceeds-capture.test.ts (pending, provenance in the header)
+hivelore sensors scaffold 2026-07-03-attempt-refund-exceeds-capture --red-ref <pre-fix-commit>
+# → tests/incidents/refund-exceeds-capture.test.ts (pending; names the touched symbols from the fix)
 #   then: fill the assertion → run it → arm it with the printed propose command.
 ```
+
+**Measure the behaviour harness (v0.45.0).** `hivelore doctor` reports, per main code area, how much of
+the behaviour surface is guarded: `Behaviour harness: X/N area(s) guarded by a behavioural oracle
+(K armed, P red-proven)` — so the branch's progress is visible, not guesswork. The human `stats receipt`
+prints the same line as a footer.
 
 > See [`STABILITY.md`](./STABILITY.md) for the frozen 1.0 surface and [`CONTRIBUTING.md`](./CONTRIBUTING.md) to extend Hivelore.
 

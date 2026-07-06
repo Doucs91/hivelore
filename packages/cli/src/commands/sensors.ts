@@ -23,6 +23,7 @@ import {
   addedLineNumbersFromDiff,
   buildProposeCommand,
   scaffoldPostIncidentTest,
+  incidentHintsFromDiff,
   selectCommandSensors,
   TEST_FRAMEWORKS,
   sensorPatternBrittleness,
@@ -32,6 +33,7 @@ import {
   serializeMemory,
   withoutQuarantineNote,
   type CommandSensorSpec,
+  type IncidentHints,
   type Memory,
   type Sensor,
 } from "@hivelore/core";
@@ -91,6 +93,7 @@ interface SensorsScaffoldOptions {
   out?: string;
   stdout?: boolean;
   force?: boolean;
+  redRef?: string;
   dir?: string;
 }
 
@@ -640,6 +643,11 @@ export function registerSensors(program: Command): void {
     .option("--out <path>", "override the generated test file path (project-relative)")
     .option("--stdout", "print the test to stdout instead of writing a file", false)
     .option("--force", "overwrite an existing file at the target path", false)
+    .option(
+      "--red-ref <ref>",
+      "pre-fix incident commit/ref: the scaffold names the symbols the fix (<ref>..HEAD) touched and " +
+        "pre-fills the example around them, so the assertion is a targeted edit, not a blank page",
+    )
     .option("-d, --dir <dir>", "project root")
     .action(async (id: string, opts: SensorsScaffoldOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -660,6 +668,23 @@ export function registerSensors(program: Command): void {
       const groups = opts.out ? allGroups.slice(0, 1) : allGroups;
 
       const fields = parseLessonFields(found.memory.body);
+      // --red-ref: derive the fix's changed symbols/files from `git diff <ref>..HEAD` (scoped to the
+      // lesson's anchors) so the scaffold names the real subject. Best-effort: a bad ref just falls
+      // back to the generic template with a warning — it must never abort the scaffold.
+      let incidentHints: IncidentHints | undefined;
+      if (opts.redRef) {
+        try {
+          const args = ["diff", `${opts.redRef}`, "HEAD", "--", ...(fm.anchor.paths ?? [])];
+          const { stdout } = await exec("git", args, { cwd: root, maxBuffer: 64 * 1024 * 1024 });
+          incidentHints = incidentHintsFromDiff(stdout, { redRef: opts.redRef });
+          if (incidentHints.changedSymbols.length === 0 && incidentHints.changedFiles.length === 0) {
+            ui.warn(`--red-ref ${opts.redRef}: no changed symbols found in the anchor scope — using the generic template.`);
+            incidentHints = undefined;
+          }
+        } catch (err) {
+          ui.warn(`--red-ref ${opts.redRef}: could not read the fix diff (${err instanceof Error ? err.message : String(err)}) — using the generic template.`);
+        }
+      }
       const lesson = {
         memoryId: id,
         title: fields.title || id,
@@ -667,6 +692,7 @@ export function registerSensors(program: Command): void {
         instead: fields.instead,
         incident: fm.sensor?.incident,
         paths: fm.anchor.paths,
+        incidentHints,
       };
       let scaffolds = groups.map((g) =>
         scaffoldPostIncidentTest(lesson, { framework: forced ?? g.framework, outPath: opts.out, baseDir: g.baseDir }),
