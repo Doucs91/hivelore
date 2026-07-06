@@ -451,7 +451,7 @@ export function summarizeCaughtForYou(
 export function renderCaughtForYou(summary: CaughtForYouSummary): string | null {
   if (summary.total_catches === 0 || summary.rows.length === 0) return null;
   const lines = [
-    `Caught for you: ${summary.total_catches} prevented repeat${summary.total_catches === 1 ? "" : "s"} this session.`,
+    `Caught for you: ${summary.total_catches} prevented repeat${summary.total_catches === 1 ? "" : "s"} ${summary.since ? "this session" : "in recorded history"}.`,
   ];
   for (const row of summary.rows) {
     const gate = row.source === "anti-pattern" ? "Blocked" : "Caught";

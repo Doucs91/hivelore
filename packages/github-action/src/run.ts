@@ -351,9 +351,14 @@ function setOutput(key: string, value: string): void {
 // ── /hivelore remember — the PR loop's capture ack (excellence plan, Phase 3) ────────────────────
 // A reviewer replies `/hivelore remember <rule>` on a thread; the action acknowledges it
 // (CodeRabbit's "Learnings added" moment) and hands back the exact local command that persists the
-// thread as a proposed memory. The action never commits to the repo itself — persisting stays a
-// deliberate, reviewable step (`hivelore ingest --from github-pr <n>`).
+// thread as a proposed memory. Automatic persistence writes only to a dedicated branch and opens a
+// reviewable PR; it never writes directly to the default branch.
 const REMEMBER_RE = /^\/?hivelore\s+remember\b\s*/i;
+const TRUSTED_REVIEW_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+
+export function isTrustedReviewLearningAuthor(authorAssociation: string | undefined): boolean {
+  return TRUSTED_REVIEW_ASSOCIATIONS.has((authorAssociation ?? "").toUpperCase());
+}
 
 export function reviewLearningContent(input: {
   commentId: number;
@@ -364,7 +369,7 @@ export function reviewLearningContent(input: {
 }): { file: string; content: string } {
   const day = new Date().toISOString().slice(0, 10);
   const slug = input.instruction.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").trim().split(/\s+/).slice(0, 6).join("-") || "review-learning";
-  const id = `${day}-convention-${slug}`;
+  const id = `${day}-convention-${slug}-${input.commentId}`;
   const quoted = (value: string): string => JSON.stringify(value);
   const anchor = input.path ? `  paths:\n    - ${quoted(input.path)}\n` : "  paths: []\n";
   const content = [
@@ -397,7 +402,7 @@ export function reviewLearningContent(input: {
   return { file: `.ai/memories/team/${id}.md`, content };
 }
 
-async function persistReviewLearning(
+export async function persistReviewLearning(
   octokit: ReturnType<typeof getOctokit>,
   owner: string,
   repo: string,
@@ -437,11 +442,11 @@ async function persistReviewLearning(
   return pull.data.html_url;
 }
 
-async function handleRememberComment(eventName: string): Promise<boolean> {
+export async function handleRememberComment(eventName: string): Promise<boolean> {
   const eventPath = process.env["GITHUB_EVENT_PATH"];
   if (!eventPath || !fs.existsSync(eventPath)) return false;
   let event: {
-    comment?: { id?: number; body?: string; path?: string; user?: { login?: string } };
+    comment?: { id?: number; body?: string; path?: string; author_association?: string; user?: { login?: string } };
     pull_request?: { number?: number };
     issue?: { number?: number; pull_request?: unknown };
   };
@@ -454,6 +459,10 @@ async function handleRememberComment(eventName: string): Promise<boolean> {
   if (!REMEMBER_RE.test(body)) {
     console.log("Hivelore: comment does not start with /hivelore remember — nothing to do.");
     return true; // it WAS a comment event; there is no PR scan to run
+  }
+  if (!isTrustedReviewLearningAuthor(event.comment?.author_association)) {
+    console.warn("Hivelore: ignored /hivelore remember from an untrusted commenter.");
+    return true;
   }
   const instruction = body.replace(REMEMBER_RE, "").trim().slice(0, 500);
   const prNumber = event.pull_request?.number ?? event.issue?.number;

@@ -1450,7 +1450,10 @@ async function runPrecommitPolicy(
   // unwires a block sensor is a change to the ENFORCEMENT SURFACE itself, and the whole point is
   // that such a change never lands unmentioned (the gate lives in `.ai/`, editable by the same
   // agent it constrains). Review-only — legitimate demotions exist.
-  const weakenings = detectSensorWeakening(snapshot.diff);
+  const weakeningApprovals = await resolveSensorWeakeningApprovals(paths.root, stage);
+  const detectedWeakenings = detectSensorWeakening(snapshot.diff);
+  const weakenings = detectedWeakenings.filter((weakening) => !weakeningApprovals.has(weakening.memory_id));
+  const approvedWeakenings = detectedWeakenings.filter((weakening) => weakeningApprovals.has(weakening.memory_id));
   const weakeningFindings: EnforcementFinding[] = weakenings.length > 0
     ? [{
         severity: config.enforcement?.sensorWeakeningGate === "block" ? "error" : "warn",
@@ -1459,11 +1462,19 @@ async function runPrecommitPolicy(
           `This diff weakens the enforcement surface — ${weakenings.length} sensor change(s) need review: ` +
           weakenings.slice(0, 5).map((w) => `${w.memory_id} (${w.change}: ${w.detail})`).join(", ") +
           (weakenings.length > 5 ? ", …" : "") + ".",
-        fix: "If the demotion/removal is intentional, say so in the commit message; otherwise restore the sensor (`hivelore sensors list` shows the current state).",
+        fix: "If intentional, add `Hivelore-Sensor-Change: <memory-id>` to the commit message and set `HIVELORE_SENSOR_WEAKENING_APPROVALS=<memory-id>` for the local commit hook; otherwise restore the sensor.",
         memory_ids: [...new Set(weakenings.map((w) => w.memory_id))].slice(0, 10),
         impact: config.enforcement?.sensorWeakeningGate === "block" ? 30 : 8,
       }]
     : [];
+  if (approvedWeakenings.length > 0) {
+    weakeningFindings.push({
+      severity: "ok",
+      code: "sensor-weakening-approved",
+      message: `Reviewed sensor change(s) approved for ${[...new Set(approvedWeakenings.map((w) => w.memory_id))].join(", ")}.`,
+      memory_ids: [...new Set(approvedWeakenings.map((w) => w.memory_id))],
+    });
+  }
   if (gate === "off") {
     return [
       { severity: "info", code: "precommit-policy-off", message: "Anti-pattern gate is disabled (enforcement.antiPatternGate=off)." },
@@ -1585,6 +1596,33 @@ async function runPrecommitPolicy(
     ...sensorFindings,
     ...weakeningFindings,
   ];
+}
+
+/** Parse auditable sensor-change approvals from an env value or commit-message trailer block. */
+export function parseSensorWeakeningApprovals(text: string | undefined): Set<string> {
+  const approved = new Set<string>();
+  if (!text) return approved;
+  const trailer = /^Hivelore-Sensor-Change:\s*(.+)$/gmi;
+  for (const match of text.matchAll(trailer)) {
+    for (const id of (match[1] ?? "").split(/[\s,]+/)) if (id) approved.add(id);
+  }
+  if (!text.includes("Hivelore-Sensor-Change:")) {
+    for (const id of text.split(/[\s,]+/)) if (id) approved.add(id);
+  }
+  return approved;
+}
+
+async function resolveSensorWeakeningApprovals(
+  root: string,
+  stage: "pre-commit" | "ci",
+): Promise<Set<string>> {
+  const approved = parseSensorWeakeningApprovals(process.env["HIVELORE_SENSOR_WEAKENING_APPROVALS"]);
+  if (stage !== "ci") return approved;
+  try {
+    const { stdout } = await execFileAsync("git", ["log", "-1", "--pretty=%B"], { cwd: root });
+    for (const id of parseSensorWeakeningApprovals(stdout)) approved.add(id);
+  } catch { /* the unapproved finding remains fail-closed */ }
+  return approved;
 }
 
 /**

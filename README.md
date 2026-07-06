@@ -499,6 +499,8 @@ the local ingest command. Top-level PR comments and review-thread replies follow
 ast-grep `--rule <json>` (`inside`/`has`/`not`/`all`/`any`). JavaScript/TypeScript are built in;
 Python, Go, Rust, and Java are optional language packages shipped with the CLI. Rules still pass
 Hivelore's silent-on-current/fires-on-bad validation before they can block.
+Nested relational rules are not recursive by default: add `"stopBy":"end"` when `has` or `inside`
+must search every descendant, for example `{"has":{"kind":"interpolation","stopBy":"end"}}`.
 
 ---
 
@@ -562,6 +564,7 @@ hivelore release tag                             # Tag vX.Y.Z at HEAD, push bran
 # Diagnostics
 hivelore doctor                                  # Analyze setup, emit recommendations
 hivelore eval --fail-under 80                    # Retrieval + sensor quality gate
+hivelore eval --semantic-ranking                 # Real embeddings lane (requires index)
 hivelore selftest                                # Self-test MCP tools (latency + payloads)
 ```
 
@@ -571,7 +574,8 @@ memory sensors in CI, so a broken guardrail is caught before release.
 Committed regression baselines use only versioned team/module memories and deterministic
 anchor/lexical ranking; local usage counters, personal memories, and optional embedding caches cannot
 make a baseline pass locally but fail in a clean CI clone. Semantic search remains exercised by the
-embeddings/search test suites.
+embeddings/search test suites and by a separate `--semantic-ranking` CI lane backed by
+`.ai/eval/semantic-baseline.json`. That lane fails closed when the package or index is unavailable.
 
 `hivelore doctor` reports local setup drift that can make agents misdiagnose the repo: missing `pnpm`,
 stale workspace `dist` artifacts, global CLI/MCP version skew, outdated code-search indexes, and low

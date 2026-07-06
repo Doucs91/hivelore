@@ -24,6 +24,8 @@ async function loadPipeline(model: string): Promise<FeatureExtractionPipeline> {
   // Allow remote model download by default; users can pre-cache for offline use.
   env.allowLocalModels = true;
   env.allowRemoteModels = true;
+  const configuredCache = process.env["HIVELORE_MODEL_CACHE"]?.trim();
+  if (configuredCache) env.cacheDir = configuredCache;
   const pipe = (await pipeline("feature-extraction", model)) as unknown as FeatureExtractionPipeline;
   cachedPipeline = pipe;
   cachedModel = model;

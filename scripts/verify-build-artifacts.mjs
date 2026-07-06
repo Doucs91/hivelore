@@ -27,6 +27,16 @@ for (const pkgPath of lockstepPackages) {
   }
 }
 
+for (const pkgPath of ["packages/cli/package.json", "packages/mcp/package.json"]) {
+  const pkg = await readJson(pkgPath);
+  if (pkg.dependencies?.["@hivelore/embeddings"]) {
+    failures.push(`${pkgPath} installs the heavy embeddings layer transitively; keep it an optional peer`);
+  }
+  if (!pkg.peerDependenciesMeta?.["@hivelore/embeddings"]?.optional) {
+    failures.push(`${pkgPath} must declare @hivelore/embeddings as an optional peer`);
+  }
+}
+
 const cli = spawnSync(process.execPath, ["packages/cli/dist/index.js", "--version"], {
   cwd: repoRoot,
   encoding: "utf8",
@@ -45,6 +55,17 @@ if (cli.status !== 0) {
 const mcp = await import(path.join(repoRoot, "packages/mcp/dist/server.js"));
 if (mcp.SERVER_VERSION !== rootPkg.version) {
   failures.push(`built MCP reports ${mcp.SERVER_VERSION}, expected ${rootPkg.version}`);
+}
+
+// Composite actions execute directly from a git ref. Their bundle must therefore be committed,
+// not merely produced in the maintainer's ignored local dist directory.
+const actionBundle = spawnSync("git", ["ls-files", "--error-unmatch", "packages/github-action/dist/run.js"], {
+  cwd: repoRoot,
+  encoding: "utf8",
+  stdio: ["ignore", "pipe", "pipe"],
+});
+if (actionBundle.status !== 0) {
+  failures.push("packages/github-action/dist/run.js must be tracked because action.yml executes it from the release ref");
 }
 
 if (failures.length > 0) {

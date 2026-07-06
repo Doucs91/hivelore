@@ -27,6 +27,9 @@ interface AgentBenchmarkRow {
   policy_violations: number | null;
   duration_seconds: number | null;
   total_tokens: number | null;
+  runner_id: string | null;
+  evaluator_id: string | null;
+  independent_evaluation: boolean | null;
 }
 
 export function registerBenchmark(program: Command): void {
@@ -74,7 +77,7 @@ export function registerBenchmark(program: Command): void {
         "   - Hivelore agents must run `hivelore briefing --files ... --task ...` first.",
         "   - Plain agents must not read `.ai` or call Hivelore.",
         "5. Require every agent to write `BENCHMARK_AGENT_REPORT.md`.",
-        "   Its `## Outcome` section must include: Task completed, Tests passed, Policy violations, Duration seconds, Total tokens.",
+        "   Its `## Outcome` section must include: Task completed, Tests passed, Policy violations, Duration seconds, Total tokens, Runner ID, Evaluator ID, Independent evaluation.",
         "6. Run `hivelore benchmark report --dir <benchmark-root> --out RESULTS.md`.",
         "7. Do not make comparative claims until evidence_grade=decision-ready (>=10 paired tasks with complete outcomes).",
         "",
@@ -123,6 +126,9 @@ function parseAgentReport(fixture: string, report: string): AgentBenchmarkRow {
     policy_violations: reportNumber(report, "Policy violations"),
     duration_seconds: reportNumber(report, "Duration seconds"),
     total_tokens: reportNumber(report, "Total tokens"),
+    runner_id: reportValue(report, "Runner ID"),
+    evaluator_id: reportValue(report, "Evaluator ID"),
+    independent_evaluation: reportBoolean(report, "Independent evaluation"),
   };
 }
 
@@ -135,7 +141,8 @@ function summarizeRows(rows: AgentBenchmarkRow[]) {
   const pairedTasks = new Set(haiveRows.map((row) => taskName(row.fixture)).filter((name) => plainTasks.has(name))).size;
   const outcomeComplete = rows.length > 0 && rows.every((row) =>
     row.task_completed !== null && row.tests_passed !== null && row.policy_violations !== null &&
-    row.duration_seconds !== null && row.total_tokens !== null,
+    row.duration_seconds !== null && row.total_tokens !== null && row.runner_id !== null &&
+    row.evaluator_id !== null && row.evaluator_id !== row.runner_id && row.independent_evaluation === true,
   );
   const decisionReady = pairedTasks >= 10 && outcomeComplete;
   return {
@@ -143,8 +150,8 @@ function summarizeRows(rows: AgentBenchmarkRow[]) {
     paired_tasks: pairedTasks,
     evidence_grade: decisionReady ? "decision-ready" : "insufficient",
     evidence_reason: decisionReady
-      ? "At least 10 paired tasks with complete correctness, policy, duration, and token outcomes."
-      : `Need >=10 paired tasks and complete Outcome fields; found ${pairedTasks} pair(s), outcome_complete=${outcomeComplete}.`,
+      ? "At least 10 paired tasks with complete outcomes reviewed by an evaluator distinct from the runner."
+      : `Need >=10 paired tasks, complete Outcome fields, and independent evaluator attestations; found ${pairedTasks} pair(s), outcome_complete=${outcomeComplete}.`,
     haive: summarizeGroup(haiveRows),
     plain: summarizeGroup(plainRows),
   };

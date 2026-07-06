@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "minimum_pairs": 10,
+  "evaluation": "blind-independent",
+  "cases": [
+    { "id": "ts-order-schema", "language": "typescript", "oracle": "npm test", "hidden_policy": "trim non-empty SKU and require positive integer quantity" },
+    { "id": "node-cli-args", "language": "javascript", "oracle": "npm test", "hidden_policy": "reject missing values and preserve command shape" },
+    { "id": "python-money", "language": "python", "oracle": "python -m unittest", "hidden_policy": "Decimal plus ROUND_HALF_UP at the boundary" },
+    { "id": "go-http-timeout", "language": "go", "oracle": "go test ./...", "hidden_policy": "every outbound client has an explicit timeout" },
+    { "id": "rust-path-guard", "language": "rust", "oracle": "cargo test", "hidden_policy": "canonicalize before enforcing workspace containment" },
+    { "id": "java-transaction", "language": "java", "oracle": "mvn test", "hidden_policy": "transaction boundary belongs on the service method" },
+    { "id": "react-effect-cleanup", "language": "typescript", "oracle": "npm test", "hidden_policy": "subscriptions must return cleanup and avoid stale closures" },
+    { "id": "sql-idempotency", "language": "sql", "oracle": "npm test", "hidden_policy": "migration and retry path must be idempotent" },
+    { "id": "api-error-contract", "language": "typescript", "oracle": "npm test", "hidden_policy": "preserve stable public error codes while hiding internals" },
+    { "id": "release-workspace", "language": "json", "oracle": "pnpm check:artifacts", "hidden_policy": "lockstep versions and workspace dependency ranges" }
+  ]
+}

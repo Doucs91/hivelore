@@ -233,6 +233,7 @@ Run the repeatable quality gate for Hivelore itself or for a project using Hivel
 ```bash
 hivelore eval
 hivelore eval --semantic-only
+hivelore eval --semantic-ranking  # require and exercise the real embeddings-backed ranker
 hivelore eval --spec .ai/eval/spec.json --fail-under 80
 ```
 
@@ -533,14 +534,14 @@ hivelore install-hooks --dir /path/to/project
 
 ---
 
-### `hivelore embeddings`
+### `hivelore index`
 
 Manage the local semantic search index (requires `@hivelore/embeddings` to be installed).
 
 ```bash
-hivelore embeddings index          # Build or refresh the embeddings index
-hivelore embeddings status         # Show index stats (count, last updated, model)
-hivelore embeddings query "how do we handle retries on payment failures"
+hivelore index memories            # Build or refresh the embeddings index
+hivelore index status              # Show index stats (count, last updated, model)
+hivelore index query "how do we handle retries on payment failures"
 ```
 
 The model (`bge-small-en-v1.5`, ~110MB) is downloaded on first use and cached locally. **No data leaves your machine.**
@@ -655,8 +656,8 @@ Install `@hivelore/embeddings` for similarity-based memory retrieval:
 
 ```bash
 npm install -g @hivelore/embeddings
-hivelore embeddings index          # First run downloads the model (~110MB)
-hivelore embeddings query "payment retry logic"
+hivelore index memories            # First run downloads the model (~110MB)
+hivelore index query "payment retry logic"
 ```
 
 From MCP: set `semantic: true` on `mem_search` or `get_briefing`.

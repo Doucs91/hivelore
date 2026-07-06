@@ -50,3 +50,21 @@ jobs:
       # Fails the build if briefing retrieval / sensor catch-rate regresses.
       - name: Hivelore eval (retrieval + sensor quality gate)
         run: node packages/cli/dist/index.js eval --regression-gate --fail-under 80 --fail-under-catch-rate 100
+
+      # Separate lane: the portable baseline above deliberately disables mutable embeddings.
+      # This lane downloads/caches the real local model, builds the index, and gates semantic ranking.
+      - name: Cache Hivelore embedding model
+        uses: actions/cache@v4
+        with:
+          path: .cache/hivelore-models
+          key: hivelore-bge-small-en-v1.5-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Build semantic memory index
+        env:
+          HIVELORE_MODEL_CACHE: ${{ github.workspace }}/.cache/hivelore-models
+        run: node packages/cli/dist/index.js index memories
+
+      - name: Hivelore semantic eval (real embeddings lane)
+        env:
+          HIVELORE_MODEL_CACHE: ${{ github.workspace }}/.cache/hivelore-models
+        run: node packages/cli/dist/index.js eval --semantic-ranking --regression-gate --fail-under 80 --fail-under-catch-rate 100

@@ -54,7 +54,7 @@ type DoctorSection =
   | "Index health"
   | "Next actions";
 
-interface Finding {
+export interface Finding {
   severity: Severity;
   code: string;
   message: string;
@@ -287,7 +287,8 @@ export function registerDoctor(program: Command): void {
       }
 
       const lintReport = await lintMemoriesAsync(root);
-      if (lintReport.findings.length > 0) {
+      const actionableLintFindings = lintReport.findings.filter((finding) => finding.severity !== "info");
+      if (actionableLintFindings.length > 0) {
         const warnCount = lintReport.findings.filter((finding) => finding.severity === "warn").length;
         const errorCount = lintReport.findings.filter((finding) => finding.severity === "error").length;
         const severity: Severity = errorCount > 0 ? "error" : warnCount > 0 ? "warn" : "info";
@@ -295,8 +296,8 @@ export function registerDoctor(program: Command): void {
           severity,
           code: "memory-lint-findings",
           message:
-            `memory lint reports ${lintReport.findings.length} finding${lintReport.findings.length === 1 ? "" : "s"} ` +
-            `(${errorCount} error, ${warnCount} warn, ${lintReport.findings.length - errorCount - warnCount} info).`,
+            `memory lint reports ${actionableLintFindings.length} actionable finding${actionableLintFindings.length === 1 ? "" : "s"} ` +
+            `(${errorCount} error, ${warnCount} warn).`,
           fix: "hivelore memory lint --fix --apply",
         });
       }
@@ -475,7 +476,7 @@ export function registerDoctor(program: Command): void {
         // Detect a near-empty code-map: many source files on disk but few indexed (untracked source
         // or a structure the indexer missed). Silent before — on a real monorepo it indexed 2/1400+.
         const onDisk = await countSourceFilesOnDisk(root);
-        if (onDisk >= 20 && indexedCount < onDisk * 0.5) {
+        if (isCodeMapNearEmpty(indexedCount, onDisk)) {
           findings.push({
             severity: "warn",
             code: "code-map-near-empty",
@@ -580,6 +581,7 @@ export function registerDoctor(program: Command): void {
 
       // ── 7. Installation / integration version sanity ──────────────────────
       findings.push(...await collectInstallFindings(root, __HAIVE_VERSION__));
+      findings.push(...await collectMcpRuntimeFindings(paths, __HAIVE_VERSION__));
       findings.push(...await collectToolchainFindings(root));
 
       // ── 8. Legacy standalone haive-mcp ──────────────────────────────────────
@@ -660,6 +662,53 @@ export function registerDoctor(program: Command): void {
 
       emit(findings, opts, repairs);
     });
+}
+
+/** Reserve "near empty" for catastrophic misses, not files that legitimately expose no symbols. */
+export function isCodeMapNearEmpty(indexedCount: number, sourceFilesOnDisk: number): boolean {
+  return sourceFilesOnDisk >= 20 && indexedCount < sourceFilesOnDisk * 0.05;
+}
+
+interface McpRuntimeMarker {
+  version?: string;
+  pid?: number;
+  started_at?: string;
+}
+
+export function mcpRuntimeVersionFinding(
+  marker: McpRuntimeMarker,
+  expectedVersion: string,
+  processAlive: boolean,
+): Finding | null {
+  if (!processAlive || !marker.version || marker.version === expectedVersion) return null;
+  return {
+    severity: "warn",
+    code: "active-mcp-server-stale",
+    message:
+      `An active MCP server is still v${marker.version} while the installed CLI is v${expectedVersion}. ` +
+      "MCP clients keep server processes alive across package upgrades.",
+    fix: "Restart the IDE/agent MCP client, then confirm get_briefing.server_version matches `hivelore --version`.",
+    section: "Agent coverage",
+  };
+}
+
+async function collectMcpRuntimeFindings(
+  paths: ReturnType<typeof resolveHaivePaths>,
+  expectedVersion: string,
+): Promise<Finding[]> {
+  const markerFile = path.join(paths.runtimeDir, "mcp-server.json");
+  if (!existsSync(markerFile)) return [];
+  try {
+    const marker = JSON.parse(await readFile(markerFile, "utf8")) as McpRuntimeMarker;
+    let alive = false;
+    if (typeof marker.pid === "number") {
+      try { process.kill(marker.pid, 0); alive = true; } catch { alive = false; }
+    }
+    const finding = mcpRuntimeVersionFinding(marker, expectedVersion, alive);
+    return finding ? [finding] : [];
+  } catch {
+    return [];
+  }
 }
 
 function emit(findings: Finding[], opts: DoctorOptions, repairs: AutopilotRepair[] = []): void {
@@ -918,7 +967,7 @@ async function collectSemanticIndexFindings(
       code: "embeddings-unavailable",
       message:
         "@hivelore/embeddings is not available, so get_briefing falls back to lexical ranking and code_search cannot run.",
-      fix: "npm install -g @hivelore/cli@latest\nhaive embeddings status",
+      fix: "npm install -g @hivelore/embeddings@latest\nhivelore index status",
       section: "Index health",
     });
     return findings;
@@ -932,7 +981,7 @@ async function collectSemanticIndexFindings(
         code: "semantic-memory-index-missing",
         message:
           "Memory embeddings index is missing or empty; get_briefing will report literal_fallback instead of semantic ranking.",
-        fix: "hivelore embeddings index",
+        fix: "hivelore index memories",
         section: "Index health",
       });
     }

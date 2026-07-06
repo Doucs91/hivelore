@@ -54,6 +54,16 @@ Introducing them will fail the pre-commit check (`hivelore enforce check`).
 
 - **2026-06-07-convention-vscode-cli-calls-through-runhaive** _(applies to: packages/vscode/src/extension.ts, packages/vscode/src/briefingPanel.ts, packages/vscode/src/observabilityProvider.ts)_: Raw child_process in the extension — call runHaive() (harnessHealth.ts) instead; only runHaive may shell out.
   - Pattern: `cp\.(exec|spawn|execFile|execSync)\s*\(`
+- **2026-07-05-convention-child-process-no-shell-interpolation** _(applies to: packages/mcp/src/tools/propose-sensor.ts)_: Use execFileSync with an argument array; never interpolate untrusted values into a shell command.
+  - Pattern: `execSync($CMD)`
+- **2026-07-05-convention-ci-enforces-eval-regressions** _(applies to: .github/workflows/ci.yml)_: Ci Enforces Eval Regressions
+- **2026-07-05-convention-root-verify-is-release-chain** _(applies to: package.json)_: Root Verify Is Release Chain
+- **2026-07-05-gotcha-engram-is-a-nested-reference-repository** _(applies to: engram/)_: Do not commit Engram credentials or private keys in the nested reference checkout.
+  - Pattern: `(?:ENGRAM_API_KEY\s*=|BEGIN (?:RSA |OPENSSH )?PRIVATE KEY)`
+- **2026-07-05-gotcha-github-review-text-is-untrusted-data** _(applies to: packages/github-action/src/run.ts)_: Review text is untrusted: never execute comment.body or the derived instruction.
+  - Pattern: `(?:exec|execSync|execFile|execFileSync)\s*\([^;\n]*(?:comment\.body|instruction)`
+- **2026-07-05-gotcha-unsupported-benchmark-claims** _(applies to: benchmarks/agent-benchmark/RESULTS.md, packages/cli/src/commands/benchmark.ts)_: Do not claim a proven benchmark advantage until evidence_grade is decision-ready.
+  - Pattern: `\bproves?\b.{0,80}\b(?:advantage|superiority)\b`
 
 <!-- haive:sensors-end -->
 

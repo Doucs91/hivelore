@@ -40,6 +40,7 @@ import { ui } from "../utils/ui.js";
 interface EvalOptions {
   spec?: string;
   semanticOnly?: boolean;
+  semanticRanking?: boolean;
   top?: string;
   json?: boolean;
   out?: string;
@@ -87,6 +88,7 @@ export function registerEval(program: Command): void {
     )
     .option("--spec <file>", "JSON eval spec ({ retrieval: [...], sensors: [...] })")
     .option("--semantic-only", "self-eval probes by title alone (no anchor files) — harder retrieval", false)
+    .option("--semantic-ranking", "run the real embeddings-backed ranking lane; fails if embeddings/index are unavailable", false)
     .option("-k, --top <n>", "briefing top-k considered a hit", "8")
     .option("--json", "emit JSON", false)
     .option("--out <file>", "write a Markdown report")
@@ -176,8 +178,16 @@ export function registerEval(program: Command): void {
       if (spec.retrieval && spec.retrieval.length > 0) {
         const results: RetrievalCaseResult[] = [];
         for (const c of spec.retrieval) {
-          const surfaced = await runRetrieval(c, k, ctx);
-          results.push(scoreRetrievalCase(c.name, c.expect_ids, surfaced));
+          const retrieval = await runRetrieval(c, k, ctx, opts.semanticRanking === true);
+          if (opts.semanticRanking && retrieval.searchMode !== "semantic") {
+            ui.error(
+              "Semantic eval requested, but the embeddings package/index is unavailable. " +
+              "Install @hivelore/embeddings and run `hivelore index memories` first.",
+            );
+            process.exitCode = 1;
+            return;
+          }
+          results.push(scoreRetrievalCase(c.name, c.expect_ids, retrieval.ids));
         }
         retrievalAgg = aggregateRetrieval(results);
       }
@@ -235,7 +245,7 @@ export function registerEval(program: Command): void {
 
       const baselineFile = opts.baselineFile
         ? (path.isAbsolute(opts.baselineFile) ? opts.baselineFile : path.join(root, opts.baselineFile))
-        : path.join(root, ".ai", "eval", "baseline.json");
+        : path.join(root, ".ai", "eval", opts.semanticRanking ? "semantic-baseline.json" : "baseline.json");
 
       // ── Save baseline ─────────────────────────────────────────────────────
       if (opts.baseline) {
@@ -279,6 +289,7 @@ export function registerEval(program: Command): void {
         console.log(JSON.stringify({
           root,
           k,
+          ranking_mode: opts.semanticRanking ? "semantic" : "deterministic",
           spec_source: resolvedSpec.source,
           provenance: {
             synthesized: resolvedSpec.synthesized,
@@ -476,7 +487,8 @@ async function runRetrieval(
   c: RetrievalCase,
   k: number,
   ctx: { paths: ReturnType<typeof resolveHaivePaths> },
-): Promise<string[]> {
+  semanticRanking = false,
+): Promise<{ ids: string[]; searchMode: "semantic" | "literal_fallback" | "literal" }> {
   const out = await getBriefing(
     {
       task: c.task,
@@ -490,13 +502,13 @@ async function runRetrieval(
       include_stale: false,
       track: false,
       memory_scopes: ["team", "module"],
-      deterministic: true,
+      deterministic: !semanticRanking,
       format: "compact",
       min_semantic_score: 0,
     },
     ctx,
   );
-  return out.memories.map((m) => m.id);
+  return { ids: out.memories.map((m) => m.id), searchMode: out.search_mode };
 }
 
 async function runSensorCase(
@@ -504,7 +516,7 @@ async function runSensorCase(
   ctx: { paths: ReturnType<typeof resolveHaivePaths> },
 ): Promise<string[]> {
   const out = await antiPatternsCheck(
-    { diff: c.diff, paths: c.paths ?? [], limit: 50, semantic: false },
+    { diff: c.diff, paths: c.paths ?? [], limit: 50, semantic: false, track: false },
     ctx,
   );
   return out.warnings.filter((w) => w.reasons.includes("sensor")).map((w) => w.id);

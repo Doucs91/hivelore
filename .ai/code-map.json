@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-07-05T16:32:06.078Z",
+  "generated_at": "2026-07-06T06:42:14.564Z",
   "root": "/home/sd/Documents/Dev/New idea",
   "files": {
     "packages/cli/src/commands/agent.ts": {
@@ -38,10 +38,10 @@
         {
           "name": "registerBenchmark",
           "kind": "function",
-          "line": 32
+          "line": 35
         }
       ],
-      "loc": 252
+      "loc": 259
     },
     "packages/cli/src/commands/bridges.ts": {
       "exports": [
@@ -98,12 +98,28 @@
     "packages/cli/src/commands/doctor.ts": {
       "exports": [
         {
+          "name": "Finding",
+          "kind": "interface",
+          "line": 57
+        },
+        {
           "name": "registerDoctor",
           "kind": "function",
           "line": 75
+        },
+        {
+          "name": "isCodeMapNearEmpty",
+          "kind": "function",
+          "description": "Reserve \"near empty\" for catastrophic misses, not files that legitimately expose no symbols.",
+          "line": 668
+        },
+        {
+          "name": "mcpRuntimeVersionFinding",
+          "kind": "function",
+          "line": 678
         }
       ],
-      "loc": 1315
+      "loc": 1364
     },
     "packages/cli/src/commands/embeddings.ts": {
       "exports": [
@@ -134,17 +150,17 @@
           "line": 863
         }
       ],
-      "loc": 2991
+      "loc": 2995
     },
     "packages/cli/src/commands/eval.ts": {
       "exports": [
         {
           "name": "registerEval",
           "kind": "function",
-          "line": 80
+          "line": 81
         }
       ],
-      "loc": 606
+      "loc": 618
     },
     "packages/cli/src/commands/index-code.ts": {
       "exports": [
@@ -690,27 +706,33 @@
         {
           "name": "registerSensors",
           "kind": "function",
-          "line": 96
+          "line": 106
         }
       ],
-      "loc": 794
+      "loc": 832
     },
     "packages/cli/src/commands/session-end.ts": {
       "summary": "hivelore session end — save a structured end-of-session recap.",
       "exports": [
         {
+          "name": "manualSessionStart",
+          "kind": "function",
+          "description": "Best available boundary for a manually closed session: its latest briefing/start marker.",
+          "line": 350
+        },
+        {
           "name": "registerSessionEnd",
           "kind": "function",
-          "line": 373
+          "line": 384
         },
         {
           "name": "normalizeAnchorPath",
           "kind": "function",
           "description": "Convert an absolute or home-relative path to a project-relative path.",
-          "line": 573
+          "line": 584
         }
       ],
-      "loc": 582
+      "loc": 593
     },
     "packages/cli/src/commands/stats.ts": {
       "exports": [
@@ -3885,15 +3907,15 @@
         {
           "name": "Embedder",
           "kind": "class",
-          "line": 33
+          "line": 35
         },
         {
           "name": "cosine",
           "kind": "function",
-          "line": 70
+          "line": 72
         }
       ],
-      "loc": 87
+      "loc": 89
     },
     "packages/embeddings/src/index-cache.ts": {
       "exports": [
@@ -4124,12 +4146,27 @@
       "summary": "Hivelore GitHub Action — PR memory enrichment script.",
       "exports": [
         {
+          "name": "isTrustedReviewLearningAuthor",
+          "kind": "function",
+          "line": 359
+        },
+        {
           "name": "reviewLearningContent",
           "kind": "function",
-          "line": 358
+          "line": 363
+        },
+        {
+          "name": "persistReviewLearning",
+          "kind": "function",
+          "line": 405
+        },
+        {
+          "name": "handleRememberComment",
+          "kind": "function",
+          "line": 445
         }
       ],
-      "loc": 615
+      "loc": 624
     },
     "packages/mcp/src/ast-sensors.ts": {
       "summary": "AST sensor adapter — the structural precision engine (excellence plan, Phase 1).",
@@ -4226,20 +4263,20 @@
         {
           "name": "BootstrapRepoArgsSchema",
           "kind": "const",
-          "line": 13
+          "line": 14
         },
         {
           "name": "BootstrapRepoArgs",
           "kind": "type",
-          "line": 20
+          "line": 21
         },
         {
           "name": "bootstrapRepoPrompt",
           "kind": "function",
-          "line": 44
+          "line": 47
         }
       ],
-      "loc": 104
+      "loc": 107
     },
     "packages/mcp/src/prompts/import-docs.ts": {
       "exports": [
@@ -4277,9 +4314,15 @@
           "name": "postTaskPrompt",
           "kind": "function",
           "line": 19
+        },
+        {
+          "name": "parsePromptFilesTouched",
+          "kind": "function",
+          "description": "MCP prompt argument values are strings; accept JSON-array text or a compact CSV.",
+          "line": 122
         }
       ],
-      "loc": 119
+      "loc": 138
     },
     "packages/mcp/src/server.ts": {
       "exports": [
@@ -4287,179 +4330,184 @@
           "name": "getBriefing",
           "kind": "const",
           "description": "These are the same handlers the MCP server registers below.",
-          "line": 178
+          "line": 180
         },
         {
           "name": "codeMapTool",
           "kind": "const",
-          "line": 183
+          "line": 185
         },
         {
           "name": "getRecap",
           "kind": "const",
-          "line": 188
+          "line": 190
         },
         {
           "name": "memRelevantTo",
           "kind": "const",
-          "line": 193
+          "line": 195
         },
         {
           "name": "codeSearch",
           "kind": "const",
-          "line": 198
+          "line": 200
         },
         {
           "name": "antiPatternsCheck",
           "kind": "const",
-          "line": 203
+          "line": 205
         },
         {
           "name": "memDistill",
           "kind": "const",
-          "line": 208
+          "line": 210
         },
         {
           "name": "preCommitCheck",
           "kind": "const",
-          "line": 213
+          "line": 215
         },
         {
           "name": "readPresumedCorrectTargets",
           "kind": "const",
-          "line": 218
+          "line": 220
         },
         {
           "name": "astEngineAvailable",
           "kind": "const",
-          "line": 219
+          "line": 221
         },
         {
           "name": "astLangForPath",
           "kind": "const",
-          "line": 219
+          "line": 221
         },
         {
           "name": "runAstPattern",
           "kind": "const",
-          "line": 219
+          "line": 221
         },
         {
           "name": "runAstSensorOnContent",
           "kind": "const",
-          "line": 219
+          "line": 221
         },
         {
           "name": "memTried",
           "kind": "const",
-          "line": 227
+          "line": 229
         },
         {
           "name": "proposeSensor",
           "kind": "const",
-          "line": 228
+          "line": 230
         },
         {
           "name": "scaffoldTest",
           "kind": "const",
-          "line": 229
+          "line": 231
         },
         {
           "name": "detectTestFrameworkForPaths",
           "kind": "const",
-          "line": 229
+          "line": 231
         },
         {
           "name": "detectTestFrameworksForAnchors",
           "kind": "const",
-          "line": 229
+          "line": 231
         },
         {
           "name": "memResolveProject",
           "kind": "const",
-          "line": 236
+          "line": 238
         },
         {
           "name": "memSuggestTopic",
           "kind": "const",
-          "line": 240
+          "line": 242
         },
         {
           "name": "memTimeline",
           "kind": "const",
-          "line": 244
+          "line": 246
         },
         {
           "name": "memConflictCandidates",
           "kind": "const",
-          "line": 248
+          "line": 250
         },
         {
           "name": "SERVER_NAME",
           "kind": "const",
-          "line": 255
+          "line": 257
         },
         {
           "name": "SERVER_VERSION",
           "kind": "const",
-          "line": 256
+          "line": 258
         },
         {
           "name": "ToolProfile",
           "kind": "type",
-          "line": 257
+          "line": 259
         },
         {
           "name": "ENFORCEMENT_PROFILE_TOOLS",
           "kind": "const",
-          "line": 270
+          "line": 272
         },
         {
           "name": "MAINTENANCE_PROFILE_TOOLS",
           "kind": "const",
-          "line": 286
+          "line": 288
         },
         {
           "name": "EXPERIMENTAL_PROFILE_TOOLS",
           "kind": "const",
           "description": "a deprecated alias of maintenance so existing HAIVE_TOOL_PROFILE=experimental configs keep working.",
-          "line": 313
+          "line": 315
         },
         {
           "name": "TOOL_PROFILES",
           "kind": "const",
-          "line": 317
+          "line": 319
         },
         {
           "name": "getAllowedToolsForProfile",
           "kind": "function",
-          "line": 323
+          "line": 325
         },
         {
           "name": "createHaiveServer",
           "kind": "function",
-          "line": 344
+          "line": 346
         },
         {
           "name": "parseMcpCliArgs",
           "kind": "function",
           "description": "Parse argv for the standalone haive-mcp binary / CLI subprocess parity.",
-          "line": 1284
+          "line": 1286
         },
         {
           "name": "printHaiveMcpVersion",
           "kind": "function",
           "description": "Print MCP server version (same as haive CLI when bundled together).",
-          "line": 1307
+          "line": 1309
         },
         {
           "name": "runHaiveMcpStdio",
           "kind": "function",
           "description": "Run the MCP server over stdio.",
-          "line": 1315
+          "line": 1317
+        },
+        {
+          "name": "writeMcpRuntimeMarker",
+          "kind": "function",
+          "line": 1326
         }
       ],
-      "loc": 1322
+      "loc": 1335
     },
     "packages/mcp/src/session-tracker.ts": {
       "summary": "Auto-session tracker for autopilot mode.",
@@ -4505,48 +4553,48 @@
         {
           "name": "AntiPatternsCheckInput",
           "kind": "interface",
-          "line": 62
+          "line": 66
         },
         {
           "name": "AntiPatternsWarning",
           "kind": "interface",
-          "line": 70
+          "line": 75
         },
         {
           "name": "AntiPatternsCheckOutput",
           "kind": "interface",
-          "line": 100
+          "line": 105
         },
         {
           "name": "isHaiveOwnedPath",
           "kind": "function",
           "description": "True for files Hivelore itself owns/generates: the `.ai/` knowledge base, plus the agent-bridge, config, and workflow files it writes from that same corpus.",
-          "line": 158
+          "line": 163
         },
         {
           "name": "isTestPath",
           "kind": "function",
-          "line": 176
+          "line": 181
         },
         {
           "name": "stripTestHunks",
           "kind": "function",
           "description": "Drop test/spec hunks from a diff before anti-pattern matching.",
-          "line": 187
+          "line": 192
         },
         {
           "name": "stripAiDirHunks",
           "kind": "function",
-          "line": 209
+          "line": 214
         },
         {
           "name": "antiPatternsCheck",
           "kind": "function",
           "description": "Scan a diff (or set of paths) against documented attempt/gotcha memories.",
-          "line": 240
+          "line": 245
         }
       ],
-      "loc": 431
+      "loc": 438
     },
     "packages/mcp/src/tools/bootstrap-project-save.ts": {
       "exports": [
@@ -4743,7 +4791,7 @@
           "line": 169
         }
       ],
-      "loc": 1075
+      "loc": 1077
     },
     "packages/mcp/src/tools/get-project-context.ts": {
       "exports": [

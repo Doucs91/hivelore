@@ -68,7 +68,7 @@ function attachSemanticCommands(embeddings: Command, naming: { memoriesVerb: str
         minScore: Number(opts.minScore ?? 0),
       });
       if (!result) {
-        ui.error("No embeddings index found. Run `hivelore embeddings index` first.");
+        ui.error("No embeddings index found. Run `hivelore index memories` first.");
         process.exitCode = 1;
         return;
       }
@@ -93,7 +93,7 @@ function attachSemanticCommands(embeddings: Command, naming: { memoriesVerb: str
       const { indexStat } = await loadEmbeddings();
       const stat = await indexStat(paths);
       if (!stat.exists) {
-        ui.warn("No embeddings index. Run `hivelore embeddings index` to create one.");
+        ui.warn("No embeddings index. Run `hivelore index memories` to create one.");
         return;
       }
       console.log(`${ui.bold("entries:")}    ${stat.count}`);

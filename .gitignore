@@ -1,5 +1,7 @@
 node_modules
 dist
+!packages/github-action/dist/
+!packages/github-action/dist/run.js
 *.log
 .DS_Store
 .env
@@ -7,6 +9,7 @@ dist
 coverage
 .vitest-cache
 .tsbuildinfo
+.cache/
 
 # Hivelore local cache (embeddings index, model weights, etc.)
 .ai/.cache/

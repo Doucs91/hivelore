@@ -1,0 +1,2963 @@
+{
+  "saved_at": "2026-07-06T06:20:04.179Z",
+  "k": 8,
+  "spec_source": ".ai/eval/spec.json + synthesized anchored retrieval",
+  "report": {
+    "retrieval": {
+      "cases": [
+        {
+          "name": "2026-04-25-architecture-embedderlike-interface",
+          "expect_ids": [
+            "2026-04-25-architecture-embedderlike-interface"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-architecture-embedderlike-interface",
+            "2026-06-06-decision-search-perf-and-index-staleness",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "hits": [
+            "2026-04-25-architecture-embedderlike-interface"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-25-architecture-pure-tool-handlers",
+          "expect_ids": [
+            "2026-04-25-architecture-pure-tool-handlers"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-07-03-decision-scaffold-detection-in-mcp-monorepo-basedir",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate",
+            "2026-07-05-convention-child-process-no-shell-interpolation"
+          ],
+          "hits": [
+            "2026-04-25-architecture-pure-tool-handlers"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-25-convention-always-run-tests-before-commit",
+          "expect_ids": [
+            "2026-04-25-convention-always-run-tests-before-commit"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-07-05-convention-root-verify-is-release-chain",
+            "2026-04-25-convention-use-pnpm-workspaces",
+            "2026-06-02-gotcha-commit-message-body-skip-ci-skips-whole-push",
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-07-05-convention-ci-enforces-eval-regressions",
+            "2026-06-05-attempt-running-pnpm-r-build-and"
+          ],
+          "hits": [
+            "2026-04-25-convention-always-run-tests-before-commit"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-25-convention-use-pnpm-workspaces",
+          "expect_ids": [
+            "2026-04-25-convention-use-pnpm-workspaces"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-convention-use-pnpm-workspaces",
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-06-05-attempt-running-pnpm-r-build-and",
+            "2026-07-05-convention-root-verify-is-release-chain",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-04-28-convention-version-bump-all-packages-together",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import"
+          ],
+          "hits": [
+            "2026-04-25-convention-use-pnpm-workspaces"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-25-decision-esm-only",
+          "expect_ids": [
+            "2026-04-25-decision-esm-only"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-decision-esm-only",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-05-28-decision-codemap-tracked-files-by-default",
+            "2026-07-03-attempt-duplicating-json-on-a-commander",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-04-28-decision-benchmark-results-v027-token-reduction"
+          ],
+          "hits": [
+            "2026-04-25-decision-esm-only"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-25-gotcha-tsup-externals-required",
+          "expect_ids": [
+            "2026-04-25-gotcha-tsup-externals-required"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-gotcha-tsup-externals-required",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-06-05-attempt-running-pnpm-r-build-and"
+          ],
+          "hits": [
+            "2026-04-25-gotcha-tsup-externals-required"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-27-decision-zod-error-formatting-no-direct-import",
+          "expect_ids": [
+            "2026-04-27-decision-zod-error-formatting-no-direct-import"
+          ],
+          "surfaced_ids": [
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language",
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-27-gotcha-embeddings-load-error-double-print"
+          ],
+          "hits": [
+            "2026-04-27-decision-zod-error-formatting-no-direct-import"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-27-gotcha-embeddings-load-error-double-print",
+          "expect_ids": [
+            "2026-04-27-gotcha-embeddings-load-error-double-print"
+          ],
+          "surfaced_ids": [
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-07-03-attempt-duplicating-json-on-a-commander",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-04-27-gotcha-mcp-exports-package-json"
+          ],
+          "hits": [
+            "2026-04-27-gotcha-embeddings-load-error-double-print"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-27-gotcha-mcp-exports-package-json",
+          "expect_ids": [
+            "2026-04-27-gotcha-mcp-exports-package-json"
+          ],
+          "surfaced_ids": [
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-07-05-convention-hivelore-mcp-package-export",
+            "2026-07-05-convention-hivelore-workspace-dependencies",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-27-gotcha-embeddings-load-error-double-print"
+          ],
+          "hits": [
+            "2026-04-27-gotcha-mcp-exports-package-json"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-27-gotcha-version-define-tsup-and-vitest",
+          "expect_ids": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "surfaced_ids": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job"
+          ],
+          "hits": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-28-architecture-adding-new-mcp-tool",
+          "expect_ids": [
+            "2026-04-28-architecture-adding-new-mcp-tool"
+          ],
+          "surfaced_ids": [
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing"
+          ],
+          "hits": [
+            "2026-04-28-architecture-adding-new-mcp-tool"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-28-decision-benchmark-results-v027-token-reduction",
+          "expect_ids": [
+            "2026-04-28-decision-benchmark-results-v027-token-reduction"
+          ],
+          "surfaced_ids": [
+            "2026-04-28-decision-benchmark-results-v027-token-reduction",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-07-05-gotcha-unsupported-benchmark-claims",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "hits": [
+            "2026-04-28-decision-benchmark-results-v027-token-reduction"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+          "expect_ids": [
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing"
+          ],
+          "surfaced_ids": [
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "hits": [
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-04-28-gotcha-serializememory-undefined-values-crash",
+          "expect_ids": [
+            "2026-04-28-gotcha-serializememory-undefined-values-crash"
+          ],
+          "surfaced_ids": [
+            "2026-04-28-gotcha-serializememory-undefined-values-crash",
+            "2026-06-04-gotcha-typescript-no-non-null-assertion-on-untrusted",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-06-08-decision-semantic-gate-false-positive-reduction-sensorless-review-tes",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "hits": [
+            "2026-04-28-gotcha-serializememory-undefined-values-crash"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+          "expect_ids": [
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges"
+          ],
+          "surfaced_ids": [
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-07-05-convention-hivelore-workspace-dependencies",
+            "2026-07-05-convention-hivelore-mcp-package-export",
+            "2026-07-02-decision-hivelore-rename-compat-strategy",
+            "2026-04-28-convention-version-bump-all-packages-together",
+            "2026-04-25-convention-use-pnpm-workspaces"
+          ],
+          "hits": [
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+          "expect_ids": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "surfaced_ids": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-05-convention-briefing-breadcrumbs-are-pointers-not-copies",
+            "2026-06-06-decision-harness-quality-batch-v0270",
+            "2026-06-07-decision-first-agent-bootstrap-gate",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
+          ],
+          "hits": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-04-decision-v091-bugfixes-overview",
+          "expect_ids": [
+            "2026-05-04-decision-v091-bugfixes-overview"
+          ],
+          "surfaced_ids": [
+            "2026-05-04-decision-v091-bugfixes-overview",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-04-decision-precommit-autobrief-and-briefing-json",
+            "2026-07-02-decision-process-gates-bind-agents-not-humans",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "hits": [
+            "2026-05-04-decision-v091-bugfixes-overview"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+          "expect_ids": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "surfaced_ids": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-05-04-decision-v091-bugfixes-overview",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-04-decision-precommit-autobrief-and-briefing-json",
+            "2026-06-07-decision-first-agent-bootstrap-gate"
+          ],
+          "hits": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-28-decision-codemap-tracked-files-by-default",
+          "expect_ids": [
+            "2026-05-28-decision-codemap-tracked-files-by-default"
+          ],
+          "surfaced_ids": [
+            "2026-05-28-decision-codemap-tracked-files-by-default",
+            "2026-06-06-gotcha-coldstart-monorepo-nested-git-repos",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-08-architecture-code-map-ast-web-tree-sitter-vendored-grammars",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
+          ],
+          "hits": [
+            "2026-05-28-decision-codemap-tracked-files-by-default"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+          "expect_ids": [
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "surfaced_ids": [
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-07-05-convention-hivelore-mcp-package-export",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-convention-hivelore-workspace-dependencies",
+            "2026-06-06-gotcha-coldstart-monorepo-nested-git-repos",
+            "2026-07-02-decision-hivelore-rename-compat-strategy"
+          ],
+          "hits": [
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+          "expect_ids": [
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
+          ],
+          "surfaced_ids": [
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "hits": [
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-31-decision-git-sync-protocol-multi-agent",
+          "expect_ids": [
+            "2026-05-31-decision-git-sync-protocol-multi-agent"
+          ],
+          "surfaced_ids": [
+            "2026-05-31-decision-git-sync-protocol-multi-agent",
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-06-02-decision-tools-must-be-environment-independent",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository",
+            "2026-07-03-attempt-running-hivelore-release-tag-right"
+          ],
+          "hits": [
+            "2026-05-31-decision-git-sync-protocol-multi-agent"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-05-31-gotcha-enforcement-is-process-not-violation",
+          "expect_ids": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "surfaced_ids": [
+            "2026-06-08-decision-semantic-gate-false-positive-reduction-sensorless-review-tes",
+            "2026-07-02-decision-sensor-only-hard-block-determinism",
+            "2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate",
+            "2026-06-02-decision-ci-decision-coverage-local-marker",
+            "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390",
+            "2026-06-07-decision-first-agent-bootstrap-gate",
+            "2026-06-04-decision-precommit-autobrief-and-briefing-json"
+          ],
+          "hits": [],
+          "misses": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "precision": 0,
+          "recall": 0,
+          "best_rank": null
+        },
+        {
+          "name": "2026-06-02-architecture-cli-command-surface",
+          "expect_ids": [
+            "2026-06-02-architecture-cli-command-surface"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language",
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-07-03-attempt-duplicating-json-on-a-commander",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "hits": [
+            "2026-06-02-architecture-cli-command-surface"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-architecture-core-pure-domain-layer",
+          "expect_ids": [
+            "2026-06-02-architecture-core-pure-domain-layer"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-07-03-decision-scaffold-detection-in-mcp-monorepo-basedir",
+            "2026-07-03-decision-scaffold-generates-pending-test-never-arms",
+            "2026-04-28-gotcha-serializememory-undefined-values-crash",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
+          ],
+          "hits": [
+            "2026-06-02-architecture-core-pure-domain-layer"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-architecture-mcp-tool-contract",
+          "expect_ids": [
+            "2026-06-02-architecture-mcp-tool-contract"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language"
+          ],
+          "hits": [
+            "2026-06-02-architecture-mcp-tool-contract"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-convention-tool-ui-english-user-content-any-language",
+          "expect_ids": [
+            "2026-06-02-convention-tool-ui-english-user-content-any-language"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-convention-tool-ui-english-user-content-any-language",
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-06-07-convention-vscode-cli-calls-through-runhaive"
+          ],
+          "hits": [
+            "2026-06-02-convention-tool-ui-english-user-content-any-language"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-convention-verify-pipelines-before-closing",
+          "expect_ids": [
+            "2026-06-02-convention-verify-pipelines-before-closing"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-04-28-decision-benchmark-results-v027-token-reduction",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390"
+          ],
+          "hits": [
+            "2026-06-02-convention-verify-pipelines-before-closing"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+          "expect_ids": [
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-06-02-gotcha-commit-message-body-skip-ci-skips-whole-push",
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-07-05-convention-ci-enforces-eval-regressions",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-05-31-decision-git-sync-protocol-multi-agent",
+            "2026-07-03-attempt-running-hivelore-release-tag-right"
+          ],
+          "hits": [
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-decision-ci-decision-coverage-local-marker",
+          "expect_ids": [
+            "2026-06-02-decision-ci-decision-coverage-local-marker"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-decision-ci-decision-coverage-local-marker",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-04-decision-precommit-autobrief-and-briefing-json",
+            "2026-06-04-decision-stack-pack-dedup-by-signature-and-coverage-self-exempt",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-07-02-decision-process-gates-bind-agents-not-humans",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-07-03-decision-gate-passes-as-synthetic-ledger-row"
+          ],
+          "hits": [
+            "2026-06-02-decision-ci-decision-coverage-local-marker"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-decision-tools-must-be-environment-independent",
+          "expect_ids": [
+            "2026-06-02-decision-tools-must-be-environment-independent"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-decision-tools-must-be-environment-independent",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-06-06-gotcha-coldstart-monorepo-nested-git-repos",
+            "2026-07-05-decision-pr-loop-review-learnings-phase3",
+            "2026-07-03-decision-init-bridges-detected-clients-default",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language"
+          ],
+          "hits": [
+            "2026-06-02-decision-tools-must-be-environment-independent"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-gotcha-commit-message-body-skip-ci-skips-whole-push",
+          "expect_ids": [
+            "2026-06-02-gotcha-commit-message-body-skip-ci-skips-whole-push"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-gotcha-commit-message-body-skip-ci-skips-whole-push",
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-07-05-convention-ci-enforces-eval-regressions",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-04-28-convention-version-bump-all-packages-together"
+          ],
+          "hits": [
+            "2026-06-02-gotcha-commit-message-body-skip-ci-skips-whole-push"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-02-gotcha-sonarqube-ci-transient-connect-timeout",
+          "expect_ids": [
+            "2026-06-02-gotcha-sonarqube-ci-transient-connect-timeout"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-gotcha-sonarqube-ci-transient-connect-timeout",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-07-03-attempt-relied-on-pnpm-r-build"
+          ],
+          "hits": [
+            "2026-06-02-gotcha-sonarqube-ci-transient-connect-timeout"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-03-decision-init-generates-all-bridges-reach-onboarding",
+          "expect_ids": [
+            "2026-06-03-decision-init-generates-all-bridges-reach-onboarding"
+          ],
+          "surfaced_ids": [
+            "2026-07-03-decision-init-bridges-detected-clients-default",
+            "2026-06-02-decision-tools-must-be-environment-independent",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-06-gotcha-coldstart-monorepo-nested-git-repos",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-25-gotcha-tsup-externals-required"
+          ],
+          "hits": [],
+          "misses": [
+            "2026-06-03-decision-init-generates-all-bridges-reach-onboarding"
+          ],
+          "precision": 0,
+          "recall": 0,
+          "best_rank": null
+        },
+        {
+          "name": "2026-06-03-gotcha-antipattern-self-match-on-memory-file-edit",
+          "expect_ids": [
+            "2026-06-03-gotcha-antipattern-self-match-on-memory-file-edit"
+          ],
+          "surfaced_ids": [
+            "2026-06-03-gotcha-antipattern-self-match-on-memory-file-edit",
+            "2026-06-08-decision-semantic-gate-false-positive-reduction-sensorless-review-tes",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-07-02-decision-sensor-only-hard-block-determinism",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-06-09-gotcha-sensors-check-self-match-on-ai-files"
+          ],
+          "hits": [
+            "2026-06-03-gotcha-antipattern-self-match-on-memory-file-edit"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate",
+          "expect_ids": [
+            "2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate"
+          ],
+          "surfaced_ids": [
+            "2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-06-07-decision-first-agent-bootstrap-gate",
+            "2026-07-02-decision-process-gates-bind-agents-not-humans",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-06-09-gotcha-sensors-check-self-match-on-ai-files",
+            "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate"
+          ],
+          "hits": [
+            "2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-04-decision-precommit-autobrief-and-briefing-json",
+          "expect_ids": [
+            "2026-06-04-decision-precommit-autobrief-and-briefing-json"
+          ],
+          "surfaced_ids": [
+            "2026-06-04-decision-precommit-autobrief-and-briefing-json",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-decision-ci-decision-coverage-local-marker",
+            "2026-05-04-decision-v091-bugfixes-overview",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-06-05-convention-briefing-breadcrumbs-are-pointers-not-copies",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
+          ],
+          "hits": [
+            "2026-06-04-decision-precommit-autobrief-and-briefing-json"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-04-decision-stack-pack-dedup-by-signature-and-coverage-self-exempt",
+          "expect_ids": [
+            "2026-06-04-decision-stack-pack-dedup-by-signature-and-coverage-self-exempt"
+          ],
+          "surfaced_ids": [
+            "2026-06-04-decision-stack-pack-dedup-by-signature-and-coverage-self-exempt",
+            "2026-06-04-decision-precommit-autobrief-and-briefing-json",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-06-02-decision-ci-decision-coverage-local-marker",
+            "2026-07-02-decision-process-gates-bind-agents-not-humans"
+          ],
+          "hits": [
+            "2026-06-04-decision-stack-pack-dedup-by-signature-and-coverage-self-exempt"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate",
+          "expect_ids": [
+            "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate"
+          ],
+          "surfaced_ids": [
+            "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4"
+          ],
+          "hits": [
+            "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-04-gotcha-typescript-no-non-null-assertion-on-untrusted",
+          "expect_ids": [
+            "2026-06-04-gotcha-typescript-no-non-null-assertion-on-untrusted"
+          ],
+          "surfaced_ids": [
+            "2026-06-04-gotcha-typescript-no-non-null-assertion-on-untrusted",
+            "2026-04-28-gotcha-serializememory-undefined-values-crash",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding"
+          ],
+          "hits": [
+            "2026-06-04-gotcha-typescript-no-non-null-assertion-on-untrusted"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-05-attempt-running-pnpm-r-build-and",
+          "expect_ids": [
+            "2026-06-05-attempt-running-pnpm-r-build-and"
+          ],
+          "surfaced_ids": [
+            "2026-06-05-attempt-running-pnpm-r-build-and",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-04-28-convention-version-bump-all-packages-together",
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-04-25-convention-use-pnpm-workspaces",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-05-31-decision-git-sync-protocol-multi-agent"
+          ],
+          "hits": [
+            "2026-06-05-attempt-running-pnpm-r-build-and"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-05-convention-briefing-breadcrumbs-are-pointers-not-copies",
+          "expect_ids": [
+            "2026-06-05-convention-briefing-breadcrumbs-are-pointers-not-copies"
+          ],
+          "surfaced_ids": [
+            "2026-06-05-convention-briefing-breadcrumbs-are-pointers-not-copies",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-06-decision-harness-quality-batch-v0270",
+            "2026-06-04-decision-precommit-autobrief-and-briefing-json"
+          ],
+          "hits": [
+            "2026-06-05-convention-briefing-breadcrumbs-are-pointers-not-copies"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-06-decision-code-search-hybrid-ranking",
+          "expect_ids": [
+            "2026-06-06-decision-code-search-hybrid-ranking"
+          ],
+          "surfaced_ids": [
+            "2026-06-06-decision-code-search-hybrid-ranking",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-25-architecture-embedderlike-interface",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-06-06-decision-search-perf-and-index-staleness",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "hits": [
+            "2026-06-06-decision-code-search-hybrid-ranking"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-06-decision-harness-quality-batch-v0270",
+          "expect_ids": [
+            "2026-06-06-decision-harness-quality-batch-v0270"
+          ],
+          "surfaced_ids": [
+            "2026-06-06-decision-harness-quality-batch-v0270",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-07-gotcha-autogen-sensor-inverted-when-companion-longer-than-call"
+          ],
+          "hits": [
+            "2026-06-06-decision-harness-quality-batch-v0270"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-06-decision-search-perf-and-index-staleness",
+          "expect_ids": [
+            "2026-06-06-decision-search-perf-and-index-staleness"
+          ],
+          "surfaced_ids": [
+            "2026-06-06-decision-search-perf-and-index-staleness",
+            "2026-04-25-architecture-embedderlike-interface",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "hits": [
+            "2026-06-06-decision-search-perf-and-index-staleness"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-06-gotcha-coldstart-monorepo-nested-git-repos",
+          "expect_ids": [
+            "2026-06-06-gotcha-coldstart-monorepo-nested-git-repos"
+          ],
+          "surfaced_ids": [
+            "2026-06-06-gotcha-coldstart-monorepo-nested-git-repos",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-28-decision-codemap-tracked-files-by-default",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-07-03-decision-init-bridges-detected-clients-default",
+            "2026-06-02-decision-tools-must-be-environment-independent"
+          ],
+          "hits": [
+            "2026-06-06-gotcha-coldstart-monorepo-nested-git-repos"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-07-convention-vscode-cli-calls-through-runhaive",
+          "expect_ids": [
+            "2026-06-07-convention-vscode-cli-calls-through-runhaive"
+          ],
+          "surfaced_ids": [
+            "2026-06-07-convention-vscode-cli-calls-through-runhaive",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-07-03-attempt-relied-on-pnpm-r-build"
+          ],
+          "hits": [
+            "2026-06-07-convention-vscode-cli-calls-through-runhaive"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-07-decision-first-agent-bootstrap-gate",
+          "expect_ids": [
+            "2026-06-07-decision-first-agent-bootstrap-gate"
+          ],
+          "surfaced_ids": [
+            "2026-06-07-decision-first-agent-bootstrap-gate",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-04-25-architecture-pure-tool-handlers"
+          ],
+          "hits": [
+            "2026-06-07-decision-first-agent-bootstrap-gate"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-07-gotcha-autogen-sensor-inverted-when-companion-longer-than-call",
+          "expect_ids": [
+            "2026-06-07-gotcha-autogen-sensor-inverted-when-companion-longer-than-call"
+          ],
+          "surfaced_ids": [
+            "2026-06-07-gotcha-autogen-sensor-inverted-when-companion-longer-than-call",
+            "2026-06-08-decision-sensors-seed-not-autogen-propose-sensor-sole-writer",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-06-decision-harness-quality-batch-v0270",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-04-28-decision-benchmark-results-v027-token-reduction"
+          ],
+          "hits": [
+            "2026-06-07-gotcha-autogen-sensor-inverted-when-companion-longer-than-call"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-08-architecture-code-map-ast-web-tree-sitter-vendored-grammars",
+          "expect_ids": [
+            "2026-06-08-architecture-code-map-ast-web-tree-sitter-vendored-grammars"
+          ],
+          "surfaced_ids": [
+            "2026-06-08-architecture-code-map-ast-web-tree-sitter-vendored-grammars",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-28-decision-codemap-tracked-files-by-default",
+            "2026-06-06-gotcha-coldstart-monorepo-nested-git-repos",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-07-03-attempt-running-hivelore-release-tag-right"
+          ],
+          "hits": [
+            "2026-06-08-architecture-code-map-ast-web-tree-sitter-vendored-grammars"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-08-decision-semantic-gate-false-positive-reduction-sensorless-review-tes",
+          "expect_ids": [
+            "2026-06-08-decision-semantic-gate-false-positive-reduction-sensorless-review-tes"
+          ],
+          "surfaced_ids": [
+            "2026-06-08-decision-semantic-gate-false-positive-reduction-sensorless-review-tes",
+            "2026-07-02-decision-sensor-only-hard-block-determinism",
+            "2026-06-03-gotcha-antipattern-self-match-on-memory-file-edit",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un"
+          ],
+          "hits": [
+            "2026-06-08-decision-semantic-gate-false-positive-reduction-sensorless-review-tes"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-08-decision-sensors-seed-not-autogen-propose-sensor-sole-writer",
+          "expect_ids": [
+            "2026-06-08-decision-sensors-seed-not-autogen-propose-sensor-sole-writer"
+          ],
+          "surfaced_ids": [
+            "2026-06-08-decision-sensors-seed-not-autogen-propose-sensor-sole-writer",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-07-gotcha-autogen-sensor-inverted-when-companion-longer-than-call",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-06-decision-harness-quality-batch-v0270",
+            "2026-06-02-architecture-mcp-tool-contract"
+          ],
+          "hits": [
+            "2026-06-08-decision-sensors-seed-not-autogen-propose-sensor-sole-writer"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-08-decision-validated-by-provenance-human-agent-auto",
+          "expect_ids": [
+            "2026-06-08-decision-validated-by-provenance-human-agent-auto"
+          ],
+          "surfaced_ids": [
+            "2026-06-08-decision-validated-by-provenance-human-agent-auto",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-07-03-decision-sensor-incident-provenance-on-frontmatter",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-07-03-decision-sensor-promoted-at-quarantine-reset",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1"
+          ],
+          "hits": [
+            "2026-06-08-decision-validated-by-provenance-human-agent-auto"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-06-09-gotcha-sensors-check-self-match-on-ai-files",
+          "expect_ids": [
+            "2026-06-09-gotcha-sensors-check-self-match-on-ai-files"
+          ],
+          "surfaced_ids": [
+            "2026-06-09-gotcha-sensors-check-self-match-on-ai-files",
+            "2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job"
+          ],
+          "hits": [
+            "2026-06-09-gotcha-sensors-check-self-match-on-ai-files"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-02-decision-command-sensors-behaviour-bridge",
+          "expect_ids": [
+            "2026-07-02-decision-command-sensors-behaviour-bridge"
+          ],
+          "surfaced_ids": [
+            "2026-07-02-decision-command-sensors-behaviour-bridge",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-07-04-gotcha-pending-oracle-fake-protection",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390"
+          ],
+          "hits": [
+            "2026-07-02-decision-command-sensors-behaviour-bridge"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-02-decision-hivelore-rename-compat-strategy",
+          "expect_ids": [
+            "2026-07-02-decision-hivelore-rename-compat-strategy"
+          ],
+          "surfaced_ids": [
+            "2026-07-02-decision-hivelore-rename-compat-strategy",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-02-decision-command-sensors-behaviour-bridge",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-06-09-gotcha-sensors-check-self-match-on-ai-files"
+          ],
+          "hits": [
+            "2026-07-02-decision-hivelore-rename-compat-strategy"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-02-decision-process-gates-bind-agents-not-humans",
+          "expect_ids": [
+            "2026-07-02-decision-process-gates-bind-agents-not-humans"
+          ],
+          "surfaced_ids": [
+            "2026-07-02-decision-process-gates-bind-agents-not-humans",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-04-decision-v091-bugfixes-overview"
+          ],
+          "hits": [
+            "2026-07-02-decision-process-gates-bind-agents-not-humans"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-02-decision-review-warnings-aggregated-and-head-baseline",
+          "expect_ids": [
+            "2026-07-02-decision-review-warnings-aggregated-and-head-baseline"
+          ],
+          "surfaced_ids": [
+            "2026-07-02-decision-review-warnings-aggregated-and-head-baseline",
+            "2026-07-02-decision-command-sensors-behaviour-bridge",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate"
+          ],
+          "hits": [
+            "2026-07-02-decision-review-warnings-aggregated-and-head-baseline"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-02-decision-sensor-only-hard-block-determinism",
+          "expect_ids": [
+            "2026-07-02-decision-sensor-only-hard-block-determinism"
+          ],
+          "surfaced_ids": [
+            "2026-07-02-decision-sensor-only-hard-block-determinism",
+            "2026-06-08-decision-semantic-gate-false-positive-reduction-sensorless-review-tes",
+            "2026-06-03-gotcha-antipattern-self-match-on-memory-file-edit",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
+          ],
+          "hits": [
+            "2026-07-02-decision-sensor-only-hard-block-determinism"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-02-decision-surface-reduction-one-verb-per-job",
+          "expect_ids": [
+            "2026-07-02-decision-surface-reduction-one-verb-per-job"
+          ],
+          "surfaced_ids": [
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import"
+          ],
+          "hits": [
+            "2026-07-02-decision-surface-reduction-one-verb-per-job"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-03-attempt-duplicating-json-on-a-commander",
+          "expect_ids": [
+            "2026-07-03-attempt-duplicating-json-on-a-commander"
+          ],
+          "surfaced_ids": [
+            "2026-07-03-attempt-duplicating-json-on-a-commander",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "hits": [
+            "2026-07-03-attempt-duplicating-json-on-a-commander"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-03-attempt-relied-on-pnpm-r-build",
+          "expect_ids": [
+            "2026-07-03-attempt-relied-on-pnpm-r-build"
+          ],
+          "surfaced_ids": [
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-06-05-attempt-running-pnpm-r-build-and",
+            "2026-06-02-gotcha-commit-message-body-skip-ci-skips-whole-push",
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-07-05-convention-ci-enforces-eval-regressions"
+          ],
+          "hits": [
+            "2026-07-03-attempt-relied-on-pnpm-r-build"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-03-attempt-running-hivelore-release-tag-right",
+          "expect_ids": [
+            "2026-07-03-attempt-running-hivelore-release-tag-right"
+          ],
+          "surfaced_ids": [
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-decision-ci-decision-coverage-local-marker",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-07-02-decision-hivelore-rename-compat-strategy",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-07-02-decision-command-sensors-behaviour-bridge"
+          ],
+          "hits": [
+            "2026-07-03-attempt-running-hivelore-release-tag-right"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+          "expect_ids": [
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding"
+          ],
+          "surfaced_ids": [
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
+          ],
+          "hits": [
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-03-decision-command-sensor-flap-identical-content",
+          "expect_ids": [
+            "2026-07-03-decision-command-sensor-flap-identical-content"
+          ],
+          "surfaced_ids": [
+            "2026-07-03-decision-command-sensor-flap-identical-content",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-07-02-decision-command-sensors-behaviour-bridge",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390",
+            "2026-06-04-gotcha-prevention-not-recorded-in-precommit-gate"
+          ],
+          "hits": [
+            "2026-07-03-decision-command-sensor-flap-identical-content"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-03-decision-gate-passes-as-synthetic-ledger-row",
+          "expect_ids": [
+            "2026-07-03-decision-gate-passes-as-synthetic-ledger-row"
+          ],
+          "surfaced_ids": [
+            "2026-07-03-decision-gate-passes-as-synthetic-ledger-row",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-07-03-decision-sensor-promoted-at-quarantine-reset",
+            "2026-07-03-decision-sensor-ledger-ndjson-rolling-window",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-02-convention-verify-pipelines-before-closing"
+          ],
+          "hits": [
+            "2026-07-03-decision-gate-passes-as-synthetic-ledger-row"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-03-decision-init-bridges-detected-clients-default",
+          "expect_ids": [
+            "2026-07-03-decision-init-bridges-detected-clients-default"
+          ],
+          "surfaced_ids": [
+            "2026-07-03-decision-init-bridges-detected-clients-default",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-decision-tools-must-be-environment-independent",
+            "2026-06-06-gotcha-coldstart-monorepo-nested-git-repos",
+            "2026-06-02-convention-verify-pipelines-before-closing",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
+          ],
+          "hits": [
+            "2026-07-03-decision-init-bridges-detected-clients-default"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-03-decision-scaffold-detection-in-mcp-monorepo-basedir",
+          "expect_ids": [
+            "2026-07-03-decision-scaffold-detection-in-mcp-monorepo-basedir"
+          ],
+          "surfaced_ids": [
+            "2026-07-03-decision-scaffold-detection-in-mcp-monorepo-basedir",
+            "2026-07-03-decision-scaffold-generates-pending-test-never-arms",
+            "2026-07-03-decision-sensor-promoted-at-quarantine-reset",
+            "2026-05-29-skill-save-decision-or-gotcha-mid-task",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-architecture-mcp-tool-contract"
+          ],
+          "hits": [
+            "2026-07-03-decision-scaffold-detection-in-mcp-monorepo-basedir"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-03-decision-scaffold-generates-pending-test-never-arms",
+          "expect_ids": [
+            "2026-07-03-decision-scaffold-generates-pending-test-never-arms"
+          ],
+          "surfaced_ids": [
+            "2026-07-03-decision-scaffold-detection-in-mcp-monorepo-basedir",
+            "2026-07-03-decision-scaffold-generates-pending-test-never-arms",
+            "2026-07-03-decision-sensor-promoted-at-quarantine-reset",
+            "2026-05-29-skill-save-decision-or-gotcha-mid-task",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-29-skill-close-session-properly"
+          ],
+          "hits": [
+            "2026-07-03-decision-scaffold-generates-pending-test-never-arms"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 2
+        },
+        {
+          "name": "2026-07-03-decision-sensor-incident-provenance-on-frontmatter",
+          "expect_ids": [
+            "2026-07-03-decision-sensor-incident-provenance-on-frontmatter"
+          ],
+          "surfaced_ids": [
+            "2026-06-08-decision-validated-by-provenance-human-agent-auto",
+            "2026-07-03-decision-sensor-incident-provenance-on-frontmatter",
+            "2026-06-06-decision-harness-quality-batch-v0270",
+            "2026-07-03-decision-sensor-promoted-at-quarantine-reset",
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4",
+            "2026-05-29-skill-save-decision-or-gotcha-mid-task",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390"
+          ],
+          "hits": [
+            "2026-07-03-decision-sensor-incident-provenance-on-frontmatter"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 2
+        },
+        {
+          "name": "2026-07-03-decision-sensor-ledger-ndjson-rolling-window",
+          "expect_ids": [
+            "2026-07-03-decision-sensor-ledger-ndjson-rolling-window"
+          ],
+          "surfaced_ids": [
+            "2026-07-03-decision-sensor-ledger-ndjson-rolling-window",
+            "2026-07-03-decision-sensor-promoted-at-quarantine-reset",
+            "2026-07-03-decision-command-sensor-flap-identical-content",
+            "2026-07-03-decision-gate-passes-as-synthetic-ledger-row",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding"
+          ],
+          "hits": [
+            "2026-07-03-decision-sensor-ledger-ndjson-rolling-window"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-03-decision-sensor-promoted-at-quarantine-reset",
+          "expect_ids": [
+            "2026-07-03-decision-sensor-promoted-at-quarantine-reset"
+          ],
+          "surfaced_ids": [
+            "2026-07-03-decision-sensor-promoted-at-quarantine-reset",
+            "2026-07-03-decision-sensor-incident-provenance-on-frontmatter",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-07-03-decision-command-sensor-flap-identical-content",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-06-03-gotcha-regex-sensors-orphaned-from-precommit-gate",
+            "2026-07-03-decision-scaffold-generates-pending-test-never-arms"
+          ],
+          "hits": [
+            "2026-07-03-decision-sensor-promoted-at-quarantine-reset"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+          "expect_ids": [
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1"
+          ],
+          "surfaced_ids": [
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-07-02-decision-review-warnings-aggregated-and-head-baseline",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-architecture-core-pure-domain-layer"
+          ],
+          "hits": [
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-04-decision-gate-surface-integrity-batch-v0390",
+          "expect_ids": [
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390"
+          ],
+          "surfaced_ids": [
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390",
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-07-02-decision-review-warnings-aggregated-and-head-baseline",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1"
+          ],
+          "hits": [
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-04-decision-prove-red-and-env-scrub-phase4",
+          "expect_ids": [
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4"
+          ],
+          "surfaced_ids": [
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-07-02-decision-review-warnings-aggregated-and-head-baseline"
+          ],
+          "hits": [
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-04-decision-stack-pack-rescue-strong-task-evidence",
+          "expect_ids": [
+            "2026-07-04-decision-stack-pack-rescue-strong-task-evidence"
+          ],
+          "surfaced_ids": [
+            "2026-07-04-decision-stack-pack-rescue-strong-task-evidence",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-04-28-decision-benchmark-results-v027-token-reduction",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads",
+            "2026-04-28-gotcha-serializememory-undefined-values-crash"
+          ],
+          "hits": [
+            "2026-07-04-decision-stack-pack-rescue-strong-task-evidence"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-04-gotcha-pending-oracle-fake-protection",
+          "expect_ids": [
+            "2026-07-04-gotcha-pending-oracle-fake-protection"
+          ],
+          "surfaced_ids": [
+            "2026-07-04-gotcha-pending-oracle-fake-protection",
+            "2026-07-03-decision-scaffold-generates-pending-test-never-arms",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-07-02-decision-command-sensors-behaviour-bridge",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390",
+            "2026-06-02-architecture-core-pure-domain-layer"
+          ],
+          "hits": [
+            "2026-07-04-gotcha-pending-oracle-fake-protection"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+          "expect_ids": [
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-07-02-decision-review-warnings-aggregated-and-head-baseline"
+          ],
+          "hits": [
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-convention-child-process-no-shell-interpolation",
+          "expect_ids": [
+            "2026-07-05-convention-child-process-no-shell-interpolation"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-convention-child-process-no-shell-interpolation",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4",
+            "2026-07-02-decision-command-sensors-behaviour-bridge",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-07-04-gotcha-pending-oracle-fake-protection",
+            "2026-07-02-decision-review-warnings-aggregated-and-head-baseline"
+          ],
+          "hits": [
+            "2026-07-05-convention-child-process-no-shell-interpolation"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-convention-ci-enforces-eval-regressions",
+          "expect_ids": [
+            "2026-07-05-convention-ci-enforces-eval-regressions"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-convention-ci-enforces-eval-regressions",
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-06-02-gotcha-commit-message-body-skip-ci-skips-whole-push",
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
+          ],
+          "hits": [
+            "2026-07-05-convention-ci-enforces-eval-regressions"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-convention-hivelore-mcp-package-export",
+          "expect_ids": [
+            "2026-07-05-convention-hivelore-mcp-package-export"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-convention-hivelore-mcp-package-export",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-07-05-convention-hivelore-workspace-dependencies",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-07-03-attempt-duplicating-json-on-a-commander"
+          ],
+          "hits": [
+            "2026-07-05-convention-hivelore-mcp-package-export"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-convention-hivelore-workspace-dependencies",
+          "expect_ids": [
+            "2026-07-05-convention-hivelore-workspace-dependencies"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-convention-hivelore-workspace-dependencies",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-07-05-convention-hivelore-mcp-package-export",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-04-28-attempt-installing-hiveaicore-via-npm-install",
+            "2026-07-02-decision-hivelore-rename-compat-strategy",
+            "2026-07-03-attempt-running-hivelore-release-tag-right"
+          ],
+          "hits": [
+            "2026-07-05-convention-hivelore-workspace-dependencies"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-convention-root-verify-is-release-chain",
+          "expect_ids": [
+            "2026-07-05-convention-root-verify-is-release-chain"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-convention-root-verify-is-release-chain",
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-04-25-convention-use-pnpm-workspaces",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-06-05-attempt-running-pnpm-r-build-and"
+          ],
+          "hits": [
+            "2026-07-05-convention-root-verify-is-release-chain"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-decision-benchmark-claims-require-decision-ready-evidence",
+          "expect_ids": [
+            "2026-07-05-decision-benchmark-claims-require-decision-ready-evidence"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims",
+            "2026-05-29-skill-save-decision-or-gotcha-mid-task",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-29-skill-close-session-properly",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-04-25-decision-esm-only",
+            "2026-06-02-decision-ci-decision-coverage-local-marker",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "hits": [],
+          "misses": [
+            "2026-07-05-decision-benchmark-claims-require-decision-ready-evidence"
+          ],
+          "precision": 0,
+          "recall": 0,
+          "best_rank": null
+        },
+        {
+          "name": "2026-07-05-decision-eval-golden-set-tier-contract-phase5",
+          "expect_ids": [
+            "2026-07-05-decision-eval-golden-set-tier-contract-phase5"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-decision-eval-golden-set-tier-contract-phase5",
+            "2026-07-05-decision-passive-capture-distillation-phase2",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-06-decision-harness-quality-batch-v0270",
+            "2026-07-03-decision-command-sensor-flap-identical-content",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-07-05-decision-pr-loop-review-learnings-phase3"
+          ],
+          "hits": [
+            "2026-07-05-decision-eval-golden-set-tier-contract-phase5"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-decision-passive-capture-distillation-phase2",
+          "expect_ids": [
+            "2026-07-05-decision-passive-capture-distillation-phase2"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-decision-passive-capture-distillation-phase2",
+            "2026-07-05-decision-eval-golden-set-tier-contract-phase5",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-07-03-decision-command-sensor-flap-identical-content",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-07-05-decision-pr-loop-review-learnings-phase3",
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4"
+          ],
+          "hits": [
+            "2026-07-05-decision-passive-capture-distillation-phase2"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-decision-pr-loop-review-learnings-phase3",
+          "expect_ids": [
+            "2026-07-05-decision-pr-loop-review-learnings-phase3"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-decision-pr-loop-review-learnings-phase3",
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-02-decision-tools-must-be-environment-independent",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-07-05-decision-eval-golden-set-tier-contract-phase5",
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4"
+          ],
+          "hits": [
+            "2026-07-05-decision-pr-loop-review-learnings-phase3"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-gotcha-engram-is-a-nested-reference-repository",
+          "expect_ids": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository",
+            "2026-05-29-skill-save-decision-or-gotcha-mid-task",
+            "2026-05-29-skill-capture-failed-approach-immediately",
+            "2026-05-29-skill-close-session-properly",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-25-gotcha-tsup-externals-required",
+            "2026-04-27-gotcha-embeddings-load-error-double-print"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-gotcha-github-review-text-is-untrusted-data",
+          "expect_ids": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data",
+            "2026-05-29-skill-save-decision-or-gotcha-mid-task",
+            "2026-05-29-skill-capture-failed-approach-immediately",
+            "2026-05-29-skill-close-session-properly",
+            "2026-07-05-decision-pr-loop-review-learnings-phase3",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-25-gotcha-tsup-externals-required"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "2026-07-05-gotcha-unsupported-benchmark-claims",
+          "expect_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims",
+            "2026-05-29-skill-save-decision-or-gotcha-mid-task",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-05-29-skill-capture-failed-approach-immediately",
+            "2026-05-29-skill-close-session-properly",
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "module format (ESM vs CommonJS)",
+          "expect_ids": [
+            "2026-04-25-decision-esm-only"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-decision-esm-only",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-08-architecture-code-map-ast-web-tree-sitter-vendored-grammars",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-05-29-skill-capture-failed-approach-immediately",
+            "2026-07-03-attempt-running-hivelore-release-tag-right"
+          ],
+          "hits": [
+            "2026-04-25-decision-esm-only"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "multi-agent release coordination",
+          "expect_ids": [
+            "2026-05-31-decision-git-sync-protocol-multi-agent"
+          ],
+          "surfaced_ids": [
+            "2026-05-31-decision-git-sync-protocol-multi-agent",
+            "2026-04-28-convention-version-bump-all-packages-together",
+            "2026-06-05-attempt-running-pnpm-r-build-and",
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
+          ],
+          "hits": [
+            "2026-05-31-decision-git-sync-protocol-multi-agent"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "bundle size / externals",
+          "expect_ids": [
+            "2026-04-25-gotcha-tsup-externals-required"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-gotcha-tsup-externals-required",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-06-05-attempt-running-pnpm-r-build-and",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-02-decision-tools-must-be-environment-independent"
+          ],
+          "hits": [
+            "2026-04-25-gotcha-tsup-externals-required"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "register a new MCP tool",
+          "expect_ids": [
+            "2026-04-28-architecture-adding-new-mcp-tool"
+          ],
+          "surfaced_ids": [
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-04-27-gotcha-mcp-exports-package-json"
+          ],
+          "hits": [
+            "2026-04-28-architecture-adding-new-mcp-tool"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "serialize crash on undefined frontmatter",
+          "expect_ids": [
+            "2026-04-28-gotcha-serializememory-undefined-values-crash"
+          ],
+          "surfaced_ids": [
+            "2026-04-28-gotcha-serializememory-undefined-values-crash",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-07-03-decision-scaffold-generates-pending-test-never-arms",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390"
+          ],
+          "hits": [
+            "2026-04-28-gotcha-serializememory-undefined-values-crash"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "embeddings packaging",
+          "expect_ids": [
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "surfaced_ids": [
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
+            "2026-07-05-convention-hivelore-workspace-dependencies",
+            "2026-07-02-decision-hivelore-rename-compat-strategy",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
+          ],
+          "hits": [
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "tool environment independence",
+          "expect_ids": [
+            "2026-06-02-decision-tools-must-be-environment-independent"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-decision-tools-must-be-environment-independent",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing"
+          ],
+          "hits": [
+            "2026-06-02-decision-tools-must-be-environment-independent"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "deterministic embeddings in tests",
+          "expect_ids": [
+            "2026-04-25-architecture-embedderlike-interface"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-architecture-embedderlike-interface",
+            "2026-06-06-decision-search-perf-and-index-staleness",
+            "2026-06-06-decision-code-search-hybrid-ranking",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-25-gotcha-tsup-externals-required"
+          ],
+          "hits": [
+            "2026-04-25-architecture-embedderlike-interface"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "core layer purity",
+          "expect_ids": [
+            "2026-06-02-architecture-core-pure-domain-layer"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-07-04-decision-stack-pack-rescue-strong-task-evidence",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-05-28-decision-codemap-tracked-files-by-default",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "hits": [
+            "2026-06-02-architecture-core-pure-domain-layer"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "code-map scope (tracked vs untracked)",
+          "expect_ids": [
+            "2026-05-28-decision-codemap-tracked-files-by-default"
+          ],
+          "surfaced_ids": [
+            "2026-05-28-decision-codemap-tracked-files-by-default",
+            "2026-06-06-gotcha-coldstart-monorepo-nested-git-repos",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-08-architecture-code-map-ast-web-tree-sitter-vendored-grammars",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-02-architecture-cli-command-surface"
+          ],
+          "hits": [
+            "2026-05-28-decision-codemap-tracked-files-by-default"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "secure child-process git invocation",
+          "expect_ids": [
+            "2026-07-05-convention-child-process-no-shell-interpolation"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-convention-child-process-no-shell-interpolation",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-07-02-decision-command-sensors-behaviour-bridge",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-07-04-gotcha-pending-oracle-fake-protection",
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4"
+          ],
+          "hits": [
+            "2026-07-05-convention-child-process-no-shell-interpolation"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "CI harness regression contract",
+          "expect_ids": [
+            "2026-07-05-convention-ci-enforces-eval-regressions"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-convention-ci-enforces-eval-regressions",
+            "2026-06-02-gotcha-commit-message-body-skip-ci-skips-whole-push",
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-06-decision-harness-quality-batch-v0270"
+          ],
+          "hits": [
+            "2026-07-05-convention-ci-enforces-eval-regressions"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "release verification chain",
+          "expect_ids": [
+            "2026-07-05-convention-root-verify-is-release-chain"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-07-05-convention-root-verify-is-release-chain",
+            "2026-04-25-convention-use-pnpm-workspaces",
+            "2026-06-05-attempt-running-pnpm-r-build-and",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-07-03-attempt-relied-on-pnpm-r-build"
+          ],
+          "hits": [
+            "2026-07-05-convention-root-verify-is-release-chain"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 2
+        }
+      ],
+      "mean_precision": 0.121,
+      "mean_recall": 0.971,
+      "mrr": 0.956
+    },
+    "sensors": {
+      "cases": [
+        {
+          "name": "mcp package.json export guard",
+          "expect_fire_ids": [
+            "2026-07-05-convention-hivelore-mcp-package-export"
+          ],
+          "fired_ids": [
+            "2026-07-05-convention-hivelore-mcp-package-export"
+          ],
+          "hits": [
+            "2026-07-05-convention-hivelore-mcp-package-export"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "hardcoded version guard",
+          "expect_fire_ids": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "fired_ids": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "hits": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "workspace dependency caret guard",
+          "expect_fire_ids": [
+            "2026-07-05-convention-hivelore-workspace-dependencies"
+          ],
+          "fired_ids": [
+            "2026-07-05-convention-hivelore-workspace-dependencies"
+          ],
+          "hits": [
+            "2026-07-05-convention-hivelore-workspace-dependencies"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "semantic hit byId lookup guard",
+          "expect_fire_ids": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "fired_ids": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "hits": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "auto promote config guard",
+          "expect_fire_ids": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "fired_ids": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "hits": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "enforcement off guard",
+          "expect_fire_ids": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "fired_ids": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "hits": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "unsupported benchmark superiority claim",
+          "expect_fire_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "fired_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "Engram secret leakage guard",
+          "expect_fire_ids": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "fired_ids": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "GitHub review text execution guard",
+          "expect_fire_ids": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "fired_ids": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "misses": [],
+          "recall": 1
+        }
+      ],
+      "catch_rate": 1
+    },
+    "score": 98
+  },
+  "authored_report": {
+    "retrieval": {
+      "cases": [
+        {
+          "name": "module format (ESM vs CommonJS)",
+          "expect_ids": [
+            "2026-04-25-decision-esm-only"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-decision-esm-only",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-08-architecture-code-map-ast-web-tree-sitter-vendored-grammars",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-05-29-skill-capture-failed-approach-immediately",
+            "2026-07-03-attempt-running-hivelore-release-tag-right"
+          ],
+          "hits": [
+            "2026-04-25-decision-esm-only"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "multi-agent release coordination",
+          "expect_ids": [
+            "2026-05-31-decision-git-sync-protocol-multi-agent"
+          ],
+          "surfaced_ids": [
+            "2026-05-31-decision-git-sync-protocol-multi-agent",
+            "2026-04-28-convention-version-bump-all-packages-together",
+            "2026-06-05-attempt-running-pnpm-r-build-and",
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
+          ],
+          "hits": [
+            "2026-05-31-decision-git-sync-protocol-multi-agent"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "bundle size / externals",
+          "expect_ids": [
+            "2026-04-25-gotcha-tsup-externals-required"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-gotcha-tsup-externals-required",
+            "2026-04-27-decision-zod-error-formatting-no-direct-import",
+            "2026-04-27-gotcha-embeddings-load-error-double-print",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-06-05-attempt-running-pnpm-r-build-and",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-02-decision-tools-must-be-environment-independent"
+          ],
+          "hits": [
+            "2026-04-25-gotcha-tsup-externals-required"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "register a new MCP tool",
+          "expect_ids": [
+            "2026-04-28-architecture-adding-new-mcp-tool"
+          ],
+          "surfaced_ids": [
+            "2026-04-28-architecture-adding-new-mcp-tool",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-07-02-decision-surface-reduction-one-verb-per-job",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-04-27-gotcha-mcp-exports-package-json"
+          ],
+          "hits": [
+            "2026-04-28-architecture-adding-new-mcp-tool"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "serialize crash on undefined frontmatter",
+          "expect_ids": [
+            "2026-04-28-gotcha-serializememory-undefined-values-crash"
+          ],
+          "surfaced_ids": [
+            "2026-04-28-gotcha-serializememory-undefined-values-crash",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-04-27-gotcha-mcp-exports-package-json",
+            "2026-07-03-decision-scaffold-generates-pending-test-never-arms",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-07-04-decision-gate-surface-integrity-batch-v0390"
+          ],
+          "hits": [
+            "2026-04-28-gotcha-serializememory-undefined-values-crash"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "embeddings packaging",
+          "expect_ids": [
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "surfaced_ids": [
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-05-02-attempt-crosspackage-deps-with-xyz-ranges",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
+            "2026-07-05-convention-hivelore-workspace-dependencies",
+            "2026-07-02-decision-hivelore-rename-compat-strategy",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries"
+          ],
+          "hits": [
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "tool environment independence",
+          "expect_ids": [
+            "2026-06-02-decision-tools-must-be-environment-independent"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-decision-tools-must-be-environment-independent",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-02-architecture-cli-command-surface",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-06-02-convention-tool-ui-english-user-content-any-language",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing"
+          ],
+          "hits": [
+            "2026-06-02-decision-tools-must-be-environment-independent"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "deterministic embeddings in tests",
+          "expect_ids": [
+            "2026-04-25-architecture-embedderlike-interface"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-architecture-embedderlike-interface",
+            "2026-06-06-decision-search-perf-and-index-staleness",
+            "2026-06-06-decision-code-search-hybrid-ranking",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid",
+            "2026-04-25-gotcha-tsup-externals-required"
+          ],
+          "hits": [
+            "2026-04-25-architecture-embedderlike-interface"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "core layer purity",
+          "expect_ids": [
+            "2026-06-02-architecture-core-pure-domain-layer"
+          ],
+          "surfaced_ids": [
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-07-04-decision-stack-pack-rescue-strong-task-evidence",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-05-28-decision-codemap-tracked-files-by-default",
+            "2026-04-28-attempt-using-literalmatchesalltokens-for-multiword-queries",
+            "2026-04-28-gotcha-mcp-tool-descriptions-llm-facing",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-05-28-decision-ship-embeddings-with-cli-mcp"
+          ],
+          "hits": [
+            "2026-06-02-architecture-core-pure-domain-layer"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "code-map scope (tracked vs untracked)",
+          "expect_ids": [
+            "2026-05-28-decision-codemap-tracked-files-by-default"
+          ],
+          "surfaced_ids": [
+            "2026-05-28-decision-codemap-tracked-files-by-default",
+            "2026-06-06-gotcha-coldstart-monorepo-nested-git-repos",
+            "2026-06-02-architecture-core-pure-domain-layer",
+            "2026-06-08-architecture-code-map-ast-web-tree-sitter-vendored-grammars",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-02-architecture-cli-command-surface"
+          ],
+          "hits": [
+            "2026-05-28-decision-codemap-tracked-files-by-default"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "secure child-process git invocation",
+          "expect_ids": [
+            "2026-07-05-convention-child-process-no-shell-interpolation"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-convention-child-process-no-shell-interpolation",
+            "2026-04-28-attempt-npm-install-g-packagescli-packagesmcp",
+            "2026-04-25-architecture-pure-tool-handlers",
+            "2026-07-04-decision-ast-sensors-reuse-astgrep-phase1",
+            "2026-07-02-decision-command-sensors-behaviour-bridge",
+            "2026-06-02-architecture-mcp-tool-contract",
+            "2026-07-04-gotcha-pending-oracle-fake-protection",
+            "2026-07-04-decision-prove-red-and-env-scrub-phase4"
+          ],
+          "hits": [
+            "2026-07-05-convention-child-process-no-shell-interpolation"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "CI harness regression contract",
+          "expect_ids": [
+            "2026-07-05-convention-ci-enforces-eval-regressions"
+          ],
+          "surfaced_ids": [
+            "2026-07-05-convention-ci-enforces-eval-regressions",
+            "2026-06-02-gotcha-commit-message-body-skip-ci-skips-whole-push",
+            "2026-07-03-attempt-relied-on-pnpm-r-build",
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-06-02-decision-atomic-release-commit-and-skip-ci-tip",
+            "2026-07-05-attempt-ajouter-un-nouveau-sensor-discriminant",
+            "2026-05-29-attempt-asserting-warninglevel-info-pour-un",
+            "2026-06-06-decision-harness-quality-batch-v0270"
+          ],
+          "hits": [
+            "2026-07-05-convention-ci-enforces-eval-regressions"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 1
+        },
+        {
+          "name": "release verification chain",
+          "expect_ids": [
+            "2026-07-05-convention-root-verify-is-release-chain"
+          ],
+          "surfaced_ids": [
+            "2026-04-25-convention-always-run-tests-before-commit",
+            "2026-07-05-convention-root-verify-is-release-chain",
+            "2026-04-25-convention-use-pnpm-workspaces",
+            "2026-06-05-attempt-running-pnpm-r-build-and",
+            "2026-07-03-attempt-typechecking-cli-immediately-after-adding",
+            "2026-04-27-gotcha-version-define-tsup-and-vitest",
+            "2026-07-03-attempt-running-hivelore-release-tag-right",
+            "2026-07-03-attempt-relied-on-pnpm-r-build"
+          ],
+          "hits": [
+            "2026-07-05-convention-root-verify-is-release-chain"
+          ],
+          "misses": [],
+          "precision": 0.125,
+          "recall": 1,
+          "best_rank": 2
+        }
+      ],
+      "mean_precision": 0.125,
+      "mean_recall": 1,
+      "mrr": 0.962
+    },
+    "sensors": {
+      "cases": [
+        {
+          "name": "mcp package.json export guard",
+          "expect_fire_ids": [
+            "2026-07-05-convention-hivelore-mcp-package-export"
+          ],
+          "fired_ids": [
+            "2026-07-05-convention-hivelore-mcp-package-export"
+          ],
+          "hits": [
+            "2026-07-05-convention-hivelore-mcp-package-export"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "hardcoded version guard",
+          "expect_fire_ids": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "fired_ids": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "hits": [
+            "2026-04-27-gotcha-version-define-tsup-and-vitest"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "workspace dependency caret guard",
+          "expect_fire_ids": [
+            "2026-07-05-convention-hivelore-workspace-dependencies"
+          ],
+          "fired_ids": [
+            "2026-07-05-convention-hivelore-workspace-dependencies"
+          ],
+          "hits": [
+            "2026-07-05-convention-hivelore-workspace-dependencies"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "semantic hit byId lookup guard",
+          "expect_fire_ids": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "fired_ids": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "hits": [
+            "2026-05-02-gotcha-getbriefing-semantic-hits-silently-dropped-byid"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "auto promote config guard",
+          "expect_fire_ids": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "fired_ids": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "hits": [
+            "2026-05-04-gotcha-auto-promote-ignores-config-minreads"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "enforcement off guard",
+          "expect_fire_ids": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "fired_ids": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "hits": [
+            "2026-05-31-gotcha-enforcement-is-process-not-violation"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "unsupported benchmark superiority claim",
+          "expect_fire_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "fired_ids": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-unsupported-benchmark-claims"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "Engram secret leakage guard",
+          "expect_fire_ids": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "fired_ids": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-engram-is-a-nested-reference-repository"
+          ],
+          "misses": [],
+          "recall": 1
+        },
+        {
+          "name": "GitHub review text execution guard",
+          "expect_fire_ids": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "fired_ids": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "hits": [
+            "2026-07-05-gotcha-github-review-text-is-untrusted-data"
+          ],
+          "misses": [],
+          "recall": 1
+        }
+      ],
+      "catch_rate": 1
+    },
+    "score": 99
+  },
+  "gate_precision": {
+    "sensor_catches": 0,
+    "anti_pattern_catches": 162,
+    "useful": 163,
+    "rejections": 2,
+    "precision": 0.988,
+    "suggestion": null
+  }
+}

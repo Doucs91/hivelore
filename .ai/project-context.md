@@ -1,7 +1,7 @@
-# Project context — Hivelore (v0.43.2)
+# Project context — Hivelore (v0.44.0)
 
 > Repo-native memory and context policy for coding-agent harnesses. Built with TypeScript, published as a pnpm workspace monorepo.
-> **Current version**: 0.43.2 — @hivelore/core, cli, mcp, embeddings are versioned together.
+> **Current version**: 0.44.0 — @hivelore/core, cli, mcp, embeddings are versioned together.
 > **Repo**: `/home/sd/Documents/Dev/New idea` (git, branch: main)
 > **Test project**: `sandaga-monorepo/` (gitignored, large Next.js + NestJS marketplace)
 
@@ -11,7 +11,7 @@ Monorepo with four small, single-purpose packages connected by workspace depende
 
 - **`@hivelore/core`** — domain primitives only. Types, zod schemas, markdown+frontmatter parser/serializer, path resolution (`.ai/`), recursive memory loader, project-root discovery. No I/O beyond the loader. No CLI, no server.
 - **`@hivelore/cli`** — `commander`-based CLI. Each subcommand lives in its own file under `src/commands/` and registers itself on the root program. The CLI never does heavy lifting itself; it delegates to core/embeddings.
-- **`@hivelore/mcp`** — MCP server built on `@modelcontextprotocol/sdk` with stdio transport. Tool implementations under `src/tools/` are pure async functions taking `(input, ctx)`; `server.ts` is a thin registration layer. Embeddings are installed with the CLI/MCP packages so semantic search works after a normal global install.
+- **`@hivelore/mcp`** — MCP server built on `@modelcontextprotocol/sdk` with stdio transport. Tool implementations under `src/tools/` are pure async functions taking `(input, ctx)`; `server.ts` is a thin registration layer. Embeddings are an optional peer: lexical ranking always works, while semantic ranking activates when `@hivelore/embeddings` is installed separately.
 - **`@hivelore/embeddings`** — optional package wrapping Transformers.js (`Xenova/bge-small-en-v1.5`, 384 dims). Lazy-loads the pipeline; exposes an `EmbedderLike` interface so tests can inject a deterministic fake instead of downloading the model.
 
 ## Key modules
@@ -81,6 +81,6 @@ pnpm -r test
 - Without explicit `external` in `tsup.config.ts`, tsup will inline `@xenova/transformers` + `onnxruntime` and explode the CLI bundle past 5MB.
 - `gray-matter` parses YAML date strings as `Date` objects. The `IsoDateString` zod helper normalizes both.
 - `gray-matter` / js-yaml refuses to serialize `undefined` values. `serializeMemory` strips them recursively.
-- `@hivelore/embeddings` must ship with `@hivelore/cli` and `@hivelore/mcp`; if it is only a peer dependency, global installs lose semantic ranking and code_search.
+- `@hivelore/embeddings` is deliberately optional to keep the base CLI lean. CLI/MCP must dynamically import it and degrade honestly to lexical ranking/code-search unavailable when absent.
 - The MCP server logs to stderr — never to stdout, since stdout is the JSON-RPC channel.
 - `require.resolve("@hivelore/mcp/package.json")` requires `"./package.json"` in the exports field of `@hivelore/mcp`.

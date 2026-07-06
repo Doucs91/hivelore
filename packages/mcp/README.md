@@ -420,7 +420,7 @@ Post-task reflection checklist. Guides the AI through capturing failed approache
 ```
 Use the post_task prompt with:
   task_summary: "Added Stripe payment integration"
-  files_touched: ["src/payments/StripeService.ts", "src/payments/PaymentController.ts"]
+  files_touched: '["src/payments/StripeService.ts", "src/payments/PaymentController.ts"]'
 ```
 
 ### `bootstrap_project`

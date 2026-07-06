@@ -655,7 +655,7 @@ export function registerSync(program: Command): void {
             ),
           );
         } catch {
-          ui.warn("--embed: @hivelore/embeddings not available or index build failed. Run `hivelore embeddings index` manually.");
+          ui.warn("--embed: @hivelore/embeddings not available or index build failed. Install it, then run `hivelore index memories`.");
         }
       }
     });

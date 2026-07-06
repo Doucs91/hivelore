@@ -26,9 +26,6 @@ importers:
       '@hivelore/core':
         specifier: workspace:*
         version: link:../core
-      '@hivelore/embeddings':
-        specifier: workspace:*
-        version: link:../embeddings
       '@hivelore/mcp':
         specifier: workspace:*
         version: link:../mcp
@@ -67,6 +64,9 @@ importers:
         specifier: ^0.44.1
         version: 0.44.1
     devDependencies:
+      '@hivelore/embeddings':
+        specifier: workspace:*
+        version: link:../embeddings
       '@types/react':
         specifier: ^19.2.14
         version: 19.2.14
@@ -119,9 +119,6 @@ importers:
       '@hivelore/core':
         specifier: workspace:*
         version: link:../core
-      '@hivelore/embeddings':
-        specifier: workspace:*
-        version: link:../embeddings
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@3.25.76)
@@ -144,6 +141,10 @@ importers:
       '@ast-grep/napi':
         specifier: ^0.44.1
         version: 0.44.1
+    devDependencies:
+      '@hivelore/embeddings':
+        specifier: workspace:*
+        version: link:../embeddings
 
   packages/vscode:
     devDependencies:

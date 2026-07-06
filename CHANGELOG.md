@@ -6,6 +6,23 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.44.0] — Harness correctness and evidence hardening
+
+- Fixed manual `sensors check` parity for rule-only AST sensors and added stable JSON proposal
+  verdicts across accepted and rejected CLI paths.
+- Restricted `/hivelore remember` persistence to trusted repository members, made filenames
+  collision-safe, regression-tested event authorization and existing-PR idempotence, and now commit
+  the action bundle that release refs execute.
+- Made `post_task.files_touched` protocol-compatible, bounded manual-session prevention receipts,
+  and stopped eval/selftest probes from inflating real prevention outcomes.
+- Added a fail-closed, real-embeddings semantic eval lane with its own committed baseline and CI model cache.
+- Restored the documented optional semantic layer: base CLI/MCP installs no longer pull the heavy
+  embeddings runtime transitively, while dynamic lexical fallback remains functional.
+- Added active-MCP runtime version diagnostics, canonical indexing commands, Node 20 package engines,
+  quieter actionable-only doctor output, auditable sensor-weakening approvals, and a ten-case
+  independently-attested paired benchmark contract.
+
+
 ## [0.43.2]
 
 - Made committed eval baselines portable: authored retrieval now ranks only shared team/module

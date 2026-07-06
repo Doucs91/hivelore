@@ -161,6 +161,19 @@ describe("antiPatternsCheck", () => {
     expect(events.map((e) => e.id)).toContain("2024-01-01-gotcha-reload");
   });
 
+  it("does not record synthetic eval/selftest probes when track=false", async () => {
+    await writeMemory(
+      ctx.paths.teamDir!, "2024-01-01-gotcha-eval-probe", "gotcha",
+      "# eval probe\n\nNever ship EVAL_PROBE.",
+      { paths: ["src/probe.ts"], sensor: { pattern: "EVAL_PROBE", message: "no probe", severity: "block" } },
+    );
+    await antiPatternsCheck({
+      diff: "+const x = EVAL_PROBE;", paths: ["src/probe.ts"], limit: 8, semantic: false, track: false,
+    }, ctx);
+    const events = await loadPreventionEvents(ctx.paths);
+    expect(events.map((event) => event.id)).not.toContain("2024-01-01-gotcha-eval-probe");
+  });
+
   it("does NOT record a prevention event for a bare distinctive-literal match in an unrelated file", async () => {
     // No sensor, no anchor overlap with the changed file: a single rare shared word ("frobnicate")
     // makes this distinctive-literal, which is enough to SURFACE a review warning but must NOT be

@@ -9,17 +9,6 @@ anchor:
     - packages/mcp/src/tools/precommit-check.ts
     - packages/core/src/prevention.ts
   symbols: []
-sensor:
-  kind: regex
-  pattern: 'enforce\.ts\s*:\s*["'']?1131-1186["'']?'
-  paths:
-    - packages/cli/src/commands/enforce.ts
-    - packages/mcp/src/tools/precommit-check.ts
-    - packages/core/src/prevention.ts
-  message: The prevention/impact "measure" leg leaks in the real enforcement path
-  severity: warn
-  autogen: true
-  last_fired: null
 tags: []
 created_at: '2026-06-04T14:25:25.119Z'
 expires_when: null
@@ -28,7 +17,7 @@ stale_reason: null
 related_ids: []
 last_read_at: null
 topic: prevention-recording-gate-gap
-revision_count: 0
+revision_count: 1
 requires_human_approval: false
 validated_by: null
 ---

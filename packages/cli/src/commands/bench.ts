@@ -103,7 +103,7 @@ export function registerBench(program: Command): void {
         },
         async () => {
           const t0 = performance.now();
-          const out = await antiPatternsCheck({ diff: task, paths: [], limit: 5, semantic: true }, ctx);
+          const out = await antiPatternsCheck({ diff: task, paths: [], limit: 5, semantic: true, track: false }, ctx);
           return summarize("anti_patterns_check", t0, out, [
             `${out.warnings.length}/${out.scanned} warn`,
           ]);

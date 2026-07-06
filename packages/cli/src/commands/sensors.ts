@@ -82,6 +82,7 @@ interface SensorsProposeOptions {
   redRef?: string;
   flags?: string;
   paths?: string;
+  json?: boolean;
   dir?: string;
 }
 
@@ -91,6 +92,15 @@ interface SensorsScaffoldOptions {
   stdout?: boolean;
   force?: boolean;
   dir?: string;
+}
+
+function rejectProposal(opts: SensorsProposeOptions, reason: string, guidance: string): void {
+  if (opts.json) console.log(JSON.stringify({ accepted: false, reason, guidance }, null, 2));
+  else {
+    ui.error(`Rejected (${reason}).`);
+    ui.warn(guidance);
+  }
+  process.exitCode = 1;
 }
 
 export function registerSensors(program: Command): void {
@@ -159,7 +169,10 @@ export function registerSensors(program: Command): void {
 
       // ── AST sensors: structural layer (optional engine; unrunnable = reported, never a hit) ──
       const astMemories = (await runnableSensorMemories(paths, false)).filter(
-        (m) => m.frontmatter.sensor?.kind === "ast" && m.frontmatter.sensor.pattern,
+        (m) => {
+          const sensor = m.frontmatter.sensor;
+          return sensor?.kind === "ast" && Boolean(sensor.pattern || sensor.rule);
+        },
       );
       const astHits: typeof hits = [];
       let astUnrunnable = 0;
@@ -461,19 +474,18 @@ export function registerSensors(program: Command): void {
     .option("--red-ref <ref>", "kind=shell|test: pre-fix commit/ref — validation replays it in a scratch worktree and requires the oracle to FAIL there (records red_proven)")
     .option("--flags <flags>", "regex flags (e.g. i)")
     .option("--paths <csv>", "override scope paths (defaults to the memory anchors)")
+    .option("--json", "emit a machine-readable proposal verdict", false)
     .option("-d, --dir <dir>", "project root")
     .action(async (id: string, opts: SensorsProposeOptions) => {
       // ── Command + AST sensors: delegate to the shared MCP handler (commands: the oracle must
       // PASS on the current tree; ast: structural validation via the optional engine). ──
       if (opts.kind === "shell" || opts.kind === "test" || opts.kind === "ast") {
         if ((opts.kind === "shell" || opts.kind === "test") && !opts.command?.trim()) {
-          ui.error("--kind shell|test requires --command.");
-          process.exitCode = 1;
+          rejectProposal(opts, "missing-command", "--kind shell|test requires --command.");
           return;
         }
         if (opts.kind === "ast" && !opts.pattern?.trim() && !opts.rule?.trim()) {
-          ui.error("--kind ast requires --pattern or --rule <json>.");
-          process.exitCode = 1;
+          rejectProposal(opts, "missing-ast-rule", "--kind ast requires --pattern or --rule <json>.");
           return;
         }
         let astRule: Record<string, unknown> | undefined;
@@ -483,8 +495,7 @@ export function registerSensors(program: Command): void {
             if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("rule must be a JSON object");
             astRule = parsed as Record<string, unknown>;
           } catch (err) {
-            ui.error(`--rule must be valid ast-grep Rule JSON: ${err instanceof Error ? err.message : String(err)}`);
-            process.exitCode = 1;
+            rejectProposal(opts, "invalid-ast-rule", `--rule must be valid ast-grep Rule JSON: ${err instanceof Error ? err.message : String(err)}`);
             return;
           }
         }
@@ -510,6 +521,11 @@ export function registerSensors(program: Command): void {
           },
           { paths: resolveHaivePaths(root) },
         );
+        if (opts.json) {
+          console.log(JSON.stringify(out, null, 2));
+          if (!out.accepted) process.exitCode = 1;
+          return;
+        }
         if (out.accepted) {
           ui.success(`${opts.kind === "ast" ? "AST" : "Command"} sensor accepted (${out.severity}) on ${id}`);
           ui.info(`  ${out.guidance}`);
@@ -521,19 +537,18 @@ export function registerSensors(program: Command): void {
         return;
       }
       if (!opts.pattern?.trim()) {
-        ui.error("kind=regex requires --pattern.");
-        process.exitCode = 1;
+        rejectProposal(opts, "missing-pattern", "kind=regex requires --pattern.");
         return;
       }
       const severity = opts.severity === "warn" ? "warn" : "block";
       try { new RegExp(opts.pattern, opts.flags ?? ""); if (opts.absent) new RegExp(opts.absent, opts.flags ?? ""); }
-      catch (err) { ui.error(`Invalid regex: ${String(err)}`); process.exitCode = 1; return; }
+      catch (err) { rejectProposal(opts, "invalid-regex", `Invalid regex: ${String(err)}`); return; }
 
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       const loaded = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
       const found = loaded.find(({ memory }) => memory.frontmatter.id === id);
-      if (!found) { ui.error(`No memory found with id ${id}`); process.exitCode = 1; return; }
+      if (!found) { rejectProposal(opts, "memory-not-found", `No memory found with id ${id}`); return; }
 
       const anchorPaths = opts.paths
         ? opts.paths.split(",").map((s) => s.trim()).filter(Boolean)
@@ -559,6 +574,18 @@ export function registerSensors(program: Command): void {
       };
 
       const verdict = judgeProposedSensor(sensor, { currentTargets, badExamples });
+      if (opts.json && !verdict.accepted) {
+        console.log(JSON.stringify({
+          accepted: verdict.accepted,
+          reason: verdict.reason ?? null,
+          severity,
+          memory_id: id,
+          self_check: verdict.self_check,
+          brittle: verdict.brittle,
+        }, null, 2));
+        if (!verdict.accepted) process.exitCode = 1;
+        return;
+      }
       if (!verdict.accepted) {
         ui.error(`Rejected (${verdict.reason}).`);
         if (verdict.reason === "fires-on-current") {
@@ -573,6 +600,17 @@ export function registerSensors(program: Command): void {
       }
 
       await writeFile(found.filePath, serializeMemory({ frontmatter: { ...found.memory.frontmatter, sensor }, body: found.memory.body }), "utf8");
+      if (opts.json) {
+        console.log(JSON.stringify({
+          accepted: true,
+          reason: null,
+          severity,
+          memory_id: id,
+          self_check: verdict.self_check,
+          brittle: verdict.brittle,
+        }, null, 2));
+        return;
+      }
       ui.success(`Sensor accepted (${severity}) on ${id}`);
       ui.info(`pattern=${JSON.stringify(opts.pattern)}${opts.absent ? `  absent=${JSON.stringify(opts.absent)}` : ""}`);
       ui.info(

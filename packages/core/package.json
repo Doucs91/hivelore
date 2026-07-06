@@ -1,6 +1,6 @@
 {
   "name": "@hivelore/core",
-  "version": "0.43.2",
+  "version": "0.44.0",
   "description": "Hivelore core - memory, anchors, lifecycle, and enforcement primitives for agent harnesses",
   "license": "Apache-2.0",
   "repository": {
@@ -25,6 +25,9 @@
     "harness-engineering"
   ],
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

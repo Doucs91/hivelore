@@ -1,5 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { createContext, type CreateContextOptions, type HaiveContext } from "./context.js";
 import {
   BootstrapProjectSaveInputSchema,
@@ -1314,8 +1316,19 @@ export function printHaiveMcpVersion(): void {
  */
 export async function runHaiveMcpStdio(options: { root?: string }): Promise<void> {
   const { server, context } = createHaiveServer({ root: options.root, env: process.env });
+  await writeMcpRuntimeMarker(context).catch(() => { /* diagnostics must never prevent MCP startup */ });
   console.error(
     `[haive-mcp] starting server v${SERVER_VERSION} (project root: ${context.paths.root})`,
   );
   await server.connect(new StdioServerTransport());
+}
+
+export async function writeMcpRuntimeMarker(context: HaiveContext): Promise<void> {
+  await mkdir(context.paths.runtimeDir, { recursive: true });
+  await writeFile(path.join(context.paths.runtimeDir, "mcp-server.json"), JSON.stringify({
+    version: SERVER_VERSION,
+    pid: process.pid,
+    started_at: new Date().toISOString(),
+    command: "hivelore mcp --stdio",
+  }, null, 2), "utf8");
 }

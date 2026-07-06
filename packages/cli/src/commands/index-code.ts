@@ -98,7 +98,7 @@ export function registerIndexCode(program: Command): Command {
       } catch {
         ui.error(
           "@hivelore/embeddings is not installed. Install it (`pnpm add @hivelore/embeddings`) " +
-          "or run `hivelore embeddings install`.",
+          "then run `hivelore index code-search`.",
         );
         process.exit(1);
       }

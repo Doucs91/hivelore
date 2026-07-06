@@ -16,6 +16,7 @@ import {
   loadConfig,
   loadMemoriesFromDir,
   loadPreventionEvents,
+  readUsageEvents,
   loadUsageIndex,
   memoryFilePath,
   renderCaughtForYou,
@@ -345,6 +346,16 @@ async function observationStart(paths: ReturnType<typeof resolveHaivePaths>): Pr
   return first;
 }
 
+/** Best available boundary for a manually closed session: its latest briefing/start marker. */
+export async function manualSessionStart(paths: ReturnType<typeof resolveHaivePaths>): Promise<string | null> {
+  const events = await readUsageEvents(paths);
+  for (let index = events.length - 1; index >= 0; index--) {
+    const event = events[index]!;
+    if (["get_briefing", "briefing", "session_start", "enforce_session_start"].includes(event.tool)) return event.at;
+  }
+  return null;
+}
+
 async function printCaughtForYou(
   paths: ReturnType<typeof resolveHaivePaths>,
   since: string | null,
@@ -415,7 +426,7 @@ export function registerSessionEnd(session: Command): void {
       let resolvedFiles = opts.files;
       let goal = opts.goal;
       let accomplished = opts.accomplished ?? (opts as { summary?: string }).summary;
-      const caughtSince = opts.auto ? await observationStart(paths) : null;
+      const caughtSince = opts.auto ? await observationStart(paths) : await manualSessionStart(paths);
       if (opts.auto) {
         // Passive capture: distill this session's failures into proposed drafts BEFORE the recap,
         // so the recap (and the finish gate's nag) can point at concrete candidates instead of

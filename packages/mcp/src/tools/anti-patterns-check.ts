@@ -57,6 +57,10 @@ export const AntiPatternsCheckInputSchema = {
       "Minimum cosine score for semantic-only anti-pattern hits. Anchor/literal matches still surface. " +
       "Default 0.45 keeps broad, weakly-related memories out of review noise.",
     ),
+  track: z
+    .boolean()
+    .default(true)
+    .describe("Record real prevention outcomes. Set false for eval/selftest probes so synthetic cases never inflate ROI."),
 };
 
 export interface AntiPatternsCheckInput {
@@ -65,6 +69,7 @@ export interface AntiPatternsCheckInput {
   limit: number;
   semantic: boolean;
   min_semantic_score?: number;
+  track?: boolean;
 }
 
 export interface AntiPatternsWarning {
@@ -421,7 +426,9 @@ export async function antiPatternsCheck(
   const isHardBlockCatch = (w: { reasons: string[] }): boolean => w.reasons.includes("sensor");
   const strongCatches = warnings.filter(isHardBlockCatch);
   // THE shared recorder — same path the git-hook gate and `hivelore sensors check` use (debounced).
-  await recordPreventionHits(ctx.paths, strongCatches.map((w) => w.id), "anti-pattern");
+  if (input.track !== false) {
+    await recordPreventionHits(ctx.paths, strongCatches.map((w) => w.id), "anti-pattern");
+  }
 
   return {
     scanned: negative.length,

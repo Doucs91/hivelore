@@ -1,6 +1,6 @@
 {
   "name": "@hivelore/embeddings",
-  "version": "0.43.2",
+  "version": "0.44.0",
   "description": "Hivelore embeddings - local semantic ranking for agent briefings and code search",
   "license": "Apache-2.0",
   "repository": {
@@ -22,6 +22,9 @@
     "haive"
   ],
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

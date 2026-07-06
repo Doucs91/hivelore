@@ -7,9 +7,9 @@ export const PostTaskArgsSchema = {
     .optional()
     .describe("One sentence describing what you just did"),
   files_touched: z
-    .array(z.string())
+    .string()
     .optional()
-    .describe("Files you created or modified during the task"),
+    .describe("Files you created or modified during the task, as CSV or a JSON array string"),
 };
 
 export type PostTaskArgs = {
@@ -21,9 +21,10 @@ export function postTaskPrompt(
   ctx: HaiveContext,
 ): { description: string; messages: Array<{ role: "user"; content: { type: "text"; text: string } }> } {
   const taskLine = args.task_summary ? `\nTask just completed: **${args.task_summary}**` : "";
+  const filesTouched = parsePromptFilesTouched(args.files_touched);
   const filesLine =
-    args.files_touched && args.files_touched.length > 0
-      ? `\nFiles touched: ${args.files_touched.map((f) => `\`${f}\``).join(", ")}`
+    filesTouched.length > 0
+      ? `\nFiles touched: ${filesTouched.map((f) => `\`${f}\``).join(", ")}`
       : "";
 
   const text = `You have just finished a task. Before closing this session, take 60 seconds to capture what you learned.
@@ -115,4 +116,22 @@ When done, respond with a brief summary: "Saved N memories: [list of IDs]. Sessi
       },
     ],
   };
+}
+
+/** MCP prompt argument values are strings; accept JSON-array text or a compact CSV. */
+export function parsePromptFilesTouched(input: string | undefined): string[] {
+  const raw = input?.trim();
+  if (!raw) return [];
+  if (raw.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter(Boolean);
+      }
+    } catch { /* fall through to CSV */ }
+  }
+  return raw.split(",").map((value) => value.trim()).filter(Boolean);
 }

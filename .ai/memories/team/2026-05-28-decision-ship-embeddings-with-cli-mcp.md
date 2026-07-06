@@ -17,17 +17,17 @@ tags:
   - semantic-search
 created_at: '2026-05-28T22:13:25.040Z'
 expires_when: null
-verified_at: '2026-07-02T22:21:21.968Z'
+verified_at: '2026-07-06T02:20:00.000Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 topic: ship-embeddings-with-cli-mcp
-revision_count: 0
+revision_count: 1
 requires_human_approval: false
 validated_by: null
 ---
-# Ship embeddings with CLI/MCP installs
+# Keep embeddings optional while preserving semantic discovery
 
-`@hiveai/embeddings` must be a real dependency of `@hiveai/cli` and `@hiveai/mcp`, not only an optional peer. Otherwise `npm install -g @hiveai/cli` succeeds but `haive embeddings status`, semantic `get_briefing`, and MCP `code_search` fail at runtime.
+The original decision to install `@hivelore/embeddings` transitively made the nominally optional semantic layer add roughly 380 MB to every global CLI install. That contradicts the documented lean lexical fallback.
 
-How to apply: keep embeddings external in tsup so the CLI bundle stays small, but include the package in npm dependencies so normal global installs get the semantic layer. `haive doctor` should warn when embeddings or semantic indexes are unavailable.
+Keep `@hivelore/embeddings` as an optional peer plus workspace dev dependency. All runtime access must remain dynamic imports: the base CLI and MCP work lexically without it, while users opt into local semantic ranking with `npm install -g @hivelore/embeddings`. `hivelore doctor` must state whether the semantic layer or index is absent without treating that supported configuration as corruption.

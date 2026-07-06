@@ -195,4 +195,10 @@ describe("summarizeCaughtForYou", () => {
     expect(summary.rows[0]!.previous_count).toBe(1);
     expect(renderCaughtForYou(summary)).toContain("Prevention 1->2");
   });
+
+  it("does not label unbounded historical events as this session", () => {
+    const summary = summarizeCaughtForYou([ev(0, "m1")], [loaded("m1")], emptyUsageIndex(), { now: NOW });
+    expect(renderCaughtForYou(summary)).toContain("in recorded history");
+    expect(renderCaughtForYou(summary)).not.toContain("this session");
+  });
 });

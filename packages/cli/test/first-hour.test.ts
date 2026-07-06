@@ -14,6 +14,8 @@ import {
 import { findDocFile } from "../src/utils/doc-files.js";
 import { detectBridgeTargets } from "../src/utils/bridge-detect.js";
 import { lintMemoriesAsync } from "../src/commands/memory-lint.js";
+import { isCodeMapNearEmpty, mcpRuntimeVersionFinding } from "../src/commands/doctor.js";
+import { parseSensorWeakeningApprovals } from "../src/commands/enforce.js";
 
 /**
  * First-hour experience guards — regressions here are the first thing a new user hits.
@@ -32,6 +34,13 @@ describe("first-hour experience", () => {
 
   afterEach(async () => {
     await rm(workDir, { recursive: true, force: true });
+  });
+
+  it("parses auditable sensor-weakening trailers and compact local approvals", () => {
+    expect([...parseSensorWeakeningApprovals("memory-a,memory-b")]).toEqual(["memory-a", "memory-b"]);
+    expect([...parseSensorWeakeningApprovals(
+      "feat: revise policy\n\nHivelore-Sensor-Change: memory-c, memory-d\n",
+    )]).toEqual(["memory-c", "memory-d"]);
   });
 
   describe("findDocFile", () => {
@@ -157,5 +166,19 @@ describe("first-hour experience", () => {
       const mem = loaded.find((m) => m.memory.frontmatter.id === fm.id);
       expect(mem?.memory.frontmatter.anchor.paths).toContain("src/util.ts");
     });
+  });
+});
+
+describe("doctor code-map signal", () => {
+  it("warns only for catastrophic index misses, not ordinary symbol-free files", () => {
+    expect(isCodeMapNearEmpty(2, 1_400)).toBe(true);
+    expect(isCodeMapNearEmpty(342, 1_829)).toBe(false);
+  });
+
+  it("tells users to restart an active stale MCP server after an upgrade", () => {
+    const finding = mcpRuntimeVersionFinding({ version: "0.43.2", pid: 42 }, "0.44.0", true);
+    expect(finding).toMatchObject({ code: "active-mcp-server-stale", severity: "warn" });
+    expect(finding?.fix).toContain("Restart");
+    expect(mcpRuntimeVersionFinding({ version: "0.44.0", pid: 42 }, "0.44.0", true)).toBeNull();
   });
 });

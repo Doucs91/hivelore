@@ -594,12 +594,19 @@ describe("Hivelore CLI integration", () => {
     const id = sensorFile!.replace(/\.md$/, "");
     // The CLI no longer auto-writes a heuristic sensor on `memory tried`; author a validated warn
     // sensor through the propose path (the CLI mirror of MCP propose_sensor) before promoting it.
-    await run(workDir, [
+    const proposed = await run(workDir, [
       "sensors", "propose", id,
       "--pattern", "open-in-view\\s*=\\s*[\"']?true[\"']?",
       "--severity", "warn",
+      "--json",
       "--dir", workDir,
     ]);
+    expect(JSON.parse(proposed.stdout)).toMatchObject({ accepted: true, memory_id: id, severity: "warn" });
+    const rejectedJson = await runAllowFailure(workDir, [
+      "sensors", "propose", "missing-memory", "--pattern", "x", "--json", "--dir", workDir,
+    ]);
+    expect(rejectedJson.code).toBe(1);
+    expect(JSON.parse(rejectedJson.stdout)).toMatchObject({ accepted: false, reason: "memory-not-found" });
     let content = await readFile(path.join(teamDir, sensorFile!), "utf8");
     expect(content).toContain("sensor:");
     expect(content).toContain("severity: warn");
@@ -670,6 +677,37 @@ describe("Hivelore CLI integration", () => {
       expect(report.spec_source).toContain(".ai/eval/spec.json");
       expect(report.report.sensors?.catch_rate).toBe(1);
       expect(report.report.sensors?.cases.length).toBe(1);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("semantic eval fails closed when no embeddings index is available", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-semantic-eval-missing-"));
+    try {
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+      await run(repo, [
+        "memory", "add", "--type", "convention", "--scope", "team", "--slug", "semantic-target",
+        "--body", "Always validate semantic ranking with a real index.", "--dir", repo,
+      ]);
+      const [memoryFile] = await readdir(path.join(repo, ".ai/memories/team"));
+      const memoryId = path.basename(memoryFile!, ".md");
+      await mkdir(path.join(repo, ".ai/eval"), { recursive: true });
+      await writeFile(
+        path.join(repo, ".ai/eval/spec.json"),
+        JSON.stringify({
+          retrieval: [{
+            name: "semantic index required",
+            task: "How must semantic ranking be validated?",
+            expect_ids: [memoryId],
+          }],
+        }),
+        "utf8",
+      );
+      await rm(path.join(repo, ".ai/.cache/embeddings"), { recursive: true, force: true });
+      const result = await runAllowFailure(repo, ["eval", "--semantic-ranking", "--dir", repo]);
+      expect(result.code).toBe(1);
+      expect(result.stderr + result.stdout).toContain("Semantic eval requested");
     } finally {
       await rm(repo, { recursive: true, force: true });
     }
@@ -1803,7 +1841,7 @@ describe("Hivelore CLI integration", () => {
         "---", "id: 2024-05-05-attempt-stripe-no-idempotency", "scope: team", "type: attempt", "status: validated",
         "created_at: 2024-05-05T00:00:00.000Z",
         "anchor:", "  paths: [\"src/\"]", "  symbols: []", "tags: []",
-        "sensor:", "  kind: ast", "  pattern: \"stripe.paymentIntents.create($$$)\"", "  absent: idempotencyKey",
+        "sensor:", "  kind: ast", "  rule:", "    pattern: \"stripe.paymentIntents.create($$$)\"", "  absent: idempotencyKey",
         "  message: Pass an idempotencyKey to paymentIntents.create.", "  severity: block", "  paths: [\"src/\"]",
         "---", "# stripe without idempotency", "",
       ].join("\n");
@@ -1826,6 +1864,15 @@ describe("Hivelore CLI integration", () => {
         "utf8",
       );
       await exec("git", ["add", "src/pay.ts"], { cwd: repo });
+      const manual = JSON.parse((await runAllowFailure(repo, ["sensors", "check", "--json", "--dir", repo])).stdout) as {
+        scanned: number;
+        hits: Array<{ memory_id: string; severity: string }>;
+      };
+      expect(manual.scanned).toBeGreaterThan(0);
+      expect(manual.hits).toContainEqual(expect.objectContaining({
+        memory_id: "2024-05-05-attempt-stripe-no-idempotency",
+        severity: "block",
+      }));
       const caught = JSON.parse(
         (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
       ) as { findings: Array<{ code: string; severity: string; message: string }> };
@@ -1885,6 +1932,16 @@ describe("Hivelore CLI integration", () => {
         (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
       ) as { findings: Array<{ code: string; severity: string }> };
       expect(strict.findings.find((f) => f.code === "sensor-weakened")?.severity).toBe("error");
+
+      const approved = JSON.parse(
+        (await runAllowFailure(
+          repo,
+          ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo],
+          { HIVELORE_SENSOR_WEAKENING_APPROVALS: id },
+        )).stdout,
+      ) as { findings: Array<{ code: string; severity: string }> };
+      expect(approved.findings.find((f) => f.code === "sensor-weakened")).toBeUndefined();
+      expect(approved.findings.find((f) => f.code === "sensor-weakening-approved")?.severity).toBe("ok");
     } finally {
       await rm(repo, { recursive: true, force: true });
     }
@@ -2231,6 +2288,26 @@ describe("Hivelore CLI integration", () => {
     expect(stdout).toContain("sample-haive");
     expect(stdout).toContain("Hivelore impact");
     expect(stdout).toContain("Evidence grade: **insufficient**");
+  });
+
+  it("benchmark evidence becomes decision-ready only with ten independently evaluated pairs", async () => {
+    const benchDir = path.join(workDir, "benchmarks", "paired-contract");
+    const report = (runner: string, evaluator: string): string => [
+      "# Benchmark Agent Report", "", "## Outcome",
+      "- Task completed: yes", "- Tests passed: yes", "- Policy violations: 0",
+      "- Duration seconds: 10", "- Total tokens: 1000",
+      `- Runner ID: ${runner}`, `- Evaluator ID: ${evaluator}`, "- Independent evaluation: yes", "",
+    ].join("\n");
+    for (let task = 1; task <= 10; task++) {
+      for (const group of ["haive", "plain"]) {
+        const dir = path.join(benchDir, `task-${task}-${group}`);
+        await mkdir(dir, { recursive: true });
+        await writeFile(path.join(dir, "BENCHMARK_AGENT_REPORT.md"), report(`runner-${group}`, "blind-reviewer"), "utf8");
+      }
+    }
+    const { stdout } = await run(workDir, ["benchmark", "report", "--dir", benchDir, "--json"]);
+    const result = JSON.parse(stdout) as { summary: { paired_tasks: number; evidence_grade: string } };
+    expect(result.summary).toMatchObject({ paired_tasks: 10, evidence_grade: "decision-ready" });
   });
 
   it("doctor --json reports stale-draft-memories when a draft is older than 30 days", async () => {
