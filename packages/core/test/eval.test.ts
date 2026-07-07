@@ -208,4 +208,16 @@ describe("golden-set plumbing (Phase 5)", () => {
     expect(checks.map((c) => c.name).join(" ")).toMatch(/rescue/);
     expect(checks.map((c) => c.name).join(" ")).toMatch(/hard cap/);
   });
+
+  it("runValidationContract holds — the deterministic-honesty invariants all pass", async () => {
+    const { runValidationContract } = await import("../src/eval.js");
+    const checks = runValidationContract();
+    expect(checks.length).toBeGreaterThanOrEqual(6);
+    const failed = checks.filter((c) => !c.pass);
+    expect(failed, `failing contract checks: ${failed.map((c) => `${c.name} (${c.detail ?? ""})`).join("; ")}`).toEqual([]);
+    // It covers the four holes that shipped once: inversion, false-RED, fires-on-current, seed-inversion.
+    const names = checks.map((c) => c.name).join(" | ");
+    expect(names).toMatch(/inverted/);
+    expect(names).toMatch(/RED/);
+  });
 });

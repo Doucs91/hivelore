@@ -9,6 +9,7 @@ import {
   type AutopilotRepair,
 } from "../utils/autopilot.js";
 import { lintMemoriesAsync } from "./memory-lint.js";
+import { detectStaleGitHooks, repairStaleGitHooks } from "./enforce.js";
 import { isSyntheticSuggestionQuery } from "./memory-suggest.js";
 
 declare const __HAIVE_VERSION__: string;
@@ -126,6 +127,34 @@ export function registerDoctor(program: Command): void {
             forceCodeMap: true,
           }),
         );
+      }
+
+      // ── First-run health: broken git hooks ────────────────────────────────
+      // A hook left calling the removed `haive` binary (pre-v0.51.0 install) or carrying a duplicated
+      // block aborts EVERY commit with `haive: not found` — the worst possible first impression, and
+      // one the user cannot diagnose. Detect it here (doctor is the "is my install healthy?" command)
+      // and repair it under --fix (deterministic, foreign husky hooks preserved). Error, not warn:
+      // a hook that blocks all commits is not advisory.
+      {
+        const staleHooks = await detectStaleGitHooks(root);
+        if (staleHooks.length > 0) {
+          if (opts.fix && !opts.dryRun) {
+            const repaired = await repairStaleGitHooks(root);
+            findings.push({
+              severity: "info",
+              code: "git-hook-repaired",
+              alwaysShow: true,
+              message: `Repaired ${repaired.length} broken git hook(s) (${repaired.join(", ")}) — they called the removed \`haive\` binary or carried a duplicate block. Commits work again.`,
+            });
+          } else {
+            findings.push({
+              severity: "error",
+              code: "stale-git-hook",
+              message: `${staleHooks.length} git hook(s) are broken (${staleHooks.join(", ")}): they call the removed \`haive\` binary or carry a duplicate block, so every commit fails with \`haive: not found\`.`,
+              fix: "hivelore doctor --fix   # or: hivelore enforce install",
+            });
+          }
+        }
       }
 
       // ── 2. Project context ────────────────────────────────────────────────

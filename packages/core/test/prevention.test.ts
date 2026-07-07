@@ -72,6 +72,7 @@ describe("prevention receipt", () => {
     expect(receipt.events[0]).toEqual({
       at: ev(1, "current").at, id: "current", title: "current", source: "sensor",
       kind: "regex", stage: null, exit_code: null, message: null, incident: null, red_proven: false,
+      evidence: "documented",
     });
   });
 
@@ -104,6 +105,28 @@ describe("prevention receipt", () => {
     expect(share).toContain("↩ incident: prod #442");
     expect(share).toContain("**refunds must clamp to capture**");
     expect(share).toContain(HIVELORE_ATTRIBUTION);
+  });
+
+  it("grades each prevention by evidence (proven / incident / documented) — honest empirical claim", () => {
+    const mkMem = (id: string, sensor: Record<string, unknown> | undefined): LoadedMemory => ({
+      memory: { frontmatter: { id, title: id, ...(sensor ? { sensor } : {}) }, body: `# ${id}\n` },
+    } as unknown as LoadedMemory);
+    const mems = [
+      mkMem("proven-one", { kind: "test", severity: "block", red_proven: true, incident: "prod #1" }),
+      mkMem("incident-one", { kind: "regex", severity: "block", incident: "prod #2" }),
+      mkMem("documented-one", { kind: "regex", severity: "block" }),
+    ];
+    const receipt = buildPreventionReceipt(
+      [ev(1, "proven-one"), ev(2, "incident-one"), ev(3, "documented-one")],
+      mems,
+      emptyUsageIndex(),
+      { since: new Date(NOW.getTime() - 7 * 86_400_000), now: NOW },
+    );
+    expect(receipt.by_evidence).toEqual({ proven: 1, incident: 1, documented: 1 });
+    expect(receipt.events.find((r) => r.id === "proven-one")?.evidence).toBe("proven");
+    expect(receipt.events.find((r) => r.id === "incident-one")?.evidence).toBe("incident");
+    expect(receipt.events.find((r) => r.id === "documented-one")?.evidence).toBe("documented");
+    expect(renderPreventionReceipt(receipt)).toMatch(/Evidence: 1 red-proven · 1 incident-linked · 1 documented-only/);
   });
 
   it("share render turns an empty window into a forward CTA (not a dead zero), still attributed", () => {

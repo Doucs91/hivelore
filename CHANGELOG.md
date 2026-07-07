@@ -6,6 +6,41 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.53.0] — Ruthless polish: onboarding, quiet gate, cheaper arming, self-tested honesty
+
+Six hardening changes aimed at the friction that kept the core loop from feeling excellent. No
+philosophy change: the deterministic content checks (sensor/anti-pattern blocks, stale anchors,
+artifacts) are untouched — same diff, same verdict.
+
+- **First run self-heals.** `hivelore doctor` now detects a **broken git hook** (one still calling the
+  removed `haive` binary, or carrying a duplicate block — the states that abort every commit with
+  `haive: not found`) and reports it as an error; `hivelore doctor --fix` repairs it in place
+  (deterministic, foreign husky/custom hooks preserved). New exported `detectStaleGitHooks` /
+  `repairStaleGitHooks` / `hookIsStale`, sharing one hook source-of-truth (`managedGitHookSpecs`).
+- **Commit-time gate is advisory; sharing points enforce.** At `pre-commit`/`local` the PROCESS gates
+  (briefing loaded, session recap, decision coverage, bootstrap) are warnings — only DETERMINISTIC
+  content findings block a local commit. They enforce as errors at `pre-push`/`ci`, where the code
+  leaves the machine. This removes the `--no-verify` reflex on cold/iterating repos without weakening
+  what "same diff, same verdict" protects. (`enforcement.humanCommits="strict"` still binds humans at
+  the sharing points.)
+- **Silence on success.** A passing gate at commit/local prints **one line**, not a page of ✓; the
+  full report is kept for CI, `--explain`, and the new `--verbose`. On a block, the lesson-refusal
+  leads — no cold-repo score/process noise buried around it.
+- **Cheaper sensor arming — mine the pattern from the fix.** `hivelore sensors propose <lesson>
+  --from-fix <pre-fix-ref>` derives the regex from the fix diff itself: the line the fix **removed** is
+  the mistake (`pattern`), the line it **added** is the correct marker (`absent`). Authoring a
+  discriminating sensor becomes confirming a mined one — and it still runs the full validation
+  (silent-on-current, fires-on-bad, not-inverted). New pure core `mineSensorSeedFromDiff`.
+- **The validator self-tests.** `hivelore eval` now runs a **validation contract** (like the ranking
+  tier contract) that exercises the installed validator against the deterministic-honesty invariants
+  the block decision depends on — inverted-sensor rejection, false-RED rejection, fires-on-current
+  rejection, no-backwards-seed. A reopened hole hard-fails eval in CI instead of shipping. New pure
+  core `runValidationContract`.
+- **Prevention is evidence-graded.** The prevention receipt (`hivelore stats receipt`) now separates
+  blocks that stopped a **demonstrably-real** incident (red-proven, or incident-linked) from those
+  enforcing a documented preference — `Evidence: K red-proven · M incident-linked · N documented-only`.
+  Honest empirical grading, never inflated. New `PreventionReceipt.by_evidence` + row `evidence`.
+
 ## [0.52.1] — Idempotent git-hook regeneration (post-rename repair)
 
 - **`enforce install` now REPLACES a stale hook block instead of appending a duplicate.** A repo

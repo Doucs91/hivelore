@@ -190,10 +190,18 @@ correct code and never the mistake.
 
 ```bash
 hivelore sensors list
-hivelore sensors check              # scans git diff --cached
-hivelore sensors promote <id> --yes # promote a vetted sensor to block
+hivelore sensors check                          # scans git diff --cached
+hivelore sensors propose <lesson> --from-fix <pre-fix-ref>   # MINE the pattern from the fix diff
+hivelore sensors promote <id> --yes             # promote a vetted sensor to block
 hivelore sensors export --format grep
 ```
+
+**Cheaper arming (`--from-fix`).** Authoring a discriminating regex is the main cost between a
+documented lesson and an enforced one — so let the fix write it. `sensors propose --from-fix
+<pre-fix-ref>` mines the pattern from the fix diff: the line the fix **removed** is the mistake
+(`pattern`), the line it **added** is the correct marker (`absent`). You confirm a candidate instead of
+authoring a regex — and it still passes the full validation (silent-on-current, fires-on-bad,
+not-inverted) before it can block.
 
 ---
 
@@ -316,6 +324,14 @@ hivelore enforce status        # Current enforcement posture
 hivelore enforce check         # Pre-commit policy gate
 hivelore enforce ci            # CI entrypoint (exits 1 on violations)
 ```
+
+**Where the gate blocks.** At a local commit, only **deterministic content** findings block — an
+anchored anti-pattern or a sensor firing on your diff. The process/state gates (briefing loaded,
+bootstrap, session recap) are advisory there and **enforce at the sharing points** (`pre-push`, CI),
+where the code leaves your machine. A passing commit-time gate prints one line; `--verbose` shows every
+check. This keeps quick local iteration friction-free while the team's knowledge is still enforced
+before anything is shared. If a git hook was left broken by an old install, `hivelore doctor --fix`
+regenerates it.
 
 ---
 

@@ -19,6 +19,7 @@ import {
   approveProposedCases,
   overallScore,
   runTierContract,
+  runValidationContract,
   resolveHaivePaths,
   scoreRetrievalCase,
   scoreSensorCase,
@@ -332,6 +333,18 @@ export function registerEval(program: Command): void {
       } else {
         ui.info(`Ranking tier contract: ${tierChecks.length}/${tierChecks.length} checks hold.`);
       }
+
+      // ── Validation contract: the deterministic-honesty invariants the block decision depends on,
+      // run against the INSTALLED validator. This is the layer that self-tests the layer everything
+      // trusts — a reopened hole (inverted sensor, false RED, backwards seed) hard-fails eval in CI.
+      const validationChecks = runValidationContract();
+      const validationFailures = validationChecks.filter((c) => !c.pass);
+      if (validationFailures.length > 0) {
+        ui.error(`Validation contract BROKEN — ${validationFailures.length} deterministic-honesty invariant(s) regressed:`);
+        for (const c of validationFailures) ui.error(`  ✗ ${c.name}${c.detail ? ` (${c.detail})` : ""}`);
+      } else {
+        ui.info(`Validation contract: ${validationChecks.length}/${validationChecks.length} invariants hold.`);
+      }
       if (proposedGoldenCount > 0) {
         ui.warn(
           `${proposedGoldenCount} proposed golden case(s) (gate-miss labeled) await approval — ` +
@@ -348,7 +361,7 @@ export function registerEval(program: Command): void {
         console.log(md);
       }
 
-      if (tierFailures.length > 0) process.exitCode = 1;
+      if (tierFailures.length > 0 || validationFailures.length > 0) process.exitCode = 1;
       applyExitGates(opts, gateReport, delta, gatePrecision, gateDelta);
     });
 }

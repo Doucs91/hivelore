@@ -1,5 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { suggestSensorFromMemory, suggestSensorSeed } from "../src/sensor-suggest.js";
+import { mineSensorSeedFromDiff, suggestSensorFromMemory, suggestSensorSeed } from "../src/sensor-suggest.js";
+
+describe("mineSensorSeedFromDiff — the strongest seed comes from the fix itself", () => {
+  const FIX_DIFF = [
+    "diff --git a/src/dates.ts b/src/dates.ts",
+    "index 111..222 100644",
+    "--- a/src/dates.ts",
+    "+++ b/src/dates.ts",
+    "@@ -1,3 +1,3 @@",
+    "-import moment from 'moment';",
+    "+import { format } from 'dateFns';",
+    " export const x = 1;",
+  ].join("\n");
+
+  it("keys the pattern on what the fix REMOVED and the absent-marker on what it ADDED", () => {
+    const seed = mineSensorSeedFromDiff(FIX_DIFF, ["src/dates.ts"]);
+    expect(seed).not.toBeNull();
+    expect(seed!.pattern).toBe("moment");        // removed-only token = the mistake
+    expect(seed!.absent).toBe("dateFns");        // added-only token = the correct marker
+  });
+
+  it("ignores files outside the lesson's anchor paths", () => {
+    expect(mineSensorSeedFromDiff(FIX_DIFF, ["src/other/"])).toBeNull();
+  });
+
+  it("returns null when the fix removed nothing distinctive", () => {
+    const diff = "--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1,2 @@\n x\n+// a comment\n";
+    expect(mineSensorSeedFromDiff(diff, ["src/a.ts"])).toBeNull();
+  });
+});
 
 describe("suggestSensorSeed — never suggests the recommended fix as the pattern", () => {
   it("does not pick the `Instead, use:` tool even when it leaks into the why-failed line", () => {

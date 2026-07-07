@@ -385,3 +385,53 @@ export function runTierContract(): TierContractCheck[] {
     return { name, expected, actual, pass: actual === expected };
   });
 }
+
+import { judgeProposedSensor, isHarnessErrorOutput } from "./sensors.js";
+import { suggestSensorSeed } from "./sensor-suggest.js";
+import type { Sensor } from "./types.js";
+
+export interface ContractCheck {
+  name: string;
+  pass: boolean;
+  detail?: string;
+}
+
+/**
+ * Validation contract — the deterministic-honesty invariants the block decision depends on, frozen
+ * as fixed cases and exercised against the INSTALLED validator at eval time. Each case is a bug that
+ * actually shipped once (see 2026-07-07 behaviour-honesty pass); if a refactor re-opens one, `eval`
+ * fails in CI instead of the hole reappearing silently. This is the layer that self-tests the layer
+ * everything else trusts — the answer to "the eval scored 100 while the validation had holes".
+ */
+export function runValidationContract(): ContractCheck[] {
+  const checks: ContractCheck[] = [];
+  const sensor = (pattern: string, extra: Partial<Sensor> = {}): Sensor => ({
+    kind: "regex", pattern, paths: ["src/"], message: "m", severity: "block",
+    autogen: false, last_fired: null, ...extra,
+  });
+
+  // 1. Inverted sensor — a pattern matching the lesson's recommended fix must be REJECTED.
+  {
+    const v = judgeProposedSensor(sensor("date-fns"), { currentTargets: [], badExamples: [], correctExamples: ["date-fns"] });
+    checks.push({ name: "inverted sensor (fires on the recommended fix) is rejected", pass: !v.accepted && v.reason === "fires-on-correct", detail: v.reason });
+  }
+  // 2. A genuine discriminating sensor is still ACCEPTED (the guard must not over-reject).
+  {
+    const v = judgeProposedSensor(sensor("from ['\"]moment['\"]"), { currentTargets: [], badExamples: ["import x from 'moment'"], correctExamples: ["date-fns"] });
+    checks.push({ name: "legitimate sensor (targets the mistake) is accepted", pass: v.accepted, detail: v.reason });
+  }
+  // 3. A sensor firing on the CURRENT correct code is rejected.
+  {
+    const v = judgeProposedSensor(sensor("stripe\\.create"), { currentTargets: [{ path: "src/a.ts", content: "stripe.create({ idempotencyKey })" }], badExamples: [] });
+    checks.push({ name: "sensor firing on current correct code is rejected", pass: !v.accepted && v.reason === "fires-on-current", detail: v.reason });
+  }
+  // 4. prove-RED honesty — a harness/load error is NOT a demonstrated RED; a real assertion is.
+  checks.push({ name: "harness error (missing module) is not counted as a RED", pass: isHarnessErrorOutput("Error: Cannot find module '../x'") === true });
+  checks.push({ name: "a genuine assertion failure IS a real RED", pass: isHarnessErrorOutput("AssertionError: expected 100 to equal 50") === false });
+  // 5. The seed never suggests the recommended tool as the pattern.
+  {
+    const seed = suggestSensorSeed("# use moment\n\n**Why it failed / do NOT use:** team standard is date-fns\n\n**Instead, use:** date-fns", ["src/"]);
+    checks.push({ name: "seed does not suggest the recommended tool as the pattern", pass: seed?.pattern !== "date-fns", detail: seed?.pattern });
+  }
+  return checks;
+}

@@ -125,6 +125,7 @@ interface EnforceOptions {
   git?: boolean;
   ci?: boolean;
   explain?: boolean;
+  verbose?: boolean;
 }
 
 interface FinishOptions {
@@ -272,10 +273,11 @@ export function registerEnforce(program: Command): void {
     .description("Show whether this project has agent-agnostic Hivelore enforcement installed.")
     .option("-d, --dir <dir>", "project root")
     .option("--explain", "group findings by blocking/review/info and show repair commands", false)
+    .option("--verbose", "show every check (including the passing ones), not just what needs action", false)
     .option("--json", "emit JSON", false)
     .action(async (opts: EnforceOptions) => {
       const report = await buildEnforcementReport(opts.dir, "local");
-      printReport(report, Boolean(opts.json), Boolean(opts.explain));
+      printReport(report, Boolean(opts.json), Boolean(opts.explain), !opts.explain && !opts.verbose);
       if (report.should_block) process.exitCode = 1;
     });
 
@@ -285,10 +287,14 @@ export function registerEnforce(program: Command): void {
     .option("-d, --dir <dir>", "project root")
     .option("--stage <stage>", "local | pre-commit | pre-push | ci", "local")
     .option("--explain", "group findings by blocking/review/info and show repair commands", false)
+    .option("--verbose", "show every check (including the passing ones), not just what needs action", false)
     .option("--json", "emit JSON", false)
     .action(async (opts: EnforceOptions) => {
-      const report = await buildEnforcementReport(opts.dir, opts.stage ?? "local");
-      printReport(report, Boolean(opts.json), Boolean(opts.explain));
+      const stage = opts.stage ?? "local";
+      const report = await buildEnforcementReport(opts.dir, stage);
+      // Compact on the interactive/commit paths; CI, --explain and --verbose keep the full report.
+      const quiet = stage !== "ci" && !opts.explain && !opts.verbose;
+      printReport(report, Boolean(opts.json), Boolean(opts.explain), quiet);
       if (report.should_block) process.exit(2);
     });
 
@@ -1259,8 +1265,32 @@ async function buildEnforcementReport(
     );
   }
 
+  // At COMMIT time, PROCESS/STATE gates are advisory — only DETERMINISTIC content findings
+  // (sensor-block, precommit-policy-block, stale anchors, generated artifacts) may block a local
+  // commit. The process gates (briefing loaded, session recap, decision coverage, bootstrap) bind the
+  // SHARING points (pre-push, ci), where the code leaves the machine and other agents rely on it.
+  // Blocking these at every pre-commit trained the `--no-verify` reflex on cold/iterating repos —
+  // and a gate routinely bypassed protects nothing. This never weakens "same diff, same verdict":
+  // the content checks are untouched, and everything still enforces before the code is shared.
+  const commitStage = stage === "pre-commit" || stage === "local";
+  if (commitStage) {
+    const PROCESS_GATE_CODES = new Set([
+      "briefing-missing",
+      "session-recap-missing",
+      "decision-coverage-missing",
+      "bootstrap-incomplete",
+    ]);
+    effectiveFindings = effectiveFindings.map((f) =>
+      f.severity === "error" && PROCESS_GATE_CODES.has(f.code)
+        ? { ...f, severity: "warn" as const, impact: Math.min(f.impact ?? 8, 8) }
+        : f,
+    );
+  }
+
   const score = buildScore(effectiveFindings, config.enforcement?.scoreThreshold);
-  if (score.score < score.threshold) {
+  // The score-threshold BLOCK is a sharing-point concern too: at commit it would re-block on the very
+  // process penalties we just made advisory. Emit it only where the process gates are enforced.
+  if (score.score < score.threshold && !commitStage) {
     // Name what the score is made of: an unexplained "10% < 85%" is the kind of opaque signal
     // that trains people to ignore the gate. The top penalties tell the reader what to fix first.
     const topPenalties = effectiveFindings
@@ -2656,6 +2686,77 @@ function buildScore(findings: EnforcementFinding[], threshold = 80): Enforcement
   };
 }
 
+/** The managed git hooks Hivelore owns, as `{ name, body }` — the single source of truth reused by
+ *  install AND the doctor self-heal path, so they can never drift apart. */
+export function managedGitHookSpecs(): Array<{ name: string; body: string }> {
+  // Resolve the CLI with a graceful no-op fallback: a hook must never abort a commit just because the
+  // binary isn't on PATH (e.g. a GUI client with a minimal env) — that is exactly the failure the
+  // pre-rename `haive`-calling hooks caused.
+  const resolveCli = `_hivelore() {
+  if command -v hivelore >/dev/null 2>&1; then hivelore "$@"
+  else return 0
+  fi
+}`;
+  const block = (invocation: string): string => `#!/bin/sh\n${ENFORCE_HOOK_MARKER}\n${resolveCli}\n${invocation}\n`;
+  return [
+    { name: "pre-commit", body: block("_hivelore enforce check --stage pre-commit --dir . || exit $?") },
+    { name: "pre-push", body: block("_hivelore enforce check --stage pre-push --dir . || exit $?") },
+    { name: "commit-msg", body: block('_hivelore enforce commit-msg "$1" --dir . || exit $?') },
+    // Absorbed from the removed `install-hooks` command (v0.32.0): keep anchors fresh after every
+    // pull/merge/rebase so the next agent's briefing reflects moved/deleted files.
+    { name: "post-merge", body: block("_hivelore sync --quiet --since ORIG_HEAD || true") },
+    { name: "post-rewrite", body: block("_hivelore sync --quiet --since ORIG_HEAD || true") },
+  ];
+}
+
+/**
+ * A managed hook is BROKEN (not merely absent) when it still calls the removed `haive` binary
+ * directly, or carries a duplicated block (>1 marker / >1 shebang — the artifact the pre-v0.52.1
+ * installer produced). Either state aborts every commit or runs a dead line first. Pure over content.
+ */
+export function hookIsStale(content: string): boolean {
+  if (!content.trim()) return false;
+  const callsRemovedBinary = /^\s*haive\s+(?:enforce|sync)\b/m.test(content);
+  const markerCount = (content.match(/#\s*(?:hivelore|h[aA]ive)\b[^\n]*\bhook\b/gi) ?? []).length;
+  const shebangCount = (content.match(/^\s*#!.*\bsh\b/gm) ?? []).length;
+  return callsRemovedBinary || markerCount > 1 || shebangCount > 1;
+}
+
+/** Names of managed hooks that exist and are BROKEN (legacy `haive` call or duplicated block). */
+export async function detectStaleGitHooks(root: string): Promise<string[]> {
+  const hooksDir = path.join(root, ".git", "hooks");
+  if (!existsSync(hooksDir)) return [];
+  const stale: string[] = [];
+  for (const hook of managedGitHookSpecs()) {
+    const file = path.join(hooksDir, hook.name);
+    if (!existsSync(file)) continue;
+    const current = await readFile(file, "utf8").catch(() => "");
+    if (hookIsStale(current)) stale.push(hook.name);
+  }
+  return stale;
+}
+
+/**
+ * Detect + REPAIR broken managed hooks in `.git/hooks`. Regenerates only hooks that exist and are
+ * stale (see {@link hookIsStale}); a foreign husky/custom hook is preserved by
+ * {@link buildHookFileContent}. Returns the names repaired. Safe to call from `doctor` for self-heal.
+ */
+export async function repairStaleGitHooks(root: string): Promise<string[]> {
+  const hooksDir = path.join(root, ".git", "hooks");
+  if (!existsSync(hooksDir)) return [];
+  const repaired: string[] = [];
+  for (const hook of managedGitHookSpecs()) {
+    const file = path.join(hooksDir, hook.name);
+    if (!existsSync(file)) continue;
+    const current = await readFile(file, "utf8").catch(() => "");
+    if (!hookIsStale(current)) continue;
+    await writeFile(file, buildHookFileContent(current, hook.body), "utf8");
+    await chmod(file, 0o755);
+    repaired.push(hook.name);
+  }
+  return repaired;
+}
+
 async function installGitEnforcement(root: string): Promise<void> {
   const hooksDir = path.join(root, ".git", "hooks");
   if (!existsSync(path.join(root, ".git"))) {
@@ -2663,58 +2764,7 @@ async function installGitEnforcement(root: string): Promise<void> {
     return;
   }
   await mkdir(hooksDir, { recursive: true });
-  // Resolve the CLI with a legacy fallback: developers with an older global install only have
-  // the `haive` alias on PATH; the hook must not silently no-op for them.
-  const resolveCli = `_hivelore() {
-  if command -v hivelore >/dev/null 2>&1; then hivelore "$@"
-  else return 0
-  fi
-}`;
-  const hooks = [
-    {
-      name: "pre-commit",
-      body: `#!/bin/sh
-${ENFORCE_HOOK_MARKER}
-${resolveCli}
-_hivelore enforce check --stage pre-commit --dir . || exit $?
-`,
-    },
-    {
-      name: "pre-push",
-      body: `#!/bin/sh
-${ENFORCE_HOOK_MARKER}
-${resolveCli}
-_hivelore enforce check --stage pre-push --dir . || exit $?
-`,
-    },
-    {
-      name: "commit-msg",
-      body: `#!/bin/sh
-${ENFORCE_HOOK_MARKER}
-${resolveCli}
-_hivelore enforce commit-msg "$1" --dir . || exit $?
-`,
-    },
-    // Absorbed from the removed `install-hooks` command (v0.32.0): keep anchors fresh after
-    // every pull/merge/rebase so the next agent's briefing reflects moved/deleted files.
-    {
-      name: "post-merge",
-      body: `#!/bin/sh
-${ENFORCE_HOOK_MARKER}
-${resolveCli}
-_hivelore sync --quiet --since ORIG_HEAD || true
-`,
-    },
-    {
-      name: "post-rewrite",
-      body: `#!/bin/sh
-${ENFORCE_HOOK_MARKER}
-${resolveCli}
-_hivelore sync --quiet --since ORIG_HEAD || true
-`,
-    },
-  ];
-  for (const hook of hooks) {
+  for (const hook of managedGitHookSpecs()) {
     const file = path.join(hooksDir, hook.name);
     // Idempotent regeneration: strip any Hivelore-owned block (current OR legacy hAIve) and rewrite,
     // so a stale `haive …` line is REPLACED, never left to run first — while a genuinely foreign hook
@@ -2861,11 +2911,22 @@ function printBlockHeadline(report: EnforcementReport): void {
   }
 }
 
-function printReport(report: EnforcementReport, json: boolean, explain = false): void {
+function printReport(report: EnforcementReport, json: boolean, explain = false, quiet = false): void {
   if (json) {
     console.log(JSON.stringify(report, null, 2));
     return;
   }
+  const actionable = report.findings.filter((f) => f.severity === "error" || f.severity === "warn");
+
+  // SILENCE ON SUCCESS: a passing gate with nothing to act on is one line, not a page of ✓. A full
+  // report on every clean commit buries the day a real block appears — the signal that matters most.
+  // Verbose paths (CI, --explain) keep the whole report; `--verbose` (quiet=false) restores it too.
+  if (quiet && !report.should_block && actionable.length === 0) {
+    const ok = report.findings.filter((f) => f.severity === "ok").length;
+    ui.success(`Hivelore gate passed — ${ok} check(s), 0 issue(s).`);
+    return;
+  }
+
   console.log(ui.bold(`Hivelore enforcement — ${report.mode}${report.actor ? ` · ${report.actor}` : ""}`));
   console.log(ui.dim(`  root: ${report.root}`));
   console.log(ui.dim(`  score: ${report.score.score}% / threshold ${report.score.threshold}%`));
@@ -2876,10 +2937,14 @@ function printReport(report: EnforcementReport, json: boolean, explain = false):
     printFindingGroup("Blocking", report.categories.blocking, "error");
     printFindingGroup("Review", report.categories.review, "warn");
     printFindingGroup("Info", report.categories.info, "info");
+  } else if (quiet) {
+    // Show only what needs action; drop the reassuring ✓/• noise (the passing checks).
+    for (const finding of actionable) printFinding(finding);
   } else {
     for (const finding of report.findings) printFinding(finding);
   }
   if (report.should_block) ui.error("Hivelore enforcement gate failed.");
+  else if (actionable.length > 0) ui.success(`Hivelore gate passed — ${actionable.length} advisory finding(s), 0 blocking.`);
   else ui.success("Hivelore enforcement gate passed.");
 }
 

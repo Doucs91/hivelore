@@ -160,6 +160,90 @@ export function suggestSensorFromMemory(
 }
 
 /**
+ * The strongest possible seed: mine it from the FIX itself. Given the unified diff of the fix
+ * (`<pre-fix-ref>..HEAD`) scoped to the lesson's anchor paths, the mistake is *what the fix removed
+ * and did not re-add* (a token present only on `-` lines) and the correct marker is *what it added*
+ * (a token present only on `+` lines). That yields a discriminating `pattern` + `absent` companion
+ * grounded in the real change — turning "author a regex" into "confirm the mined candidate".
+ *
+ * Pure. Returns null when no distinctive removed-only token exists (nothing to key on). Callers run
+ * it through `propose_sensor` for the same silent-on-current / fires-on-bad / not-inverted validation
+ * as any hand-written pattern — mining lowers the authoring cost, it never bypasses the gate.
+ */
+export function mineSensorSeedFromDiff(
+  diff: string,
+  anchorPaths: string[],
+  body?: string,
+): SensorSeed | null {
+  if (!diff.trim() || anchorPaths.length === 0) return null;
+  const { removed, added } = collectDiffLines(diff, anchorPaths);
+  if (removed.length === 0) return null;
+  const removedTokens = rankDiffTokens(removed);
+  const addedLower = new Set(rankDiffTokens(added).map((t) => t.toLowerCase()));
+  const removedLower = new Set(removedTokens.map((t) => t.toLowerCase()));
+  // The mistake: removed AND not re-added (a pure deletion the fix made).
+  const patternToken = removedTokens.find((t) => !addedLower.has(t.toLowerCase())) ?? removedTokens[0];
+  if (!patternToken) return null;
+  const pattern = escapeRegExp(patternToken);
+  if (sensorPatternBrittleness(pattern)) return null;
+  // The correct marker: added AND not previously present (a pure addition the fix made).
+  const absentToken = rankDiffTokens(added).find(
+    (t) => !removedLower.has(t.toLowerCase()) && t.toLowerCase() !== patternToken.toLowerCase(),
+  );
+  const seed: SensorSeed = {
+    pattern,
+    paths: anchorPaths,
+    message: body ? sensorMessageFromBody(body, patternToken) : `Reintroduces \`${patternToken}\`, removed by the fix this lesson guards.`,
+  };
+  if (absentToken && !sensorPatternBrittleness(escapeRegExp(absentToken))) seed.absent = escapeRegExp(absentToken);
+  return seed;
+}
+
+/** Collect the `-`/`+` payload lines of a unified diff, restricted to files under the anchor paths. */
+function collectDiffLines(diff: string, anchorPaths: string[]): { removed: string[]; added: string[] } {
+  const removed: string[] = [];
+  const added: string[] = [];
+  let inScope = false;
+  for (const line of diff.split("\n")) {
+    if (line.startsWith("+++ ")) {
+      const file = line.replace(/^\+\+\+\s+(?:b\/)?/, "").trim();
+      inScope = file !== "/dev/null" && anchorPaths.some((p) => diffPathInAnchor(file, p));
+      continue;
+    }
+    if (line.startsWith("--- ") || line.startsWith("diff ") || line.startsWith("@@") || line.startsWith("index ")) continue;
+    if (!inScope) continue;
+    if (line.startsWith("-")) removed.push(line.slice(1));
+    else if (line.startsWith("+")) added.push(line.slice(1));
+  }
+  return { removed, added };
+}
+
+function diffPathInAnchor(file: string, anchor: string): boolean {
+  const a = anchor.replace(/^\/+|\/+$/g, "");
+  const f = file.replace(/^\/+/, "");
+  if (!a) return false;
+  return f === a || f.startsWith(`${a}/`) || f.startsWith(a) || a.startsWith(f);
+}
+
+/** Distinctive code tokens across a set of diff lines, ranked most-distinctive first (deduped). */
+function rankDiffTokens(lines: string[]): string[] {
+  const seen = new Set<string>();
+  for (const line of lines) {
+    for (const match of line.matchAll(CODE_TOKEN_RE)) {
+      const raw = (match[1] ?? match[2] ?? match[3] ?? "").replace(/^[^\w.-]+|[^\w.-]+$/g, "");
+      const isCodeLike = Boolean(match[1] ?? match[2]);
+      if (isDistinctiveToken(raw, isCodeLike)) seen.add(raw);
+    }
+  }
+  return [...seen].sort((a, b) => diffTokenScore(b) - diffTokenScore(a));
+}
+
+function diffTokenScore(token: string): number {
+  const shape = /[-_.:]/.test(token) ? 3 : /[A-Z]/.test(token.slice(1)) ? 2 : /\d/.test(token) ? 1 : 0;
+  return token.length + shape;
+}
+
+/**
  * Lowercased tokens that name the lesson's RECOMMENDED approach (its `Instead, use:` snippet). These
  * are the correct code — a sensor pattern built from them fires on the fix, never the mistake. Only
  * the explicit recommendation markers are used (not a generic "use X"), so an attempt whose bad token

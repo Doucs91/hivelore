@@ -7,6 +7,7 @@ import { Command } from "commander";
 import {
   extractCorrectApproachExamples,
   extractSensorExamples,
+  mineSensorSeedFromDiff,
   appendSensorEvaluations,
   assessSensorHealth,
   sensorPromotedAtMap,
@@ -84,6 +85,7 @@ interface SensorsProposeOptions {
   message?: string;
   incident?: string;
   redRef?: string;
+  fromFix?: string;
   flags?: string;
   paths?: string;
   json?: boolean;
@@ -479,6 +481,7 @@ export function registerSensors(program: Command): void {
     .argument("<memory-id>", "memory id to attach the sensor to")
     .option("--kind <kind>", "regex (default) | ast (structural — comments/strings can't false-positive) | shell | test (route the team's own oracle)", "regex")
     .option("--pattern <regex>", "kind=regex: regex matching the FAULTY usage")
+    .option("--from-fix <ref>", "kind=regex: MINE the pattern from the fix diff (<ref>..HEAD, scoped to the lesson anchors) — the removed line is the mistake, the added line the correct marker. Turns authoring into confirming.")
     .option("--rule <json>", "kind=ast: full ast-grep Rule JSON (kind/inside/has/not/all/any)")
     .option("--language <name>", "kind=ast: explicit language for non-standard extensions")
     .option("--command <cmd>", "kind=shell|test: command the gate runs when the diff touches the sensor's paths")
@@ -553,14 +556,6 @@ export function registerSensors(program: Command): void {
         }
         return;
       }
-      if (!opts.pattern?.trim()) {
-        rejectProposal(opts, "missing-pattern", "kind=regex requires --pattern.");
-        return;
-      }
-      const severity = opts.severity === "warn" ? "warn" : "block";
-      try { new RegExp(opts.pattern, opts.flags ?? ""); if (opts.absent) new RegExp(opts.absent, opts.flags ?? ""); }
-      catch (err) { rejectProposal(opts, "invalid-regex", `Invalid regex: ${String(err)}`); return; }
-
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       const loaded = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
@@ -570,6 +565,37 @@ export function registerSensors(program: Command): void {
       const anchorPaths = opts.paths
         ? opts.paths.split(",").map((s) => s.trim()).filter(Boolean)
         : found.memory.frontmatter.anchor.paths;
+
+      // --from-fix: MINE the pattern from what the fix removed (and the correct marker from what it
+      // added). The lesson names the mistake; the fix diff shows it literally — this turns "author a
+      // regex" into "confirm the mined candidate". The mined pattern still runs the FULL validation
+      // below (silent-on-current, fires-on-bad, not-inverted): mining lowers cost, never bypasses.
+      if (!opts.pattern?.trim() && opts.fromFix?.trim()) {
+        const ref = opts.fromFix.trim();
+        try {
+          const { stdout } = await exec("git", ["diff", ref, "HEAD", "--", ...anchorPaths], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
+          const seed = mineSensorSeedFromDiff(stdout, anchorPaths, found.memory.body);
+          if (!seed) {
+            rejectProposal(opts, "mine-failed", `Could not mine a distinctive pattern from ${ref}..HEAD under ${anchorPaths.join(", ")}. Pass --pattern explicitly.`);
+            return;
+          }
+          opts.pattern = seed.pattern;
+          if (!opts.absent && seed.absent) opts.absent = seed.absent;
+          if (!opts.message?.trim()) opts.message = seed.message;
+          if (!opts.json) ui.info(`Mined from ${ref}..HEAD → --pattern ${JSON.stringify(seed.pattern)}${seed.absent ? ` --absent ${JSON.stringify(seed.absent)}` : ""}  (validating…)`);
+        } catch (err) {
+          rejectProposal(opts, "mine-failed", `git diff for --from-fix ${ref} failed: ${err instanceof Error ? err.message : String(err)}`);
+          return;
+        }
+      }
+
+      if (!opts.pattern?.trim()) {
+        rejectProposal(opts, "missing-pattern", "kind=regex requires --pattern (or --from-fix <ref> to mine one).");
+        return;
+      }
+      const severity = opts.severity === "warn" ? "warn" : "block";
+      try { new RegExp(opts.pattern, opts.flags ?? ""); if (opts.absent) new RegExp(opts.absent, opts.flags ?? ""); }
+      catch (err) { rejectProposal(opts, "invalid-regex", `Invalid regex: ${String(err)}`); return; }
       // HEAD-first: the working tree may still contain the very bad pattern being documented.
       const currentTargets = await readPresumedCorrectTargets(root, anchorPaths);
       const badExamples = [

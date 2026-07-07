@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stripHiveloreHookBlock, buildHookFileContent } from "../src/commands/enforce.js";
+import { stripHiveloreHookBlock, buildHookFileContent, hookIsStale } from "../src/commands/enforce.js";
 
 // The current-format block the installer writes for pre-commit.
 const OWN_BODY = `#!/bin/sh
@@ -26,6 +26,20 @@ const FOREIGN_HOOK = `#!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 npm test
 `;
+
+describe("hookIsStale — detect the commit-breaking states", () => {
+  it("flags a legacy hook that calls the removed haive binary", () => {
+    expect(hookIsStale(LEGACY_HOOK)).toBe(true);
+  });
+  it("flags the duplicate artifact (two blocks / two shebangs)", () => {
+    expect(hookIsStale(DUPLICATE_HOOK)).toBe(true);
+  });
+  it("does NOT flag a healthy current hook or a foreign one", () => {
+    expect(hookIsStale(OWN_BODY)).toBe(false);
+    expect(hookIsStale(FOREIGN_HOOK)).toBe(false);
+    expect(hookIsStale("")).toBe(false);
+  });
+});
 
 describe("stripHiveloreHookBlock", () => {
   it("removes a current-format Hivelore block wholesale (leaves nothing foreign)", () => {

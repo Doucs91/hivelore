@@ -97,6 +97,13 @@ export interface PreventionReceiptRow {
   incident: string | null;
   /** The oracle was proven RED on the incident state at arming time (red_ref replay). */
   red_proven: boolean;
+  /**
+   * How strong the evidence is that this block prevented a REAL bug (not just a documented preference):
+   *   - `proven`     — a red-proven oracle: the mistake is demonstrably a real incident (RED replay).
+   *   - `incident`   — carries an incident reference (a linked prod issue), but not RED-replayed.
+   *   - `documented` — a validated lesson with no incident proof (a team convention/preference).
+   */
+  evidence: "proven" | "incident" | "documented";
 }
 
 export interface PreventionReceipt {
@@ -106,6 +113,8 @@ export interface PreventionReceipt {
   total: number;
   previous_total: number;
   prevented_count_total: number;
+  /** Evidence breakdown of the window's preventions — how many blocked a demonstrably-real incident. */
+  by_evidence: { proven: number; incident: number; documented: number };
   trend: PreventionTrend;
   events: PreventionReceiptRow[];
 }
@@ -146,9 +155,15 @@ export function buildPreventionReceipt(
         message: sensor?.message ?? null,
         incident: sensor?.incident ?? null,
         red_proven: sensor?.red_proven === true,
+        evidence: sensor?.red_proven === true ? "proven" : sensor?.incident ? "incident" : "documented",
       };
     })
     .sort((a, b) => b.at.localeCompare(a.at));
+  const byEvidence = {
+    proven: rows.filter((r) => r.evidence === "proven").length,
+    incident: rows.filter((r) => r.evidence === "incident").length,
+    documented: rows.filter((r) => r.evidence === "documented").length,
+  };
   const preventedCountTotal = Object.values(usage.by_id)
     .reduce((sum, item) => sum + (item.prevented_count ?? 0), 0);
   return {
@@ -158,6 +173,7 @@ export function buildPreventionReceipt(
     total: rows.length,
     previous_total: previousTotal,
     prevented_count_total: preventedCountTotal,
+    by_evidence: byEvidence,
     trend: computePreventionTrend(events, now),
     events: rows,
   };
@@ -168,6 +184,13 @@ export function renderPreventionReceipt(receipt: PreventionReceipt): string {
     `Hivelore prevention receipt — last ${receipt.window_days} days`,
     `  ${receipt.total} repeat mistake${receipt.total === 1 ? "" : "s"} refused before ${receipt.total === 1 ? "it" : "they"} reached review.`,
   ];
+  if (receipt.total > 0) {
+    // Evidence honesty: separate blocks that stopped a DEMONSTRABLY-real incident (red-proven, or an
+    // incident-linked lesson) from blocks that only enforced a documented preference. This is the
+    // empirical claim the whole pitch rests on — grade it, never inflate it.
+    const e = receipt.by_evidence;
+    lines.push(`  Evidence: ${e.proven} red-proven · ${e.incident} incident-linked · ${e.documented} documented-only.`);
+  }
   for (const row of receipt.events) {
     const kind = row.kind ? `${row.kind} sensor` : row.source;
     const exit = row.exit_code === null ? "" : `, exit ${row.exit_code}`;

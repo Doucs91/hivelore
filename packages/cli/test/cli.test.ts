@@ -1612,29 +1612,37 @@ describe("Hivelore CLI integration", () => {
       await writeFile(path.join(repo, "src/app.ts"), "export const a = 2;\n", "utf8");
       await exec("git", ["add", "src/app.ts"], { cwd: repo });
 
-      // Agent context (pinned HAIVE_AGENT=1): briefing-missing is a blocking error.
-      const agent = JSON.parse(
+      // COMMIT stage is advisory for everyone: process gates never block a local commit (they enforce
+      // at the sharing points). Even an agent sees briefing-missing as a warning at pre-commit.
+      const agentCommit = JSON.parse(
         (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { actor?: string; should_block: boolean; findings: Array<{ code: string; severity: string }> };
+      expect(agentCommit.actor).toContain("agent");
+      expect(agentCommit.findings.find((f) => f.code === "briefing-missing")?.severity).toBe("warn");
+
+      // SHARING point (pre-push): the agent IS bound — briefing-missing is a blocking error there.
+      const agent = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-push", "--json", "--dir", repo])).stdout,
       ) as { actor?: string; findings: Array<{ code: string; severity: string }> };
       expect(agent.actor).toContain("agent");
       expect(agent.findings.find((f) => f.code === "briefing-missing")?.severity).toBe("error");
 
-      // Human context (HAIVE_AGENT=0 override): same gate relaxes to a warning.
+      // Human context (HAIVE_AGENT=0 override) at the sharing point: relaxed to a warning.
       const human = JSON.parse(
-        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo], { HAIVE_AGENT: "0" })).stdout,
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-push", "--json", "--dir", repo], { HAIVE_AGENT: "0" })).stdout,
       ) as { actor?: string; findings: Array<{ code: string; severity: string; message: string }> };
       expect(human.actor).toContain("human");
       const relaxed = human.findings.find((f) => f.code === "briefing-missing");
       expect(relaxed?.severity).toBe("warn");
       expect(relaxed?.message).toContain("humanCommits");
 
-      // humanCommits=strict binds humans too.
+      // humanCommits=strict binds humans too at the sharing point.
       const cfgPath = path.join(repo, ".ai", "hivelore.config.json");
       const cfg = JSON.parse(await readFile(cfgPath, "utf8")) as { enforcement?: Record<string, unknown> };
       cfg.enforcement = { ...cfg.enforcement, humanCommits: "strict" };
       await writeFile(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
       const strict = JSON.parse(
-        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo], { HAIVE_AGENT: "0" })).stdout,
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-push", "--json", "--dir", repo], { HAIVE_AGENT: "0" })).stdout,
       ) as { findings: Array<{ code: string; severity: string }> };
       expect(strict.findings.find((f) => f.code === "briefing-missing")?.severity).toBe("error");
     } finally {
@@ -1750,9 +1758,10 @@ describe("Hivelore CLI integration", () => {
       const caught = await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--dir", repo]);
       expect(caught.stdout).toContain("A documented lesson refused this commit");
       expect(caught.stdout).toContain("2024-02-02-attempt-no-moment");
-      // The aggregate score names its top penalties instead of an unexplained percentage.
-      expect(caught.stdout).toContain("top penalties:");
-      expect(caught.stdout).toMatch(/top penalties:.*sensor-block \(−45\)/);
+      // The deterministic block is named; at COMMIT stage the process/score noise is suppressed
+      // (Lever: silence-on-success / commit-advisory) so the lesson-refusal is the signal, not buried.
+      expect(caught.stdout).toContain("sensor-block");
+      expect(caught.stdout).not.toContain("top penalties:");
     } finally {
       await rm(repo, { recursive: true, force: true });
     }
