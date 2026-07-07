@@ -6,6 +6,19 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.52.1] — Idempotent git-hook regeneration (post-rename repair)
+
+- **`enforce install` now REPLACES a stale hook block instead of appending a duplicate.** A repo
+  installed before the v0.51.0 `haive`→`hivelore` rename kept `.git/hooks/{pre-commit,pre-push,
+  commit-msg}` calling the removed `haive` binary directly; `enforce install` keyed idempotency on the
+  *current* marker string, did not recognise the legacy `# hAIve enforcement hook` block, and appended
+  the new probe below it — a two-block hook whose dead `haive` line ran first and aborted **every
+  commit** with `haive: not found`. Hook regeneration now strips any Hivelore-owned block (current OR
+  legacy hAIve shape, plus a previously-appended duplicate) and rewrites a single clean block. A
+  genuinely foreign hook (husky/custom) is still preserved, with our block appended after it and no
+  stray mid-script shebang. New pure, tested helpers `stripHiveloreHookBlock` / `buildHookFileContent`;
+  regeneration is now a fixed point (re-running install never grows or duplicates the hook).
+
 ## [0.52.0] — Behaviour-harness honesty + inverted-sensor guard
 
 Four hardening fixes concentrated on the branch Hivelore leads — no philosophy change, no new surface.

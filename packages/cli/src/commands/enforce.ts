@@ -59,6 +59,49 @@ const execFileAsync = promisify(execFile);
 const MAX_STDIN_BYTES = 256 * 1024;
 const ENFORCE_HOOK_MARKER = "# Hivelore enforcement hook";
 
+/**
+ * Remove every Hivelore-owned block from a git-hook script, in BOTH the current and the legacy
+ * (`# hAIve enforcement hook` → direct `haive …` call) shapes, returning only foreign content.
+ *
+ * Why this exists: `installGitEnforcement` keyed idempotency on the *current* marker string, so a
+ * repo installed before the v0.51.0 `haive`→`hivelore` rename (whose hook says `# hAIve …`) was not
+ * recognised as ours and the new block was APPENDED below the stale one — a two-block hook whose dead
+ * `haive` line runs first and aborts every commit (`haive: not found`). We must detect ours by family
+ * (any Hivelore/hAIve marker or the `_hivelore()` resolver) and replace, never append.
+ *
+ * A block spans its marker comment through the next Hivelore/hAIve invocation line (the one with `||`),
+ * so the resolver function body in between is consumed. Shebang lines are dropped (a fresh one is added
+ * by the caller) so a previously-appended duplicate can't leave a stray `#!/bin/sh` mid-script. Pure.
+ */
+export function stripHiveloreHookBlock(content: string): string {
+  const markerRe = /^\s*#\s*(?:hivelore|h[aA]ive)\b.*\bhook\b/i;
+  const invocationRe = /^\s*_?(?:hivelore|haive)\b.*\|\|/i;
+  const shebangRe = /^\s*#!.*\bsh\b/;
+  const out: string[] = [];
+  let inBlock = false;
+  for (const line of content.split("\n")) {
+    if (inBlock) {
+      if (invocationRe.test(line)) inBlock = false; // consume through the invocation line
+      continue;
+    }
+    if (markerRe.test(line)) { inBlock = true; continue; }
+    if (shebangRe.test(line)) continue; // drop shebangs; the caller re-adds exactly one
+    out.push(line);
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * Idempotent hook content: our block wholesale when the file is ours (or empty), else the preserved
+ * foreign script followed by our block (a genuine husky/custom hook is never clobbered).
+ */
+export function buildHookFileContent(current: string, ownBody: string): string {
+  const foreign = stripHiveloreHookBlock(current);
+  if (!foreign) return ownBody;
+  const ownWithoutShebang = ownBody.replace(/^\s*#!.*\n/, "");
+  return `#!/bin/sh\n${foreign}\n\n${ownWithoutShebang}`;
+}
+
 interface HookPayload {
   cwd?: string;
   session_id?: string;
@@ -2673,16 +2716,11 @@ _hivelore sync --quiet --since ORIG_HEAD || true
   ];
   for (const hook of hooks) {
     const file = path.join(hooksDir, hook.name);
-    if (existsSync(file)) {
-      const current = await readFile(file, "utf8").catch(() => "");
-      if (current.includes(ENFORCE_HOOK_MARKER)) {
-        await writeFile(file, hook.body, "utf8");
-      } else {
-        await writeFile(file, `${current.trimEnd()}\n\n${hook.body}`, "utf8");
-      }
-    } else {
-      await writeFile(file, hook.body, "utf8");
-    }
+    // Idempotent regeneration: strip any Hivelore-owned block (current OR legacy hAIve) and rewrite,
+    // so a stale `haive …` line is REPLACED, never left to run first — while a genuinely foreign hook
+    // (husky/custom) is preserved and our block appended after it.
+    const current = existsSync(file) ? await readFile(file, "utf8").catch(() => "") : "";
+    await writeFile(file, buildHookFileContent(current, hook.body), "utf8");
     await chmod(file, 0o755);
   }
   ui.success("Installed git hooks: pre-commit, pre-push, commit-msg (blocking) + post-merge, post-rewrite (sync)");
