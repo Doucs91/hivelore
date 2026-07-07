@@ -1,6 +1,6 @@
 {
   "name": "@hivelore/mcp",
-  "version": "0.50.0",
+  "version": "0.51.0",
   "description": "Hivelore MCP server - policy-aware briefing and memory tools for coding-agent harnesses",
   "license": "Apache-2.0",
   "repository": {
@@ -39,8 +39,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "hivelore-mcp": "./dist/index.js",
-    "haive-mcp": "./dist/index.js"
+    "hivelore-mcp": "./dist/index.js"
   },
   "files": [
     "dist",

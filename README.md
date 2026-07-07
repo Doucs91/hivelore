@@ -272,7 +272,7 @@ hivelore init          # Creates .ai/, bridge files, MCP config, hooks, CI templ
 
 **VS Code**:
 ```bash
-code --add-mcp '{"name":"haive","command":"haive","args":["mcp","--stdio","--root","/path/to/project"]}'
+code --add-mcp '{"name":"hivelore","command":"hivelore","args":["mcp","--stdio","--root","/path/to/project"]}'
 ```
 
 ### 3. Bootstrap your project context
@@ -358,7 +358,7 @@ hivelore eval --fail-under 50   # retrieval + sensor quality on your own corpus
 
 To remove everything Hivelore added: `rm -rf .ai CLAUDE.md AGENTS.md GEMINI.md .cursorrules .clinerules
 .continuerules .windsurfrules .rules CONVENTIONS.md .github/copilot-instructions.md` and drop the
-`.github/workflows/haive-*.yml` files. Feedback from a repo that isn't ours is the most valuable thing
+`.github/workflows/hivelore-*.yml` files. Feedback from a repo that isn't ours is the most valuable thing
 you can send — please [open an issue](https://github.com/Doucs91/hivelore/issues) with what worked and what didn't.
 
 ## What Hivelore enforces
@@ -426,8 +426,8 @@ your-project/
 └── .github/
     ├── copilot-instructions.md     # Auto-generated bridge for Copilot
     └── workflows/
-        ├── haive-sync.yml          # Anchor verification on merge
-        └── haive-enforcement.yml   # Required policy gate
+        ├── hivelore-sync.yml       # Anchor verification on merge
+        └── hivelore-enforcement.yml # Required policy gate
 ```
 
 ### Native bridges — meet every agent where it is

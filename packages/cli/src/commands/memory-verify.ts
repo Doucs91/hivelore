@@ -35,7 +35,7 @@ export function registerMemoryVerify(memory: Command): void {
       "  A memory is 'stale' when its anchored file or symbol was moved, deleted, or renamed.\n" +
       "  Stale memories are shown with a warning in get_briefing and should be updated or deleted.\n\n" +
       "  hivelore sync runs this automatically. Use this command for on-demand checks or in CI.\n\n" +
-      "  CI recommendation: add 'hivelore memory verify' to your haive-sync.yml PR check job\n" +
+      "  CI recommendation: add 'hivelore memory verify' to your hivelore-sync.yml PR check job\n" +
       "  to catch stale memories before they reach main.\n\n" +
       "  Examples:\n" +
       "    hivelore memory verify                          # check all, report only\n" +

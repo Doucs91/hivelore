@@ -582,7 +582,7 @@ export function registerDoctor(program: Command): void {
           severity: "info",
           code: "no-autopilot",
           message: "Autopilot is OFF — session recaps are not auto-saved on shutdown.",
-          fix: "Edit .ai/haive.config.json: set autoSessionEnd: true (or re-run `hivelore init` without --manual).",
+          fix: "Edit .ai/hivelore.config.json: set autoSessionEnd: true (or re-run `hivelore init` without --manual).",
         });
       }
 

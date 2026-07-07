@@ -48,7 +48,7 @@ export async function applyAutopilotRepairs(
     if (changed) {
       repairs.push({
         code: "autopilot-config",
-        message: "Enabled autopilot defaults in .ai/haive.config.json.",
+        message: "Enabled autopilot defaults in .ai/hivelore.config.json.",
       });
     }
   }

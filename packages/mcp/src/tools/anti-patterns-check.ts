@@ -164,7 +164,7 @@ export function isHaiveOwnedPath(p: string): boolean {
   if (p.startsWith(".ai/")) return true;
   if (HAIVE_GENERATED_FILES.has(p)) return true;
   if (p.startsWith(".cursor/rules/")) return true; // haive-mcp-required.mdc and siblings
-  if (/^\.github\/workflows\/haive-.*\.ya?ml$/.test(p)) return true;
+  if (/^\.github\/workflows\/(hivelore|haive)-.*\.ya?ml$/.test(p)) return true;
   return false;
 }
 

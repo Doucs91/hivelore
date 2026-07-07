@@ -1,5 +1,5 @@
 /**
- * Hivelore project configuration — .ai/haive.config.json
+ * Hivelore project configuration — .ai/hivelore.config.json
  *
  * In autopilot mode, Hivelore operates with zero human intervention:
  *   - Memories go directly to `validated` (no approval cycle)
@@ -16,11 +16,13 @@
  */
 import { existsSync } from "node:fs";
 import { readFileSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { HaivePaths } from "./paths.js";
 
-export const CONFIG_FILE = "haive.config.json";
+export const CONFIG_FILE = "hivelore.config.json";
+/** Pre-rename filename. Read as a fallback and migrated to CONFIG_FILE on the next write. */
+export const LEGACY_CONFIG_FILE = "haive.config.json";
 
 /** A remote or local repo to pull shared memories from. */
 export interface CrossRepoSource {
@@ -411,12 +413,21 @@ export function antiPatternGateParams(
   }
 }
 
+/** The canonical config path to WRITE to (the current name). */
 export function configPath(paths: HaivePaths): string {
   return path.join(paths.haiveDir, CONFIG_FILE);
 }
 
+/** Path to READ from: the current file if present, else the legacy `haive.config.json`, else current. */
+export function resolveConfigPath(paths: HaivePaths): string {
+  const current = configPath(paths);
+  if (existsSync(current)) return current;
+  const legacy = path.join(paths.haiveDir, LEGACY_CONFIG_FILE);
+  return existsSync(legacy) ? legacy : current;
+}
+
 export async function loadConfig(paths: HaivePaths): Promise<HaiveConfig> {
-  const file = configPath(paths);
+  const file = resolveConfigPath(paths);
   if (!existsSync(file)) return { ...DEFAULT_CONFIG };
   try {
     const raw = await readFile(file, "utf8");
@@ -433,7 +444,7 @@ export async function loadConfig(paths: HaivePaths): Promise<HaiveConfig> {
 }
 
 export function loadConfigSync(paths: HaivePaths): HaiveConfig {
-  const file = configPath(paths);
+  const file = resolveConfigPath(paths);
   if (!existsSync(file)) return { ...DEFAULT_CONFIG };
   try {
     const parsed = JSON.parse(readFileSync(file, "utf8")) as Partial<HaiveConfig>;
@@ -448,6 +459,11 @@ export function loadConfigSync(paths: HaivePaths): HaiveConfig {
 
 export async function saveConfig(paths: HaivePaths, config: HaiveConfig): Promise<void> {
   await writeFile(configPath(paths), JSON.stringify(config, null, 2) + "\n", "utf8");
+  // Migrate: once the current-named file exists, drop the legacy one so it can't shadow or confuse.
+  const legacy = path.join(paths.haiveDir, LEGACY_CONFIG_FILE);
+  if (existsSync(legacy)) {
+    try { await rm(legacy, { force: true }); } catch { /* best-effort migration */ }
+  }
 }
 
 function mergeConfig(base: HaiveConfig, override: Partial<HaiveConfig>): HaiveConfig {

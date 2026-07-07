@@ -24,7 +24,7 @@ export function registerDevLink(program: Command): void {
   const dev = program.commands.find((c) => c.name() === "dev") ?? program.command("dev").description("Developer utilities for working on Hivelore itself.");
   dev
     .command("link")
-    .description("Hot-swap this repo's built dist into the global @hivelore (or legacy @hiveai) install so the global binary runs your local code.")
+    .description("Hot-swap this repo's built dist into the global @hivelore install so the global binary runs your local code.")
     .option("-d, --dir <dir>", "repo root (default: discovered from cwd)")
     .option("--json", "emit a machine-readable summary", false)
     .action(async (opts: DevLinkOptions) => {
@@ -42,12 +42,11 @@ export function registerDevLink(program: Command): void {
         // Fallback: derive from the running node binary (…/bin/node → …/lib/node_modules).
         globalModules = path.join(path.dirname(path.dirname(process.execPath)), "lib", "node_modules");
       }
-      // Transition: prefer the new @hivelore scope, fall back to a legacy @hiveai global install.
-      const scopeDirs = ["@hivelore", "@hiveai"]
+      const scopeDirs = ["@hivelore"]
         .map((scope) => path.join(globalModules, scope))
         .filter((dir) => existsSync(dir));
       if (scopeDirs.length === 0) {
-        ui.error(`No global @hivelore (or legacy @hiveai) install under ${globalModules}. Install once with \`npm i -g @hivelore/cli\`, then re-run.`);
+        ui.error(`No global @hivelore install under ${globalModules}. Install once with \`npm i -g @hivelore/cli\`, then re-run.`);
         process.exitCode = 1;
         return;
       }

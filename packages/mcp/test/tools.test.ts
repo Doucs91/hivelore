@@ -109,7 +109,7 @@ describe("Hivelore MCP tools", () => {
 
     it("warns when a validated decision is saved without anchors", async () => {
       await writeFile(
-        path.join(ctx.paths.haiveDir, "haive.config.json"),
+        path.join(ctx.paths.haiveDir, "hivelore.config.json"),
         JSON.stringify({ defaultStatus: "validated" }),
         "utf8",
       );
@@ -709,7 +709,7 @@ describe("Hivelore MCP tools", () => {
     it("promotes after 1 read when config autoPromoteMinReads=1", async () => {
       // Autopilot-style config: promote immediately on first read
       await writeFile(
-        path.join(ctx.paths.haiveDir, "haive.config.json"),
+        path.join(ctx.paths.haiveDir, "hivelore.config.json"),
         JSON.stringify({ autoPromoteMinReads: 1 }),
         "utf8",
       );
@@ -822,7 +822,7 @@ describe("Hivelore MCP tools", () => {
     it("respects explicit scope:personal even when config defaultScope is team", async () => {
       // Write a config that would normally force team scope
       await writeFile(
-        path.join(ctx.paths.haiveDir, "haive.config.json"),
+        path.join(ctx.paths.haiveDir, "hivelore.config.json"),
         JSON.stringify({ defaultScope: "team" }),
         "utf8",
       );
@@ -844,7 +844,7 @@ describe("Hivelore MCP tools", () => {
 
     it("falls back to config defaultScope when scope is not provided", async () => {
       await writeFile(
-        path.join(ctx.paths.haiveDir, "haive.config.json"),
+        path.join(ctx.paths.haiveDir, "hivelore.config.json"),
         JSON.stringify({ defaultScope: "team" }),
         "utf8",
       );

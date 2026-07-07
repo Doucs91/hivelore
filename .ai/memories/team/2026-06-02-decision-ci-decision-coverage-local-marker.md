@@ -6,7 +6,7 @@ status: validated
 anchor:
   paths:
     - packages/cli/src/commands/enforce.ts
-    - .github/workflows/haive-enforcement.yml
+    - .github/workflows/hivelore-enforcement.yml
   symbols: []
 tags:
   - ci

@@ -1,4 +1,4 @@
-name: haive-sync
+name: hivelore-sync
 
 on:
   push:
@@ -77,8 +77,8 @@ jobs:
       - name: verify memory anchors touched by this PR
         id: verify
         run: |
-          hivelore memory verify 2>&1 | tee /tmp/haive-verify.txt || true
-          STALE=$(grep -c 'stale' /tmp/haive-verify.txt || echo 0)
+          hivelore memory verify 2>&1 | tee /tmp/hivelore-verify.txt || true
+          STALE=$(grep -c 'stale' /tmp/hivelore-verify.txt || echo 0)
           echo "stale_count=$STALE" >> "$GITHUB_OUTPUT"
 
       - name: comment on PR if stale memories detected
@@ -87,12 +87,12 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const report = fs.readFileSync('/tmp/haive-verify.txt', 'utf8').trim();
+            const report = fs.readFileSync('/tmp/hivelore-verify.txt', 'utf8').trim();
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `### haive — Stale memories detected\n\nSome memories anchored to code modified in this PR may be outdated:\n\n\`\`\`\n${report}\n\`\`\`\n\nRun \`hivelore memory verify --update\` locally to refresh them before merging.`
+              body: `### hivelore — Stale memories detected\n\nSome memories anchored to code modified in this PR may be outdated:\n\n\`\`\`\n${report}\n\`\`\`\n\nRun \`hivelore memory verify --update\` locally to refresh them before merging.`
             });
 
   # ── Hivelore PR Memory Check ─────────────────────────────────────────────────
@@ -115,7 +115,7 @@ jobs:
           # max-memories: '5'       # limit memories per file in the comment
 
   # On push to main: push shared memories to the hub (if hubPath is configured)
-  # Uncomment and configure hubPath in .ai/haive.config.json to enable.
+  # Uncomment and configure hubPath in .ai/hivelore.config.json to enable.
   # hub-push:
   #   if: github.event_name == 'push'
   #   needs: sync-on-merge
@@ -129,8 +129,8 @@ jobs:
   #     - uses: actions/setup-node@v4
   #       with:
   #         node-version: '20'
-  #     - name: install haive
+  #     - name: install hivelore
   #       run: npm install -g @hivelore/cli
   #     - name: push shared memories to hub
   #       run: hivelore hub push --commit
-  #       # Requires hubPath in .ai/haive.config.json pointing to a cloned hub repo.
+  #       # Requires hubPath in .ai/hivelore.config.json pointing to a cloned hub repo.

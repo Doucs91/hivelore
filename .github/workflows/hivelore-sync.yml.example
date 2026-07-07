@@ -1,6 +1,6 @@
 # Hivelore sync — example workflow
 #
-# Copy this file to .github/workflows/haive-sync.yml in YOUR project to keep
+# Copy this file to .github/workflows/hivelore-sync.yml in YOUR project to keep
 # memory anchors fresh after every merge to main/develop, and to comment on
 # PRs when their changes would invalidate existing memories.
 #
@@ -37,10 +37,10 @@ jobs:
       - name: Commit updates if any
         run: |
           if [[ -n "$(git status --porcelain .ai/)" ]]; then
-            git config user.name "haive-bot"
-            git config user.email "haive-bot@users.noreply.github.com"
+            git config user.name "hivelore-bot"
+            git config user.email "hivelore-bot@users.noreply.github.com"
             git add .ai/
-            git commit -m "chore(haive): refresh memory anchors"
+            git commit -m "chore(hivelore): refresh memory anchors"
             git push
           fi
 

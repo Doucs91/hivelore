@@ -516,7 +516,7 @@ describe("preCommitCheck", () => {
 
     const result = await preCommitCheck({
       diff: '- "haive": "0.9.0"\n+ "haive": "0.9.21"\n+++ package.json\n npm install -g @hivelore/cli',
-      paths: [".ai/haive.config.json", "package.json", ".github/workflows/haive-sync.yml"],
+      paths: [".ai/haive.config.json", "package.json", ".github/workflows/hivelore-sync.yml"],
       block_on: "high-confidence",
       semantic: false,
     }, ctx);
@@ -1284,7 +1284,7 @@ describe("stripAiDirHunks", () => {
       "+- gotcha: never ship uvicorn reload=True to production",
       "diff --git a/.gitignore b/.gitignore",
       "+.ai/.cache/*",
-      "diff --git a/.github/workflows/haive-enforcement.yml b/.github/workflows/haive-enforcement.yml",
+      "diff --git a/.github/workflows/hivelore-enforcement.yml b/.github/workflows/hivelore-enforcement.yml",
       "+      - uses: actions/cache@v4",
       "diff --git a/CLAUDE.md b/CLAUDE.md",
       "+prisma client disconnect lambda guidance",
@@ -1295,7 +1295,7 @@ describe("stripAiDirHunks", () => {
     // Generated files gone…
     expect(out).not.toContain("AGENTS.md");
     expect(out).not.toContain(".gitignore");
-    expect(out).not.toContain("haive-enforcement.yml");
+    expect(out).not.toContain("hivelore-enforcement.yml");
     expect(out).not.toContain("CLAUDE.md");
     // …real code kept.
     expect(out).toContain("src/main.py");
@@ -1310,7 +1310,7 @@ describe("isHaiveOwnedPath", () => {
       "AGENTS.md", "CLAUDE.md", ".cursorrules", ".clinerules", ".windsurfrules",
       ".github/copilot-instructions.md", ".sourcegraph/cody-rules.md",
       ".gitignore", ".mcp.json", ".cursor/mcp.json", ".vscode/mcp.json",
-      ".cursor/rules/haive-mcp-required.mdc", ".github/workflows/haive-sync.yml",
+      ".cursor/rules/haive-mcp-required.mdc", ".github/workflows/hivelore-sync.yml",
     ]) {
       expect(isHaiveOwnedPath(p)).toBe(true);
     }

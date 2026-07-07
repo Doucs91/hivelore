@@ -349,7 +349,8 @@ export function createHaiveServer(
   const context = createContext(options);
   const config = loadConfigSync(context.paths);
   const toolProfile =
-    (options.env?.HAIVE_TOOL_PROFILE as ToolProfile | undefined) ??
+    (options.env?.HIVELORE_TOOL_PROFILE as ToolProfile | undefined) ??
+    (options.env?.HAIVE_TOOL_PROFILE as ToolProfile | undefined) ?? // legacy env name
     config.enforcement?.toolProfile ??
     "enforcement";
   const requireBriefingFirst =

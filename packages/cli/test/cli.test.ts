@@ -114,21 +114,21 @@ describe("Hivelore CLI integration", () => {
     const hooks = await readFile(claudeSettings, "utf8");
     expect(hooks).toContain("hivelore enforce session-start");
     expect(hooks).toContain("hivelore enforce pre-tool-use");
-    expect(existsSync(path.join(workDir, ".github/workflows/haive-enforcement.yml"))).toBe(true);
-    const syncWorkflow = await readFile(path.join(workDir, ".github/workflows/haive-sync.yml"), "utf8");
+    expect(existsSync(path.join(workDir, ".github/workflows/hivelore-enforcement.yml"))).toBe(true);
+    const syncWorkflow = await readFile(path.join(workDir, ".github/workflows/hivelore-sync.yml"), "utf8");
     expect(syncWorkflow).toContain("Doucs91/hivelore/packages/github-action@v");
     expect(syncWorkflow).not.toContain("Doucs91/hivelore/packages/github-action@main");
     // No-op-safe harness quality regression gate is wired into the generated CI.
     expect(syncWorkflow).toContain("pr-eval-gate");
     expect(syncWorkflow).toContain("hivelore eval --regression-gate");
-    const enforcementWorkflow = await readFile(path.join(workDir, ".github/workflows/haive-enforcement.yml"), "utf8");
-    expect(enforcementWorkflow).toContain("HAIVE_BASE_SHA");
-    expect(enforcementWorkflow).toContain("HAIVE_HEAD_SHA");
+    const enforcementWorkflow = await readFile(path.join(workDir, ".github/workflows/hivelore-enforcement.yml"), "utf8");
+    expect(enforcementWorkflow).toContain("HIVELORE_BASE_SHA");
+    expect(enforcementWorkflow).toContain("HIVELORE_HEAD_SHA");
     expect(enforcementWorkflow).toContain("<!-- haive:prevention-receipt -->");
     expect(enforcementWorkflow).toContain("hivelore stats receipt --since 7d --json");
     expect(enforcementWorkflow).toContain("if: always() && github.event_name == 'pull_request'");
     expect(enforcementWorkflow).toContain("gh api --method PATCH");
-    const config = JSON.parse(await readFile(path.join(workDir, ".ai/haive.config.json"), "utf8")) as {
+    const config = JSON.parse(await readFile(path.join(workDir, ".ai/hivelore.config.json"), "utf8")) as {
       autopilot?: boolean;
       defaultScope?: string;
       defaultStatus?: string;
@@ -888,7 +888,7 @@ describe("Hivelore CLI integration", () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-pretool-block-"));
     try {
       await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
-      const cfgPath = path.join(repo, ".ai/haive.config.json");
+      const cfgPath = path.join(repo, ".ai/hivelore.config.json");
       const cfg = existsSync(cfgPath) ? JSON.parse(await readFile(cfgPath, "utf8")) : {};
       cfg.enforcement = { ...(cfg.enforcement ?? {}), preEditGate: "block" };
       await writeFile(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
@@ -1359,8 +1359,8 @@ describe("Hivelore CLI integration", () => {
         GITHUB_HEAD_REF: "",
         GITHUB_REF: "",
         GITHUB_EVENT_PATH: "",
-        HAIVE_BASE_SHA: "",
-        HAIVE_HEAD_SHA: "",
+        HIVELORE_BASE_SHA: "",
+        HIVELORE_HEAD_SHA: "",
         HAIVE_BASE_REF: "",
       });
       const report = JSON.parse(result.stdout) as {
@@ -1419,8 +1419,8 @@ describe("Hivelore CLI integration", () => {
         GITHUB_HEAD_REF: "",
         GITHUB_REF: "",
         GITHUB_EVENT_PATH: "",
-        HAIVE_BASE_SHA: "",
-        HAIVE_HEAD_SHA: "",
+        HIVELORE_BASE_SHA: "",
+        HIVELORE_HEAD_SHA: "",
         HAIVE_BASE_REF: "",
       });
       const report = JSON.parse(result.stdout) as {
@@ -1505,6 +1505,42 @@ describe("Hivelore CLI integration", () => {
     }
   });
 
+  it("migrates a pre-rename repo: haive.config.json + haive-*.yml → hivelore.* (no duplicates)", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-kill-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await mkdir(path.join(repo, ".ai/memories/team"), { recursive: true });
+      await mkdir(path.join(repo, ".github/workflows"), { recursive: true });
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/app.ts"), "export const a = 1;\n", "utf8");
+      // Pre-rename artifacts carrying a custom setting + legacy workflow markers.
+      await writeFile(path.join(repo, ".ai/haive.config.json"), JSON.stringify({ enforcement: { reviewMatches: true } }), "utf8");
+      await writeFile(path.join(repo, ".github/workflows/haive-sync.yml"), "name: haive-sync\n", "utf8");
+      await writeFile(path.join(repo, ".github/workflows/haive-enforcement.yml"), "# haive:enforcement-workflow:start\nname: haive-enforcement\n# haive:enforcement-workflow:end\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "init"], { cwd: repo });
+
+      await run(repo, ["init", "--with-ci", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+      await run(repo, ["enforce", "install", "--dir", repo]);
+
+      // Config migrated, custom setting preserved, legacy gone.
+      expect(existsSync(path.join(repo, ".ai/hivelore.config.json"))).toBe(true);
+      expect(existsSync(path.join(repo, ".ai/haive.config.json"))).toBe(false);
+      const cfg = JSON.parse(await readFile(path.join(repo, ".ai/hivelore.config.json"), "utf8")) as { enforcement?: { reviewMatches?: boolean } };
+      expect(cfg.enforcement?.reviewMatches).toBe(true);
+
+      // Workflows migrated — new names exist and the legacy ones are gone (no double CI runs).
+      expect(existsSync(path.join(repo, ".github/workflows/hivelore-sync.yml"))).toBe(true);
+      expect(existsSync(path.join(repo, ".github/workflows/hivelore-enforcement.yml"))).toBe(true);
+      expect(existsSync(path.join(repo, ".github/workflows/haive-sync.yml"))).toBe(false);
+      expect(existsSync(path.join(repo, ".github/workflows/haive-enforcement.yml"))).toBe(false);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("hides fuzzy anti-pattern review matches by default, surfaces them with reviewMatches=true", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-review-off-"));
     try {
@@ -1526,7 +1562,7 @@ describe("Hivelore CLI integration", () => {
       ) as { findings: Array<{ code: string }> };
       expect(off.findings.some((f) => f.code === "anti-pattern-review")).toBe(false);
 
-      const cfgPath = path.join(repo, ".ai/haive.config.json");
+      const cfgPath = path.join(repo, ".ai/hivelore.config.json");
       const cfg = JSON.parse(await readFile(cfgPath, "utf8")) as { enforcement?: Record<string, unknown> };
       cfg.enforcement = { ...cfg.enforcement, reviewMatches: true };
       await writeFile(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
@@ -1593,7 +1629,7 @@ describe("Hivelore CLI integration", () => {
       expect(relaxed?.message).toContain("humanCommits");
 
       // humanCommits=strict binds humans too.
-      const cfgPath = path.join(repo, ".ai", "haive.config.json");
+      const cfgPath = path.join(repo, ".ai", "hivelore.config.json");
       const cfg = JSON.parse(await readFile(cfgPath, "utf8")) as { enforcement?: Record<string, unknown> };
       cfg.enforcement = { ...cfg.enforcement, humanCommits: "strict" };
       await writeFile(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
@@ -1619,7 +1655,7 @@ describe("Hivelore CLI integration", () => {
       await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
 
       // Opt in to command execution (off by default — runs repo-authored commands).
-      const cfgPath = path.join(repo, ".ai", "haive.config.json");
+      const cfgPath = path.join(repo, ".ai", "hivelore.config.json");
       const cfg = JSON.parse(await readFile(cfgPath, "utf8")) as { enforcement?: Record<string, unknown> };
       cfg.enforcement = { ...cfg.enforcement, runCommandSensors: true };
       await writeFile(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
@@ -1984,7 +2020,7 @@ describe("Hivelore CLI integration", () => {
       expect(weakened?.message).toContain("severity-demoted");
       expect(weakened?.message).toContain("oracle-changed");
 
-      const cfgPath = path.join(repo, ".ai/haive.config.json");
+      const cfgPath = path.join(repo, ".ai/hivelore.config.json");
       const cfg = JSON.parse(await readFile(cfgPath, "utf8")) as { enforcement?: Record<string, unknown> };
       cfg.enforcement = { ...cfg.enforcement, sensorWeakeningGate: "block" };
       await writeFile(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
@@ -2082,8 +2118,8 @@ describe("Hivelore CLI integration", () => {
       await exec("git", ["commit", "-m", "feat: break refunds"], { cwd: repo });
       const commitA = (await exec("git", ["rev-parse", "HEAD"], { cwd: repo })).stdout.trim();
       const gate = await runAllowFailure(repo, ["enforce", "ci", "--json", "--dir", repo], {
-        HAIVE_BASE_SHA: initial,
-        HAIVE_HEAD_SHA: commitA,
+        HIVELORE_BASE_SHA: initial,
+        HIVELORE_HEAD_SHA: commitA,
       });
       expect(gate.code).toBe(0);
 

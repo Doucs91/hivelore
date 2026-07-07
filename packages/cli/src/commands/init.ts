@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -7,6 +7,10 @@ import { promisify } from "node:util";
 import { Command } from "commander";
 import {
   AUTOPILOT_DEFAULTS,
+  CONFIG_FILE,
+  LEGACY_CONFIG_FILE,
+  loadConfig,
+  resolveConfigPath,
   BRIDGE_TARGETS,
   buildCodeMap,
   buildFrontmatter,
@@ -91,7 +95,7 @@ This repository uses **Hivelore**. Running \`hivelore init\` means the team expe
 Tell the developer to enable the **hivelore** server (e.g. \`hivelore mcp --stdio\` in client config) and restart the client. Do not silently ignore Hivelore.
 `;
 
-const CI_WORKFLOW = `name: haive-sync
+const CI_WORKFLOW = `name: hivelore-sync
 
 on:
   push:
@@ -213,7 +217,7 @@ jobs:
         run: hivelore eval --trend || true
 
   # On push to main: push shared memories to the hub (if hubPath is configured)
-  # Uncomment and configure hubPath in .ai/haive.config.json to enable.
+  # Uncomment and configure hubPath in .ai/hivelore.config.json to enable.
   # hub-push:
   #   if: github.event_name == 'push'
   #   needs: sync-on-merge
@@ -231,7 +235,7 @@ jobs:
   #       run: npm install -g @hivelore/cli
   #     - name: push shared memories to hub
   #       run: hivelore hub push --commit
-  #       # Requires hubPath in .ai/haive.config.json pointing to a cloned hub repo.
+  #       # Requires hubPath in .ai/hivelore.config.json pointing to a cloned hub repo.
 `;
 
 export function registerInit(program: Command): void {
@@ -252,7 +256,7 @@ export function registerInit(program: Command): void {
       `  Available: ${BRIDGE_TARGETS.join(", ")}. Each carries top memories + block sensors.`,
       "auto",
     )
-    .option("--with-ci", "write a GitHub Actions workflow (.github/workflows/haive-sync.yml) — included automatically in autopilot mode")
+    .option("--with-ci", "write a GitHub Actions workflow (.github/workflows/hivelore-sync.yml) — included automatically in autopilot mode")
     .option(
       "--manual",
       "opt out of autopilot: memories require manual approval, no auto-session recap, no auto-context",
@@ -368,15 +372,19 @@ export function registerInit(program: Command): void {
         }
       }
 
-      // Write config (autopilot or default)
-      const configExists = existsSync(
-        path.join(paths.haiveDir, "haive.config.json"),
-      );
+      // Write config (autopilot or default). resolveConfigPath honors a legacy haive.config.json so a
+      // pre-rename repo is treated as already configured.
+      const resolvedConfig = resolveConfigPath(paths);
+      const configExists = existsSync(resolvedConfig);
       if (!configExists) {
         await saveConfig(paths, autopilot ? AUTOPILOT_DEFAULTS : { autopilot: false });
         ui.success(
-          `Created .ai/haive.config.json (mode: ${autopilot ? "autopilot" : "standard"})`,
+          `Created .ai/${CONFIG_FILE} (mode: ${autopilot ? "autopilot" : "standard"})`,
         );
+      } else if (!resolvedConfig.endsWith(CONFIG_FILE)) {
+        // Pre-rename repo: migrate the legacy file to the current name (saveConfig deletes the legacy).
+        await saveConfig(paths, await loadConfig(paths));
+        ui.info(`Migrated .ai/${LEGACY_CONFIG_FILE} → .ai/${CONFIG_FILE}.`);
       }
 
       // Native agent bridges are generated AFTER seeding (below) so they carry the
@@ -456,13 +464,20 @@ export function registerInit(program: Command): void {
       // autopilot: CI + enforcement hooks + code-map included automatically
       const wantCi = opts.withCi || autopilot;
       if (wantCi) {
-        const ciPath = path.join(root, ".github", "workflows", "haive-sync.yml");
+        const workflowsDir = path.join(root, ".github", "workflows");
+        const ciPath = path.join(workflowsDir, "hivelore-sync.yml");
+        const legacyCiPath = path.join(workflowsDir, "haive-sync.yml");
         if (existsSync(ciPath)) {
           ui.info("CI workflow already exists — skipped");
         } else {
-          await mkdir(path.dirname(ciPath), { recursive: true });
+          await mkdir(workflowsDir, { recursive: true });
           await writeFile(ciPath, CI_WORKFLOW, "utf8");
           ui.success(`Created ${path.relative(root, ciPath)}`);
+          // Migrate: remove a pre-rename haive-sync.yml so the sync workflow does not run twice.
+          if (existsSync(legacyCiPath)) {
+            await rm(legacyCiPath, { force: true });
+            ui.info(`Migrated ${path.relative(root, legacyCiPath)} → ${path.relative(root, ciPath)}.`);
+          }
         }
       }
 

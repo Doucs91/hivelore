@@ -200,7 +200,7 @@ export function registerEnforce(program: Command): void {
           policyPacks: ["architecture", "gotchas", "security", "domain", "release"],
         },
       });
-      ui.success("Hivelore strict enforcement enabled in .ai/haive.config.json");
+      ui.success("Hivelore strict enforcement enabled in .ai/hivelore.config.json");
 
       if (opts.git !== false) await installGitEnforcement(root);
       if (opts.ci !== false) await installCiEnforcement(root);
@@ -446,7 +446,7 @@ export function registerEnforce(program: Command): void {
           contextText +
           "\n\nThe relevant context is now recorded — re-issue the same edit to proceed " +
           "(no `hivelore briefing` command needed). To make this advisory instead of blocking, set " +
-          '`{ "enforcement": { "preEditGate": "advise" } }` in .ai/haive.config.json.',
+          '`{ "enforcement": { "preEditGate": "advise" } }` in .ai/hivelore.config.json.',
         );
         process.exit(2);
       }
@@ -900,7 +900,7 @@ export async function runWithEnforcement(
       HAIVE_BRIEFING_FILE: briefingFile,
       HAIVE_ENFORCEMENT: "strict",
       HAIVE_AGENT: "1", // wrapped process is an agent — process gates bind it (detectAgentContext)
-      HAIVE_TOOL_PROFILE: process.env.HAIVE_TOOL_PROFILE ?? "enforcement",
+      HIVELORE_TOOL_PROFILE: process.env.HIVELORE_TOOL_PROFILE ?? process.env.HAIVE_TOOL_PROFILE ?? "enforcement",
     },
   });
   await new Promise<void>((resolve, reject) => {
@@ -2143,8 +2143,9 @@ async function getPolicyDiffSnapshot(
 }
 
 async function resolveCiDiffRange(root: string): Promise<string | null> {
-  const explicitBase = cleanGitSha(process.env.HAIVE_BASE_SHA ?? process.env.HAIVE_BASE_REF);
-  const explicitHead = cleanGitSha(process.env.HAIVE_HEAD_SHA ?? process.env.GITHUB_SHA) ?? "HEAD";
+  // Read the new HIVELORE_* names, falling back to legacy HAIVE_* baked into pre-rename workflows.
+  const explicitBase = cleanGitSha(process.env.HIVELORE_BASE_SHA ?? process.env.HIVELORE_BASE_REF ?? process.env.HAIVE_BASE_SHA ?? process.env.HAIVE_BASE_REF);
+  const explicitHead = cleanGitSha(process.env.HIVELORE_HEAD_SHA ?? process.env.HAIVE_HEAD_SHA ?? process.env.GITHUB_SHA) ?? "HEAD";
   if (explicitBase && await gitCommitExists(root, explicitBase)) {
     return `${explicitBase}...${explicitHead}`;
   }
@@ -2623,7 +2624,6 @@ async function installGitEnforcement(root: string): Promise<void> {
   // the `haive` alias on PATH; the hook must not silently no-op for them.
   const resolveCli = `_hivelore() {
   if command -v hivelore >/dev/null 2>&1; then hivelore "$@"
-  elif command -v haive >/dev/null 2>&1; then haive "$@"
   else return 0
   fi
 }`;
@@ -2689,20 +2689,32 @@ _hivelore sync --quiet --since ORIG_HEAD || true
 }
 
 async function installCiEnforcement(root: string): Promise<void> {
-  const workflowPath = path.join(root, ".github", "workflows", "haive-enforcement.yml");
-  await mkdir(path.dirname(workflowPath), { recursive: true });
+  const workflowsDir = path.join(root, ".github", "workflows");
+  const workflowPath = path.join(workflowsDir, "hivelore-enforcement.yml");
+  const legacyPath = path.join(workflowsDir, "haive-enforcement.yml");
+  await mkdir(workflowsDir, { recursive: true });
   const workflow = renderCiEnforcementWorkflow();
-  if (existsSync(workflowPath)) {
-    const existing = await readFile(workflowPath, "utf8");
-    const start = "# haive:enforcement-workflow:start";
-    const end = "# haive:enforcement-workflow:end";
-    const startAt = existing.indexOf(start);
-    const endAt = existing.indexOf(end);
+  // Migrate: adopt the managed block from a legacy haive-enforcement.yml, then remove it so CI does
+  // not run twice. Markers of both eras are recognised.
+  const source = existsSync(workflowPath) ? workflowPath : existsSync(legacyPath) ? legacyPath : null;
+  if (source) {
+    const existing = await readFile(source, "utf8");
+    const startAt = Math.max(existing.indexOf("# hivelore:enforcement-workflow:start"), existing.indexOf("# haive:enforcement-workflow:start"));
+    const endMarker = existing.includes("# hivelore:enforcement-workflow:end") ? "# hivelore:enforcement-workflow:end" : "# haive:enforcement-workflow:end";
+    const endAt = existing.indexOf(endMarker);
     if (startAt >= 0 && endAt > startAt) {
-      await writeFile(workflowPath, existing.slice(0, startAt) + workflow + existing.slice(endAt + end.length), "utf8");
+      await writeFile(workflowPath, existing.slice(0, startAt) + workflow + existing.slice(endAt + endMarker.length), "utf8");
       ui.success(`Updated ${path.relative(root, workflowPath)} managed block`);
-    } else {
+    } else if (source === workflowPath) {
       ui.info("GitHub Actions enforcement workflow already exists without Hivelore markers — preserved");
+      return;
+    } else {
+      await writeFile(workflowPath, workflow, "utf8");
+      ui.success(`Created ${path.relative(root, workflowPath)}`);
+    }
+    if (source === legacyPath) {
+      await rm(legacyPath, { force: true });
+      ui.info(`Migrated ${path.relative(root, legacyPath)} → ${path.relative(root, workflowPath)}.`);
     }
     return;
   }
@@ -2711,8 +2723,8 @@ async function installCiEnforcement(root: string): Promise<void> {
 }
 
 function renderCiEnforcementWorkflow(): string {
-  return `# haive:enforcement-workflow:start
-name: haive-enforcement
+  return `# hivelore:enforcement-workflow:start
+name: hivelore-enforcement
 
 on:
   pull_request:
@@ -2720,7 +2732,7 @@ on:
     branches: [main, master]
 
 jobs:
-  haive-enforcement:
+  hivelore-enforcement:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2737,11 +2749,11 @@ jobs:
       - name: Enforce Hivelore policy
         id: gate
         env:
-          HAIVE_BASE_SHA: \${{ github.event.pull_request.base.sha || github.event.before }}
-          HAIVE_HEAD_SHA: \${{ github.event.pull_request.head.sha || github.sha }}
+          HIVELORE_BASE_SHA: \${{ github.event.pull_request.base.sha || github.event.before }}
+          HIVELORE_HEAD_SHA: \${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set +e
-          hivelore enforce ci --json > "$RUNNER_TEMP/haive-gate.json"
+          hivelore enforce ci --json > "$RUNNER_TEMP/hivelore-gate.json"
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
           exit 0
       - name: Upsert prevention receipt
@@ -2752,7 +2764,7 @@ jobs:
         run: |
           if [ -z "\${GH_TOKEN:-}" ] || ! command -v gh >/dev/null 2>&1; then exit 0; fi
           receipt="$(hivelore stats receipt --since 7d --json 2>/dev/null)" || exit 0
-          gate="$(cat "$RUNNER_TEMP/haive-gate.json" 2>/dev/null)" || gate='{"findings":[]}'
+          gate="$(cat "$RUNNER_TEMP/hivelore-gate.json" 2>/dev/null)" || gate='{"findings":[]}'
           body="$(jq -nr --arg marker '<!-- haive:prevention-receipt -->' --argjson receipt "$receipt" --argjson gate "$gate" '
             $marker + "\n## Hivelore prevention receipt\n\n" +
             (([$gate.findings[]? | select(.code == "sensor-block" or .code == "sensor-warn") |
@@ -2772,7 +2784,7 @@ jobs:
       - name: Fail when enforcement blocked
         if: steps.gate.outputs.exit_code != '0'
         run: exit \${{ steps.gate.outputs.exit_code }}
-# haive:enforcement-workflow:end
+# hivelore:enforcement-workflow:end
 `;
 }
 

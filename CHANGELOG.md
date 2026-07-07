@@ -6,6 +6,25 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.51.0] — Kill `haive`: one name, with migration
+
+The legacy `haive` name is retired across the user-visible surface. Migration is automatic and
+non-destructive — a pre-rename repo keeps working and is converted on the next `hivelore init` /
+`enforce install`.
+
+- **Binary**: only `hivelore` (and `hivelore-mcp`) are installed now; the `haive` / `haive-mcp` bins are gone.
+- **Config file**: `.ai/haive.config.json` → `.ai/hivelore.config.json`. The loader reads the legacy file
+  as a fallback and migrates it (writes the new name, deletes the old) on the next save; `init` migrates
+  proactively, preserving your settings.
+- **Workflows**: `haive-sync.yml` / `haive-enforcement.yml` → `hivelore-*.yml`. Installing adopts the legacy
+  managed block and removes the old file so CI never runs twice. Workflow env vars are now `HIVELORE_*`
+  (readers still accept the legacy `HAIVE_*` baked into old workflows).
+- **Git hooks** probe only `hivelore`; `hivelore dev link` no longer falls back to the legacy `@hiveai` scope.
+
+Internal implementation names (some `HAIVE_*` runtime env plumbing, generated bridge filenames, internal
+symbols) are unchanged for now and continue to work.
+
+
 ## [0.50.0] — Sharpen the surface, harden the gate
 
 Concentrate on the un-copyable core; cut noise.
