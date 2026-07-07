@@ -590,6 +590,7 @@ hivelore index query <text>                      # Semantic search over memories
 # Release protocol
 hivelore release bump <patch|minor|major>        # Lockstep version bump + CHANGELOG scaffold
 hivelore release tag                             # Tag vX.Y.Z at HEAD, push branch + tag
+hivelore release ship                            # After the bump commit: pull --rebase → tag+push → poll CI
 
 # Diagnostics
 hivelore doctor                                  # Analyze setup, emit recommendations

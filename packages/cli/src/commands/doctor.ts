@@ -44,6 +44,7 @@ interface DoctorOptions {
   dir?: string;
   fix?: boolean;
   dryRun?: boolean;
+  all?: boolean;
 }
 
 type Severity = "info" | "warn" | "error";
@@ -63,6 +64,8 @@ export interface Finding {
   fix?: string;
   section?: DoctorSection;
   coverage_percent?: number;
+  /** Info findings are hidden by default; set this to keep a high-value one (e.g. coverage) visible. */
+  alwaysShow?: boolean;
 }
 
 interface DoctorScores {
@@ -86,6 +89,7 @@ export function registerDoctor(program: Command): void {
     .option("--json", "emit JSON instead of human-readable output", false)
     .option("--fix", "include suggested fix commands in human output", false)
     .option("--dry-run", "with --fix, show delegated repairs without applying them", false)
+    .option("--all", "show informational findings too (hidden by default to keep doctor actionable)", false)
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: DoctorOptions) => {
       const root = findProjectRoot(opts.dir);
@@ -756,12 +760,19 @@ function emit(findings: Finding[], opts: DoctorOptions, repairs: AutopilotRepair
     "Next actions",
   ];
   const severityOrder: Severity[] = ["error", "warn", "info"];
+  // Keep doctor ACTIONABLE: info findings are noise most of the time (pending review, no-usage-log,
+  // …). Hide them by default (--all restores), but always show warn/error and the high-value coverage
+  // metrics flagged alwaysShow. A one-line summary tells the reader how many were collapsed.
+  const isVisible = (f: Finding): boolean => f.severity !== "info" || opts.all === true || f.alwaysShow === true;
+  let hiddenInfo = 0;
   for (const section of sectionOrder) {
     const sectionFindings = classified.filter((f) => f.section === section);
-    if (sectionFindings.length === 0) continue;
+    const visible = sectionFindings.filter(isVisible);
+    hiddenInfo += sectionFindings.length - visible.length;
+    if (visible.length === 0) continue;
     console.log(ui.bold(section));
     for (const sev of severityOrder) {
-      for (const f of sectionFindings.filter((x) => x.severity === sev)) {
+      for (const f of visible.filter((x) => x.severity === sev)) {
         const icon = sev === "error" ? ui.red("✗") : sev === "warn" ? ui.yellow("⚠") : ui.dim("ℹ");
         console.log(`${icon} ${ui.bold(f.code)}  ${f.message}`);
         if (opts.fix && f.fix) {
@@ -772,6 +783,9 @@ function emit(findings: Finding[], opts: DoctorOptions, repairs: AutopilotRepair
       }
     }
     console.log();
+  }
+  if (hiddenInfo > 0) {
+    ui.info(`${hiddenInfo} informational finding(s) hidden — run \`hivelore doctor --all\` to show them.`);
   }
 
   if (repairs.length > 0) {
@@ -940,6 +954,7 @@ async function collectHarnessCoverageFindings(
   findings.push({
     severity: "info",
     code: "harness-coverage",
+    alwaysShow: true,
     coverage_percent: pct,
     message:
       `${covered}/${total} code-map files have validated memory anchors (${pct}%). ` +
@@ -994,6 +1009,7 @@ function collectBehaviourCoverageFindings(
   return [{
     severity: "info",
     code: "behaviour-coverage",
+    alwaysShow: true,
     section: "Protection" as DoctorSection,
     coverage_percent: Math.round((cov.areasWithOracle.length / cov.mainAreas.length) * 100),
     message: `Behaviour harness: ${renderBehaviourCoverageLine(cov)}.` + uncoveredHint,

@@ -18,11 +18,52 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import { findProjectRoot } from "@hivelore/core";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { ui } from "../utils/ui.js";
 
 const exec = promisify(execFile);
+
+/**
+ * Lockstep-verify, refuse a dirty tree or an existing tag, create vX.Y.Z at HEAD and (unless push is
+ * false) push the branch and that ONE tag. Shared by `release tag` and `release ship`. Returns the
+ * tag on success, or null after printing the error + setting a non-zero exit code.
+ */
+async function createAndPushTag(root: string, push: boolean): Promise<string | null> {
+  const version = await readCurrentVersion(root);
+  for (const rel of VERSION_FILES.slice(1)) {
+    const file = path.join(root, rel);
+    if (!existsSync(file)) continue;
+    const v = (JSON.parse(await readFile(file, "utf8")) as { version?: string }).version;
+    if (v !== version) {
+      ui.error(`${rel} is at ${v}, root at ${version} — lockstep broken; run \`hivelore release bump\` first.`);
+      process.exitCode = 1;
+      return null;
+    }
+  }
+  const dirty = (await exec("git", ["status", "--porcelain"], { cwd: root })).stdout.trim();
+  if (dirty.length > 0) {
+    ui.error("Working tree is not clean — commit the bump before tagging.");
+    process.exitCode = 1;
+    return null;
+  }
+  const tag = `v${version}`;
+  const existing = (await exec("git", ["tag", "--list", tag], { cwd: root })).stdout.trim();
+  if (existing) {
+    ui.error(`Tag ${tag} already exists — bump the version first.`);
+    process.exitCode = 1;
+    return null;
+  }
+  await exec("git", ["tag", tag], { cwd: root });
+  ui.success(`Created ${tag} at HEAD.`);
+  if (push) {
+    // Push the branch and ONLY the new tag — never `--tags` (stale local tags collide upstream).
+    await exec("git", ["push"], { cwd: root });
+    await exec("git", ["push", "origin", tag], { cwd: root });
+    ui.success(`Pushed branch and ${tag}.`);
+  }
+  return tag;
+}
 
 /** The publishable lockstep set (mirrors VERSION_FILES in enforce.ts). */
 const VERSION_FILES = [
@@ -102,43 +143,56 @@ export function registerRelease(program: Command): void {
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: { push?: boolean; dir?: string }) => {
       const root = findProjectRoot(opts.dir);
-      const version = await readCurrentVersion(root);
+      const tag = await createAndPushTag(root, opts.push !== false);
+      if (tag && opts.push !== false) {
+        ui.info("Next: `hivelore enforce finish --wait` (polls CI), then publish via `pnpm run publish:all` (human step).");
+      }
+    });
 
-      // Lockstep sanity — mirrors the enforce finish check so tagging can't outrun a partial bump.
-      for (const rel of VERSION_FILES.slice(1)) {
-        const file = path.join(root, rel);
-        if (!existsSync(file)) continue;
-        const v = (JSON.parse(await readFile(file, "utf8")) as { version?: string }).version;
-        if (v !== version) {
-          ui.error(`${rel} is at ${v}, root at ${version} — lockstep broken; run \`hivelore release bump\` first.`);
+  release
+    .command("ship")
+    .description("One-shot release close-out: git pull --rebase → tag + push → poll CI (enforce finish --wait). Run it after committing the bump.")
+    .option("--no-push", "tag locally without pushing (skips the CI wait)")
+    .option("-d, --dir <dir>", "project root")
+    .action(async (opts: { push?: boolean; dir?: string }) => {
+      const root = findProjectRoot(opts.dir);
+      const push = opts.push !== false;
+
+      // 1. Sync with the remote first (multi-agent protocol) — abort loudly on a conflict so the human
+      //    resolves it rather than tagging a half-merged tree.
+      if (push) {
+        try {
+          await exec("git", ["pull", "--rebase"], { cwd: root });
+          ui.success("Rebased on origin.");
+        } catch (err) {
+          ui.error(`git pull --rebase failed — resolve it, then re-run \`hivelore release ship\`:\n${err instanceof Error ? err.message : String(err)}`);
           process.exitCode = 1;
           return;
         }
       }
 
-      const dirty = (await exec("git", ["status", "--porcelain"], { cwd: root })).stdout.trim();
-      if (dirty.length > 0) {
-        ui.error("Working tree is not clean — commit the bump before tagging.");
-        process.exitCode = 1;
+      // 2. Tag + push (shared with `release tag`).
+      const tag = await createAndPushTag(root, push);
+      if (!tag) return; // error already reported
+      if (!push) {
+        ui.info(`Created ${tag} locally (no push). Run \`hivelore release ship\` without --no-push to publish + poll CI.`);
         return;
       }
 
-      const tag = `v${version}`;
-      const existing = (await exec("git", ["tag", "--list", tag], { cwd: root })).stdout.trim();
-      if (existing) {
-        ui.error(`Tag ${tag} already exists — bump the version first.`);
-        process.exitCode = 1;
+      // 3. Poll CI via the real finish gate — no duplicated poll logic; the user sees live progress.
+      ui.info("Polling CI (enforce finish --wait)…");
+      const code = await new Promise<number>((resolve) => {
+        const child = spawn(process.execPath, [process.argv[1]!, "enforce", "finish", "--wait", "--dir", root], {
+          stdio: "inherit",
+        });
+        child.on("close", (c) => resolve(c ?? 1));
+        child.on("error", () => resolve(1));
+      });
+      if (code !== 0) {
+        ui.error("Shipped the tag, but the finish gate/CI did not pass — see the output above.");
+        process.exitCode = code;
         return;
       }
-
-      await exec("git", ["tag", tag], { cwd: root });
-      ui.success(`Created ${tag} at HEAD.`);
-      if (opts.push !== false) {
-        // Push the branch and ONLY the new tag — never `--tags` (stale local tags collide upstream).
-        await exec("git", ["push"], { cwd: root });
-        await exec("git", ["push", "origin", tag], { cwd: root });
-        ui.success(`Pushed branch and ${tag}.`);
-        ui.info("Next: `hivelore enforce finish --wait` (polls CI), then publish via `pnpm run publish:all` (human step).");
-      }
+      ui.success(`Shipped ${tag} — CI green. npm publication stays a human step (\`pnpm run publish:all\`).`);
     });
 }

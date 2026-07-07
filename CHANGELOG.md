@@ -6,6 +6,23 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.50.0] — Sharpen the surface, harden the gate
+
+Concentrate on the un-copyable core; cut noise.
+
+- **Fail-open hardened.** A `sensor-gate-errored` (the sensor machinery threw, so NO sensors were
+  evaluated — the one way the deterministic layer silently goes dark) now **fails the build in CI**
+  instead of a quiet warning. A green CI that evaluated no sensors is a lie about protection. Locally it
+  stays non-blocking but is a loud, high-impact finding.
+- **Fuzzy review matches off by default.** The aggregated "N documented lessons plausibly match — review"
+  finding is hidden unless `enforcement.reviewMatches: true` (or `antiPatternGate: "review"`). It fired on
+  nearly every commit and was skimmed past; only a deterministic sensor block is signal.
+- **`hivelore doctor` hides informational findings by default** (`--all` to show them), keeping warn/error
+  and the coverage metrics visible so the report stays actionable.
+- **`hivelore release ship`** — one command for the release close-out: `git pull --rebase` → tag + push →
+  poll CI via `enforce finish --wait`.
+
+
 ## [0.49.0] — Less ceremony, more gate
 
 Cut friction so effort concentrates on the un-copyable core. No change touches the deterministic

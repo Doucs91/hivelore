@@ -1519,9 +1519,14 @@ async function runPrecommitPolicy(
   // Middle ground: ONE aggregated warn finding (bounded score impact, never blocks) that points
   // at `hivelore precommit` for the full detail. Sensor-driven review warnings are excluded — the
   // sensor gate below already emits a dedicated finding per sensor hit.
-  const reviewWarnings = result.warnings.filter(
-    (w) => w.level === "review" && !w.reasons.includes("sensor"),
-  );
+  // Fuzzy "you might be repeating a lesson" matches are OFF by default: across real sessions this
+  // aggregated finding fired on almost every commit and was skimmed past every time — pure noise that
+  // trains people to ignore the gate. Only a DETERMINISTIC sensor block is signal. Restore the review
+  // surfacing with `enforcement.reviewMatches: true`, or the explicit `antiPatternGate: "review"` mode.
+  const showReview = config.enforcement?.reviewMatches === true || gate === "review";
+  const reviewWarnings = showReview
+    ? result.warnings.filter((w) => w.level === "review" && !w.reasons.includes("sensor"))
+    : [];
   // Repeat-warning fatigue guard: hot files re-match the same historical lessons on every
   // commit (enforce.ts alone re-surfaces its own gate gotchas 12–20× per session). Listing
   // them each time trains people to skim past the whole finding — so ids already listed in
@@ -1899,16 +1904,22 @@ async function runSensorGate(
 
     return findings;
   } catch (err) {
-    // Never break a commit on a sensor-machinery error — but never go dark either: a silent
-    // failure here would switch off the entire deterministic layer with zero signal (fail-open).
+    // A sensor-machinery error means the ENTIRE deterministic layer just evaluated nothing — the one
+    // way Hivelore's core guarantee ("the gate always fires") can vanish. So it must never be quiet:
+    //  - in CI it FAILS THE BUILD (fail-closed) — a green CI that silently evaluated no sensors is a
+    //    lie about protection, worse than a red one.
+    //  - locally it stays non-blocking (a broken toolchain must not brick every commit) but is a loud,
+    //    high-impact finding, not a footnote.
+    const inCi = stage === "ci";
     return [{
-      severity: "warn",
+      severity: inCi ? "error" : "warn",
       code: "sensor-gate-errored",
       message:
-        `The sensor gate itself errored, so NO sensors were evaluated on this diff: ` +
-        `${err instanceof Error ? err.message : String(err)}`.slice(0, 400),
-      fix: "Run `hivelore sensors check` to reproduce, and `hivelore doctor` for setup drift. The lessons' protection is OFF until this is fixed.",
-      impact: 5,
+        `⛔ The sensor gate itself errored, so NO sensors were evaluated on this diff — the deterministic ` +
+        `protection was OFF for this run${inCi ? " (failing CI: a passing gate that evaluated nothing is not trustworthy)" : ""}: ` +
+        `${err instanceof Error ? err.message : String(err)}`.slice(0, 500),
+      fix: "Run `hivelore sensors check` to reproduce (set HIVELORE_DEBUG=1 for the stack), and `hivelore doctor` for setup drift. Protection is OFF until this is fixed.",
+      impact: inCi ? 60 : 25,
     }];
   }
 }

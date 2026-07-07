@@ -1505,6 +1505,61 @@ describe("Hivelore CLI integration", () => {
     }
   });
 
+  it("hides fuzzy anti-pattern review matches by default, surfaces them with reviewMatches=true", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-review-off-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/util.ts"), "export const fmt = (d: string) => d;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "init"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+      await run(repo, ["memory", "tried", "--what", "moment import", "--why-failed", "bundle bloat", "--instead", "date-fns", "--paths", "src/", "--dir", repo]);
+      // A diff that fuzzy-matches the lesson (literal/semantic), but carries NO deterministic sensor.
+      await writeFile(path.join(repo, "src/util.ts"), "export const fmt = (d: string) => d;\nimport moment from 'moment';\n", "utf8");
+      await exec("git", ["add", "src/util.ts"], { cwd: repo });
+
+      const off = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { findings: Array<{ code: string }> };
+      expect(off.findings.some((f) => f.code === "anti-pattern-review")).toBe(false);
+
+      const cfgPath = path.join(repo, ".ai/haive.config.json");
+      const cfg = JSON.parse(await readFile(cfgPath, "utf8")) as { enforcement?: Record<string, unknown> };
+      cfg.enforcement = { ...cfg.enforcement, reviewMatches: true };
+      await writeFile(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
+      const on = JSON.parse(
+        (await runAllowFailure(repo, ["enforce", "check", "--stage", "pre-commit", "--json", "--dir", repo])).stdout,
+      ) as { findings: Array<{ code: string }> };
+      expect(on.findings.some((f) => f.code === "anti-pattern-review")).toBe(true);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("doctor hides informational findings by default and shows them with --all", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "haive-doctor-floor-"));
+    try {
+      await exec("git", ["init"], { cwd: repo });
+      await exec("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+      await exec("git", ["config", "user.name", "Hivelore Test"], { cwd: repo });
+      await mkdir(path.join(repo, "src"), { recursive: true });
+      await writeFile(path.join(repo, "src/util.ts"), "export const fmt = (d: string) => d;\n", "utf8");
+      await exec("git", ["add", "."], { cwd: repo });
+      await exec("git", ["commit", "-m", "init"], { cwd: repo });
+      await run(repo, ["init", "--manual", "--no-mcp-setup", "--stack", "none", "--no-bootstrap", "--dir", repo]);
+
+      const def = (await runAllowFailure(repo, ["doctor", "--dir", repo])).stdout;
+      expect(def).toContain("informational finding(s) hidden");
+      const all = (await runAllowFailure(repo, ["doctor", "--all", "--dir", repo])).stdout;
+      expect(all).not.toContain("informational finding(s) hidden");
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   it("relaxes process gates to warnings for human commits (no agent signals), keeps them for agents", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-human-relax-"));
     try {

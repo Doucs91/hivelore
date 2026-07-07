@@ -204,6 +204,13 @@ export interface HaiveConfig {
      */
     antiPatternGate?: "off" | "review" | "anchored" | "strict";
     /**
+     * Surface the aggregated "N documented lessons plausibly match this diff — review" finding at the
+     * gate (fuzzy anchor/literal/semantic matches that never hard-block). Default **false**: in practice
+     * it fired on nearly every commit and was skimmed past, training people to ignore the gate — only a
+     * deterministic sensor block is signal. Set true (or use antiPatternGate:"review") to restore it.
+     */
+    reviewMatches?: boolean;
+    /**
      * First-agent bootstrap gate. The trigger is the COLD STATE of the corpus, not a command or flag:
      * when the knowledge layer is empty, the very first agent is forced to fill the baseline — a filled
      * project-context, a module context per component, an anchored memory per main code area, and a
