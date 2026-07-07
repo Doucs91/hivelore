@@ -6,6 +6,34 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.52.0] — Behaviour-harness honesty + inverted-sensor guard
+
+Four hardening fixes concentrated on the branch Hivelore leads — no philosophy change, no new surface.
+
+- **prove-RED no longer accepts a crash as a RED.** The replay classified *any* non-zero exit at
+  `red_ref` as proof — so an oracle that errored before reaching its assertion (the guarded code/test
+  doesn't exist yet at the pre-fix commit → `Cannot find module`, a `SyntaxError`, `no tests found`)
+  was recorded `red_proven: true`, fabricating a guarantee. `proveRedOnIncident` now runs the failure
+  output through the new pure `isHarnessErrorOutput` and returns `red-unrunnable` (proves nothing)
+  instead — the same "unrunnable ≠ failed" honesty already applied on the current tree. A genuine
+  assertion failure is still a real RED. **Conservative by design:** applied only to the prove-RED
+  path, never the gate executor (over-classifying at the gate would demote a real block to a warn).
+- **Inverted sensors are rejected.** A `block` regex proposal whose pattern matches the lesson's OWN
+  recommended fix (its `Instead, use:` snippet) is refused with reason `fires-on-correct` — it would
+  block the correct code and never the mistake. New `SensorSelfCheck.fires_on_correct` +
+  `extractCorrectApproachExamples`; enforced in `propose_sensor`, the CLI `sensors propose`, and
+  `sensors promote`. The flagship `moment`→`date-fns` flow is unaffected (the pattern targets the
+  mistake, not the fix).
+- **`memory tried` never suggests the recommended tool as the pattern.** The seed excluded the
+  `Instead, use:` clause but not the recommendation when it leaked into the why-failed line
+  ("team standard is date-fns" → seed `date-fns`, a sensor firing on the fix). Recommended tokens are
+  now excluded from the fallback/assignment picks; with no faulty token left the seed is honestly
+  `null` (author it yourself) rather than inverted. The "X without Y" companion trigger is untouched.
+- **Behaviour coverage no longer vanishes on small repos.** `doctor`'s `behaviour-coverage` finding
+  returned nothing when no main area could be derived (a single-package `src/` under the file
+  threshold) — even with a red-proven oracle armed. It now still reports armed/red-proven oracle
+  counts in that case, so the measure acknowledges protection wherever it exists.
+
 ## [0.51.0] — Kill `haive`: one name, with migration
 
 The legacy `haive` name is retired across the user-visible surface. Migration is automatic and

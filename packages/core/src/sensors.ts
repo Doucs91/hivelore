@@ -529,12 +529,18 @@ export interface SensorSelfCheck {
   silent_on_current: boolean;
   /** Did it fire on a known-bad example from the lesson? null when no example was available. */
   fires_on_bad: boolean | null;
+  /**
+   * Did it fire on the lesson's stated CORRECT approach (the `Instead, use:` snippet)? true = the
+   * sensor is INVERTED — it would block the recommended fix. null when no correct example was given.
+   */
+  fires_on_correct: boolean | null;
   /** Files whose CURRENT content the sensor matched — evidence of a false positive. */
   fired_on: string[];
   /**
-   * Safe to hard-block: silent on the current code AND (fires on the bad example, or there was no
-   * example to test). A sensor that fires on correct code is exactly what trains agents to ignore the
-   * gate — this is the gate that keeps the auto-generation layer honest.
+   * Safe to hard-block: silent on the current code, does NOT fire on the stated correct approach,
+   * AND (fires on the bad example, or there was no example to test). A sensor that fires on correct
+   * code is exactly what trains agents to ignore the gate — this is the gate that keeps the
+   * auto-generation layer honest.
    */
   passed: boolean;
 }
@@ -548,7 +554,7 @@ export interface SensorSelfCheck {
  */
 export function sensorSelfCheck(
   sensor: Sensor,
-  input: { currentTargets: SensorTarget[]; badExamples: string[] },
+  input: { currentTargets: SensorTarget[]; badExamples: string[]; correctExamples?: string[] },
 ): SensorSelfCheck {
   const firedOn: string[] = [];
   for (const target of input.currentTargets) {
@@ -563,11 +569,23 @@ export function sensorSelfCheck(
     );
   }
 
+  // Inversion guard: the lesson's stated CORRECT approach (its `Instead, use:` snippet) is code the
+  // sensor must NEVER fire on. A pattern that matches it is inverted — it would block the very fix the
+  // lesson recommends (the exact failure of arming `date-fns` when the lesson says "use date-fns").
+  let firesOnCorrect: boolean | null = null;
+  const correctExamples = (input.correctExamples ?? []).filter((e) => e.trim().length > 0);
+  if (correctExamples.length > 0) {
+    firesOnCorrect = correctExamples.some(
+      (example) => runRegexSensor("self-check", sensor, { path: "<correct>", content: example }) !== null,
+    );
+  }
+
   return {
     silent_on_current: silentOnCurrent,
     fires_on_bad: firesOnBad,
+    fires_on_correct: firesOnCorrect,
     fired_on: firedOn,
-    passed: silentOnCurrent && firesOnBad !== false,
+    passed: silentOnCurrent && firesOnBad !== false && firesOnCorrect !== true,
   };
 }
 
@@ -575,7 +593,7 @@ export interface ProposedSensorVerdict {
   /** Safe to store at the requested severity. */
   accepted: boolean;
   /** Why a block proposal was rejected (so the agent can revise and re-propose). */
-  reason?: "fires-on-current" | "missed-bad-example" | "brittle";
+  reason?: "fires-on-current" | "fires-on-correct" | "missed-bad-example" | "brittle";
   self_check: SensorSelfCheck;
   /** Brittleness reason (hardcoded line numbers, etc.) or null. */
   brittle: string | null;
@@ -589,7 +607,7 @@ export interface ProposedSensorVerdict {
  */
 export function judgeProposedSensor(
   sensor: Sensor,
-  input: { currentTargets: SensorTarget[]; badExamples: string[] },
+  input: { currentTargets: SensorTarget[]; badExamples: string[]; correctExamples?: string[] },
 ): ProposedSensorVerdict {
   const brittle = sensor.kind === "regex" && sensor.pattern ? sensorPatternBrittleness(sensor.pattern) : null;
   const self_check = sensorSelfCheck(sensor, input);
@@ -598,12 +616,48 @@ export function judgeProposedSensor(
     if (input.currentTargets.length > 0 && !self_check.silent_on_current) {
       return { accepted: false, reason: "fires-on-current", self_check, brittle };
     }
+    // An inverted sensor (fires on the recommended fix) is worse than useless — it blocks the
+    // correct code and never the mistake. Reject before the weaker missed-bad-example check.
+    if (self_check.fires_on_correct === true) {
+      return { accepted: false, reason: "fires-on-correct", self_check, brittle };
+    }
     if (self_check.fires_on_bad === false) {
       return { accepted: false, reason: "missed-bad-example", self_check, brittle };
     }
   }
   return { accepted: true, self_check, brittle };
 }
+
+/**
+ * A command oracle that exits non-zero has either FAILED an assertion (a real signal) or errored
+ * before it could reach one — a missing module, an import/collection failure, a syntax error, or
+ * "no tests found". Only the former proves anything. This distinguishes them from the output tail.
+ *
+ * Used by the prove-RED replay: at the pre-fix `red_ref` the code/test under guard often does not
+ * exist yet, so `node t.js` exits 1 for "Cannot find module" — that is the harness failing to run,
+ * NOT the oracle catching the incident. Classifying it as RED-proven would fabricate a guarantee.
+ * Conservative by design: when in doubt at prove-RED, "could not run" (no proof) is the safe verdict.
+ */
+export function isHarnessErrorOutput(output: string): boolean {
+  if (!output) return false;
+  return HARNESS_ERROR_SIGNATURES.some((re) => re.test(output));
+}
+
+const HARNESS_ERROR_SIGNATURES: RegExp[] = [
+  /cannot find module/i,           // node CJS require of a missing file/dep
+  /ERR_MODULE_NOT_FOUND/,          // node ESM import of a missing file/dep
+  /\bMODULE_NOT_FOUND\b/,          // node error code
+  /ModuleNotFoundError/,           // python
+  /\bImportError\b/,               // python import failure at collection
+  /\bSyntaxError\b/,               // parse failure at load (any runtime)
+  /no test files? found/i,         // vitest / jest — nothing ran
+  /no tests found/i,               // jest
+  /no tests ran/i,                 // pytest -q
+  /collected 0 items/i,            // pytest — nothing collected
+  /error(s)? (?:while )?collecting/i, // pytest collection error
+  /cannot find package/i,          // go
+  /no( buildable)? go( source)? files/i, // go: nothing to build
+];
 
 /**
  * Pull candidate bad-code examples from a lesson body: fenced code blocks and inline code spans that
@@ -621,6 +675,25 @@ export function extractSensorExamples(body: string): string[] {
     if (span && /[().=]/.test(span)) examples.push(span);
   }
   return examples;
+}
+
+/**
+ * Pull the lesson's stated CORRECT approach — the text of an `**Instead, use:** …` line or an
+ * `## Instead` section (the shape `mem_tried --instead` and the attempt template write). This is code
+ * the sensor must NEVER match: a block pattern that fires on it is inverted (it would refuse the very
+ * fix the lesson prescribes). Returns the raw snippet(s); the caller runs the sensor against them.
+ */
+export function extractCorrectApproachExamples(body: string): string[] {
+  const out: string[] = [];
+  for (const match of body.matchAll(/\*\*Instead,?\s*use:?\*\*\s*([^\n]+)/gi)) {
+    const snippet = (match[1] ?? "").trim();
+    if (snippet) out.push(snippet);
+  }
+  // An `## Instead` / `### Instead …` section: take its first non-empty content line.
+  const sectionMatch = body.match(/^#{2,}\s+Instead\b[^\n]*\n+([^\n]+)/im);
+  const sectionLine = sectionMatch?.[1]?.trim();
+  if (sectionLine) out.push(sectionLine);
+  return out;
 }
 
 /**

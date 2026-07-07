@@ -16,6 +16,8 @@ import {
   detectSensorWeakening,
   addedLineNumbersFromDiff,
   scrubbedCommandEnv,
+  isHarnessErrorOutput,
+  extractCorrectApproachExamples,
 } from "../src/sensors.js";
 import type { Memory, Sensor } from "../src/types.js";
 
@@ -333,6 +335,83 @@ describe("sensorSelfCheck (must discriminate before it can block)", () => {
     });
     expect(check.fires_on_bad).toBe(false);
     expect(check.passed).toBe(false);
+  });
+
+  it("fires_on_correct flags an INVERTED sensor that matches the recommended fix", () => {
+    // Lesson: avoid moment, use date-fns. A pattern of `date-fns` matches the CORRECT approach.
+    const inverted: Sensor = {
+      kind: "regex", pattern: "date-fns", paths: ["src/dates.ts"],
+      message: "x", severity: "block", autogen: false, last_fired: null,
+    };
+    const check = sensorSelfCheck(inverted, {
+      currentTargets: [],
+      badExamples: [],
+      correctExamples: ["date-fns"],
+    });
+    expect(check.fires_on_correct).toBe(true);
+    expect(check.passed).toBe(false);
+  });
+
+  it("fires_on_correct is null when no correct example is supplied (unchanged default)", () => {
+    const check = sensorSelfCheck(discriminating, {
+      currentTargets: [{ path: "src/payments/stripe.ts", content: "const x = 1;" }],
+      badExamples: [],
+    });
+    expect(check.fires_on_correct).toBeNull();
+    expect(check.passed).toBe(true);
+  });
+});
+
+describe("judgeProposedSensor — inverted-sensor guard", () => {
+  it("rejects a block sensor that fires on the lesson's recommended approach", () => {
+    const inverted: Sensor = {
+      kind: "regex", pattern: "date-fns", paths: ["src/dates.ts"],
+      message: "x", severity: "block", autogen: false, last_fired: null,
+    };
+    const verdict = judgeProposedSensor(inverted, {
+      currentTargets: [], badExamples: [], correctExamples: ["date-fns"],
+    });
+    expect(verdict.accepted).toBe(false);
+    expect(verdict.reason).toBe("fires-on-correct");
+  });
+
+  it("still accepts a sensor that targets the mistake, not the fix", () => {
+    const good: Sensor = {
+      kind: "regex", pattern: "from ['\"]moment['\"]", paths: ["src/dates.ts"],
+      message: "x", severity: "block", autogen: false, last_fired: null,
+    };
+    const verdict = judgeProposedSensor(good, {
+      currentTargets: [], badExamples: ["import x from 'moment'"], correctExamples: ["date-fns"],
+    });
+    expect(verdict.accepted).toBe(true);
+  });
+});
+
+describe("isHarnessErrorOutput (prove-RED honesty: a crash is not a RED)", () => {
+  it("classifies load/collection failures as harness errors (could not reach the assertion)", () => {
+    expect(isHarnessErrorOutput("Error: Cannot find module '../src/refund.js'")).toBe(true);
+    expect(isHarnessErrorOutput("ERR_MODULE_NOT_FOUND")).toBe(true);
+    expect(isHarnessErrorOutput("SyntaxError: Unexpected token")).toBe(true);
+    expect(isHarnessErrorOutput("No test files found, exiting with code 1")).toBe(true);
+    expect(isHarnessErrorOutput("collected 0 items")).toBe(true);
+    expect(isHarnessErrorOutput("ModuleNotFoundError: No module named 'app'")).toBe(true);
+  });
+
+  it("does NOT flag a genuine assertion failure as a harness error", () => {
+    expect(isHarnessErrorOutput("AssertionError: expected 100 to equal 50\nrefund must clamp")).toBe(false);
+    expect(isHarnessErrorOutput("1 failed, 3 passed")).toBe(false);
+    expect(isHarnessErrorOutput("")).toBe(false);
+  });
+});
+
+describe("extractCorrectApproachExamples", () => {
+  it("pulls the Instead-use snippet from an attempt body", () => {
+    const body = "# importing moment\n\n**Why it failed / do NOT use:** bloat\n\n**Instead, use:** date-fns";
+    expect(extractCorrectApproachExamples(body)).toContain("date-fns");
+  });
+
+  it("returns nothing when the lesson states no alternative", () => {
+    expect(extractCorrectApproachExamples("# x\n\n**Why it failed / do NOT use:** y")).toEqual([]);
   });
 });
 

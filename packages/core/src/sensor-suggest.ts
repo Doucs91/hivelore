@@ -1,5 +1,5 @@
 import type { Sensor } from "./types.js";
-import { sensorPatternBrittleness } from "./sensors.js";
+import { extractCorrectApproachExamples, sensorPatternBrittleness } from "./sensors.js";
 
 const CODE_TOKEN_RE = /`([^`\n]{3,80})`|["']([A-Za-z0-9_.:-]{3,80})["']|\b([A-Za-z][A-Za-z0-9_.:-]{2,79})\b/g;
 
@@ -58,8 +58,19 @@ export function suggestSensorSeed(
   if (paths.length === 0) return null;
 
   const negativeText = body.split(/\*\*Instead,\s*use:\*\*|^##\s+Instead\b/im)[0] ?? body;
-  const assignment = pickAssignmentPattern(negativeText);
-  const lowercaseValue = assignment ? null : pickLowercaseValuePattern(negativeText);
+
+  // Tokens naming the RECOMMENDED approach (the lesson's `Instead, use:` snippet) must never become
+  // the sensor pattern — they are the correct code, so a sensor built from them fires on the fix.
+  // They frequently leak into the why-failed line too ("team standard is date-fns"), which is inside
+  // negativeText, so excluding them from every pick is the fix for the inverted-suggestion class.
+  const recommended = recommendedTokens(body);
+  const isRecommended = (token: string | undefined | null): boolean =>
+    !!token && recommended.has(token.toLowerCase());
+
+  const assignmentRaw = pickAssignmentPattern(negativeText);
+  const assignment = isRecommended(assignmentRaw?.label.split(/[:=]/)[0]) ? null : assignmentRaw;
+  const lowercaseRaw = assignment ? null : pickLowercaseValuePattern(negativeText);
+  const lowercaseValue = isRecommended(lowercaseRaw?.label.split(/[:=]/)[0]) ? null : lowercaseRaw;
 
   // Discriminating "X without Y" sensor. When neither a key=value nor a lowercase pattern applies,
   // look for a REQUIRED COMPANION ("create WITHOUT idempotencyKey", "must pass idempotencyKey") and
@@ -74,6 +85,9 @@ export function suggestSensorSeed(
     // distinctive-token pick returns Y, the equality guard bails out, and the fallback below would emit
     // a sensor whose pattern is Y. That sensor fires on CORRECT usage (Y present) and stays silent on
     // the actual fault: an inverted, self-contradictory guardrail. Excluding Y keeps the trigger = X.
+    // NB: do NOT exclude `recommended` here — in an "X without Y" lesson the recommendation sentence
+    // ("always pass Y to X") legitimately names the faulty call X, which is exactly the trigger we want.
+    // The recommended-token exclusion belongs only on the fallback/assignment paths (the date-fns class).
     let trigger = pickDistinctiveToken(negativeText, [required]);
     let plain = false;
     // Plain-word call ("calling charge without idempotencyKey"): the trigger isn't code-shaped, so the
@@ -98,7 +112,7 @@ export function suggestSensorSeed(
   // The fallback token must ALSO exclude the required companion: a "X without Y" memory whose trigger
   // could not be isolated must yield no sensor rather than degrade into a plain `pattern=Y` (the
   // inverted sensor above). Excluding Y here means an un-isolable case returns null — the safe default.
-  const fallbackToken = pickDistinctiveToken(negativeText, required ? [required] : []);
+  const fallbackToken = pickDistinctiveToken(negativeText, [...(required ? [required] : []), ...recommended]);
   const token = assignment?.label ?? lowercaseValue?.label ?? companion?.trigger ?? fallbackToken;
   if (!token) return null;
 
@@ -143,6 +157,23 @@ export function suggestSensorFromMemory(
     autogen: true,
     last_fired: null,
   };
+}
+
+/**
+ * Lowercased tokens that name the lesson's RECOMMENDED approach (its `Instead, use:` snippet). These
+ * are the correct code — a sensor pattern built from them fires on the fix, never the mistake. Only
+ * the explicit recommendation markers are used (not a generic "use X"), so an attempt whose bad token
+ * happens to follow "use" is not accidentally suppressed.
+ */
+function recommendedTokens(body: string): Set<string> {
+  const tokens = new Set<string>();
+  for (const clause of extractCorrectApproachExamples(body)) {
+    for (const match of clause.matchAll(CODE_TOKEN_RE)) {
+      const raw = (match[1] ?? match[2] ?? match[3] ?? "").replace(/^[^\w.-]+|[^\w.-]+$/g, "");
+      if (raw.length >= 3) tokens.add(raw.toLowerCase());
+    }
+  }
+  return tokens;
 }
 
 /**

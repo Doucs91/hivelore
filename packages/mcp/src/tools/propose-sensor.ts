@@ -16,9 +16,11 @@ import { existsSync, rmSync, symlinkSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  extractCorrectApproachExamples,
   extractSensorExamples,
   extractTestFilePathsFromCommand,
   hasPendingTestMarker,
+  isHarnessErrorOutput,
   judgeProposedSensor,
   loadMemoriesFromDir,
   scrubbedCommandEnv,
@@ -235,7 +237,20 @@ function proveRedOnIncident(
       try { symlinkSync(mainModules, wtModules, "dir"); } catch { /* best-effort — the run will tell */ }
     }
     const run = runCommandForValidation(command, worktree, timeoutMs);
-    if (run.status === "failed") return { proven: true, detail: run.detail };
+    if (run.status === "failed") {
+      // A non-zero exit only proves RED if the oracle actually RAN and its ASSERTION failed. At the
+      // pre-fix state the guarded code/test often does not exist yet, so the runner errors out
+      // ("Cannot find module", a syntax error, "no tests found") before reaching any assertion —
+      // that is a broken harness, not a demonstrated incident. Same honesty family as unrunnable≠failed.
+      if (isHarnessErrorOutput(run.detail)) {
+        return {
+          proven: false,
+          reason: "red-unrunnable",
+          detail: `the oracle errored before reaching its assertion on the incident state, so it proves nothing there — ${run.detail}`,
+        };
+      }
+      return { proven: true, detail: run.detail };
+    }
     if (run.status === "passed") {
       return { proven: false, reason: "red-not-proven", detail: "oracle PASSED on the incident state — it does not catch the incident" };
     }
@@ -558,6 +573,9 @@ export async function proposeSensor(
     ...(input.bad_example ? [input.bad_example] : []),
     ...extractSensorExamples(found.memory.body),
   ];
+  // The lesson's stated correct approach (its `Instead, use:` snippet) is code the sensor must never
+  // fire on — a block pattern that matches it is inverted (it blocks the recommended fix).
+  const correctExamples = extractCorrectApproachExamples(found.memory.body);
 
   const sensor: Sensor = {
     kind: "regex",
@@ -572,7 +590,7 @@ export async function proposeSensor(
     last_fired: null,
   };
 
-  const verdict = judgeProposedSensor(sensor, { currentTargets, badExamples });
+  const verdict = judgeProposedSensor(sensor, { currentTargets, badExamples, correctExamples });
   const self_check = {
     silent_on_current: verdict.self_check.silent_on_current,
     fires_on_bad: verdict.self_check.fires_on_bad,
@@ -583,11 +601,13 @@ export async function proposeSensor(
     const guidance =
       verdict.reason === "fires-on-current"
         ? `The sensor matches the CURRENT (correct) code in ${verdict.self_check.fired_on.join(", ")}. Add or tighten the 'absent' companion so correct usage is excluded, then re-propose.`
-        : verdict.reason === "missed-bad-example"
-          ? "The sensor did not match the bad example, so it won't catch the mistake. Adjust the pattern to match the faulty code, then re-propose."
-          : verdict.reason === "brittle"
-            ? `The pattern is brittle (${verdict.brittle}). Use a durable pattern (avoid hardcoded line numbers), then re-propose.`
-            : "Re-propose with a discriminating pattern.";
+        : verdict.reason === "fires-on-correct"
+          ? "The pattern matches the lesson's OWN recommended fix (its `Instead, use:` approach) — it is inverted and would block the correct code, never the mistake. Point the pattern at the FAULTY usage (not the fix), then re-propose."
+          : verdict.reason === "missed-bad-example"
+            ? "The sensor did not match the bad example, so it won't catch the mistake. Adjust the pattern to match the faulty code, then re-propose."
+            : verdict.reason === "brittle"
+              ? `The pattern is brittle (${verdict.brittle}). Use a durable pattern (avoid hardcoded line numbers), then re-propose.`
+              : "Re-propose with a discriminating pattern.";
     return {
       accepted: false,
       memory_id: input.memory_id,

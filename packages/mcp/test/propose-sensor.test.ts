@@ -451,6 +451,24 @@ describe("proposeSensor — prove-RED (red_ref) and env containment", () => {
     expect(out.reason).toBe("red-not-proven");
   });
 
+  it("rejects red-unrunnable when the oracle ERRORS (missing module) on the incident state, not fails an assertion", async () => {
+    // The exact false-RED class: at the pre-fix ref the guarded module does not exist yet, so the
+    // oracle exits non-zero for "Cannot find module" — a broken harness, NOT a demonstrated incident.
+    const { execSync } = await import("node:child_process");
+    const git = (cmd: string) => execSync(cmd, { cwd: workDir, stdio: "pipe" });
+    // A ref where src/mod.js is absent (oracle cannot load it).
+    await writeFile(path.join(workDir, "placeholder.txt"), "x", "utf8");
+    git("git add -A && git commit -m pre-module");
+    const preModuleSha = execSync("git rev-parse HEAD", { cwd: workDir, encoding: "utf8" }).trim();
+    // HEAD adds the module so the oracle PASSES on the current tree (required before prove-RED runs).
+    await writeFile(path.join(workDir, "src/mod.js"), "module.exports = { ok: () => 0 };\n", "utf8");
+    git("git add -A && git commit -m add-module");
+    const out = await propose(`node -e "require('./src/mod.js').ok()"`, preModuleSha);
+    expect(out.accepted).toBe(false);
+    expect(out.reason).toBe("red-unrunnable");
+    expect(out.guidance).toMatch(/proves nothing|could not RUN/i);
+  });
+
   it("rejects red-ref-invalid on a bogus ref, and requires red_ref for block", async () => {
     const bad = await propose(oracle, "not-a-real-ref-xyz");
     expect(bad.accepted).toBe(false);

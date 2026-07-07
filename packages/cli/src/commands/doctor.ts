@@ -982,7 +982,10 @@ function collectBehaviourCoverageFindings(
   if (!codeMap) return [];
   const codeFiles = Object.keys(codeMap.files);
   const cov = assessBehaviourCoverage({ memories, codeFiles });
-  if (cov.mainAreas.length === 0) return [];
+  // Stay silent only when there is genuinely nothing to report. If oracles are armed we still surface
+  // them even when no main area could be derived (a small/flat repo) — the branch Hivelore leads must
+  // acknowledge behavioural protection wherever it exists, not vanish on the smallest repos.
+  if (cov.mainAreas.length === 0 && cov.totalOracles === 0) return [];
 
   const uncoveredHint =
     cov.uncoveredAreas.length > 0 && cov.totalOracles > 0
@@ -1011,7 +1014,9 @@ function collectBehaviourCoverageFindings(
     code: "behaviour-coverage",
     alwaysShow: true,
     section: "Protection" as DoctorSection,
-    coverage_percent: Math.round((cov.areasWithOracle.length / cov.mainAreas.length) * 100),
+    coverage_percent: cov.mainAreas.length > 0
+      ? Math.round((cov.areasWithOracle.length / cov.mainAreas.length) * 100)
+      : (cov.totalOracles > 0 ? 100 : 0),
     message: `Behaviour harness: ${renderBehaviourCoverageLine(cov)}.` + uncoveredHint,
     fix,
   }];

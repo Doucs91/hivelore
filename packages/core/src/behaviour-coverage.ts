@@ -168,7 +168,16 @@ export function assessBehaviourCoverage(input: BehaviourCoverageInput): Behaviou
 
 /** One-line human summary for a receipt / status line (no leading label). */
 export function renderBehaviourCoverageLine(m: BehaviourCoverageMetrics): string {
-  if (m.mainAreas.length === 0) return "no main code areas detected";
+  if (m.mainAreas.length === 0) {
+    // A repo too small/flat to derive areas (e.g. a single-package `src/` under the file threshold)
+    // still deserves acknowledgement of any behavioural oracle it HAS armed — the measure must not go
+    // silent exactly when there is something to report.
+    if (m.totalOracles === 0) return "no main code areas detected";
+    return (
+      `${m.totalOracles} behavioural oracle(s) present ` +
+      `(${m.armedOracles} armed, ${m.redProvenOracles} red-proven); no main code areas derived yet to attribute them to`
+    );
+  }
   if (m.totalOracles === 0) {
     return `0/${m.mainAreas.length} area(s) guarded by a behavioural oracle (no test/shell sensors yet)`;
   }

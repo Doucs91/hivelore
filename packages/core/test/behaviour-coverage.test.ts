@@ -160,4 +160,19 @@ describe("assessBehaviourCoverage", () => {
     expect(cov.mainAreas).toEqual([]);
     expect(renderBehaviourCoverageLine(cov)).toBe("no main code areas detected");
   });
+
+  it("still acknowledges armed oracles when no main area could be derived (small/flat repo)", () => {
+    // A single-package repo under the file threshold derives 0 areas — but a red-proven oracle exists.
+    // The measure must not go silent exactly when there is behavioural protection to report.
+    const cov = assessBehaviourCoverage({
+      memories: [mem({ id: "o", anchorPaths: ["src/payments/refund.js"], sensor: { kind: "shell", severity: "block", red_proven: true } })],
+      codeFiles: ["src/payments/refund.js", "src/pay.js"],
+    });
+    expect(cov.mainAreas).toEqual([]);
+    expect(cov.totalOracles).toBe(1);
+    const line = renderBehaviourCoverageLine(cov);
+    expect(line).toContain("1 behavioural oracle(s) present");
+    expect(line).toContain("1 armed");
+    expect(line).toContain("1 red-proven");
+  });
 });

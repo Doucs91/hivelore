@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { Command } from "commander";
 import {
+  extractCorrectApproachExamples,
   extractSensorExamples,
   appendSensorEvaluations,
   assessSensorHealth,
@@ -414,12 +415,22 @@ export function registerSensors(program: Command): void {
         const check = sensorSelfCheck(sensor, {
           currentTargets,
           badExamples: extractSensorExamples(found.memory.body),
+          correctExamples: extractCorrectApproachExamples(found.memory.body),
         });
         if (currentTargets.length > 0 && !check.silent_on_current) {
           ui.error(
             `Refusing to block: this sensor fires on the CURRENT (presumed-correct) code in ` +
               `${check.fired_on.join(", ")} — it would false-positive on every commit. ` +
               `Make it discriminating (add an 'absent' companion), fix the current code, or pass --force.`,
+          );
+          process.exitCode = 1;
+          return;
+        }
+        if (check.fires_on_correct === true) {
+          ui.error(
+            "Refusing to block: this sensor fires on the lesson's OWN recommended fix (its `Instead, use:` " +
+              "approach) — it is inverted and would block the correct code, never the mistake. " +
+              "Point the pattern at the FAULTY usage, or pass --force.",
           );
           process.exitCode = 1;
           return;
@@ -565,6 +576,7 @@ export function registerSensors(program: Command): void {
         ...(opts.badExample ? [opts.badExample] : []),
         ...extractSensorExamples(found.memory.body),
       ];
+      const correctExamples = extractCorrectApproachExamples(found.memory.body);
 
       const sensor: Sensor = {
         kind: "regex",
@@ -579,7 +591,7 @@ export function registerSensors(program: Command): void {
         last_fired: null,
       };
 
-      const verdict = judgeProposedSensor(sensor, { currentTargets, badExamples });
+      const verdict = judgeProposedSensor(sensor, { currentTargets, badExamples, correctExamples });
       if (opts.json && !verdict.accepted) {
         console.log(JSON.stringify({
           accepted: verdict.accepted,
@@ -596,6 +608,8 @@ export function registerSensors(program: Command): void {
         ui.error(`Rejected (${verdict.reason}).`);
         if (verdict.reason === "fires-on-current") {
           ui.warn(`Fires on the CURRENT correct code in: ${verdict.self_check.fired_on.join(", ")}. Add/tighten --absent, then re-run.`);
+        } else if (verdict.reason === "fires-on-correct") {
+          ui.warn("Inverted: the pattern matches the lesson's OWN recommended fix (its `Instead, use:` approach) — it would block correct code, never the mistake. Point --pattern at the FAULTY usage, then re-run.");
         } else if (verdict.reason === "missed-bad-example") {
           ui.warn("Did not match the bad example — the pattern won't catch the mistake. Adjust --pattern, then re-run.");
         } else if (verdict.reason === "brittle") {

@@ -1,6 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { suggestSensorFromMemory, suggestSensorSeed } from "../src/sensor-suggest.js";
 
+describe("suggestSensorSeed — never suggests the recommended fix as the pattern", () => {
+  it("does not pick the `Instead, use:` tool even when it leaks into the why-failed line", () => {
+    // Regression: `--instead date-fns` where why-failed says "team standard is date-fns" used to seed
+    // pattern=`date-fns` — a sensor firing on the CORRECT replacement. The recommended token must be
+    // excluded; with no faulty code-shaped token left, returning null (author it yourself) is correct.
+    const body = [
+      "# importing moment.js",
+      "",
+      "**Why it failed / do NOT use:** bundle bloat — team standard is date-fns",
+      "",
+      "**Instead, use:** date-fns",
+    ].join("\n");
+    const seed = suggestSensorSeed(body, ["src/dates.ts"]);
+    expect(seed?.pattern).not.toBe("date-fns");
+    expect(seed).toBeNull();
+  });
+});
+
 describe("suggestSensorSeed — non-persisted candidate for propose_sensor", () => {
   it("returns a bare seed (pattern/absent/message/paths) with no live-sensor fields", () => {
     const body = [
