@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Doucs91/hivelore",
+  "description": "Deterministic policy gate for agent-written code: briefs agents with the team's repo-specific rules, then blocks any commit whose diff reintroduces a documented mistake (validated regex/AST/test guards enforced in Git hooks and CI).",
+  "repository": {
+    "url": "https://github.com/Doucs91/hivelore",
+    "source": "github"
+  },
+  "version": "0.53.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@hivelore/mcp",
+      "version": "0.53.1",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

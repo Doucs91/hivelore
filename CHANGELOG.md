@@ -6,6 +6,15 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.53.1] — MCP Registry publishing metadata
+
+- `@hivelore/mcp` now carries `mcpName: "io.github.Doucs91/hivelore"` so the package can be published
+  to the official [MCP Registry](https://registry.modelcontextprotocol.io) (the registry validates
+  that the npm package's `mcpName` matches the server's registry name).
+- Added `server.json` (the registry manifest), `docs/mcp-registry.md`, and
+  `scripts/publish-mcp-registry.sh` — everything automatable for registry publishing; the human only
+  completes the GitHub device-flow `mcp-publisher login` + `publish`. No runtime change.
+
 ## [0.53.0] — Ruthless polish: onboarding, quiet gate, cheaper arming, self-tested honesty
 
 Six hardening changes aimed at the friction that kept the core loop from feeling excellent. No
