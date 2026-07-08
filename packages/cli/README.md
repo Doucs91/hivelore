@@ -6,11 +6,13 @@
 
 # @hivelore/cli
 
-> **Hivelore** - repo-native memory and context policy for coding-agent harnesses.
+> **The deterministic policy gate for agent-written code** — it refuses the commit that repeats a mistake your team already paid for.
 
-Hivelore makes your team knowledge enforceable inside the harness around AI coding agents. It gives agents a required briefing before work starts, stores decisions/gotchas/failed attempts as version-controlled Markdown, and adds MCP, Git, CI, and wrapper gates so AI-generated changes cannot quietly bypass project policy.
+Hivelore is the **enforcement layer** inside an AI coding-agent harness. A failed approach or gotcha captured via MCP (`mem_tried`) becomes a **validated guard** — a regex, an [ast-grep](https://ast-grep.github.io) structural pattern, or a command/test oracle routing your own test — trusted to block only after it is proven silent on the correct code and firing on the mistake. Git hooks and a CI entrypoint then refuse any diff that reintroduces the documented mistake — **same diff, same verdict, on every machine**. The knowledge lives as repo-native Markdown in `.ai/`, versioned with your code and briefed to any agent over MCP; it complements tests, linters, and evals rather than replacing them.
 
-The memory system is the mechanism. The CLI is the control plane: initialize context policy, run agents inside Hivelore, check the repo, and block unsafe workflow states. Hivelore complements tests, linters, evals, and observability by carrying the repo-specific knowledge they cannot infer.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Doucs91/hivelore/main/docs/demo/hivelore-demo.gif" alt="A captured lesson attaches a validated guard; the commit that reintroduces the mistake is refused — same diff, same verdict on every machine" width="720" />
+</p>
 
 ---
 
@@ -20,11 +22,11 @@ The memory system is the mechanism. The CLI is the control plane: initialize con
 npm install -g @hivelore/cli
 ```
 
-This installs the `haive` command globally. **The MCP server is bundled** — use `hivelore mcp --stdio` in your AI client (no separate `@hivelore/mcp` install required for normal use).
+This installs the `hivelore` command globally. **The MCP server is bundled** — use `hivelore mcp --stdio` in your AI client (no separate `@hivelore/mcp` install required for normal use).
 
 > **Semantic search** (optional): install `@hivelore/embeddings` for local embedding-based search (no data leaves your machine).
 
-> Legacy configs may still use the standalone `haive-mcp` binary from `@hivelore/mcp`; prefer `haive` so CLI and MCP versions always match.
+> Repos installed before the `haive`→`hivelore` rename are migrated automatically on the next `hivelore init` / `hivelore enforce install`; if an old git hook still calls the removed `haive` binary, `hivelore doctor --fix` regenerates it.
 
 ---
 

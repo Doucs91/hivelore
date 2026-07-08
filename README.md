@@ -22,6 +22,11 @@ A capable model already knows generic best practice. What it *cannot* guess is y
 [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org)
 [![CI](https://github.com/Doucs91/hivelore/actions/workflows/ci.yml/badge.svg)](https://github.com/Doucs91/hivelore/actions/workflows/ci.yml)
 
+<p align="center">
+  <img src="docs/demo/hivelore-demo.gif" alt="A captured lesson attaches a validated guard; the commit that reintroduces the mistake is refused — same diff, same verdict on every machine" width="720" />
+</p>
+<p align="center"><sub><b>Capture a mistake → attach a validated guard → the commit that repeats it is refused.</b> Same diff, same verdict, on every machine and in CI. <a href="#the-60-second-proof">Reproduce it in 60 seconds ↓</a></sub></p>
+
 ---
 
 ## The problem
@@ -215,7 +220,10 @@ npm install -g @hivelore/embeddings
 
 ---
 
+<a id="the-60-second-proof"></a>
 ## The 60-second proof — watch a lesson stop a commit
+
+> This is the exact flow shown in the demo above.
 
 Memory tools remember; Hivelore's difference is that a remembered lesson can **refuse the commit
 that repeats it**. Try it on any git repo:

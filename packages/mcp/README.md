@@ -10,13 +10,17 @@
 
 The MCP server is how agents load team policy before changing code. By default it exposes a small harness-oriented tool surface: briefing, relevant memories, failed-attempt capture, anchor verification, code-map lookup, and pre-commit checks. Larger maintenance and experimental surfaces are opt-in via `HAIVE_TOOL_PROFILE`.
 
-Hivelore is not just a memory database. The MCP layer participates in context policy: state-changing Hivelore tools require `get_briefing` or `mem_relevant_to` first, so agents cannot silently skip team context while using Hivelore.
+Hivelore is not just a memory database. The MCP layer participates in context policy: state-changing Hivelore tools require `get_briefing` or `mem_relevant_to` first, so agents cannot silently skip team context while using Hivelore. A lesson captured here (`mem_tried`) can attach a **validated guard** that Git hooks and CI then use to refuse any diff reintroducing the documented mistake — same diff, same verdict, on every machine.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Doucs91/hivelore/main/docs/demo/hivelore-demo.gif" alt="A captured lesson attaches a validated guard; the commit that reintroduces the mistake is refused" width="720" />
+</p>
 
 ---
 
 ## Install
 
-**Recommended:** install only `@hivelore/cli`. The MCP server is **bundled** inside `haive` — configure clients with `command: "hivelore"` and `args: ["mcp", "--stdio"]` (see `@hivelore/cli` README).
+**Recommended:** install only `@hivelore/cli`. The MCP server is **bundled** inside the `hivelore` binary — configure clients with `command: "hivelore"` and `args: ["mcp", "--stdio"]` (see `@hivelore/cli` README).
 
 Standalone package (legacy / advanced):
 
@@ -88,7 +92,7 @@ Add to `~/.cursor/mcp.json`:
 ### VS Code
 
 ```bash
-code --add-mcp '{"name":"haive","command":"haive","args":["mcp","--stdio","--root","/absolute/path/to/project"]}'
+code --add-mcp '{"name":"hivelore","command":"hivelore","args":["mcp","--stdio","--root","/absolute/path/to/project"]}'
 ```
 
 ### Project-scoped (auto-detected)
