@@ -37,6 +37,13 @@ node -e '
   console.log("→ synced server.json to version " + v);
 '
 
+# 2b. the registry caps description at 100 chars — fail early with a clear message, not a 422
+DESC_LEN="$(node -p "require('./server.json').description.length")"
+if [ "$DESC_LEN" -gt 100 ]; then
+  echo "✗ server.json description is ${DESC_LEN} chars; the registry limit is 100. Shorten it." >&2
+  exit 1
+fi
+
 # 3. the registry validates the npm package, so that exact version must already be published
 if ! npm view "@hivelore/mcp@${MCP_VERSION}" version >/dev/null 2>&1; then
   echo "✗ @hivelore/mcp@${MCP_VERSION} is NOT on npm yet." >&2
