@@ -16,7 +16,8 @@ import { getOctokit } from "@actions/github";
 const CHANGED_FILES_RAW = process.env["CHANGED_FILES"] ?? "";
 const COMMENT_HEADER = process.env["COMMENT_HEADER"] ?? "## 🧠 Hivelore — Team Memory Check";
 const POST_IF_EMPTY = process.env["POST_IF_EMPTY"] === "true";
-const MAX_MEMORIES = parseInt(process.env["MAX_MEMORIES"] ?? "10", 10);
+const requestedMax = Number(process.env["MAX_MEMORIES"] ?? 5);
+const MAX_MEMORIES = Number.isFinite(requestedMax) ? Math.min(20, Math.max(1, Math.floor(requestedMax))) : 5;
 const MEMORIES_DIR_REL = process.env["MEMORIES_DIR"] ?? ".ai/memories";
 const GH_TOKEN = process.env["GH_TOKEN"] ?? "";
 const GH_REPO = process.env["GH_REPO"] ?? "";
@@ -309,7 +310,7 @@ const TYPE_ICON: Record<string, string> = {
   attempt: "🔁",
 };
 
-function formatComment(
+export function formatComment(
   header: string,
   fileMemories: Map<string, Memory[]>,
   allActionRequired: Memory[],
@@ -319,7 +320,6 @@ function formatComment(
 ): string {
   const lines: string[] = [COMMENT_MARKER, header, ""];
 
-  const totalMemories = [...fileMemories.values()].reduce((s, a) => s + a.length, 0);
   const uniqueIds = new Set([...fileMemories.values()].flat().map((m) => m.id));
 
   // ── Action Required banner ───────────────────────────────────────────────
@@ -328,12 +328,13 @@ function formatComment(
       `> ⚠️ **${allActionRequired.length} memory(ies) require human confirmation** before AI agents can act on them.\n`,
     );
 
-    for (const m of allActionRequired) {
+    for (const m of allActionRequired.slice(0, 10)) {
       lines.push(`<details>`);
       lines.push(`<summary>⚠️ <strong>${m.title}</strong> <code>${m.scope}/${m.type}</code></summary>\n`);
-      lines.push(m.body.trim());
+      lines.push(m.body.trim().slice(0, 600));
       lines.push(`\n</details>\n`);
     }
+    if (allActionRequired.length > 10) lines.push(`+${allActionRequired.length - 10} more approval requests — inspect the repository memories before acting.`);
     lines.push("---\n");
   }
 
@@ -381,34 +382,28 @@ function formatComment(
   if (fileMemories.size > 0) {
     lines.push(`**${uniqueIds.size} ${uniqueIds.size === 1 ? "memory" : "memories"} relevant to this PR** (across ${fileMemories.size} file${fileMemories.size > 1 ? "s" : ""}):\n`);
 
-    for (const [file, mems] of fileMemories.entries()) {
-      lines.push(`### \`${file}\``);
-      for (const m of mems.slice(0, MAX_MEMORIES)) {
-        const icon = TYPE_ICON[m.type] ?? "📝";
-        const arBadge = m.requiresHumanApproval ? " 🚨 **action required**" : "";
-        const scopeBadge = `\`${m.scope}/${m.type}\``;
-        const statusBadge = m.status === "stale" ? " *(stale)*" : "";
-
-        lines.push(`<details>`);
-        lines.push(
-          `<summary>${icon} <strong>${m.title}</strong> ${scopeBadge}${arBadge}${statusBadge}</summary>\n`,
-        );
-
-        // Strip the "action required" header for non-AR memories (already surfaced above).
-        // Keep the legacy French heading for old auto-generated memories.
-        const bodyToShow = m.requiresHumanApproval
-          ? m.body.trim()
-          : m.body.replace(/^##\s*⚠️ Action (?:required|requise).*\n[\s\S]*?---\n\n/m, "").trim();
-
-        lines.push(bodyToShow.slice(0, 800) + (bodyToShow.length > 800 ? "\n\n…" : ""));
-        lines.push(`\n</details>\n`);
-      }
-      if (mems.length > MAX_MEMORIES) {
-        lines.push(`*+${mems.length - MAX_MEMORIES} more — run \`hivelore memory for-files ${file}\`*\n`);
+    const unique = new Map<string, { memory: Memory; files: string[] }>();
+    for (const [file, mems] of fileMemories) {
+      for (const memory of mems) {
+        const entry = unique.get(memory.id) ?? { memory, files: [] };
+        entry.files.push(file);
+        unique.set(memory.id, entry);
       }
     }
+    const ranked = [...unique.values()].sort((a, b) =>
+      Number(b.memory.requiresHumanApproval) - Number(a.memory.requiresHumanApproval) ||
+      Number(b.memory.sensor?.severity === "block") - Number(a.memory.sensor?.severity === "block"));
+    for (const { memory: m, files } of ranked.slice(0, MAX_MEMORIES)) {
+      const icon = TYPE_ICON[m.type] ?? "📝";
+      lines.push(`### ${icon} ${m.title.slice(0, 180)}`);
+      lines.push(`Source: \`${m.id}\` · ${m.scope}/${m.type}${m.status === "stale" ? " · stale" : ""}`);
+      lines.push(`Applies to: ${files.slice(0, 4).map(f => `\`${f.slice(0, 200)}\``).join(", ")}${files.length > 4 ? ` (+${files.length - 4} files)` : ""}`);
+      if (!m.requiresHumanApproval) lines.push(m.body.trim().slice(0, 400) + (m.body.trim().length > 400 ? "…" : ""));
+      lines.push("");
+    }
+    if (ranked.length > MAX_MEMORIES) lines.push(`*${ranked.length - MAX_MEMORIES} more unique memories — use \`hivelore briefing --files <paths>\` for details.*`);
   } else {
-    lines.push("✅ **No memories found for the changed files.** The code appears well-understood by the team.");
+    lines.push("✅ **No memories found for the changed files.** Coverage has not been established.");
     lines.push("\n> Tip: run `hivelore memory for-files <file>` locally to check, or `hivelore briefing` for the full context.\n");
   }
 
@@ -422,12 +417,13 @@ function formatComment(
   lines.push("");
   lines.push(
     ...(ignoredPaths.length > 0
-      ? [`<sub>Ignored for matching (touched by most PRs): ${ignoredPaths.map((p) => `\`${p}\``).join(", ")}</sub>`, ""]
+      ? [`<sub>Ignored for matching (touched by most PRs): ${ignoredPaths.slice(0, 10).map((p) => `\`${p}\``).join(", ")}</sub>`, ""]
       : []),
     `<sub>🧠 Powered by [Hivelore](https://github.com/Doucs91/hivelore) · ${changedFiles.length} file${changedFiles.length > 1 ? "s" : ""} scanned · ${new Date().toUTCString()}</sub>`,
   );
 
-  return lines.join("\n");
+  const comment = lines.join("\n");
+  return comment.length <= 24000 ? comment : comment.slice(0, 23500) + "\n\n… Comment shortened; inspect the repository memories for full context.";
 }
 
 // ── GitHub comment management ─────────────────────────────────────────────────

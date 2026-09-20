@@ -1,4 +1,4 @@
-import { readFile, readdir, stat } from "node:fs/promises";
+import { readFile, readdir, stat, realpath } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { globToRegExp, isGlobPath } from "./relevance.js";
@@ -33,6 +33,32 @@ export async function verifyAnchor(
   const anchor = memory.frontmatter.anchor;
   const checkedPaths = anchor.paths;
   const checkedSymbols = anchor.symbols;
+
+  for (const check of memory.frontmatter.checks ?? []) {
+    const abs = path.resolve(options.projectRoot, check.path);
+    const relative = path.relative(options.projectRoot, abs);
+    if (path.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${path.sep}`)) {
+      return { stale: true, reason: `check path is outside the project: ${check.path}`,
+        checkedPaths, checkedSymbols, possibleRenames: [] };
+    }
+    let content: string;
+    try {
+      const realRoot = await realpath(options.projectRoot);
+      const realFile = await realpath(abs);
+      const rel = path.relative(realRoot, realFile);
+      if (rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) throw new Error("outside project");
+      const info = await stat(realFile);
+      if (!info.isFile() || info.size > 2 * 1024 * 1024) throw new Error("not a bounded text file");
+      content = await readFile(realFile, "utf8");
+    }
+    catch { return { stale: true, reason: `check file is unreadable: ${check.path}`,
+      checkedPaths, checkedSymbols, possibleRenames: [] }; }
+    if ((check.contains !== undefined && !content.includes(check.contains)) ||
+        (check.excludes !== undefined && content.includes(check.excludes))) {
+      return { stale: true, reason: `claim contradicted by current file: ${check.path}`,
+        checkedPaths, checkedSymbols, possibleRenames: [] };
+    }
+  }
 
   if (checkedPaths.length === 0 && checkedSymbols.length === 0) {
     return { stale: false, reason: null, checkedPaths, checkedSymbols, possibleRenames: [] };

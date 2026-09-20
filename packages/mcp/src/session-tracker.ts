@@ -5,7 +5,7 @@
  * On SIGTERM/SIGINT (i.e. when the AI client closes), automatically:
  *   1. Saves a session recap via mem_session_end (always)
  *   2. Writes .ai/.cache/pending-distill.json so the next get_briefing
- *      surfaces an action_required item prompting the agent to invoke
+ *      surfaces a maintenance notice suggesting the agent invoke
  *      post_task for a richer LLM-driven distillation.
  */
 import {

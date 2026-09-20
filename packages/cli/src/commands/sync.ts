@@ -1,3 +1,4 @@
+import { repairRenamedAnchors } from "../utils/rename-anchors.js";
 import { spawnSync } from "node:child_process";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -148,6 +149,8 @@ export function registerSync(program: Command): void {
       }
 
       if (opts.verify !== false) {
+        const renamed = await repairRenamedAnchors(paths, dryRun);
+        if (renamed.length) log(`Repaired exact Git rename anchors in ${renamed.length} memories${dryRun ? " (preview)" : ""}.`);
         const memories = await loadMemoriesFromDir(paths.memoriesDir);
         for (const { memory, filePath } of memories) {
           // session_recap records historical context — staleness doesn't apply.
@@ -239,7 +242,7 @@ export function registerSync(program: Command): void {
             if (!dryRun) {
               await writeFile(
                 filePath,
-                serializeMemory({ frontmatter: { ...fm, status: "validated" }, body: memory.body }),
+                serializeMemory({ frontmatter: { ...fm, status: "validated", validated_by: "auto" }, body: memory.body }),
                 "utf8",
               );
             }
@@ -254,7 +257,8 @@ export function registerSync(program: Command): void {
             autoApproveDelayHours !== null &&
             fm.status === "proposed" &&
             fm.scope === "team" &&
-            !fm.tags.includes("auto-captured")
+            !fm.tags.includes("auto-captured") && fm.evidence !== "hypothesis" &&
+            !fm.requires_human_approval && fm.lifecycle !== "planned" && fm.lifecycle !== "abandoned"
           ) {
             const ageHours =
               (nowMs - new Date(fm.created_at).getTime()) / (1000 * 60 * 60);
@@ -266,7 +270,7 @@ export function registerSync(program: Command): void {
                     frontmatter: {
                       ...fm,
                       status: "validated",
-                      verified_at: new Date().toISOString(),
+                      validated_by: "auto",
                     },
                     body: memory.body,
                   }),

@@ -105,7 +105,11 @@ Calling \`mem_session_end\` also **clears the pending-distill marker** (if any),
 ### 7. Verify the git/release/pipeline exit protocol — always
 Run **\`hivelore enforce finish\`** before your final response.
 
-This executable gate checks the multi-agent git-sync decision:
+The gate respects the configured task completion contract (read, local, commit, or release).
+Start the task before editing to distinguish pre-existing changes from your own work. Existing
+repositories default to release; do not downgrade a repository's release policy to bypass a blocker.
+
+Under the release contract, this executable gate checks the multi-agent git-sync decision:
 - no completed work is left as an uncommitted local diff
 - shippable package changes have a lockstep version bump
 - the release tag \`vX.Y.Z\` exists when a version was bumped

@@ -24,6 +24,7 @@ export interface AgentContext {
 
 /** Env vars whose PRESENCE (non-empty) identifies a known agent harness. */
 const AGENT_ENV_SIGNALS: ReadonlyArray<{ name: string; label: string }> = [
+  { name: "HIVELORE_SESSION_ID", label: "hivelore-run-wrapper" },
   { name: "HAIVE_SESSION_ID", label: "hivelore-run-wrapper" },
   { name: "CLAUDECODE", label: "claude-code" },
   { name: "CLAUDE_CODE_ENTRYPOINT", label: "claude-code" },
@@ -37,9 +38,10 @@ export function detectAgentContext(
   env: Record<string, string | undefined> = typeof process !== "undefined" ? process.env : {},
 ): AgentContext {
   // Explicit override wins in both directions (HAIVE_AGENT=1 opt in, =0 force human).
-  const explicit = env["HAIVE_AGENT"]?.trim().toLowerCase();
-  if (explicit === "1" || explicit === "true") return { agent: true, signals: ["HAIVE_AGENT=1"] };
-  if (explicit === "0" || explicit === "false") return { agent: false, signals: ["HAIVE_AGENT=0"] };
+  const flag = env["HIVELORE_AGENT"] !== undefined ? "HIVELORE_AGENT" : "HAIVE_AGENT";
+  const explicit = env[flag]?.trim().toLowerCase();
+  if (explicit === "1" || explicit === "true") return { agent: true, signals: [`${flag}=1`] };
+  if (explicit === "0" || explicit === "false") return { agent: false, signals: [`${flag}=0`] };
 
   const signals = AGENT_ENV_SIGNALS
     .filter(({ name }) => (env[name] ?? "").trim().length > 0)

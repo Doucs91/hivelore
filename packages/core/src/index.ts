@@ -64,3 +64,5 @@ export * from "./priority.js";
 export * from "./bridges.js";
 export * from "./agent-context.js";
 export * from "./pr-review-ingest.js";
+
+export * from "./task-session.js";

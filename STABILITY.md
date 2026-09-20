@@ -78,3 +78,33 @@ this file, with a test that exercises it.
 | **`1.0` onward** | Tier 1 follows SemVer: breaking change → major. Tier 2 may change in any minor/patch. |
 
 All four publishable packages (`@hivelore/core`, `cli`, `mcp`, `embeddings`) are versioned in lockstep.
+
+## Additions in 0.63
+
+Memory frontmatter accepts optional `evidence` (`hypothesis`, `observed`, `reproduced`, `tested`),
+`supersedes` (memory IDs), and `checks` (`{path, contains?, excludes?}` objects). Checks use literal
+text in current repository files, never shell commands. At least one of `contains`/`excludes` is
+required. Check files must resolve inside the project, be regular files and be at most 2 MiB.
+These are focused claim checks, not proof of arbitrary Markdown prose. An anchor's continued
+existence alone does not establish that a historical decision still describes current code.
+
+MCP `mem_save`/`mem_update` and CLI `memory save`/`memory update` accept these fields (CLI checks use
+JSON; supersedes uses CSV). `mem_get` returns the evidence fields and a stale confidence/reason
+when a current-file check fails. Explicit `include_stale` retrieval remains available for investigation.
+Retiring a claim does not silently disarm an executable sensor; changes to gates retain their review path.
+
+`autoPromoteMinReads` retains its configuration name for compatibility but now counts explicit
+confirmed applications (`mem_feedback`), not retrievals. Read thresholds on `deriveConfidence`
+remain accepted but do not establish truth. Existing validated memories remain trusted, subject
+to freshness decay. Hypotheses never become authoritative through reads or automatic promotion.
+
+`get_briefing.maintenance_notices` contains optional housekeeping. Its `action_required` field
+continues to mean an explicit human confirmation is needed.
+
+`enforce session-start --mode read|local|commit|release --session-id <id>` records a task baseline.
+CLI and MCP briefings also establish a missing baseline. `enforce finish` accepts the same flags,
+then falls back to the session's mode, `enforcement.completionMode`, and finally `release`.
+Use the same session ID throughout a task; hooks use the harness session ID. A baseline expires
+after 12 hours. A missing baseline or branch change falls back to inspecting the whole worktree;
+read completion instead refuses to claim an unchanged task. Completion contracts do not replace
+builds or functional tests, and a local finish only reports the policy scan that it actually ran.

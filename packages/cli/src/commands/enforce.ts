@@ -3,7 +3,7 @@ import { existsSync, statSync } from "node:fs";
 import { chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import {
   antiPatternGateParams,
   appendSensorEvaluations,
@@ -39,6 +39,8 @@ import {
   recordGateReminder,
   loadSensorLedger,
   memoryMatchesAnchorPaths,
+  memoryHasExcludedTag,
+  supersededMemoryIds,
   readRecentBriefingMarker,
   recordPreventionHits,
   resolveBriefingBudget,
@@ -67,6 +69,9 @@ import { executeCommandSensors } from "../utils/command-sensors.js";
 import { commandScopeHash, evaluation, gitHeadSha } from "../utils/sensor-evaluations.js";
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
 import { collectScaffoldLoopGaps, describeScaffoldGap } from "../utils/post-incident-scan.js";
+
+import { injectFileContext } from "../utils/file-context.js";
+import { dirtyStatusEntries, loadTaskSession, startTaskSession, sessionIdentity, worktreeSnapshot, taskDirtyFiles, changedSince, gitText, type CompletionMode } from "../utils/task-session.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -127,6 +132,7 @@ interface HookPayload {
 }
 
 interface EnforceOptions {
+  mode?: CompletionMode;
   dir?: string;
   task?: string;
   source?: string;
@@ -146,6 +152,8 @@ interface EnforceOptions {
 }
 
 interface FinishOptions {
+  mode?: CompletionMode;
+  sessionId?: string;
   dir?: string;
   json?: boolean;
   explain?: boolean;
@@ -343,6 +351,8 @@ export function registerEnforce(program: Command): void {
   enforce
     .command("finish")
     .alias("completion")
+    .addOption(new Option("--mode <mode>", "completion contract").choices(["read", "local", "commit", "release"]))
+    .option("--session-id <id>", "task session id")
     .description(
       "Final agent-exit gate: verify the git sync/release protocol before reporting a task done.",
     )
@@ -352,11 +362,11 @@ export function registerEnforce(program: Command): void {
     .option("--wait-timeout <minutes>", "max minutes to wait for CI with --wait", "15")
     .option("--json", "emit JSON", false)
     .action(async (opts: FinishOptions) => {
-      let report = await buildFinishReport(opts.dir);
+      let report = await buildFinishReport(opts.dir, opts);
       if (opts.wait) {
         // Replaces the manual `gh run watch <id>` ritual: keep re-checking while the ONLY
         // blocker is CI that hasn't finished (or hasn't appeared yet right after a push).
-        const WAIT_CODES = new Set(["github-actions-pending", "github-actions-runs-missing"]);
+        const WAIT_CODES = new Set(["github-actions-pending", "github-actions-runs-missing", "github-actions-required-missing"]);
         const deadline = Date.now() + Math.max(1, Number(opts.waitTimeout ?? 15)) * 60_000;
         const onlyWaitingOnCi = (r: EnforcementReport): boolean =>
           r.should_block &&
@@ -365,7 +375,7 @@ export function registerEnforce(program: Command): void {
         while (onlyWaitingOnCi(report) && Date.now() < deadline) {
           if (!opts.json) ui.info("GitHub Actions still running for HEAD — rechecking in 20s (--wait)…");
           await new Promise((resolve) => setTimeout(resolve, 20_000));
-          report = await buildFinishReport(opts.dir);
+          report = await buildFinishReport(opts.dir, opts);
         }
       }
       printReport(report, Boolean(opts.json), Boolean(opts.explain));
@@ -393,6 +403,7 @@ export function registerEnforce(program: Command): void {
 
   enforce
     .command("session-start")
+    .addOption(new Option("--mode <mode>", "completion contract for this task").choices(["read", "local", "commit", "release"]))
     .description("Claude Code SessionStart hook: inject briefing and write a local briefing marker.")
     .option("-d, --dir <dir>", "project root")
     .option("--task <text>", "task text to rank memories")
@@ -405,10 +416,9 @@ export function registerEnforce(program: Command): void {
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) return;
       await mkdir(paths.runtimeDir, { recursive: true });
-      const sessionId = opts.sessionId ?? payload.session_id;
+      const sessionId = sessionIdentity(opts.sessionId ?? payload.session_id);
+      if (await gitText(root, ["rev-parse", "--is-inside-work-tree"]).catch(() => "")) await startTaskSession(paths, sessionId, opts.mode);
       const task = opts.task ?? payload.prompt ?? "Start an AI coding session in this Hivelore-initialized project.";
-      await applyLightweightRepairs(root, paths);
-
       const budget = resolveBriefingBudget("quick", {
         max_tokens: 2500,
         max_memories: 5,
@@ -440,6 +450,16 @@ export function registerEnforce(program: Command): void {
       });
 
       console.log("Hivelore briefing loaded. Agents must consult this before editing.");
+      for (const item of briefing.action_required) {
+        console.log(`\n[Human confirmation required] ${item.developer_message}`);
+      }
+      if (briefing.memories.length > 0) {
+        console.log("\n## Relevant memories");
+        for (const memory of briefing.memories.slice(0, 6)) {
+          console.log(`\n### ${memory.id} (${memory.scope}/${memory.type}, ${memory.confidence})`);
+          console.log(memory.body.slice(0, 1000));
+        }
+      }
       if (briefing.last_session) {
         // Never print a recap without its date. Undated, it reads as the current state of the
         // project — which is how an eight-day-old recap kept telling every new session that a
@@ -454,13 +474,6 @@ export function registerEnforce(program: Command): void {
       }
       if (briefing.project_context?.content) {
         console.log(`\n## Project context\n${briefing.project_context.content.slice(0, 1800)}`);
-      }
-      if (briefing.memories.length > 0) {
-        console.log("\n## Relevant memories");
-        for (const memory of briefing.memories.slice(0, 6)) {
-          console.log(`\n### ${memory.id} (${memory.scope}/${memory.type}, ${memory.confidence})`);
-          console.log(memory.body.slice(0, 1000));
-        }
       }
       for (const warning of briefing.setup_warnings) {
         console.log(`\n[setup warning] ${warning}`);
@@ -484,23 +497,8 @@ export function registerEnforce(program: Command): void {
       const gate = config.enforcement?.preEditGate ?? "advise";
 
       const targetFiles = extractToolPaths(payload, root);
-      const hasMarker = await hasRecentBriefingMarker(paths, payload.session_id);
-      const missing = targetFiles.length > 0
-        ? await missingRequiredMemoriesForFiles(paths, targetFiles, payload.session_id)
-        : [];
-
-      // Clean pass: a recent briefing exists and the touched files carry no un-surfaced policy.
-      if (hasMarker && missing.length === 0) return;
-
-      // Auto-resolve: record the relevant policy for the touched files into the briefing marker so
-      // the agent gets credit for it AND the commit-time decision-coverage gate accumulates coverage
-      // as the agent edits — no separate `hivelore briefing` command needed.
-      if (targetFiles.length > 0) {
-        await recordFilesIntoBriefingMarker(paths, targetFiles, missing, payload.session_id)
-          .catch(() => { /* best-effort */ });
-      }
-
-      const contextText = buildPreEditContext(payload.tool_name ?? "write tool", targetFiles, missing, hasMarker);
+      const contextText = await injectFileContext(paths, targetFiles, payload.session_id);
+      if (!contextText) return;
 
       if (gate === "block") {
         // Legacy strict behaviour: block — but with the actual content and no separate command.
@@ -518,54 +516,6 @@ export function registerEnforce(program: Command): void {
       // Commit-time decision-coverage + CI enforcement remain the hard backstops.
       emitPreToolUseContext(contextText);
     });
-}
-
-/**
- * Record the validated policy memories anchored to the touched files into the briefing marker,
- * unioned with whatever is already there. Mirrors what `hivelore briefing --files` records, so the
- * commit-time decision-coverage gate accumulates coverage as the agent edits (no broad re-briefing).
- */
-async function recordFilesIntoBriefingMarker(
-  paths: ReturnType<typeof resolveHaivePaths>,
-  files: string[],
-  missing: LoadedMemory[],
-  sessionId?: string,
-): Promise<void> {
-  const existing = await readRecentBriefingMarker(paths, sessionId);
-  const ids = new Set<string>(existing?.memory_ids ?? []);
-  for (const { memory } of missing) ids.add(memory.frontmatter.id);
-  await writeBriefingMarker(paths, {
-    sessionId,
-    task: existing?.task ?? "pre-edit auto-briefing",
-    source: "haive-pre-edit",
-    files,
-    memoryIds: [...ids],
-  });
-}
-
-/** Build the context block surfaced to the agent at edit time (the actual memory bodies). */
-function buildPreEditContext(
-  tool: string,
-  files: string[],
-  missing: LoadedMemory[],
-  hasMarker: boolean,
-): string {
-  const lines: string[] = ["Hivelore — relevant team policy for this edit", `Tool: ${tool}`];
-  if (files.length > 0) lines.push(`Files: ${files.slice(0, 6).join(", ")}`);
-  if (missing.length > 0) {
-    lines.push("", "Consult these before editing (anchored to the files you are touching):");
-    for (const { memory } of missing.slice(0, 5)) {
-      const fm = memory.frontmatter;
-      lines.push("", `### ${fm.id}  (${fm.scope}/${fm.type})`, memory.body.trim().slice(0, 900));
-    }
-  } else if (!hasMarker) {
-    lines.push(
-      "",
-      "No team briefing was loaded yet this session. Proceeding — but for substantive work call " +
-      "get_briefing / mem_relevant_to for richer context.",
-    );
-  }
-  return lines.join("\n");
 }
 
 /** Emit a Claude Code PreToolUse hook result that injects context for the model WITHOUT blocking. */
@@ -623,7 +573,7 @@ function advisoryOnly(findings: EnforcementFinding[]): EnforcementFinding[] {
   );
 }
 
-async function buildFinishReport(dir: string | undefined): Promise<EnforcementReport> {
+async function buildFinishReport(dir: string | undefined, opts: FinishOptions = {}): Promise<EnforcementReport> {
   const root = findProjectRoot(dir);
   const paths = resolveHaivePaths(root);
   const initialized = existsSync(paths.haiveDir);
@@ -672,6 +622,37 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
     return finishReport(root, initialized, mode, findings, config);
   }
 
+  const session = await loadTaskSession(paths, opts.sessionId);
+  const completionMode = opts.mode ?? session?.mode ?? config.enforcement?.completionMode ?? "release";
+  if (!["read", "local", "commit", "release"].includes(completionMode)) {
+    findings.push({ severity: "error", code: "completion-mode-invalid", message: "Unknown completion mode in configuration.", impact: 100 });
+    return finishReport(root, initialized, mode, findings, config);
+  }
+  const sameBranch = session && session.branch === (status.branch ?? "");
+  const snapshot = await worktreeSnapshot(root);
+  const owned = sameBranch ? taskDirtyFiles(session, snapshot) : Object.keys(snapshot);
+  if (sameBranch) {
+    const untouched = status.dirtyFiles.filter(file => !owned.includes(file));
+    if (untouched.length) findings.push({ severity: "info", code: "task-preexisting-changes",
+      message: `${untouched.length} pre-existing file(s) are unchanged by this task.`, affected_files: untouched });
+    status.dirtyFiles = status.dirtyFiles.filter(file => owned.includes(file));
+    status.untrackedFiles = status.untrackedFiles.filter(file => owned.includes(file));
+  }
+  findings.push({ severity: "info", code: "completion-mode", message: `Completion contract: ${completionMode}.` });
+  if (completionMode === "read") {
+    if (!sameBranch) findings.push({ severity: "error", code: "task-baseline-required",
+      message: "Read completion requires a recent session-start baseline on this branch.",
+      fix: "Start read tasks with `hivelore enforce session-start --mode read` before working.", impact: 100 });
+    else if (changedSince(session.baseline, snapshot).length || session.head !== (await gitText(root, ["rev-parse", "HEAD"]).catch(() => "")).trim()) findings.push({ severity: "error", code: "read-task-modified-files",
+      message: "The worktree changed since this read task started.", affected_files: changedSince(session.baseline, snapshot), impact: 100 });
+    return finishReport(root, initialized, mode, findings, config);
+  }
+  if (completionMode === "local") {
+    const local = await getLocalPolicySnapshot(root, owned);
+    findings.push(...await runPrecommitPolicy(paths, config.enforcement?.antiPatternGate ?? "anchored", "local", config, local));
+    findings.push({ severity: "info", code: "local-completion", message: "Local policy scan completed; commit, push and release are outside this completion contract." });
+    return finishReport(root, initialized, mode, findings, config);
+  }
   const shippableDirty = status.dirtyFiles.filter(isShippablePath);
   // Hivelore regenerates `.ai/code-map.json`, so a `finish` run that just refreshed it would block
   // on its OWN artifact ("dirty worktree") — the tool creating its own blocker (field report §4.4).
@@ -693,7 +674,7 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
   // written (`mem_save` creates a memory, then the exit gate refuses to close because that memory is
   // untracked) — the tool manufacturing its own blocker. Warn, and keep blocking real uncommitted
   // work (field report 2026-09-04 §5).
-  const hygieneOnly = untrackedOnly && shippableDirty.length === 0;
+  const hygieneOnly = completionMode === "release" && untrackedOnly && shippableDirty.length === 0;
   if (dirtyFiles.length > 0) {
     findings.push({
       severity: hygieneOnly ? "warn" : "error",
@@ -735,6 +716,8 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
       message: "No uncommitted worktree changes remain.",
     });
   }
+
+  if (completionMode === "commit") return finishReport(root, initialized, mode, findings, config);
 
   if (!status.upstream) {
     findings.push({
@@ -783,7 +766,7 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
       code: "release-version-not-required",
       message: "No shippable package code changed since upstream; no version/tag required.",
     });
-    findings.push(...await verifyGithubActionsForHead(root, status));
+    findings.push(...await verifyGithubActionsForHead(root, status, config.enforcement?.requiredCiWorkflows));
     return finishReport(root, initialized, mode, findings, config);
   }
 
@@ -889,7 +872,7 @@ async function buildFinishReport(dir: string | undefined): Promise<EnforcementRe
     });
   }
 
-  findings.push(...await verifyGithubActionsForHead(root, status));
+  findings.push(...await verifyGithubActionsForHead(root, status, config.enforcement?.requiredCiWorkflows));
   findings.push(...await verifyNpmPublication(root, version, config));
   findings.push(...await verifyGithubRelease(root, version, config));
   return finishReport(root, initialized, mode, findings, config);
@@ -1729,10 +1712,14 @@ async function verifyDecisionCoverage(
   const all = await loadMemoriesFromDir(paths.memoriesDir);
   const changedSet = new Set(changedFiles);
   const policyTypes = new Set(["decision", "gotcha", "architecture", "convention"]);
+  const config = await loadConfig(paths);
+  const superseded = supersededMemoryIds(all);
   const relevant = all
     .filter(({ memory }) => {
       const fm = memory.frontmatter;
       if (!policyTypes.has(fm.type)) return false;
+      if (isRetiredMemory(fm, memory.body) || superseded.has(fm.id) ||
+          memoryHasExcludedTag(fm, config.briefingExcludeTags)) return false;
       if (fm.status !== "validated") return false;
       return memoryMatchesAnchorPaths(memory, changedFiles);
     });
@@ -1822,8 +1809,9 @@ async function runPrecommitPolicy(
   gate: AntiPatternGate,
   stage: PolicyScanStage,
   config: HaiveConfig,
+  suppliedSnapshot?: PolicyDiffSnapshot,
 ): Promise<EnforcementFinding[]> {
-  const snapshot = await getPolicyDiffSnapshot(paths.root, stage);
+  const snapshot = suppliedSnapshot ?? await getPolicyDiffSnapshot(paths.root, stage);
   // Gate-surface integrity runs even when the anti-pattern gate is off: a diff that demotes or
   // unwires a block sensor is a change to the ENFORCEMENT SURFACE itself, and the whole point is
   // that such a change never lands unmentioned (the gate lives in `.ai/`, editable by the same
@@ -2022,16 +2010,11 @@ async function resolveSensorWeakeningApprovals(
  * Staged (index) content of a project-relative path, falling back to the working tree — the
  * AST sensor layer parses whole files, and at pre-commit the staged blob is the truth.
  */
-async function stagedFileContent(root: string, rel: string): Promise<string | null> {
+async function stagedFileContent(root: string, rel: string, stage: PolicyScanStage): Promise<string | null> {
   try {
-    return await runCommand("git", ["show", `:${rel}`], root);
-  } catch {
-    try {
-      return await readFile(path.resolve(root, rel), "utf8");
-    } catch {
-      return null;
-    }
-  }
+    if (stage === "pre-commit") return await runCommand("git", ["show", `:${rel}`], root);
+    return await readFile(path.resolve(root, rel), "utf8");
+  } catch { return null; }
 }
 
 /**
@@ -2054,7 +2037,7 @@ async function runSensorGate(
 
     // Only scan real code targets — never Hivelore-owned/`.ai/` files (self-match guard).
     const targets = sensorTargetsFromDiff(diff).filter((t) => isSensorScannablePath(t.path));
-    if (targets.length === 0) return [];
+    if (!changedPathsFromDiff(diff).some(isSensorScannablePath)) return [];
 
     const findings: EnforcementFinding[] = [];
     // A `local` preview must not be logged as a commit-time evaluation: prevention receipts and
@@ -2145,8 +2128,8 @@ async function runSensorGate(
       const finalTargets: import("@hivelore/core").SensorTarget[] = [];
       for (const rel of changedPathsFromDiff(diff)) {
         if (!isSensorScannablePath(rel)) continue;
-        const content = await stagedFileContent(paths.root, rel);
-        if (content !== null) finalTargets.push({ path: rel, content });
+        const content = await stagedFileContent(paths.root, rel, stage);
+        finalTargets.push({ path: rel, content: content ?? "" });
       }
       const presenceHits = runPresenceSensors(presenceMemories, finalTargets);
       for (const memory of presenceMemories) {
@@ -2213,7 +2196,7 @@ async function runSensorGate(
           for (const target of applicable) {
             const added = addedByPath.get(target.path);
             if (!added || added.size === 0) continue;
-            const content = await stagedFileContent(paths.root, target.path);
+            const content = await stagedFileContent(paths.root, target.path, stage);
             if (content === null) continue;
             const scan = await runAstSensorOnContent({
               pattern: sensor.pattern,
@@ -2588,6 +2571,26 @@ interface PolicyDiffSnapshot {
   source: string;
 }
 
+async function getLocalPolicySnapshot(root: string, files: string[]): Promise<PolicyDiffSnapshot> {
+  if (!files.length) return { diff: "", paths: [], source: "worktree" };
+  // Use literal pathspecs: a filename must never broaden the task's scope.
+  const specs = files.map(file => `:(literal)${file}`);
+  let diff = await gitText(root, ["diff", "HEAD", "--", ...specs])
+    .catch(() => gitText(root, ["diff", "--cached", "--", ...specs]));
+  const untracked = new Set((await gitText(root, ["ls-files", "--others", "--exclude-standard", "-z"])).split("\0"));
+  for (const file of files.filter(f => untracked.has(f))) {
+    try {
+      const result = await execFileAsync("git", ["diff", "--no-index", "--", "/dev/null", file], { cwd: root, maxBuffer: 16 * 1024 * 1024 });
+      diff += result.stdout;
+    } catch (error) {
+      const e = error as { code?: number; stdout?: string };
+      if (e.code === 1 && typeof e.stdout === "string") diff += e.stdout;
+      else throw error;
+    }
+  }
+  return { diff, paths: files, source: "worktree" };
+}
+
 async function getPolicyDiffSnapshot(
   root: string,
   stage: PolicyScanStage,
@@ -2598,12 +2601,9 @@ async function getPolicyDiffSnapshot(
   // preview that never looked at the code the agent had just written (field reports 2026-09-05
   // §2 and §4). Falls back to the index alone on a repo with no commit yet.
   if (stage === "local") {
-    const diff = await runCommand("git", ["diff", "HEAD"], root).catch(() => "");
-    const names = await runCommand("git", ["diff", "HEAD", "--name-only"], root).catch(() => "");
-    if (diff.trim()) return { diff, paths: normalizeChangedFileList(names), source: "worktree" };
-    const staged = await runCommand("git", ["diff", "--cached"], root).catch(() => "");
-    const stagedNames = await runCommand("git", ["diff", "--cached", "--name-only"], root).catch(() => "");
-    return { diff: staged, paths: normalizeChangedFileList(stagedNames), source: "staged" };
+    const inGit = await gitText(root, ["rev-parse", "--is-inside-work-tree"]).catch(() => "");
+    if (!inGit.trim()) return { diff: "", paths: [], source: "none" };
+    return getLocalPolicySnapshot(root, Object.keys(await worktreeSnapshot(root)));
   }
   if (stage === "pre-commit") {
     const diff = await runCommand("git", ["diff", "--cached"], root).catch(() => "");
@@ -2724,20 +2724,9 @@ interface GithubActionsRun {
 }
 
 async function getGitSyncStatus(root: string): Promise<GitSyncStatus> {
-  const statusLines = (await runCommand("git", ["status", "--short", "--untracked-files=all"], root).catch(() => ""))
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const dirty: string[] = [];
-  const untracked: string[] = [];
-  for (const line of statusLines) {
-    const file = statusLineToPath(line);
-    if (!file || normalizeChangedFileList(file).length === 0) continue;
-    dirty.push(file);
-    // `??` is git's untracked marker. Trimming above is safe for it (unlike the leading-space
-    // staged/unstaged distinction) because `?` is not whitespace.
-    if (line.startsWith("??")) untracked.push(file);
-  }
+  const statusEntries = dirtyStatusEntries(await gitText(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]).catch(() => ""));
+  const dirty = statusEntries.map(entry => entry.file);
+  const untracked = statusEntries.filter(entry => entry.status === "??").map(entry => entry.file);
   const branch = (await runCommand("git", ["branch", "--show-current"], root).catch(() => "")).trim() || undefined;
   const upstream = (await runCommand("git", ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], root).catch(() => "")).trim() || undefined;
   if (!branch && !upstream) {
@@ -2938,6 +2927,7 @@ async function remoteTagExists(root: string, tag: string): Promise<boolean | nul
 async function verifyGithubActionsForHead(
   root: string,
   status: GitSyncStatus,
+  requiredWorkflows: string[] = [],
 ): Promise<EnforcementFinding[]> {
   if (!status.upstream) return [];
   if (status.ahead > 0) {
@@ -3015,13 +3005,29 @@ async function verifyGithubActionsForHead(
     }];
   }
 
+  const latestRuns = new Map<string, GithubActionsRun>();
+  for (const run of [...runs].sort((a, b) => (b.databaseId ?? 0) - (a.databaseId ?? 0))) {
+    const key = run.workflowName ?? run.name ?? String(run.databaseId);
+    if (!latestRuns.has(key)) latestRuns.set(key, run);
+  }
+  runs = [...latestRuns.values()];
+  const matchesRequired = (run: GithubActionsRun, name: string): boolean =>
+    [run.workflowName, run.name].some(label => label?.toLowerCase() === name.toLowerCase());
+  const isRequired = (run: GithubActionsRun): boolean => requiredWorkflows.some(name => matchesRequired(run, name));
+  const missingRequired = requiredWorkflows.filter(name => !runs.some(run => matchesRequired(run, name)));
+  if (missingRequired.length) return [{ severity: "error", code: "github-actions-required-missing",
+    message: `Required workflows have no run for HEAD: ${missingRequired.join(", ")}.`,
+    fix: "Check workflow triggers and wait for the required runs before finishing.", impact: 80 }];
+
   // An advisory workflow is advisory whether it FAILED or has not finished. Blocking `finish` while
   // a non-required external scanner is still running cost 5-12 minutes six times in one week, on
   // pushes whose build, tests and Hivelore gate had all passed (field report 2026-09-05 §7). The
   // exit gate waits for what could still refuse the change, not for everything that happens to run.
   const pendingAll = runs.filter((run) => run.status !== "completed");
-  const pending = pendingAll.filter((run) => !isExternalTransientWorkflow(run));
-  const pendingExternal = pendingAll.filter(isExternalTransientWorkflow);
+  const isAdvisory = (run: GithubActionsRun): boolean => isAdvisoryIntegration(run) &&
+    !isRequired(run);
+  const pending = pendingAll.filter((run) => !isAdvisory(run));
+  const pendingExternal = pendingAll.filter(isAdvisory);
   if (pending.length > 0) {
     return [{
       severity: "error",
@@ -3042,9 +3048,9 @@ async function verifyGithubActionsForHead(
       }]
     : [];
 
-  const failed = runs.filter((run) => run.conclusion !== "success");
-  const failedCore = failed.filter((run) => !isExternalTransientWorkflow(run));
-  const failedExternal = failed.filter((run) => isExternalTransientWorkflow(run));
+  const failed = runs.filter((run) => run.status === "completed" && run.conclusion !== "success");
+  const failedCore = failed.filter((run) => !isAdvisory(run));
+  const failedExternal = failed.filter((run) => isAdvisory(run));
 
   // A core workflow that failed only on plumbing (artifact upload over the account's storage quota,
   // a cache or toolchain-setup step) says nothing about the change: the build and the tests ran and
@@ -3054,7 +3060,7 @@ async function verifyGithubActionsForHead(
   const infraFailed: GithubActionsRun[] = [];
   const realFailed: GithubActionsRun[] = [];
   for (const run of failedCore) {
-    (await failedOnInfrastructureOnly(run, root) ? infraFailed : realFailed).push(run);
+    (!isRequired(run) && await failedOnInfrastructureOnly(run, root) ? infraFailed : realFailed).push(run);
   }
 
   if (realFailed.length > 0) {
@@ -3086,9 +3092,9 @@ async function verifyGithubActionsForHead(
     // external workflows are advisory: surfaced as info, never blocking `finish`.
     return [...pendingExternalFinding, {
       severity: "info" as const,
-      code: "github-actions-external-transient",
-      message: `${failedExternal.length} external/transient workflow run(s) for HEAD did not pass (non-blocking): ${formatGithubRunNames(failedExternal)}. All core workflows passed.`,
-      fix: "External integrations can fail on transient network/timeout. Re-run with `gh run rerun <run-id>` if you want them green — not required to finish.",
+      code: "github-actions-advisory-failed",
+      message: `${failedExternal.length} advisory integration workflow run(s) for HEAD did not pass (non-blocking): ${formatGithubRunNames(failedExternal)}. All core workflows passed.`,
+      fix: "Inspect the failed run logs to determine whether this is a code defect or an infrastructure problem. Workflow names do not establish the cause.",
     }];
   }
 
@@ -3148,9 +3154,8 @@ async function failedOnInfrastructureOnly(run: GithubActionsRun, root: string): 
   return failedJobs.every(ranNoSteps);
 }
 
-/** External integrations whose failures are advisory (flaky network/timeout), not product
- *  regressions. Matched by workflow name so it works regardless of file naming. */
-function isExternalTransientWorkflow(run: GithubActionsRun): boolean {
+/** Legacy advisory integrations. Classification is policy, never a diagnosis of the failure. */
+function isAdvisoryIntegration(run: GithubActionsRun): boolean {
   const label = `${run.workflowName ?? ""} ${run.name ?? ""}`.toLowerCase();
   return /\bsonar(qube|cloud)?\b|\bcodeql\b|\bsnyk\b|\bcodecov\b/.test(label);
 }
@@ -3642,9 +3647,11 @@ async function applyLightweightRepairs(
   await applyAutopilotRepairs(root, paths, {
     applyConfig: false,
     applyContext: true,
-    applyCorpus: true,
+    // Corpus rewrites can manufacture staged changes and exempt policies as self-authored.
+    // Keep corpus maintenance explicit (`memory lint --fix --apply` / `sync`).
+    applyCorpus: false,
     applyCodeMap: false,
-    applyCodeSearch: true,
+    applyCodeSearch: false,
   }).catch(() => { /* lightweight repair is best-effort */ });
 }
 
@@ -3707,26 +3714,6 @@ function normalizeToolPath(file: string, root: string): string {
   return path.relative(root, normalized).replace(/\\/g, "/");
 }
 
-async function missingRequiredMemoriesForFiles(
-  paths: ReturnType<typeof resolveHaivePaths>,
-  files: string[],
-  sessionId?: string,
-): Promise<LoadedMemory[]> {
-  if (!existsSync(paths.memoriesDir)) return [];
-  const marker = await readRecentBriefingMarker(paths, sessionId);
-  const consulted = new Set(marker?.memory_ids ?? []);
-  const policyTypes = new Set(["decision", "gotcha", "architecture", "convention", "attempt"]);
-  const all = await loadMemoriesFromDir(paths.memoriesDir);
-  return all
-    .filter(({ memory }) => {
-      const fm = memory.frontmatter;
-      if (!policyTypes.has(fm.type)) return false;
-      if (fm.status !== "validated") return false;
-      if (consulted.has(fm.id)) return false;
-      return memoryMatchesAnchorPaths(memory, files);
-    })
-    .map(({ memory, filePath }) => ({ memory, filePath }));
-}
 
 /**
  * Hivelore-generated `.ai/` artifacts that the agent never authors — they are re-synced by the

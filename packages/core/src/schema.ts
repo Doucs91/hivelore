@@ -159,6 +159,17 @@ export const MemoryFrontmatterSchema = z
     verified_at: z.string().nullable().default(null),
     stale_reason: z.string().nullable().default(null),
     related_ids: z.array(z.string()).default([]),
+    /** Explicit replacement, never inferred from similar wording. */
+    supersedes: z.array(z.string()).optional(),
+    /** Evidence describes the claim, independently of policy admission (status). */
+    evidence: z.enum(["hypothesis", "observed", "reproduced", "tested"]).optional(),
+    /** Declarative checks on current files. No shell commands or generated code are executed. */
+    checks: z.array(z.object({
+      path: z.string().min(1),
+      contains: z.string().min(1).optional(),
+      excludes: z.string().min(1).optional(),
+    }).refine((c) => c.contains !== undefined || c.excludes !== undefined,
+      "A check needs contains or excludes")).optional(),
     last_read_at: z.string().nullable().default(null),
     topic: z.string().optional(),          // stable key for upsert — same topic in same scope → update instead of create
     revision_count: z.number().int().min(0).default(0), // incremented each time a topic upsert occurs

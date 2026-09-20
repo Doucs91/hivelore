@@ -1,3 +1,5 @@
+import { injectFileContext } from "../utils/file-context.js";
+import { loadTaskSession, saveTaskSession, worktreeSnapshot, changedSince, gitText } from "../utils/task-session.js";
 /**
  * `hivelore observe` — passive-capture endpoint for Claude Code's PostToolUse hook.
  *
@@ -215,13 +217,30 @@ export function registerObserve(program: Command): void {
         if (!existsSync(paths.haiveDir)) return; // not a haive project
 
         const failureHint = detectFailure(payload);
+        let files = extractFiles(payload);
+        // Shell scripts often contain no target filenames. Git observes their actual effects.
+        if (["Bash", "Edit", "Write", "NotebookEdit"].includes(payload.tool_name ?? "")) {
+          const state = await loadTaskSession(paths, payload.session_id);
+          if (state) {
+            const branch = (await gitText(root, ["symbolic-ref", "--short", "-q", "HEAD"]).catch(() => "")).trim();
+            if (branch === state.branch) {
+              const current = await worktreeSnapshot(root);
+              files = [...new Set([...files, ...changedSince(state.observed, current)])];
+              await saveTaskSession(paths, { ...state, observed: current }, payload.session_id);
+              const context = await injectFileContext(paths, files, payload.session_id);
+              if (context) console.log(JSON.stringify({ hookSpecificOutput: {
+                hookEventName: "PostToolUse", additionalContext: context,
+              } }));
+            }
+          }
+        }
         const observation: Observation = {
           ts: new Date().toISOString(),
           session_id: payload.session_id,
           cwd: payload.cwd,
           tool: payload.tool_name ?? "?",
           summary: buildSummary(payload),
-          files: extractFiles(payload),
+          files,
           ...(failureHint ? { failure_hint: true as const } : {}),
         };
 

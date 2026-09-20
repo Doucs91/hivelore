@@ -17,6 +17,7 @@ import {
   generateBridges,
   isRetiredMemory,
   loadMemoriesFromDir,
+  verifyAnchor,
   type BridgeSensor,
   type BridgeTarget,
   type HaivePaths,
@@ -82,7 +83,11 @@ export async function writeBridgeFiles(
   }
 
   const maxMemories = Math.max(1, opts.maxMemories ?? 8);
-  const outputs = generateBridges(memories, sensors, { maxMemories, targets: opts.targets });
+  const eligible = [];
+  for (const memory of memories) {
+    if (!memory.frontmatter.checks?.length || !(await verifyAnchor(memory, { projectRoot: root })).stale) eligible.push(memory);
+  }
+  const outputs = generateBridges(eligible, sensors, { maxMemories, targets: opts.targets });
 
   for (const output of outputs) {
     const targetFile = path.join(root, output.path);
@@ -171,7 +176,11 @@ export async function getBridgeFileStatuses(
     });
   }
 
-  const outputs = generateBridges(memories, sensors, {
+  const eligible = [];
+  for (const memory of memories) {
+    if (!memory.frontmatter.checks?.length || !(await verifyAnchor(memory, { projectRoot: root })).stale) eligible.push(memory);
+  }
+  const outputs = generateBridges(eligible, sensors, {
     maxMemories: Math.max(1, opts.maxMemories ?? 8),
     targets: opts.targets,
   });

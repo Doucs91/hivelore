@@ -6,6 +6,24 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.63.0] — Useful context, evidence and task-aware completion
+
+- Briefings prioritize actionable memories over project overviews and recaps. Long bodies share the budget; quick CLI output omits redundant navigation. Only delivered memories count as consulted.
+- Confidence no longer rises with retrieval count. Promotion requires confirmed applications; human-reviewed, tested evidence is required for the authoritative tier. Freshness follows verification rather than reads.
+- Add optional `evidence`, `checks` (literal assertions against current files) and `supersedes` metadata to memory save/update. Contradicted claims are excluded from automatic context; explicit reads explain the failed check. Supersession cycles remain visible.
+- Add task completion contracts (`read`, `local`, `commit`, `release`) and local task baselines. Unchanged pre-existing edits no longer block a task. Existing repositories retain the release default.
+- File hooks emit only new applicable context, isolate consultation markers by session and detect the actual file effects of shell scripts through Git snapshots.
+- Local policy checks include new untracked files. Presence sensors examine the correct worktree/index content and catch deletion of required content.
+- `sync` repairs exact Git rename anchors conservatively; ambiguous renames and memories with pending edits remain untouched.
+- Enforcement no longer rewrites/stages corpus content or builds a semantic index during a check. Consultation coverage uses the same retirement and exclusion rules as briefing.
+- Bootstrap/distillation reminders move to advisory `maintenance_notices`; explicit human approval stays in `action_required`.
+- MCP tool usage is recorded centrally, including `mem_get` reads. CLI briefing calls establish session accounting boundaries.
+- PR comments deduplicate memories across files, default to five unique memories and cap total output. Missing context is no longer described as evidence of team understanding.
+- CI integration failures are described without assuming a transient cause. `enforcement.requiredCiWorkflows` keeps named integration workflows mandatory.
+
+See [feedback implementation notes](docs/feedback-2026-09-18-implementation.md) for contracts, limitations and regression coverage.
+
+
 ## [0.62.0] — Everything the two 2026-09-05 field reports asked for
 
 Two agents wrote independent reports the same day, from opposite seats — one reviewing and writing

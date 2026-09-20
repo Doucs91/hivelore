@@ -87,8 +87,8 @@ export interface HaiveConfig {
   autoApproveDelayHours?: number | null;
 
   /**
-   * Auto-promote proposed→validated after N reads (overrides DEFAULT_AUTO_PROMOTE_RULE).
-   * Autopilot sets 1 (immediate on first use).
+   * Auto-promote proposed→validated after N confirmed applications (overrides DEFAULT_AUTO_PROMOTE_RULE).
+   * Legacy option name retained. Retrieval alone never promotes a memory.
    */
   autoPromoteMinReads?: number;
 
@@ -361,6 +361,10 @@ export interface HaiveConfig {
      * releasing from this branch, not on every integration commit. Default: "main".
      */
     releaseBranch?: string;
+    /** Task completion contract; existing repos keep the release protocol by default. */
+    completionMode?: "read" | "local" | "commit" | "release";
+    /** Workflow names that must pass even if otherwise classified as advisory integrations. */
+    requiredCiWorkflows?: string[];
   };
 }
 

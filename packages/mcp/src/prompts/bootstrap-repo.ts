@@ -87,7 +87,7 @@ Main code areas detected: ${areas}
    correct code and fire on the bad example) before trusting it to block — if rejected, the verdict
    tells you how to revise, then propose again.
 
-5. **Re-check** — call \`get_briefing\` again. When the \`__bootstrap_required__\` action_required is gone,
+5. **Re-check** — call \`get_briefing\` again. When the \`__bootstrap_required__\` maintenance notice is gone,
    the layer is READY and the gate will pass.
 
 ## Rules

@@ -86,7 +86,7 @@ export async function writeBriefingMarker(
 }
 
 /** Read THIS session's marker if it exists and is still fresh (within TTL). Null otherwise. */
-async function readSessionBriefingMarker(
+export async function readSessionBriefingMarker(
   paths: HaivePaths,
   sessionId: string,
   ttlMs = BRIEFING_MARKER_TTL_MS,

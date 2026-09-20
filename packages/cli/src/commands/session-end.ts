@@ -388,7 +388,7 @@ export function registerSessionEnd(session: Command): void {
     .description(
       "Save an end-of-session recap so the NEXT session starts with fresh context.\n\n" +
       "  One recap per scope is kept and updated in-place (topic-upsert). The next\n" +
-      "  session's get_briefing (or hivelore briefing) shows it at the very top.\n\n" +
+      "  session's get_briefing (or hivelore briefing) includes a short dated handoff.\n\n" +
       "  In autopilot mode, a minimal recap saves automatically on MCP server exit.\n" +
       "  Calling this manually produces a richer, more actionable recap.\n\n" +
       "  Example:\n" +

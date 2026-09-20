@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   buildFrontmatter,
+  MemoryFrontmatterSchema,
   loadConfig,
   loadMemoriesFromDir,
   memoryFilePath,
@@ -55,6 +56,9 @@ export const MemSaveInputSchema = {
     .string()
     .optional()
     .describe("Anchor commit SHA (for staleness detection later)"),
+  evidence: MemoryFrontmatterSchema.innerType().shape.evidence,
+  checks: MemoryFrontmatterSchema.innerType().shape.checks,
+  supersedes: MemoryFrontmatterSchema.innerType().shape.supersedes,
   lifecycle: z
     .enum(["applied", "planned", "abandoned"])
     .optional()
@@ -262,6 +266,9 @@ export async function memSave(
         tags: input.tags.length ? input.tags : fm.tags,
         revision_count: (fm.revision_count ?? 0) + 1,
         ...(input.lifecycle ? { lifecycle: input.lifecycle } : {}),
+        ...(input.evidence !== undefined ? { evidence: input.evidence } : {}),
+        ...(input.checks !== undefined ? { checks: input.checks } : {}),
+        ...(input.supersedes !== undefined ? { supersedes: input.supersedes } : {}),
         anchor: {
           commit: input.commit ?? fm.anchor.commit,
           paths: input.paths.length ? input.paths : fm.anchor.paths,
@@ -317,6 +324,9 @@ export async function memSave(
     status: haiveConfig.defaultStatus === "validated" ? "validated" : undefined,
     activation: input.type === "skill" ? input.activation : undefined,
     lifecycle: input.lifecycle,
+    evidence: input.evidence,
+    checks: input.checks,
+    supersedes: input.supersedes,
   });
   // Created already-validated by config (defaultStatus), not by explicit review → mark "auto".
   if (frontmatter.status === "validated") frontmatter.validated_by = "auto";

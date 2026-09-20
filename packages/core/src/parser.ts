@@ -87,6 +87,9 @@ export function buildFrontmatter(input: {
   sensor?: Sensor;
   activation?: Activation;
   lifecycle?: MemoryFrontmatter["lifecycle"];
+  evidence?: MemoryFrontmatter["evidence"];
+  checks?: MemoryFrontmatter["checks"];
+  supersedes?: string[];
 }): MemoryFrontmatter {
   const now = new Date();
   const id = newMemoryId(input.type, input.slug, now);
@@ -110,6 +113,9 @@ export function buildFrontmatter(input: {
     sensor: input.sensor,
     activation: input.activation,
     lifecycle: input.lifecycle,
+    evidence: input.evidence,
+    checks: input.checks,
+    supersedes: input.supersedes,
     revision_count: 0,
     related_ids: input.relatedIds ?? [],
   });

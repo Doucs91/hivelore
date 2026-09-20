@@ -5,6 +5,7 @@ import path from "node:path";
 import { Command } from "commander";
 import {
   findProjectRoot,
+  MemoryFrontmatterSchema,
   resolveHaivePaths,
   serializeMemory,
   type MemoryType,
@@ -18,6 +19,9 @@ interface UpdateOptions {
   editor?: string;
   type?: MemoryType;
   title?: string;
+  evidence?: string;
+  checks?: string;
+  supersedes?: string;
   body?: string;
   bodyFile?: string;
   tags?: string;
@@ -37,6 +41,9 @@ export function registerMemoryUpdate(memory: Command): void {
     .option("--type <type>", "change the memory type (convention | decision | gotcha | architecture | glossary | skill | attempt)")
     .option("--title <text>", "new title — replaces the first heading of the body")
     .option("--body <text>", "new Markdown body — replaces the existing body")
+    .option("--evidence <level>", "hypothesis | observed | reproduced | tested")
+    .option("--checks <json>", "declarative current-file checks: [{path, contains?, excludes?}]")
+    .option("--supersedes <csv>", "memory IDs explicitly replaced by this knowledge")
     .option("--body-file <path>", "read new body from a Markdown file — for long content")
     .option("--tags <csv>", "new tags, comma-separated — fully replaces existing tags")
     .option("--paths <csv>", "new anchor paths, comma-separated")
@@ -49,6 +56,12 @@ export function registerMemoryUpdate(memory: Command): void {
     .option("-e, --editor <cmd>", "with --edit: editor command (defaults to $EDITOR or 'vi')")
     .option("-d, --dir <dir>", "project root")
     .action(async (id: string, opts: UpdateOptions) => {
+      const shape = MemoryFrontmatterSchema.innerType().shape;
+      const evidenceFields = {
+        ...(opts.evidence !== undefined ? { evidence: shape.evidence.parse(opts.evidence) } : {}),
+        ...(opts.checks !== undefined ? { checks: shape.checks.parse(JSON.parse(opts.checks)) } : {}),
+        ...(opts.supersedes !== undefined ? { supersedes: parseCsv(opts.supersedes) } : {}),
+      };
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (opts.edit) {
@@ -92,7 +105,7 @@ export function registerMemoryUpdate(memory: Command): void {
         return;
       }
 
-      const updated: string[] = [];
+      const updated: string[] = Object.keys(evidenceFields);
       const { frontmatter, body } = loaded.memory;
 
       const newAnchor = { ...frontmatter.anchor };
@@ -112,6 +125,7 @@ export function registerMemoryUpdate(memory: Command): void {
 
       const newFrontmatter = {
         ...frontmatter,
+        ...evidenceFields,
         anchor: newAnchor,
         ...(opts.type !== undefined ? { type: opts.type } : {}),
         ...(opts.tags !== undefined ? { tags: parseCsv(opts.tags) } : {}),

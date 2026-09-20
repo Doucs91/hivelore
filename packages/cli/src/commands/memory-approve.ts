@@ -4,6 +4,7 @@ import path from "node:path";
 import { Command } from "commander";
 import {
   findProjectRoot,
+  detectAgentContext,
   resolveHaivePaths,
   serializeMemory,
 } from "@hivelore/core";
@@ -33,6 +34,7 @@ export function registerMemoryApprove(memory: Command): void {
       }
 
       const all = await loadMemoriesFromDir(paths.memoriesDir);
+      const validatedBy = detectAgentContext().agent ? "agent" as const : "human" as const;
 
       // Bulk mode
       if (opts.all || opts.pending) {
@@ -48,8 +50,8 @@ export function registerMemoryApprove(memory: Command): void {
         let count = 0;
         for (const found of candidates) {
           const next = {
-            // CLI approval is the human surface → record human provenance.
-            frontmatter: { ...found.memory.frontmatter, status: "validated" as const, validated_by: "human" as const },
+            // Agents also invoke the CLI; transport alone is not proof of human review.
+            frontmatter: { ...found.memory.frontmatter, status: "validated" as const, validated_by: validatedBy },
             body: found.memory.body,
           };
           await writeFile(found.filePath, serializeMemory(next), "utf8");
@@ -83,11 +85,11 @@ export function registerMemoryApprove(memory: Command): void {
       }
 
       const next = {
-        frontmatter: { ...found.memory.frontmatter, status: "validated" as const, validated_by: "human" as const },
+        frontmatter: { ...found.memory.frontmatter, status: "validated" as const, validated_by: validatedBy },
         body: found.memory.body,
       };
       await writeFile(found.filePath, serializeMemory(next), "utf8");
-      ui.success(`Approved ${id} (status=validated, by=human)`);
+      ui.success(`Approved ${id} (status=validated, by=${validatedBy})`);
       ui.info(path.relative(root, found.filePath));
     });
 }

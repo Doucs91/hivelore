@@ -1,10 +1,13 @@
 import { writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { loadMemoriesFromDir, serializeMemory } from "@hivelore/core";
+import { MemoryFrontmatterSchema, loadMemoriesFromDir, serializeMemory } from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
 export const MemUpdateInputSchema = {
+  evidence: MemoryFrontmatterSchema.innerType().shape.evidence,
+  checks: MemoryFrontmatterSchema.innerType().shape.checks,
+  supersedes: MemoryFrontmatterSchema.innerType().shape.supersedes,
   id: z.string().min(1).describe("Id of the memory to update"),
   body: z.string().optional().describe("New Markdown body — replaces the existing body"),
   tags: z
@@ -57,11 +60,17 @@ export async function memUpdate(
   const newFrontmatter = {
     ...frontmatter,
     anchor: newAnchor,
+    ...(input.evidence !== undefined ? { evidence: input.evidence } : {}),
+    ...(input.checks !== undefined ? { checks: input.checks } : {}),
+    ...(input.supersedes !== undefined ? { supersedes: input.supersedes } : {}),
     ...(input.tags !== undefined ? { tags: input.tags } : {}),
     ...(input.domain !== undefined ? { domain: input.domain } : {}),
     ...(input.author !== undefined ? { author: input.author } : {}),
   };
 
+  for (const key of ["evidence", "checks", "supersedes"] as const) {
+    if (input[key] !== undefined) updated_fields.push(key);
+  }
   if (input.tags !== undefined) updated_fields.push("tags");
   if (input.domain !== undefined) updated_fields.push("domain");
   if (input.author !== undefined) updated_fields.push("author");

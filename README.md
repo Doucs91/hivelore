@@ -60,6 +60,9 @@ AI agent ──▶ Hivelore briefing ──▶ code change ──▶ Hivelore po
 > **Memory is the substrate. Context enforcement is the product promise.**
 > AI changes should not enter the codebase without consulting the team's current knowledge.
 
+For the changes prompted by the September 18 client reports, including evidence checks, quieter
+briefings and completion scoped to a task, see the [implementation notes](docs/feedback-2026-09-18-implementation.md).
+
 ## Where Hivelore fits in the harness
 
 Harness engineering is about the environment around the model: feedforward guidance before it acts, feedback sensors after it acts, and workflow gates that keep bad states from landing. Hivelore owns the **repo-specific context policy** part of that harness.

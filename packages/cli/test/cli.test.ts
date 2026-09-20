@@ -965,7 +965,7 @@ describe("Hivelore CLI integration", () => {
     expect(report.findings.some((f) => f.code === "briefing-loaded")).toBe(true);
   });
 
-  it("briefing prints breadcrumbs and drill-down calls before deeper memory bodies", async () => {
+  it("quick briefing prioritizes actionable bodies and omits redundant navigation", async () => {
     const repo = await mkdtemp(path.join(tmpdir(), "haive-cli-breadcrumbs-"));
     try {
       await run(repo, ["init", "--dir", repo, "--no-mcp-setup", "--stack", "none"]);
@@ -987,19 +987,10 @@ describe("Hivelore CLI integration", () => {
         "--dir", repo,
       ]);
 
-      expect(stdout).toContain("=== Breadcrumbs ===");
-      expect(stdout).toContain("Start here:");
       expect(stdout).toContain("breadcrumb-policy");
-      expect(stdout).toContain("Drill down only if needed:");
-      expect(stdout).toContain("mem_get(");
-      expect(stdout).toContain("code_search(");
-      // The breadcrumbs map must stay a terse pointer list — it must not duplicate the memory body
-      // (which is printed in full just below). Guard against the breadcrumbs re-bloating.
-      const startHereBlock = stdout.slice(
-        stdout.indexOf("Start here:"),
-        stdout.indexOf("Drill down only if needed:"),
-      );
-      expect(startHereBlock).not.toContain("Always follow the breadcrumb policy");
+      expect(stdout).toContain("Always follow the breadcrumb policy");
+      expect(stdout).not.toContain("=== Breadcrumbs ===");
+      expect(stdout).not.toContain("Drill down only if needed:");
     } finally {
       await rm(repo, { recursive: true, force: true });
     }

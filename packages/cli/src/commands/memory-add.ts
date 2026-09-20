@@ -6,6 +6,7 @@ import { Command, Option } from "commander";
 import {
   buildFrontmatter,
   findProjectRoot,
+  MemoryFrontmatterSchema,
   inferModulesFromPaths,
   loadConfig,
   loadMemoriesFromDir,
@@ -32,6 +33,9 @@ interface AddOptions {
   files?: string;
   symbols?: string;
   commit?: string;
+  evidence?: string;
+  checks?: string;
+  supersedes?: string;
   body?: string;
   bodyFile?: string;
   topic?: string;
@@ -83,6 +87,9 @@ export function registerMemoryAdd(memory: Command): void {
     // Hidden synonym: agents reliably guess `--content` and a bare "unknown option" dead-ends
     // them. Kept out of help so `--body` stays the one documented flag.
     .addOption(new Option("--content <text>", "alias for --body").hideHelp())
+    .option("--evidence <level>", "hypothesis | observed | reproduced | tested")
+    .option("--checks <json>", "declarative current-file checks: [{path, contains?, excludes?}]")
+    .option("--supersedes <csv>", "memory IDs explicitly replaced by this knowledge")
     .option("--body-file <path>", "read memory body from a Markdown file — for long content")
     .option("--no-auto-tag", "disable automatic tag suggestions inferred from anchor paths")
     .option("--topic <key>", "stable key for upsert: if a memory with this topic+scope already exists, update it in-place (revision_count++)")
@@ -93,6 +100,12 @@ export function registerMemoryAdd(memory: Command): void {
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: AddOptions & { autoTag?: boolean; content?: string }) => {
       if (opts.body === undefined && opts.content !== undefined) opts.body = opts.content;
+      const shape = MemoryFrontmatterSchema.innerType().shape;
+      const evidenceFields = {
+        ...(opts.evidence !== undefined ? { evidence: shape.evidence.parse(opts.evidence) } : {}),
+        ...(opts.checks !== undefined ? { checks: shape.checks.parse(JSON.parse(opts.checks)) } : {}),
+        ...(opts.supersedes !== undefined ? { supersedes: parseCsv(opts.supersedes) } : {}),
+      };
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) {
@@ -184,6 +197,7 @@ export function registerMemoryAdd(memory: Command): void {
           const revisionCount = (fm.revision_count ?? 0) + 1;
           const newFrontmatter: MemoryFrontmatter = {
             ...fm,
+            ...evidenceFields,
             revision_count: revisionCount,
             ...(activation ? { activation } : {}),
             ...(opts.lifecycle ? { lifecycle: opts.lifecycle as MemoryFrontmatter["lifecycle"] } : {}),
@@ -204,6 +218,7 @@ export function registerMemoryAdd(memory: Command): void {
       }
 
       const frontmatter = buildFrontmatter({
+        ...evidenceFields,
         type: opts.type,
         slug,
         scope,

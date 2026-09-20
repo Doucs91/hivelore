@@ -134,6 +134,8 @@ export interface BriefingOutput {
    * wait for explicit approval before modifying any code.
    */
   action_required: ActionRequiredItem[];
+  /** Nonblocking corpus upkeep. Never requires permission before starting a task. */
+  maintenance_notices?: ActionRequiredItem[];
   decay_warnings: string[];
   setup_warnings: string[];
   /**

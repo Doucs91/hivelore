@@ -276,6 +276,20 @@ function jsonResult(data: unknown) {
   };
 }
 
+/** Keep IDs/paths useful for handoff without copying memory bodies or command output into telemetry. */
+function toolSummary(input: unknown, result: unknown): string | undefined {
+  try {
+    const output = JSON.parse((result as { content: Array<{ text: string }> }).content[0]!.text) as { id?: unknown };
+    if (typeof output.id === "string") return output.id.slice(0, 200);
+  } catch { /* some tools return non-JSON output */ }
+  if (!input || typeof input !== "object") return undefined;
+  const fields = input as Record<string, unknown>;
+  const id = fields.id ?? fields.memory_id ?? fields.slug;
+  if (typeof id === "string") return id.slice(0, 200);
+  const files = fields.files ?? fields.paths;
+  return Array.isArray(files) ? files.filter((file): file is string => typeof file === "string").slice(0, 8).map(file => file.slice(0, 200)).join(", ") : undefined;
+}
+
 export const ENFORCEMENT_PROFILE_TOOLS = [
   "get_briefing",
   "mem_save",
@@ -409,8 +423,10 @@ export function createHaiveServer(
       schema,
       async (input: unknown) => {
         if (BRIEFING_TOOLS.has(name)) {
+          const result = await handler(input as TInput);
           briefingLoaded = true;
-          return await handler(input as TInput);
+          tracker.record(name, toolSummary(input, result));
+          return result;
         }
         if (requireBriefingFirst && MUTATING_TOOLS.has(name) && !briefingLoaded) {
           // Fall back to the disk-persisted marker before blocking — covers client
@@ -427,7 +443,9 @@ export function createHaiveServer(
             });
           }
         }
-        return await handler(input as TInput);
+        const result = await handler(input as TInput);
+        tracker.record(name, toolSummary(input, result));
+        return result;
       },
     );
   };
@@ -468,7 +486,6 @@ export function createHaiveServer(
     ].join("\n"),
     MemSaveInputSchema,
     async (input: MemSaveInput) => {
-      tracker.record("mem_save", input.slug);
       return jsonResult(await memSave(input, context));
     },
   );
@@ -515,7 +532,6 @@ export function createHaiveServer(
     ].join("\n"),
     MemTriedInputSchema,
     async (input: MemTriedInput) => {
-      tracker.record("mem_tried", input.what.slice(0, 80));
       return jsonResult(await memTried(input, context));
     },
   );
@@ -549,7 +565,6 @@ export function createHaiveServer(
     ].join("\n"),
     ProposeSensorInputSchema,
     async (input: ProposeSensorInput) => {
-      tracker.record("propose_sensor", input.memory_id);
       return jsonResult(await proposeSensor(input, context));
     },
   );
@@ -579,7 +594,6 @@ export function createHaiveServer(
     ].join("\n"),
     ScaffoldTestInputSchema,
     async (input: ScaffoldTestInput) => {
-      tracker.record("scaffold_test", input.memory_id);
       return jsonResult(await scaffoldTest(input, context));
     },
   );
@@ -622,7 +636,6 @@ export function createHaiveServer(
     ].join("\n"),
     ReportFrictionInputSchema,
     async (input: ReportFrictionInput) => {
-      tracker.record("report_friction", input.surface);
       return jsonResult(await reportFriction(input, context));
     },
   );
@@ -653,7 +666,6 @@ export function createHaiveServer(
     ].join("\n"),
     IngestFindingsInputSchema,
     async (input: IngestFindingsInput) => {
-      tracker.record("ingest_findings", `${input.format}:${input.report_path ?? "inline"}`);
       return jsonResult(await ingestFindings(input, context));
     },
   );
@@ -684,7 +696,6 @@ export function createHaiveServer(
     ].join("\n"),
     MemSessionEndInputSchema,
     async (input: MemSessionEndInput) => {
-      tracker.record("mem_session_end", input.goal.slice(0, 80));
       return jsonResult(await memSessionEnd(input, context));
     },
   );
@@ -729,16 +740,15 @@ export function createHaiveServer(
       "  get_briefing({ task: 'add a Stripe payment integration', files: ['src/payments/'], symbols: ['PaymentService'] })",
       "",
       "CONFIDENCE LEVELS in memories:",
-      "  authoritative — validated + read 10+ times (highest trust)",
-      "  trusted       — validated or proposed + read 3+ times",
-      "  low           — proposed, few reads (take with caution)",
+      "  authoritative — human-validated, tested evidence with recent verification",
+      "  trusted       — validated; freshness decays since verification, not retrieval",
+      "  low           — proposed, hypothesis, or aging evidence; reads do not prove truth",
       "  unverified    — draft (unverified: true flag set)",
       "",
       "Replaces 4–5 separate tool calls. Prefer this first; use mem_search / mem_get only for follow-up.",
     ].join("\n"),
     GetBriefingInputSchema,
     async (input: GetBriefingInput) => {
-      tracker.record("get_briefing", input.task ?? "");
       return jsonResult(await getBriefing(input, context));
     },
   );
@@ -771,7 +781,6 @@ export function createHaiveServer(
     ].join("\n"),
     MemSearchInputSchema,
     async (input: MemSearchInput) => {
-      tracker.record("mem_search", input.query.slice(0, 80));
       return jsonResult(await memSearch(input, context));
     },
   );
@@ -1095,7 +1104,6 @@ export function createHaiveServer(
     ].join("\n"),
     GetRecapInputSchema,
     async (input: GetRecapInput) => {
-      tracker.record("get_recap", input.scope);
       return jsonResult(await getRecap(input, context));
     },
   );
@@ -1122,7 +1130,6 @@ export function createHaiveServer(
     ].join("\n"),
     MemRelevantToInputSchema,
     async (input: MemRelevantToInput) => {
-      tracker.record("mem_relevant_to", input.task.slice(0, 80));
       return jsonResult(await memRelevantTo(input, context));
     },
   );
@@ -1148,7 +1155,6 @@ export function createHaiveServer(
     ].join("\n"),
     CodeSearchInputSchema,
     async (input: CodeSearchInput) => {
-      tracker.record("code_search", input.query.slice(0, 80));
       return jsonResult(await codeSearch(input, context));
     },
   );
@@ -1178,7 +1184,6 @@ export function createHaiveServer(
     ].join("\n"),
     AntiPatternsCheckInputSchema,
     async (input: AntiPatternsCheckInput) => {
-      tracker.record("anti_patterns_check", input.paths.join(",").slice(0, 80));
       return jsonResult(await antiPatternsCheck(input, context));
     },
   );
@@ -1206,7 +1211,6 @@ export function createHaiveServer(
     ].join("\n"),
     MemDistillInputSchema,
     async (input: MemDistillInput) => {
-      tracker.record("mem_distill", `${input.type_filter}/since=${input.since_days}d`);
       return jsonResult(await memDistill(input, context));
     },
   );
@@ -1230,7 +1234,6 @@ export function createHaiveServer(
     ].join("\n"),
     MemConflictCandidatesInputSchema,
     async (input: MemConflictCandidatesInput) => {
-      tracker.record("mem_conflict_candidates", `${input.since_days}d`);
       return jsonResult(await memConflictCandidates(input, context));
     },
   );
@@ -1262,7 +1265,6 @@ export function createHaiveServer(
     ].join("\n"),
     PreCommitCheckInputSchema,
     async (input: PreCommitCheckInput) => {
-      tracker.record("pre_commit_check", `${input.paths.length}p`);
       return jsonResult(await preCommitCheck(input, context));
     },
   );

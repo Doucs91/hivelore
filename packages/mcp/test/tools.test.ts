@@ -598,7 +598,7 @@ describe("Hivelore MCP tools", () => {
   });
 
   describe("pending distill (Phase 2)", () => {
-    it("get_briefing surfaces action_required when pending-distill.json exists", async () => {
+    it("get_briefing surfaces advisory maintenance when pending-distill.json exists", async () => {
       // Simulate what SessionTracker writes at shutdown
       const cacheDir = path.join(ctx.paths.haiveDir, ".cache");
       await mkdir(cacheDir, { recursive: true });
@@ -620,7 +620,7 @@ describe("Hivelore MCP tools", () => {
         ctx,
       );
 
-      const distillItem = briefing.action_required.find(
+      const distillItem = briefing.maintenance_notices?.find(
         (a) => a.id === "__pending_distill__",
       );
       expect(distillItem).toBeDefined();
@@ -707,7 +707,7 @@ describe("Hivelore MCP tools", () => {
   });
 
   describe("inline auto-promote in get_briefing (Phase 4)", () => {
-    it("promotes after 1 read when config autoPromoteMinReads=1", async () => {
+    it("does not promote after exposure even when autoPromoteMinReads=1", async () => {
       // Autopilot-style config: promote immediately on first read
       await writeFile(
         path.join(ctx.paths.haiveDir, "hivelore.config.json"),
@@ -759,10 +759,10 @@ describe("Hivelore MCP tools", () => {
       );
       const afterMems = await loadMemoriesFromDir(ctx.paths.memoriesDir);
       const promoted = afterMems.find((m) => m.memory.frontmatter.id === saved.id);
-      expect(promoted?.memory.frontmatter.status).toBe("validated");
+      expect(promoted?.memory.frontmatter.status).toBe("proposed");
     });
 
-    it("promotes a proposed memory to validated once read_count >= minReads (5)", async () => {
+    it("promotes only after five confirmed applications", async () => {
       // Save a proposed memory
       const saved = await memSave(
         {
@@ -812,7 +812,14 @@ describe("Hivelore MCP tools", () => {
         await getBriefing(briefingOpts, ctx);
       }
 
-      // The memory should now be validated on disk
+      const exposed = (await loadMemoriesFromDir(ctx.paths.memoriesDir)).find(m => m.memory.frontmatter.id === saved.id);
+      expect(exposed!.memory.frontmatter.status).toBe("proposed");
+      const { loadUsageIndex, recordApplied, saveUsageIndex } = await import("@hivelore/core");
+      const usage = await loadUsageIndex(ctx.paths);
+      for (let i = 0; i < 5; i++) recordApplied(usage, saved.id);
+      await saveUsageIndex(ctx.paths, usage);
+      await getBriefing(briefingOpts, ctx);
+      // Confirmed use now satisfies the promotion threshold.
       const afterMems = await loadMemoriesFromDir(ctx.paths.memoriesDir);
       const promoted = afterMems.find((m) => m.memory.frontmatter.id === saved.id);
       expect(promoted?.memory.frontmatter.status).toBe("validated");
@@ -1044,7 +1051,7 @@ describe("Hivelore MCP tools", () => {
       await writeCodeMap(["packages/api/a.ts", "packages/api/b.ts", "packages/api/c.ts"]);
       // project-context absent + no memories → cold.
       const briefing = await getBriefing(briefingArgs, ctx);
-      const item = briefing.action_required.find((a) => a.id === "__bootstrap_required__");
+      const item = briefing.maintenance_notices?.find((a) => a.id === "__bootstrap_required__");
       expect(item).toBeDefined();
       expect(item!.developer_message).toMatch(/first agent/i);
       expect(item!.developer_message).toMatch(/packages\/api/);
@@ -1053,7 +1060,7 @@ describe("Hivelore MCP tools", () => {
     it("does NOT surface the directive when there are no main code areas", async () => {
       await writeCodeMap(["only/one.ts"]); // below the component floor
       const briefing = await getBriefing(briefingArgs, ctx);
-      expect(briefing.action_required.find((a) => a.id === "__bootstrap_required__")).toBeUndefined();
+      expect(briefing.maintenance_notices?.find((a) => a.id === "__bootstrap_required__")).toBeUndefined();
     });
 
     it("goes silent once the knowledge layer is ready", async () => {
@@ -1094,7 +1101,7 @@ describe("Hivelore MCP tools", () => {
         "utf8",
       );
       const briefing = await getBriefing(briefingArgs, ctx);
-      expect(briefing.action_required.find((a) => a.id === "__bootstrap_required__")).toBeUndefined();
+      expect(briefing.maintenance_notices?.find((a) => a.id === "__bootstrap_required__")).toBeUndefined();
     });
   });
 });

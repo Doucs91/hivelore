@@ -29,16 +29,16 @@ describe("deriveConfidence", () => {
     expect(deriveConfidence(fm("proposed"), usage())).toBe("low");
   });
 
-  it("proposed with 3+ reads → trusted", () => {
-    expect(deriveConfidence(fm("proposed"), usage({ read_count: 3 }))).toBe("trusted");
+  it("proposed stays low despite repeated exposure", () => {
+    expect(deriveConfidence(fm("proposed"), usage({ read_count: 300 }))).toBe("low");
   });
 
   it("validated with low reads → trusted", () => {
     expect(deriveConfidence(fm("validated"), usage({ read_count: 1 }))).toBe("trusted");
   });
 
-  it("validated with 10+ reads → authoritative", () => {
-    expect(deriveConfidence(fm("validated"), usage({ read_count: 10 }))).toBe("authoritative");
+  it("validated exposure alone never becomes authoritative", () => {
+    expect(deriveConfidence(fm("validated"), usage({ read_count: 1000 }))).toBe("trusted");
   });
 });
 
@@ -46,38 +46,38 @@ describe("deriveConfidence — time decay", () => {
   const FRESH = new Date("2026-05-02T00:00:00Z");
 
   it("a freshly created authoritative memory stays authoritative", () => {
-    const f = { ...fm("validated"), created_at: "2026-05-01T00:00:00Z" };
+    const f = { ...fm("validated"), validated_by: "human" as const, evidence: "tested" as const, verified_at: "2026-05-01T00:00:00Z", created_at: "2026-05-01T00:00:00Z" };
     expect(deriveConfidence(f, usage({ read_count: 50, last_read_at: "2026-05-01T00:00:00Z" }), undefined, FRESH))
       .toBe("authoritative");
   });
 
-  it("authoritative not read in 200 days drops to trusted (decayDays=180 default)", () => {
-    const f = { ...fm("validated"), created_at: "2025-10-01T00:00:00Z" };
+  it("authoritative not verified in 200 days drops to trusted (decayDays=180 default)", () => {
+    const f = { ...fm("validated"), validated_by: "human" as const, evidence: "tested" as const, verified_at: "2025-10-01T00:00:00Z", created_at: "2025-10-01T00:00:00Z" };
     expect(
       deriveConfidence(f, usage({ read_count: 50, last_read_at: "2025-10-01T00:00:00Z" }), undefined, FRESH),
     ).toBe("trusted");
   });
 
-  it("authoritative not read in 400 days hard-decays to low", () => {
+  it("authoritative not verified in 400 days hard-decays to low", () => {
     const f = { ...fm("validated"), created_at: "2025-03-01T00:00:00Z" };
     expect(
       deriveConfidence(f, usage({ read_count: 50, last_read_at: "2025-03-01T00:00:00Z" }), undefined, FRESH),
     ).toBe("low");
   });
 
-  it("trusted not read in 200 days drops to low (one tier)", () => {
+  it("trusted not verified in 200 days drops to low (one tier)", () => {
     const f = { ...fm("validated"), created_at: "2025-10-01T00:00:00Z" };
     expect(
       deriveConfidence(f, usage({ read_count: 1, last_read_at: "2025-10-01T00:00:00Z" }), undefined, FRESH),
     ).toBe("low");
   });
 
-  it("decay clock uses last_read_at when present, falling back to created_at", () => {
+  it("repeated retrieval cannot refresh an old claim", () => {
     const f = { ...fm("validated"), created_at: "2025-01-01T00:00:00Z" };
-    // last_read_at recent → no decay even though created_at is old
+    // Fresh retrieval does not reset the verification clock.
     expect(
       deriveConfidence(f, usage({ read_count: 50, last_read_at: "2026-04-01T00:00:00Z" }), undefined, FRESH),
-    ).toBe("authoritative");
+    ).toBe("low");
   });
 
   it("draft / unverified are not decayed (already at the floor)", () => {
@@ -92,9 +92,9 @@ describe("isAutoPromoteEligible", () => {
     expect(isAutoPromoteEligible(fm("validated"), usage({ read_count: 99 }))).toBe(false);
   });
 
-  it("requires read_count >= minReads (default 5)", () => {
-    expect(isAutoPromoteEligible(fm("proposed"), usage({ read_count: 4 }))).toBe(false);
-    expect(isAutoPromoteEligible(fm("proposed"), usage({ read_count: 5 }))).toBe(true);
+  it("requires confirmed applications, not reads", () => {
+    expect(isAutoPromoteEligible(fm("proposed"), usage({ read_count: 100, applied_count: 4 }))).toBe(false);
+    expect(isAutoPromoteEligible(fm("proposed"), usage({ applied_count: 5 }))).toBe(true);
   });
 
   it("any rejection blocks auto-promotion under default rule", () => {
@@ -110,7 +110,7 @@ describe("isAutoPromoteEligible", () => {
     expect(
       isAutoPromoteEligible(
         fm("proposed"),
-        usage({ read_count: 5, rejected_count: 2 }),
+        usage({ applied_count: 5, rejected_count: 2 }),
         { minReads: 5, maxRejections: 2 },
       ),
     ).toBe(true);

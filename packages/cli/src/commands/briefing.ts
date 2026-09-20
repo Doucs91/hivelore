@@ -1,10 +1,16 @@
+import { loadTaskSession, startTaskSession } from "../utils/task-session.js";
 import { existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import {
   classifyMemoryPriority,
-  compactAutoRecapBody,
+  recapBriefingExcerpt,
+  truncateToTokens,
+  appendUsageEvent,
+  isRetiredMemory,
+  verifyAnchor,
+  supersededMemoryIds,
   extractActionsBriefBody,
   findProjectRoot,
   inferModulesFromPaths,
@@ -25,7 +31,7 @@ import {
 } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 import { buildRadar, radarHasContent, type RadarReport } from "../utils/briefing-radar.js";
-import { applyAutopilotRepairs } from "../utils/autopilot.js";
+
 
 interface BriefingOptions {
   task?: string;
@@ -100,7 +106,12 @@ class TokenBudgetWriter {
     if (this.truncated) return false;
     const next = this.used + text.length + 1;
     if (next > this.budgetChars) {
-      console.log(ui.dim(`... [briefing truncated to fit --max-tokens budget · ${Math.round(this.used / CHARS_PER_TOKEN)} tokens used]`));
+      const remaining = this.budgetChars - this.used - 1;
+      if (remaining > 40) {
+        const excerpt = truncateToTokens(text, { maxTokens: Math.floor(remaining / CHARS_PER_TOKEN) }).text;
+        console.log(excerpt);
+        this.used += excerpt.length + 1;
+      }
       this.truncated = true;
       return false;
     }
@@ -167,21 +178,15 @@ export function registerBriefing(program: Command): void {
       const requestedFormat = (opts.format ?? opts.memoryFormat ?? "full").toLowerCase();
       opts.memoryFormat = requestedFormat === "compact" ? "actions" : requestedFormat;
       const markerFiles = parseCsv(opts.files);
-      if (existsSync(paths.haiveDir)) {
-        await applyAutopilotRepairs(root, paths, {
-          applyConfig: false,
-          applyContext: true,
-          applyCorpus: true,
-          applyCodeMap: false,
-          applyCodeSearch: true,
-        }).catch(() => { /* briefing should still work if repair fails */ });
+      if (existsSync(paths.haiveDir) && !await loadTaskSession(paths)) {
+        await startTaskSession(paths).catch(() => { /* Git is optional for retrieval. */ });
       }
       if (existsSync(paths.haiveDir)) {
         await mkdir(paths.runtimeDir, { recursive: true });
         await writeBriefingMarker(paths, {
           task: opts.task ?? "CLI briefing",
           source: "haive-briefing-cli",
-          sessionId: process.env.HAIVE_SESSION_ID,
+          sessionId: process.env.HIVELORE_SESSION_ID ?? process.env.HAIVE_SESSION_ID ?? process.env.CLAUDE_SESSION_ID,
           files: markerFiles,
         }).catch(() => { /* marker is best-effort */ });
       }
@@ -207,6 +212,7 @@ export function registerBriefing(program: Command): void {
         maxMemories = presetNums.max_memories;
       }
 
+      if (existsSync(paths.haiveDir)) await appendUsageEvent(paths, { at: new Date().toISOString(), tool: "briefing" });
       const json = opts.json === true;
       const writer = budgetTokensCap !== null ? new TokenBudgetWriter(budgetTokensCap * CHARS_PER_TOKEN) : null;
       const out = (text: string): boolean => {
@@ -218,6 +224,7 @@ export function registerBriefing(program: Command): void {
       const stopped = (): boolean => writer?.isTruncated() ?? false;
 
       if (!existsSync(paths.memoriesDir)) {
+        if (json) { console.log(JSON.stringify({ task: opts.task ?? null, memories: [], briefing_quality: "thin" })); return; }
         // No memories yet — print project context (if any) + radar fallback
         if (existsSync(paths.projectContext)) {
           out(`${ui.bold("=== Project Context ===")}\n`);
@@ -237,27 +244,6 @@ export function registerBriefing(program: Command): void {
 
       type LoadedWithOrigin = Awaited<ReturnType<typeof loadMemoriesFromDir>>[number] & { origin?: string };
       const ownMemories: LoadedWithOrigin[] = await loadMemoriesFromDir(paths.memoriesDir);
-
-      // Make the gate's fix hint actually unblock — and independently of --budget / ranking.
-      // The decision-coverage gate checks that the validated policy memories
-      // (decision/gotcha/architecture/convention) anchored to the changed files are present in the
-      // marker's memory_ids. The displayed ("surfaced") set is budget-limited and can omit some of
-      // them, so we compute the FULL anchored-policy set here with the SAME match function the gate
-      // uses and UNION it into the final marker write below. Then `hivelore briefing --files <changed>`
-      // (the command the gate suggests) satisfies the gate regardless of --budget.
-      const POLICY_TYPES = new Set(["decision", "gotcha", "architecture", "convention"]);
-      const anchoredPolicyIds =
-        markerFiles.length > 0
-          ? ownMemories
-              .map((m) => m.memory)
-              .filter(
-                (mem) =>
-                  POLICY_TYPES.has(mem.frontmatter.type) &&
-                  mem.frontmatter.status === "validated" &&
-                  memoryMatchesAnchorPaths(mem, markerFiles),
-              )
-              .map((mem) => mem.frontmatter.id)
-          : [];
 
       // Multi-project aggregation: merge memories from --include <path> projects.
       const externalRoots: string[] = [];
@@ -292,49 +278,12 @@ export function registerBriefing(program: Command): void {
       const tokens = opts.task ? tokenizeQuery(opts.task) : null;
       const scopeFilter = opts.scope ?? "all";
 
-      // ── 1. Session recap — always shown first so agents start with fresh context ──
       const recaps = all
         .filter(({ memory: mem }) => mem.frontmatter.type === "session_recap")
         .sort((a, b) =>
-          new Date(b.memory.frontmatter.created_at).getTime() -
-          new Date(a.memory.frontmatter.created_at).getTime(),
+          new Date(b.memory.frontmatter.verified_at ?? b.memory.frontmatter.created_at).getTime() -
+          new Date(a.memory.frontmatter.verified_at ?? a.memory.frontmatter.created_at).getTime(),
         );
-      if (recaps.length > 0 && !stopped()) {
-        const recap = recaps[0]!;
-        const fm = recap.memory.frontmatter;
-        const rev = fm.revision_count ? ` · revision #${fm.revision_count}` : "";
-        out(`${ui.bold("=== Last Session Recap ===")}\n`);
-        out(ui.dim(`${fm.id} (${fm.scope}${rev})`));
-        // Auto-generated recaps are low-signal tool dumps — compact them so they don't dominate.
-        out(compactAutoRecapBody(recap.memory.body).trim());
-        out("");
-      }
-
-      // ── 2. Project context ─────────────────────────────────────────────────────
-      if (existsSync(paths.projectContext) && !stopped()) {
-        const ctx = await readFile(paths.projectContext, "utf8");
-        const isTemplate = ctx.includes("TODO — high-level overview") || ctx.includes("Generated by `hivelore init`");
-        // Adaptive: an init-bootstrapped context that is still mostly "TODO —" scaffolding is
-        // inferable noise — don't dump it. Mirrors the MCP get_briefing adaptive trim.
-        const bootstrapUnfilled =
-          /Auto-generated by `hivelore init/i.test(ctx) && (ctx.match(/TODO —/g)?.length ?? 0) >= 2;
-        if (isTemplate || bootstrapUnfilled) {
-          // In --json mode, stdout MUST stay pure JSON — route the advisory to stderr instead.
-          const msg =
-            "project-context.md is still auto-generated/unfilled — skipping it (low value). " +
-            "Fill it in, or invoke the bootstrap_project MCP prompt for real context.";
-          if (json) console.error(msg); else ui.warn(msg);
-          out("");
-        } else {
-          out(`${ui.bold("=== Project Context ===")}\n`);
-          out(ctx.trim());
-          out("");
-        }
-      } else if (!existsSync(paths.projectContext)) {
-        ui.warn(
-          "No project-context.md found. Run `hivelore init` then invoke the bootstrap_project MCP prompt.",
-        );
-      }
 
       // Strategy/positioning memories are excluded from automatic surfacing (still searchable via
       // `memory search`) — mirrors the MCP get_briefing filter so both façades behave identically.
@@ -342,11 +291,18 @@ export function registerBriefing(program: Command): void {
       const excludeTags = briefingConfig.briefingExcludeTags;
 
       // Filter: exclude noise, drafts, stale, and session_recap (shown above) by default
+      const contradicted = new Set<string>();
+      for (const { memory } of all) {
+        if (memory.frontmatter.checks?.length && (await verifyAnchor(memory, { projectRoot: root })).stale)
+          contradicted.add(memory.frontmatter.id);
+      }
+      const superseded = supersededMemoryIds(all.filter(m => !contradicted.has(m.memory.frontmatter.id)));
       const candidates = all.filter(({ memory: mem }) => {
         const fm = mem.frontmatter;
+        if (!opts.includeStale && (superseded.has(fm.id) || contradicted.has(fm.id))) return false;
         if (fm.status === "rejected" || fm.status === "deprecated") return false;
         if (!opts.includeDraft && fm.status === "draft") return false;
-        if (!opts.includeStale && fm.status === "stale") return false;
+        if (!opts.includeStale && (fm.status === "stale" || isRetiredMemory(fm, mem.body))) return false;
         if (scopeFilter !== "all" && fm.scope !== scopeFilter && !(scopeFilter === "team" && fm.scope === "shared")) return false;
         if (fm.type === "session_recap") return false; // shown separately above
         if (memoryHasExcludedTag(fm, excludeTags)) return false;
@@ -372,11 +328,65 @@ export function registerBriefing(program: Command): void {
         return { memory: mem, filePath, score };
       });
 
-      scored.sort((a, b) => b.score - a.score);
-      const top = scored.slice(0, maxMemories);
+      const relevant = scored.filter((item) =>
+        !opts.task && filePaths.length === 0 ||
+        item.memory.frontmatter.requires_human_approval ||
+        memoryMatchesAnchorPaths(item.memory, filePaths) ||
+        Boolean(tokens && literalMatchesAnyToken(item.memory, tokens)),
+      );
+      relevant.sort((a, b) =>
+        Number(b.memory.frontmatter.requires_human_approval) - Number(a.memory.frontmatter.requires_human_approval) ||
+        Number(memoryMatchesAnchorPaths(b.memory, filePaths)) - Number(memoryMatchesAnchorPaths(a.memory, filePaths)) ||
+        b.score - a.score ||
+        b.memory.frontmatter.created_at.localeCompare(a.memory.frontmatter.created_at));
+      const top = relevant.slice(0, maxMemories);
+
+      const printOptionalContext = async (): Promise<void> => {
+        if (recaps.length > 0 && !stopped()) {
+        const recap = recaps[0]!;
+        const fm = recap.memory.frontmatter;
+        const rev = fm.revision_count ? ` · revision #${fm.revision_count}` : "";
+        out(`${ui.bold("=== Last Session Recap ===")}\n`);
+        out(ui.dim(`${fm.id} (${fm.scope}${rev}) · as of ${fm.verified_at ?? fm.created_at}`));
+        // Auto-generated recaps are low-signal tool dumps — compact them so they don't dominate.
+        const age = Date.now() - Date.parse(fm.verified_at ?? fm.created_at);
+        out(age > 7 * 86_400_000
+          ? "Previous recap is older than seven days; inspect recent commits for current state."
+          : recapBriefingExcerpt(recap.memory.body, 700));
+        out("");
+      }
+
+      // ── 2. Project context ─────────────────────────────────────────────────────
+      if (existsSync(paths.projectContext) && !stopped()) {
+        const ctx = await readFile(paths.projectContext, "utf8");
+        const isTemplate = ctx.includes("TODO — high-level overview") || ctx.includes("Generated by `hivelore init`");
+        // Adaptive: an init-bootstrapped context that is still mostly "TODO —" scaffolding is
+        // inferable noise — don't dump it. Mirrors the MCP get_briefing adaptive trim.
+        const bootstrapUnfilled =
+          /Auto-generated by `hivelore init/i.test(ctx) && (ctx.match(/TODO —/g)?.length ?? 0) >= 2;
+        if (isTemplate || bootstrapUnfilled) {
+          // In --json mode, stdout MUST stay pure JSON — route the advisory to stderr instead.
+          const msg =
+            "project-context.md is still auto-generated/unfilled — skipping it (low value). " +
+            "Fill it in, or invoke the bootstrap_project MCP prompt for real context.";
+          if (json) console.error(msg); else ui.warn(msg);
+          out("");
+        } else {
+          out(`${ui.bold("=== Project Context ===")}\n`);
+          out(truncateToTokens(ctx.trim(), { maxTokens: budgetTokensCap ? Math.floor(budgetTokensCap * 0.15) : 1500 }).text);
+          out("");
+        }
+      } else if (!existsSync(paths.projectContext)) {
+        ui.warn(
+          "No project-context.md found. Run `hivelore init` then invoke the bootstrap_project MCP prompt.",
+        );
+      }
+
+      };
 
       if (top.length === 0) {
         if (json) { console.log(JSON.stringify({ task: opts.task ?? null, memories: [], briefing_quality: "thin" }, null, 2)); return; }
+        await printOptionalContext();
         ui.info("No relevant memories found.");
         const draftCount = all.filter(
           (m) =>
@@ -428,6 +438,11 @@ export function registerBriefing(program: Command): void {
 
       // JSON mode: emit the structured ranked briefing (parity with the MCP get_briefing tool) and stop.
       if (json) {
+        const ids = top.map((item) => item.memory.frontmatter.id);
+        await trackReads(paths, ids).catch(() => {});
+        await writeBriefingMarker(paths, { source: "haive-briefing-cli", task: opts.task,
+          sessionId: process.env.HIVELORE_SESSION_ID ?? process.env.HAIVE_SESSION_ID ?? process.env.CLAUDE_SESSION_ID,
+          memoryIds: ids, files: filePaths }).catch(() => {});
         console.log(JSON.stringify({
           task: opts.task ?? null,
           files: filePaths,
@@ -451,21 +466,7 @@ export function registerBriefing(program: Command): void {
       }
       out(ui.dim(`briefing_quality: ${quality} · must_read=${mustReadCount} useful=${usefulCount} background=${backgroundCount}`));
       out("");
-      for (const mc of moduleContexts) {
-        if (stopped()) break;
-        out(ui.bold(`=== Module context: ${mc.name} ===`));
-        out(mc.content);
-        out("");
-      }
-      printCliBreadcrumbs({
-        top,
-        priorities,
-        task: opts.task,
-        files: filePaths,
-        symbols: parseCsv(opts.symbols),
-        out,
-        stopped,
-      });
+      const displayedIds: string[] = [];
       for (const [idx, item] of top.entries()) {
         if (stopped()) break;
         const fm = item.memory.frontmatter;
@@ -500,27 +501,50 @@ export function registerBriefing(program: Command): void {
           opts.memoryFormat?.toLowerCase() === "actions"
             ? extractActionsBriefBody(item.memory.body)
             : item.memory.body.trim();
-        out(memBody);
+        const excerpt = truncateToTokens(memBody, {
+          maxTokens: budgetTokensCap ? Math.max(40, Math.floor(budgetTokensCap * 0.6 / top.length)) : 1500,
+        }).text;
+        if (!stopped() && excerpt) {
+          out(excerpt);
+          displayedIds.push(fm.id);
+        }
         out("");
       }
       if (!stopped()) out(ui.dim(`${top.length} memor${top.length === 1 ? "y" : "ies"} surfaced`));
 
       // Track reads so usage stats, decay, and hot-memory detection work via CLI too
-      const ids = top.map(({ memory: mem }) => mem.frontmatter.id);
+      const ids = displayedIds;
       if (ids.length > 0) {
         await trackReads(paths, ids).catch(() => { /* non-fatal */ });
       }
-      // Union the surfaced ids with the anchored-policy ids so the marker always covers what the
-      // decision-coverage gate checks, even when --budget trimmed the surfaced set.
-      const markerIds = [...new Set([...ids, ...anchoredPolicyIds])];
+      // Coverage records only context that was actually displayed.
+      const markerIds = ids;
       if (markerIds.length > 0) {
         await writeBriefingMarker(paths, {
           task: opts.task ?? "CLI briefing",
           source: "haive-briefing-cli",
-          sessionId: process.env.HAIVE_SESSION_ID,
+          sessionId: process.env.HIVELORE_SESSION_ID ?? process.env.HAIVE_SESSION_ID ?? process.env.CLAUDE_SESSION_ID,
           memoryIds: markerIds,
           files: filePaths,
         }).catch(() => { /* marker is best-effort */ });
+      }
+
+      if (!budgetPreset) printCliBreadcrumbs({
+        top,
+        priorities,
+        task: opts.task,
+        files: filePaths,
+        symbols: parseCsv(opts.symbols),
+        out,
+        stopped,
+      });
+      await printOptionalContext();
+
+      for (const mc of moduleContexts) {
+        if (stopped()) break;
+        out(ui.bold(`=== Module context: ${mc.name} ===`));
+        out(truncateToTokens(mc.content, { maxTokens: 200 }).text);
+        out("");
       }
 
       // ── Project radar — surface git/TODO/hot-file signals when memories are scarce ──

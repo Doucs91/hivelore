@@ -1,3 +1,4 @@
+import { supersededMemoryIds } from "./loader.js";
 /**
  * Native bridge generator — produces agent-harness-specific config files
  * from the Hivelore corpus (validated memories + block sensors).
@@ -126,10 +127,12 @@ export function prepareBridgeData(
   opts?: Pick<GenerateBridgesOptions, "maxMemories">,
 ): { topMemories: BridgeMemoryEntry[]; blockSensors: BridgeSensor[] } {
   const max = opts?.maxMemories ?? 8;
+  const superseded = supersededMemoryIds(memories.map(memory => ({ memory, filePath: "" })));
 
   const topMemories: BridgeMemoryEntry[] = memories
     .filter((m) => {
       const s = m.frontmatter.status;
+      if (superseded.has(m.frontmatter.id)) return false;
       if (m.frontmatter.type === "session_recap") return false;
       // Native bridge files are normally committed/shared. Do not mirror personal
       // memories there: they are local by default and may be gitignored.

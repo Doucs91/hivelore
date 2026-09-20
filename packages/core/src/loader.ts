@@ -61,3 +61,23 @@ export async function loadMemoriesFromDirDetailed(
   }
   return { loaded, invalid };
 }
+
+/** Explicitly superseded knowledge is retained for history but excluded from automatic context. */
+export function supersededMemoryIds(memories: LoadedMemory[]): Set<string> {
+  const eligible = memories.filter(({ memory: m }) => m.frontmatter.status === "validated" &&
+    m.frontmatter.evidence !== "hypothesis" && m.frontmatter.lifecycle !== "planned" &&
+    m.frontmatter.lifecycle !== "abandoned");
+  const edges = new Map(eligible.map(({ memory: m }) => [m.frontmatter.id, m.frontmatter.supersedes ?? []]));
+  const reaches = (from: string, target: string, seen = new Set<string>()): boolean => {
+    if (from === target) return true;
+    if (seen.has(from)) return false;
+    seen.add(from);
+    return (edges.get(from) ?? []).some(next => reaches(next, target, seen));
+  };
+  const result = new Set<string>();
+  for (const [replacement, targets] of edges) {
+    // Cycles/self-supersession are ambiguous: retain both claims for review.
+    for (const target of targets) if (!reaches(target, replacement)) result.add(target);
+  }
+  return result;
+}

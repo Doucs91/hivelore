@@ -11,9 +11,9 @@ export type ConfidenceLevel =
 export interface ConfidenceThresholds {
   trustedReads: number;
   authoritativeReads: number;
-  /** Days without a read after which confidence drops one tier (authoritative → trusted). */
+  /** Days without verification after which confidence drops one tier (authoritative → trusted). */
   decayDays: number;
-  /** Days without a read after which confidence drops two tiers (e.g. authoritative → low). */
+  /** Days without verification after which confidence drops two tiers (e.g. authoritative → low). */
   hardDecayDays: number;
 }
 
@@ -26,26 +26,9 @@ export const DEFAULT_CONFIDENCE_THRESHOLDS: ConfidenceThresholds = {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-/**
- * Compute the trust level of a memory.
- *
- * Base tier is derived from `status + read_count`:
- *   - draft → unverified
- *   - proposed (low reads) → low
- *   - proposed (3+ reads) → trusted
- *   - validated (low reads) → trusted
- *   - validated (10+ reads) → authoritative
- *   - stale / deprecated / rejected → stale
- *
- * On top of the base tier, a TIME DECAY is applied: a memory that has not been
- * read in `decayDays` (default 180) drops one tier, and one not read in
- * `hardDecayDays` (default 365) drops two tiers. The clock starts at
- * `last_read_at` if any, otherwise `created_at` from the frontmatter.
- *
- * The decay never crosses into `stale` (we keep that signal reserved for the
- * verifier). The intent is to surface "this used to be authoritative but
- * nobody has touched it in a year — verify before quoting it" without
- * pretending the memory is wrong.
+/** Confidence comes from validation and explicit evidence, never from repeated exposure.
+ * Freshness uses the last verification (or creation), not the last retrieval.
+ * Legacy read thresholds remain accepted for API compatibility but have no effect on truth.
  */
 export function deriveConfidence(
   fm: MemoryFrontmatter,
@@ -55,12 +38,13 @@ export function deriveConfidence(
 ): ConfidenceLevel {
   if (fm.status === "stale" || fm.status === "deprecated" || fm.status === "rejected") return "stale";
 
-  const baseLevel = baseConfidence(fm, usage, thresholds);
+  const baseLevel = baseConfidence(fm);
 
   // Apply decay only to tiers worth lowering.
   if (baseLevel !== "authoritative" && baseLevel !== "trusted") return baseLevel;
 
-  const anchor = usage.last_read_at ?? fm.created_at;
+  // Seeing a claim again does not make it newer or more correct.
+  const anchor = fm.verified_at ?? fm.created_at;
   const ageDays = (now.getTime() - new Date(anchor).getTime()) / MS_PER_DAY;
   if (Number.isNaN(ageDays) || ageDays <= 0) return baseLevel;
 
@@ -77,23 +61,20 @@ export function deriveConfidence(
 
 function baseConfidence(
   fm: MemoryFrontmatter,
-  usage: MemoryUsage,
-  thresholds: ConfidenceThresholds,
 ): ConfidenceLevel {
+  if (fm.evidence === "hypothesis") return "low";
   if (fm.status === "validated") {
-    return usage.read_count >= thresholds.authoritativeReads
-      ? "authoritative"
-      : "trusted";
+    // Admission is not proof. Authority needs explicit human review AND a tested claim.
+    return fm.validated_by === "human" && fm.evidence === "tested" && fm.verified_at
+      ? "authoritative" : "trusted";
   }
-  if (fm.status === "proposed") {
-    return usage.read_count >= thresholds.trustedReads ? "trusted" : "low";
-  }
+  if (fm.status === "proposed") return "low";
   // draft
   return "unverified";
 }
 
 export interface AutoPromoteRule {
-  /** Minimum read_count to promote proposed → validated. */
+  /** Minimum confirmed applications to promote proposed → validated (legacy option name). */
   minReads: number;
   /** Maximum rejected_count tolerated (memories with more rejections never auto-promote). */
   maxRejections: number;
@@ -109,7 +90,9 @@ export function isAutoPromoteEligible(
   usage: MemoryUsage,
   rule: AutoPromoteRule = DEFAULT_AUTO_PROMOTE_RULE,
 ): boolean {
-  if (fm.status !== "proposed") return false;
+  if (fm.status !== "proposed" || fm.evidence === "hypothesis" || fm.requires_human_approval ||
+      fm.lifecycle === "planned" || fm.lifecycle === "abandoned") return false;
   if (usage.rejected_count > rule.maxRejections) return false;
-  return usage.read_count >= rule.minReads;
+  // Keep the public threshold for compatibility, but require confirmed use, not exposure.
+  return usage.applied_count >= rule.minReads;
 }
