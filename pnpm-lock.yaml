@@ -38,6 +38,9 @@ importers:
       ink:
         specifier: ^7.0.1
         version: 7.0.1(@types/react@19.2.14)(react@19.2.5)
+      jsonc-parser:
+        specifier: ^3.3.1
+        version: 3.3.1
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1

@@ -15,6 +15,7 @@ export function createContext(options: CreateContextOptions = {}): HaiveContext 
   const cwd = options.cwd ?? process.cwd();
   const root =
     options.root ??
+    env.HIVELORE_PROJECT_ROOT ??
     env.HAIVE_PROJECT_ROOT ??
     findProjectRoot(cwd);
   return { paths: resolveHaivePaths(root) };

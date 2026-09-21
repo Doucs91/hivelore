@@ -10,7 +10,8 @@ import {
 } from "../utils/autopilot.js";
 import { lintMemoriesAsync } from "./memory-lint.js";
 import { detectStaleGitHooks, repairStaleGitHooks } from "./enforce.js";
-import { detectLegacyUserScopeMcpEntries, sweepLegacyUserScopeMcpEntries } from "./init-mcp-setup.js";
+import { detectLegacyUserScopeMcpEntries, sweepLegacyUserScopeMcpEntries, inspectUserMcpClients, inspectProjectMcpClients, repairLegacyProjectMcpFile } from "./init-mcp-setup.js";
+import { inspectCodexMcp, configureCodexMcp } from "./codex-mcp.js";
 import { isSyntheticSuggestionQuery } from "./memory-suggest.js";
 
 declare const __HAIVE_VERSION__: string;
@@ -178,13 +179,17 @@ export function registerDoctor(program: Command): void {
         if (legacy.length > 0) {
           if (opts.fix && !opts.dryRun) {
             const swept = await sweepLegacyUserScopeMcpEntries();
+            for (const failure of swept.filter((r) => r.error)) findings.push({
+              severity: "warn", code: "mcp-repair-failed", message: failure.error!,
+              fix: "hivelore agent setup --yes", section: "Agent coverage",
+            });
             const cleaned = swept.filter((r) => r.removed.length > 0);
             if (cleaned.length > 0) {
               findings.push({
                 severity: "info",
                 code: "legacy-mcp-entry-removed",
                 alwaysShow: true,
-                message: `Removed the stale \`haive\` MCP entry from ${cleaned.map((r) => r.path).join(", ")} — it pointed at the removed binary and failed on every session start.`,
+                message: `Migrated obsolete MCP commands in ${cleaned.map((r) => r.path).join(", ")} — it pointed at the removed binary and failed on every session start.`,
               });
             }
           } else {
@@ -196,6 +201,34 @@ export function registerDoctor(program: Command): void {
             });
           }
         }
+      }
+
+      // Read the effective Codex configuration using its native TOML parser. A config file
+      // or a running server does not prove that this session has received its tools.
+      {
+        let codex = inspectCodexMcp();
+        if (opts.fix && !opts.dryRun && ["stale", "missing"].includes(codex.status)) {
+          const result = configureCodexMcp();
+          if (result.status === "error") findings.push({ severity: "warn", code: "codex-mcp-repair-failed",
+            message: result.error ?? "Codex MCP repair failed.", fix: "hivelore agent setup --yes", section: "Agent coverage" });
+          codex = inspectCodexMcp();
+        }
+        if (codex.status !== "not_installed" && codex.status !== "configured") {
+          findings.push({ severity: "warn", code: `codex-mcp-${codex.status}`,
+            message: `Codex MCP: ${codex.status}. ${codex.message ?? "Hivelore is not registered."}`,
+            fix: codex.status === "disabled" ? "Enable Hivelore in Codex MCP settings, then restart Codex."
+              : "hivelore agent setup --yes", section: "Agent coverage" });
+        }
+        const configs = [...await inspectUserMcpClients(), ...await inspectProjectMcpClients(root)];
+        for (const config of configs.filter((c) => c.status !== "configured" && c.present)) {
+          findings.push({ severity: "warn", code: `client-mcp-${config.status}`,
+            message: `${config.client}: Hivelore MCP ${config.status} (${config.path}).`,
+            fix: ["invalid", "disabled"].includes(config.status)
+              ? "Review this file in the client MCP settings; existing settings were preserved."
+              : "hivelore agent setup --yes", section: "Agent coverage" });
+        }
+        findings.push({ severity: "info", code: "mcp-session-unverified", section: "Agent coverage",
+          message: "Client configuration does not prove active-session access. Restart the client, inspect its MCP tools, then call get_briefing. Use hivelore agent check for a separate server handshake test." });
       }
 
       // ── 2. Project context ────────────────────────────────────────────────
@@ -796,11 +829,9 @@ export function registerDoctor(program: Command): void {
             if (usesHaiveMcp || usesHaiveBinary) {
               staleConfigs.push(path.relative(root, cfgPath));
               if (opts.fix && !opts.dryRun) {
-                const updated = raw
-                  .replace(/"command"\s*:\s*"haive-mcp"/g, '"command": "hivelore"')
-                  .replace(/"command"\s*:\s*"haive"/g, '"command": "hivelore"')
-                  .replace(/"args"\s*:\s*\[\]/g, '"args": ["mcp", "--stdio"]');
-                await writeFile(cfgPath, updated, "utf8");
+                const repaired = await repairLegacyProjectMcpFile(cfgPath);
+                if (repaired.status === "error") findings.push({ severity: "warn", code: "mcp-project-repair-failed",
+                  message: repaired.error!, section: "Agent coverage" });
               }
             }
           } catch { /* ignore unreadable config */ }

@@ -1,6 +1,6 @@
 {
   "name": "@hivelore/cli",
-  "version": "0.63.0",
+  "version": "0.63.1",
   "description": "Hivelore CLI - the deterministic policy gate for agent-written code (rules live as repo-native team memory)",
   "license": "Apache-2.0",
   "repository": {
@@ -49,6 +49,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "commander": "^12.1.0",
     "ink": "^7.0.1",
+    "jsonc-parser": "^3.3.1",
     "picocolors": "^1.1.1",
     "react": "^19.2.5",
     "zod": "^3.23.8"

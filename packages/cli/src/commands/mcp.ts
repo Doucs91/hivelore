@@ -26,7 +26,7 @@ export function registerMcp(program: Command): void {
     .option("--stdio", "optional marker for client configs — transport is always stdio", false)
     .action(async (opts: McpOptions) => {
       void opts.stdio;
-      const raw = opts.root ?? opts.dir;
+      const raw = opts.root ?? opts.dir ?? process.env.HIVELORE_PROJECT_ROOT ?? process.env.HAIVE_PROJECT_ROOT;
       const root = raw ? findProjectRoot(raw) : findProjectRoot();
       try {
         await runHaiveMcpStdio({ root });

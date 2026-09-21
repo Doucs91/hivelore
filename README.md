@@ -325,9 +325,16 @@ Check the selected mode any time:
 
 ```bash
 hivelore agent status
+hivelore agent check          # initialize the server and discover its tools
 hivelore agent setup          # re-run setup later
 hivelore agent setup --yes    # approve user-level MCP config without prompting
 ```
+
+Setup migrates obsolete `haive` MCP commands, including Codex user configuration, and preserves
+other servers and JSONC comments. It supports Claude Code, Cursor, VS Code, Windsurf, Codex,
+and detected Gemini CLI/Roo Code configurations. Restart the client after setup, then call
+`get_briefing` in a new session: a successful server check does not prove that an existing
+session has access. See [MCP connection troubleshooting](docs/mcp-client-setup.md).
 
 ### 5. Gate commits and pull requests
 

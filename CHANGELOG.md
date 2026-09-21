@@ -6,6 +6,14 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.63.1] — Repair MCP access across AI clients
+
+- Repair Codex registration through its native CLI: replace dead `haive` commands, retain other servers and explicit disabling, and stop pinning global MCP to one project.
+- Preserve JSONC comments and client settings during migration; refuse malformed files instead of silently replacing them. Cover VS Code user configurations and detected Gemini CLI/Roo Code projects as well as Claude Code, Cursor and Windsurf.
+- Honor the MCP project-root environment variables, with explicit CLI arguments taking precedence. Project configurations also pass an explicit root.
+- Add `hivelore agent check` for bounded MCP initialization/tool discovery. Status and doctor inspect Hivelore entries, report Codex problems, and distinguish configuration from active-session access.
+
+
 ## [0.63.0] — Useful context, evidence and task-aware completion
 
 - Briefings prioritize actionable memories over project overviews and recaps. Long bodies share the budget; quick CLI output omits redundant navigation. Only delivered memories count as consulted.

@@ -362,7 +362,7 @@ export function registerInit(program: Command): void {
     )
     .option(
       "--no-mcp-setup",
-      "skip auto-configuring hivelore MCP (hivelore mcp --stdio) in Cursor / VS Code / Claude Code",
+      "skip auto-configuring hivelore MCP (hivelore mcp --stdio) in supported AI clients (including Codex)",
     )
     .option(
       "-y, --yes",
@@ -609,6 +609,7 @@ export function registerInit(program: Command): void {
         }
         for (const r of agentSetup.global_results) {
           if (r.status === "configured") ui.success(`hivelore MCP configured in ${r.client} user-level config${r.path ? ` (${r.path})` : ""}`);
+          else if (r.status === "error") ui.warn(`${r.client}: ${r.error}`);
           else if (r.status === "already_configured") ui.info(`hivelore MCP already present in ${r.client} user-level config — left unchanged (this project's config was written above)`);
         }
         if (agentSetup.global_skipped_reason) ui.warn(agentSetup.global_skipped_reason);
@@ -635,6 +636,8 @@ export function registerInit(program: Command): void {
           ".cursor/mcp.json",
           ".vscode/mcp.json",
           ".mcp.json",
+          ".roo/mcp.json",
+          ".gemini/settings.json",
         ]);
         ui.info(ui.dim("  → Restart your AI client for MCP changes to take effect."));
       }

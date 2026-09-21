@@ -1,12 +1,13 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { findProjectRoot, resolveHaivePaths } from "@hivelore/core";
-import { autoConfigureMcpClients, configureProjectMcpClients, type ConfigureResult } from "./init-mcp-setup.js";
+import { autoConfigureMcpClients, configureProjectMcpClients, inspectProjectMcpClients, type McpConfigInspection, type ConfigureResult } from "./init-mcp-setup.js";
+import { checkMcpServer } from "../utils/mcp-check.js";
+import { inspectCodexMcp } from "./codex-mcp.js";
 import { ui } from "../utils/ui.js";
 
 interface AgentOptions {
@@ -20,7 +21,9 @@ interface AgentOptions {
 interface AgentDetection {
   root: string;
   initialized: boolean;
-  project_mcp: Array<{ client: string; path: string; present: boolean }>;
+  project_mcp: McpConfigInspection[];
+  session_connection: "unverified";
+  codex_mcp: ReturnType<typeof inspectCodexMcp>;
   installed_agents: Array<{ agent: string; command: string; installed: boolean; mcp_configured?: boolean }>;
   recommended_mode: "mcp" | "wrapped" | "fallback";
   recommended_command: string;
@@ -60,6 +63,23 @@ export function registerAgent(program: Command): void {
     });
 
   agent
+    .command("check")
+    .description("Test MCP initialization and tool discovery (does not prove access inside your AI session).")
+    .option("-d, --dir <dir>", "project root")
+    .option("--json", "emit JSON", false)
+    .action(async (opts: AgentOptions) => {
+      const root = findProjectRoot(opts.dir);
+      const result = await checkMcpServer(root, path.resolve(process.argv[1]!));
+      if (opts.json) console.log(JSON.stringify(result, null, 2));
+      else {
+        if (result.server_reachable) ui.success(`MCP server ${result.server_version}: ${result.tools.length} tools discovered.`);
+        else ui.error(`MCP handshake failed: ${result.error}`);
+        ui.info("Session connection remains unverified. Restart your AI client, inspect its MCP list, then call get_briefing.");
+      }
+      if (!result.server_reachable) process.exitCode = 1;
+    });
+
+  agent
     .command("setup")
     .description("Configure Hivelore project MCP, optional global MCP clients, and wrapper fallback metadata.")
     .option("-d, --dir <dir>", "project root")
@@ -72,6 +92,7 @@ export function registerAgent(program: Command): void {
         global: opts.global !== false && opts.noGlobal !== true,
         interactive: process.stdin.isTTY,
       });
+      if ([...result.project_results, ...result.global_results].some((item) => item.status === "error")) process.exitCode = 1;
       if (opts.json) {
         console.log(JSON.stringify(result, null, 2));
         return;
@@ -93,7 +114,6 @@ export async function setupAgentMode(
   const root = findProjectRoot(dir);
   const paths = resolveHaivePaths(root);
   const projectResults = await configureProjectMcpClients(root);
-  const detectionBeforeGlobal = await detectAgentMode(root);
 
   let globalResults: ConfigureResult[] = [];
   let globalSkippedReason: string | undefined;
@@ -102,8 +122,6 @@ export async function setupAgentMode(
     const approved = opts.yes === true || (opts.interactive ? await confirmGlobalSetup() : false);
     if (approved) {
       globalResults = await autoConfigureMcpClients();
-      const codex = await configureCodexIfAvailable(root);
-      if (codex) globalResults.push(codex);
     } else {
       globalSkippedReason = opts.interactive
         ? "User declined user-level/global MCP configuration."
@@ -127,18 +145,15 @@ export async function setupAgentMode(
 export async function detectAgentMode(dir?: string): Promise<AgentDetection> {
   const root = findProjectRoot(dir);
   const paths = resolveHaivePaths(root);
-  const projectMcp = [
-    { client: "Claude Code", path: path.join(root, ".mcp.json"), present: existsSync(path.join(root, ".mcp.json")) },
-    { client: "Cursor", path: path.join(root, ".cursor", "mcp.json"), present: existsSync(path.join(root, ".cursor", "mcp.json")) },
-    { client: "VS Code", path: path.join(root, ".vscode", "mcp.json"), present: existsSync(path.join(root, ".vscode", "mcp.json")) },
-  ];
+  const projectMcp = await inspectProjectMcpClients(root);
+  const codex = inspectCodexMcp();
   const installedAgents = [
-    { agent: "Codex", command: "codex", installed: commandExists("codex"), mcp_configured: codexMcpConfigured() },
+    { agent: "Codex", command: "codex", installed: commandExists("codex"), mcp_configured: codex.status === "configured" },
     { agent: "Claude", command: "claude", installed: commandExists("claude") },
     { agent: "Aider", command: "aider", installed: commandExists("aider") },
     { agent: "Cursor", command: "cursor", installed: commandExists("cursor") },
   ];
-  const hasProjectMcp = projectMcp.some((item) => item.present);
+  const hasProjectMcp = projectMcp.some((item) => item.configured);
   const hasNativeMcp = hasProjectMcp || installedAgents.some((a) => a.mcp_configured);
   const wrapperAgent = installedAgents.find((a) => a.installed && ["codex", "claude", "aider"].includes(a.command));
   const recommendedMode: AgentDetection["recommended_mode"] = hasNativeMcp ? "mcp" : wrapperAgent ? "wrapped" : "fallback";
@@ -153,6 +168,8 @@ export async function detectAgentMode(dir?: string): Promise<AgentDetection> {
     root,
     initialized: existsSync(paths.haiveDir),
     project_mcp: projectMcp,
+    session_connection: "unverified",
+    codex_mcp: codex,
     installed_agents: installedAgents,
     recommended_mode: recommendedMode,
     recommended_command: recommendedCommand,
@@ -173,7 +190,7 @@ async function writeAgentModeRecord(
     configured_at: new Date().toISOString(),
     project_root: detection.root,
     notes: [
-      "mcp = native Hivelore MCP tools are available or project MCP config exists.",
+      "mcp = a Hivelore entry is configured; active-session tool availability is unverified.",
       "wrapped = use hivelore run when native MCP is unavailable.",
       "fallback = use hivelore briefing/enforce manually.",
       ...(skippedReason ? [skippedReason] : []),
@@ -195,37 +212,11 @@ async function confirmGlobalSetup(): Promise<boolean> {
   }
 }
 
-async function configureCodexIfAvailable(root: string): Promise<ConfigureResult | null> {
-  if (!commandExists("codex")) return { client: "Codex", status: "not_installed" };
-  if (codexMcpConfigured()) return { client: "Codex", status: "already_configured" };
-  const result = spawnSync("codex", [
-    "mcp",
-    "add",
-    "haive",
-    "--env",
-    `HAIVE_PROJECT_ROOT=${root}`,
-    "--",
-    "haive",
-    "mcp",
-    "--stdio",
-  ], { encoding: "utf8" });
-  if (result.status === 0) return { client: "Codex", status: "configured", path: path.join(os.homedir(), ".codex", "config.toml") };
-  return { client: "Codex", status: "error", error: result.stderr || result.stdout || "codex mcp add failed" };
-}
-
 function commandExists(command: string): boolean {
   const result = spawnSync(process.platform === "win32" ? "where" : "which", [command], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
-  });
-  return result.status === 0;
-}
-
-function codexMcpConfigured(): boolean {
-  if (!commandExists("codex")) return false;
-  const result = spawnSync("codex", ["mcp", "get", "haive"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
+    timeout: 5000,
   });
   return result.status === 0;
 }
@@ -239,13 +230,15 @@ function printDetection(detection: AgentDetection, json: boolean): void {
   console.log(ui.dim(`  root: ${detection.root}`));
   console.log(`${detection.initialized ? ui.green("✓") : ui.red("✗")} project initialized`);
   for (const cfg of detection.project_mcp) {
-    console.log(`${cfg.present ? ui.green("✓") : ui.yellow("•")} ${cfg.client} project MCP ${ui.dim(path.relative(detection.root, cfg.path))}`);
+    console.log(`${cfg.configured ? ui.green("✓") : ui.yellow("•")} ${cfg.client} project MCP [${cfg.status}] ${ui.dim(path.relative(detection.root, cfg.path))}`);
   }
   for (const agent of detection.installed_agents) {
     const marker = agent.installed ? ui.green("✓") : ui.dim("•");
     const mcp = agent.mcp_configured === true ? " + Hivelore MCP" : "";
     console.log(`${marker} ${agent.agent} (${agent.command})${mcp}`);
   }
+  console.log(`Codex MCP: ${detection.codex_mcp.status}`);
+  console.log("Session connection: unverified. Restart the client and call get_briefing to confirm access.");
   console.log(ui.bold(`Recommended mode: ${detection.recommended_mode}`));
   console.log(`  ${detection.recommended_command}`);
 }

@@ -56,3 +56,7 @@ ctx-haive-poc/
 # Untracked in dd54870 but never ignored, which left the worktree permanently dirty and
 # blocked `enforce finish` / `release ship`. In git, "keep this local" is an ignore rule.
 docs/launch/
+
+# Local MCP client settings (absolute project roots)
+.roo/mcp.json
+.gemini/settings.json

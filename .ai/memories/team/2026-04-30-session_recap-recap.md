@@ -5,46 +5,54 @@ type: session_recap
 status: validated
 anchor:
   paths:
-    - packages/core/src/confidence.ts
-    - packages/core/src/task-session.ts
-    - packages/cli/src/commands/enforce.ts
-    - packages/mcp/src/tools/get-briefing.ts
-    - packages/github-action/src/run.ts
+    - packages/cli/src/commands/agent.ts
+    - packages/cli/src/commands/codex-mcp.ts
+    - packages/cli/src/commands/init-mcp-setup.ts
+    - packages/cli/src/commands/doctor.ts
+    - packages/cli/src/commands/mcp.ts
+    - packages/cli/src/utils/mcp-check.ts
+    - packages/mcp/src/context.ts
   symbols: []
 tags:
   - session
   - recap
 created_at: '2026-04-30T00:02:07.282Z'
 expires_when: null
-verified_at: '2026-09-20T02:38:58.901Z'
+verified_at: '2026-09-21T17:11:38.605Z'
 stale_reason: null
 related_ids: []
 last_read_at: null
 topic: session-recap-team
-revision_count: 46
+revision_count: 47
 requires_human_approval: false
 validated_by: null
 ---
 ## Goal
-Améliorer Hivelore à partir des retours clients du 18 septembre
+Réparer l’accès MCP des agents IA après installation globale de Hivelore.
 
 ## Accomplished
-Version 0.63.0 : briefings prioritaires et bornés, confiance indépendante des lectures, preuves déclaratives, clôture par tâche, hooks ciblés, réparation des renommages exacts, PR dédupliquées, télémétrie complète et vérification CI plus précise. Chaîne complète passée ; tests ciblés additionnels de couverture et de CI passés.
+Migration Codex via sa CLI native, suppression du nom de commande haive et du projet global figé ; migration JSONC sans écraser les autres réglages ; configuration Gemini et Roo détectés ; prise en compte du projet explicite et des variables de contexte ; diagnostic de configuration distinct du test serveur agent check et de l’accès réel dans une session. Configurations locales et globales de cette machine réparées. Version 0.63.1 préparée.
 
 ## Discoveries & surprises
-Le contrôle pré-commit réécrivait et stageait automatiquement certaines mémoires, ensuite exemptées comme politiques écrites par la tâche. La maintenance du corpus est désormais explicite. Les mémoires exclues des briefings ne sont plus exigées par la couverture de consultation.
+Le helper Codex séparé créait encore une commande haive obsolète. L’entrée CLI MCP ignorait les variables de projet. Le bac à sable bloque certains sous-processus Node, mais le même dialogue MCP réussit hors restriction.
 
 ## Files touched
-- `packages/core/src/confidence.ts`
-- `packages/core/src/task-session.ts`
-- `packages/cli/src/commands/enforce.ts`
-- `packages/mcp/src/tools/get-briefing.ts`
-- `packages/github-action/src/run.ts`
+- `packages/cli/src/commands/agent.ts`
+- `packages/cli/src/commands/codex-mcp.ts`
+- `packages/cli/src/commands/init-mcp-setup.ts`
+- `packages/cli/src/commands/doctor.ts`
+- `packages/cli/src/commands/mcp.ts`
+- `packages/cli/src/utils/mcp-check.ts`
+- `packages/mcp/src/context.ts`
 
 ## Next steps
-Mesurer interruptions, latence et utilité dans les sessions du projet client. Publication npm réservée au mainteneur. Les rapports originaux restent inchangés et non suivis.
+Redémarrer chaque client puis appeler get_briefing pour confirmer l’accès dans sa session. Publication npm réservée au mainteneur. Les rapports clients originaux restent inchangés.
 
 ## Session history
+
+### 2026-09-20
+Améliorer Hivelore à partir des retours clients du 18 septembre
+**Next:** Mesurer interruptions, latence et utilité dans les sessions du projet client. Publication npm réservée au mainteneur. Les rapports originaux restent inchangés et non suivis.
 
 ### 2026-09-20
 Rendre Hivelore utile aux agents à partir des retours clients du 18 septembre

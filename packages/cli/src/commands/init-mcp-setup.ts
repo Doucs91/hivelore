@@ -1,162 +1,10 @@
-/**
- * Auto-configure haive-mcp in supported AI clients.
- *
- * Two layers:
- *   User-level (global, written once):
- *     - Cursor  (~/.cursor/mcp.json)
- *     - VS Code (~/.config/Code/User/mcp.json or ~/Library/Application Support/Code/User/mcp.json)
- *     - Claude Code (~/.claude.json mcpServers field)
- *     - Windsurf (~/.codeium/windsurf/mcp_config.json)
- *
- *   Project-level (per project, written at hivelore init, includes HAIVE_PROJECT_ROOT):
- *     - Cursor  (<root>/.cursor/mcp.json)
- *     - VS Code (<root>/.vscode/mcp.json)
- *     - Claude Code (<root>/.mcp.json)
- *
- * Project-level configs take precedence over user-level when the client opens that
- * workspace, ensuring the MCP server always resolves the correct project root even
- * when the same haive process serves multiple projects.
- */
+/** Client configuration is evidence of setup, never proof of tools in an active session. */
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-
-const HOME = os.homedir();
-const HAIVE_MCP_ENTRY = {
-  command: "hivelore",
-  args: ["mcp", "--stdio"],
-};
-
-function projectMcpEntry(root: string) {
-  return {
-    command: "hivelore",
-    args: ["mcp", "--stdio"],
-    env: { HAIVE_PROJECT_ROOT: root },
-  };
-}
-
-// ── Cursor ────────────────────────────────────────────────────────────────────
-
-function cursorMcpPath(): string {
-  return path.join(HOME, ".cursor", "mcp.json");
-}
-
-async function configureCursor(): Promise<ConfigureResult> {
-  const mcpPath = cursorMcpPath();
-  const cursorDir = path.join(HOME, ".cursor");
-  if (!existsSync(cursorDir)) return { client: "Cursor", status: "not_installed" };
-
-  let config: { mcpServers?: Record<string, unknown> } = {};
-  if (existsSync(mcpPath)) {
-    try { config = JSON.parse(await readFile(mcpPath, "utf8")); } catch { /* ignore malformed */ }
-  }
-  config.mcpServers ??= {};
-  if (config.mcpServers["hivelore"]) return { client: "Cursor", status: "already_configured" };
-
-  if (isDeadLegacyCommand((config.mcpServers["haive"] as { command?: unknown } | undefined)?.command)) delete config.mcpServers["haive"];
-  config.mcpServers["hivelore"] = HAIVE_MCP_ENTRY;
-  await mkdir(cursorDir, { recursive: true });
-  await writeFile(mcpPath, JSON.stringify(config, null, 2), "utf8");
-  return { client: "Cursor", status: "configured", path: mcpPath };
-}
-
-// ── VS Code ───────────────────────────────────────────────────────────────────
-
-function vscodeMcpPath(): string | null {
-  const candidates = [
-    path.join(HOME, ".config", "Code", "User", "mcp.json"),         // Linux
-    path.join(HOME, "Library", "Application Support", "Code", "User", "mcp.json"), // macOS
-    path.join(HOME, "AppData", "Roaming", "Code", "User", "mcp.json"),             // Windows
-    path.join(HOME, ".config", "Code - Insiders", "User", "mcp.json"),
-  ];
-  // Return the first one whose *parent directory* exists
-  for (const c of candidates) {
-    if (existsSync(path.dirname(c))) return c;
-  }
-  return null;
-}
-
-async function configureVSCode(): Promise<ConfigureResult> {
-  const mcpPath = vscodeMcpPath();
-  if (!mcpPath) return { client: "VS Code", status: "not_installed" };
-
-  let config: { servers?: Record<string, unknown> } = {};
-  if (existsSync(mcpPath)) {
-    try { config = JSON.parse(await readFile(mcpPath, "utf8")); } catch { /* ignore */ }
-  }
-  config.servers ??= {};
-  if (config.servers["hivelore"]) return { client: "VS Code", status: "already_configured" };
-
-  if (isDeadLegacyCommand((config.servers["haive"] as { command?: unknown } | undefined)?.command)) delete config.servers["haive"];
-  config.servers["hivelore"] = { ...HAIVE_MCP_ENTRY, type: "stdio" };
-  await mkdir(path.dirname(mcpPath), { recursive: true });
-  await writeFile(mcpPath, JSON.stringify(config, null, 2), "utf8");
-  return { client: "VS Code", status: "configured", path: mcpPath };
-}
-
-// ── Claude Code ───────────────────────────────────────────────────────────────
-
-function claudeConfigPath(): string | null {
-  const p = path.join(HOME, ".claude.json");
-  if (existsSync(p)) return p;
-  // Some versions put it here
-  const p2 = path.join(HOME, ".config", "claude", "claude.json");
-  if (existsSync(path.dirname(p2))) return p2;
-  return null;
-}
-
-async function configureClaude(): Promise<ConfigureResult> {
-  // Claude Code stores MCP servers in ~/.claude.json under mcpServers key
-  const cfgPath = claudeConfigPath() ?? path.join(HOME, ".claude.json");
-  if (!existsSync(cfgPath) && !existsSync(path.join(HOME, ".claude"))) {
-    return { client: "Claude Code", status: "not_installed" };
-  }
-
-  let config: { mcpServers?: Record<string, unknown> } = {};
-  if (existsSync(cfgPath)) {
-    try { config = JSON.parse(await readFile(cfgPath, "utf8")); } catch { /* ignore */ }
-  }
-  config.mcpServers ??= {};
-  if (config.mcpServers["hivelore"]) return { client: "Claude Code", status: "already_configured" };
-
-  config.mcpServers["hivelore"] = { ...HAIVE_MCP_ENTRY, type: "stdio" };
-  await writeFile(cfgPath, JSON.stringify(config, null, 2), "utf8");
-  return { client: "Claude Code", status: "configured", path: cfgPath };
-}
-
-// ── Windsurf ─────────────────────────────────────────────────────────────────
-
-function windsurfMcpPath(): string | null {
-  const candidates = [
-    path.join(HOME, ".codeium", "windsurf", "mcp_config.json"),
-    path.join(HOME, ".windsurf", "mcp.json"),
-  ];
-  for (const c of candidates) {
-    if (existsSync(path.dirname(c))) return c;
-  }
-  return null;
-}
-
-async function configureWindsurf(): Promise<ConfigureResult> {
-  const mcpPath = windsurfMcpPath();
-  if (!mcpPath) return { client: "Windsurf", status: "not_installed" };
-
-  let config: { mcpServers?: Record<string, unknown> } = {};
-  if (existsSync(mcpPath)) {
-    try { config = JSON.parse(await readFile(mcpPath, "utf8")); } catch { /* ignore */ }
-  }
-  config.mcpServers ??= {};
-  if (config.mcpServers["hivelore"]) return { client: "Windsurf", status: "already_configured" };
-
-  if (isDeadLegacyCommand((config.mcpServers["haive"] as { command?: unknown } | undefined)?.command)) delete config.mcpServers["haive"];
-  config.mcpServers["hivelore"] = HAIVE_MCP_ENTRY;
-  await mkdir(path.dirname(mcpPath), { recursive: true });
-  await writeFile(mcpPath, JSON.stringify(config, null, 2), "utf8");
-  return { client: "Windsurf", status: "configured", path: mcpPath };
-}
-
-// ── Public API ────────────────────────────────────────────────────────────────
+import { parse, modify, applyEdits, type ParseError } from "jsonc-parser";
+import { configureCodexMcp, isLegacyMcpCommand } from "./codex-mcp.js";
 
 export interface ConfigureResult {
   client: string;
@@ -164,162 +12,184 @@ export interface ConfigureResult {
   path?: string;
   error?: string;
 }
+interface ConfigTarget { client: string; file: string; key: "mcpServers" | "servers"; type?: "stdio" }
+type JsonObject = Record<string, unknown>;
+function object(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function userTargets(): ConfigTarget[] {
+  const home = os.homedir();
+  return [
+    { client: "Gemini CLI", file: path.join(home, ".gemini/settings.json"), key: "mcpServers" },
+    { client: "Cursor", file: path.join(home, ".cursor/mcp.json"), key: "mcpServers" },
+    ...[".config/Code/User", "Library/Application Support/Code/User", "AppData/Roaming/Code/User", ".config/Code - Insiders/User"].map((dir): ConfigTarget => ({
+      client: "VS Code", file: path.join(home, dir, "mcp.json"), key: "servers", type: "stdio",
+    })),
+    { client: "Claude Code", file: path.join(home, ".claude.json"), key: "mcpServers", type: "stdio" },
+    { client: "Claude Code", file: path.join(home, ".config/claude/claude.json"), key: "mcpServers", type: "stdio" },
+    { client: "Windsurf", file: path.join(home, ".codeium/windsurf/mcp_config.json"), key: "mcpServers" },
+    { client: "Windsurf", file: path.join(home, ".windsurf/mcp.json"), key: "mcpServers" },
+  ];
+}
+function projectTargets(root: string): ConfigTarget[] {
+  return [
+    { client: "Cursor (project)", file: path.join(root, ".cursor/mcp.json"), key: "mcpServers" },
+    { client: "VS Code (workspace)", file: path.join(root, ".vscode/mcp.json"), key: "servers", type: "stdio" },
+    { client: "Claude Code (project)", file: path.join(root, ".mcp.json"), key: "mcpServers", type: "stdio" },
+    ...(existsSync(path.join(root, ".gemini")) || existsSync(path.join(os.homedir(), ".gemini"))
+      ? [{ client: "Gemini CLI (project)", file: path.join(root, ".gemini/settings.json"), key: "mcpServers" as const }] : []),
+    ...(existsSync(path.join(root, ".roo"))
+      ? [{ client: "Roo Code (project)", file: path.join(root, ".roo/mcp.json"), key: "mcpServers" as const }] : []),
+  ];
+}
+function installed(target: ConfigTarget): boolean {
+  if (existsSync(target.file)) return true;
+  if (target.file === path.join(os.homedir(), ".claude.json")) return existsSync(path.join(os.homedir(), ".claude"));
+  return existsSync(path.dirname(target.file));
+}
+
+/** Never replace a malformed config with an empty object: it may contain unrelated servers. */
+async function readConfig(target: ConfigTarget): Promise<{ raw: string; config: JsonObject; servers: JsonObject }> {
+  const raw = existsSync(target.file) ? await readFile(target.file, "utf8") : "{}\n";
+  const errors: ParseError[] = [];
+  const config: unknown = parse(raw, errors, { allowTrailingComma: true });
+  if (errors.length) throw new Error(`Invalid JSON/JSONC in ${target.file}; file left unchanged.`);
+  if (!object(config)) throw new Error(`Invalid object in ${target.file}; file left unchanged.`);
+  const servers = config[target.key] ?? {};
+  if (!object(servers)) throw new Error(`Invalid ${target.key} in ${target.file}; file left unchanged.`);
+  return { raw, config, servers };
+}
+
+async function configureJson(target: ConfigTarget, root?: string): Promise<ConfigureResult> {
+  const base = { client: target.client, path: target.file };
+  try {
+    const { raw, servers } = await readConfig(target);
+    const current = servers.hivelore;
+    if (current === undefined && object(servers.haive) && isLegacyMcpCommand(servers.haive.command)
+      && (servers.haive.disabled === true || servers.haive.enabled === false)) {
+      throw new Error("The legacy Hivelore entry is explicitly disabled. Enable it in client MCP settings if intended; file left unchanged.");
+    }
+    if (current !== undefined && !object(current)) throw new Error("Invalid Hivelore entry; fix it in the client MCP settings. File left unchanged.");
+    if (object(current) && (current.disabled === true || current.enabled === false)) {
+      throw new Error("Hivelore is explicitly disabled. Enable it in the client MCP settings if intended; file left unchanged.");
+    }
+    if (object(current) && !(typeof current.command === "string" && current.command.trim()) && !(typeof current.url === "string" && current.url.trim())) {
+      throw new Error("Hivelore has neither a command nor a URL; file left unchanged. Repair the entry in the client MCP settings.");
+    }
+    if (object(current) && current.command === "hivelore" && (!Array.isArray(current.args) || current.args[0] !== "mcp")) {
+      throw new Error("Hivelore needs arguments mcp --stdio. Correct the entry in client MCP settings; file left unchanged.");
+    }
+    const legacy = object(servers.haive) && isLegacyMcpCommand(servers.haive.command);
+    const stale = object(current) && isLegacyMcpCommand(current.command);
+    if (current && !stale && !root && !legacy) return { ...base, status: "already_configured" };
+    // Preserve customized working transports and all client-specific options.
+    // Refresh the project root only on entries we recognize as the bundled server.
+    const bundled = object(current) && current.command === "hivelore" && Array.isArray(current.args) && current.args[0] === "mcp";
+    if (!current || stale || (root && bundled)) {
+      const env = object(current) && object(current.env) ? current.env : {};
+      servers.hivelore = {
+        ...(object(current) ? current : {}),
+        command: "hivelore", args: ["mcp", "--stdio", ...(root ? ["--dir", root] : [])],
+        ...(target.type ? { type: target.type } : {}),
+        ...(root ? { env: { ...env, HAIVE_PROJECT_ROOT: root, HIVELORE_PROJECT_ROOT: root } } : {}),
+      };
+    }
+    const options = { formattingOptions: { insertSpaces: true, tabSize: 2 } };
+    let updated = raw;
+    if (JSON.stringify(current) !== JSON.stringify(servers.hivelore)) {
+      updated = applyEdits(updated, modify(updated, [target.key, "hivelore"], servers.hivelore, options));
+    }
+    if (legacy) updated = applyEdits(updated, modify(updated, [target.key, "haive"], undefined, options));
+    if (updated === raw) return { ...base, status: "already_configured" };
+    await mkdir(path.dirname(target.file), { recursive: true });
+    await writeFile(target.file, updated, "utf8");
+    return { ...base, status: "configured" };
+  } catch (error) {
+    return { ...base, status: "error", error: `Could not configure ${target.file}: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
 
 export async function autoConfigureMcpClients(): Promise<ConfigureResult[]> {
   const results: ConfigureResult[] = [];
-  const configurators = [configureCursor, configureVSCode, configureClaude, configureWindsurf];
-  for (const fn of configurators) {
-    try {
-      results.push(await fn());
-    } catch (err) {
-      const name = fn.name.replace("configure", "");
-      results.push({ client: name, status: "error", error: String(err) });
-    }
+  for (const target of userTargets()) {
+    if (installed(target)) results.push(await configureJson(target));
+  }
+  results.push(configureCodexMcp());
+  return results;
+}
+export async function configureProjectMcpClients(root: string): Promise<ConfigureResult[]> {
+  const results: ConfigureResult[] = [];
+  for (const target of projectTargets(root)) results.push(await configureJson(target, root));
+  // Generated configurations carry machine-specific roots. Keep newly generated files local.
+  if (existsSync(path.join(root, ".git"))) {
+    const ignorePath = path.join(root, ".gitignore");
+    const existing = existsSync(ignorePath) ? await readFile(ignorePath, "utf8") : "";
+    const lines = new Set(existing.split(/\r?\n/).map((line) => line.trim()));
+    const missing = results.filter((r) => r.status !== "error" && r.path)
+      .map((r) => path.relative(root, r.path!).split(path.sep).join("/"))
+      .filter((file) => !lines.has(file) && !lines.has(`/${file}`));
+    if (missing.length) await writeFile(ignorePath, existing + (existing.endsWith("\n") || !existing ? "" : "\n") + missing.join("\n") + "\n", "utf8");
   }
   return results;
 }
 
-/** A user-scope MCP config file and the JSON key its servers live under. */
-const USER_SCOPE_CONFIGS: Array<{ client: string; file: string; key: "mcpServers" | "servers" }> = [
-  { client: "Claude Code (user)", file: path.join(HOME, ".claude.json"), key: "mcpServers" },
-  { client: "Claude Code (user)", file: path.join(HOME, ".config", "claude", "claude.json"), key: "mcpServers" },
-  { client: "Cursor (user)", file: path.join(HOME, ".cursor", "mcp.json"), key: "mcpServers" },
-  { client: "Windsurf (user)", file: path.join(HOME, ".codeium", "windsurf", "mcp_config.json"), key: "mcpServers" },
-];
-
-/** Legacy commands left by the haive → hivelore rename. They no longer exist on any PATH. */
-function isDeadLegacyCommand(command: unknown): boolean {
-  return typeof command === "string" && /(?:^|[\\/])haive(?:-mcp)?$/.test(command.trim());
-}
-
-export interface LegacyMcpSweepResult {
+export interface McpConfigInspection {
   client: string;
   path: string;
-  /** Server keys removed from that file. */
-  removed: string[];
-  error?: string;
+  present: boolean;
+  configured: boolean;
+  status: "missing" | "configured" | "stale" | "disabled" | "invalid";
+}
+export async function inspectProjectMcpClients(root: string): Promise<McpConfigInspection[]> {
+  return inspectTargets(projectTargets(root));
+}
+export async function inspectUserMcpClients(): Promise<McpConfigInspection[]> {
+  return inspectTargets(userTargets().filter(installed));
+}
+async function inspectTargets(targets: ConfigTarget[]): Promise<McpConfigInspection[]> {
+  return Promise.all(targets.map(async (target) => {
+    const base = { client: target.client, path: target.file, present: existsSync(target.file), configured: false };
+    try {
+      const { servers } = await readConfig(target);
+      const entry = servers.hivelore ?? servers.haive;
+      if (!entry) return { ...base, status: "missing" as const };
+      if (!object(entry)) return { ...base, status: "invalid" as const };
+      if (entry.disabled === true || entry.enabled === false) return { ...base, status: "disabled" as const };
+      if (isLegacyMcpCommand(entry.command)) return { ...base, status: "stale" as const };
+      if (entry.command === "hivelore" && (!Array.isArray(entry.args) || entry.args[0] !== "mcp")) return { ...base, status: "invalid" as const };
+      const validTransport = (typeof entry.command === "string" && entry.command.length > 0) || (typeof entry.url === "string" && entry.url.length > 0);
+      return { ...base, configured: validTransport, status: validTransport ? "configured" as const : "invalid" as const };
+    } catch { return { ...base, status: "invalid" as const }; }
+  }));
 }
 
-/**
- * Remove MCP entries left over from the `haive` → `hivelore` rename in USER-scope client configs.
- *
- * `hivelore init` has always written a correct project `.mcp.json`, so every report of "hivelore MCP
- * is unavailable" looked like a repo problem and was fixed as one — three times. The actual entry
- * lives in the user's global config, survives every reinstall, points at a binary that no longer
- * exists, and fails with `ENOENT: haive-mcp` at the start of every session in every project. Worse,
- * a stale `haive` key made the setup path report "already configured", so the tool skipped writing
- * the working one. An upgrade has to sweep BOTH scopes (field report 2026-09-04 §7.5).
- *
- * Only entries whose command is the dead binary are removed — a user who kept a working server under
- * the old name keeps it.
- */
-/** Read-only counterpart of {@link sweepLegacyUserScopeMcpEntries} — reports without writing. */
+export interface LegacyMcpSweepResult { client: string; path: string; removed: string[]; error?: string }
 export async function detectLegacyUserScopeMcpEntries(): Promise<LegacyMcpSweepResult[]> {
   const results: LegacyMcpSweepResult[] = [];
-  for (const { client, file, key } of USER_SCOPE_CONFIGS) {
-    if (!existsSync(file)) continue;
+  for (const target of userTargets().filter(installed)) {
     try {
-      const config = JSON.parse(await readFile(file, "utf8")) as Record<string, unknown>;
-      const servers = config[key] as Record<string, { command?: unknown }> | undefined;
-      if (!servers) continue;
-      const removed = Object.entries(servers)
-        .filter(([name, entry]) => name === "haive" && isDeadLegacyCommand(entry?.command))
-        .map(([name]) => name);
-      if (removed.length > 0) results.push({ client, path: file, removed });
-    } catch {
-      // A malformed user config is not this command's business to report.
-    }
+      const { servers } = await readConfig(target);
+      const removed = ["haive", "hivelore"].filter((name) => object(servers[name]) && isLegacyMcpCommand(servers[name].command));
+      if (removed.length) results.push({ client: target.client, path: target.file, removed });
+    } catch { /* Report invalid configs through inspectUserMcpClients, never delete them. */ }
   }
   return results;
 }
-
 export async function sweepLegacyUserScopeMcpEntries(): Promise<LegacyMcpSweepResult[]> {
   const results: LegacyMcpSweepResult[] = [];
-  for (const { client, file, key } of USER_SCOPE_CONFIGS) {
-    if (!existsSync(file)) continue;
-    try {
-      const raw = await readFile(file, "utf8");
-      const config = JSON.parse(raw) as Record<string, unknown>;
-      const servers = config[key] as Record<string, { command?: unknown }> | undefined;
-      if (!servers) continue;
-      const removed = Object.entries(servers)
-        .filter(([name, entry]) => name === "haive" && isDeadLegacyCommand(entry?.command))
-        .map(([name]) => name);
-      if (removed.length === 0) continue;
-      for (const name of removed) delete servers[name];
-      await writeFile(file, JSON.stringify(config, null, 2) + "\n", "utf8");
-      results.push({ client, path: file, removed });
-    } catch (err) {
-      results.push({ client, path: file, removed: [], error: String(err) });
-    }
+  for (const entry of await detectLegacyUserScopeMcpEntries()) {
+    const target = userTargets().find((t) => t.file === entry.path)!;
+    const result = await configureJson(target);
+    results.push({ ...entry, removed: result.status === "error" ? [] : entry.removed, ...(result.error ? { error: result.error } : {}) });
   }
   return results;
 }
 
-/**
- * Write project-level MCP configs that include HAIVE_PROJECT_ROOT so that
- * each AI client uses the correct project root regardless of the server's CWD.
- *
- * These files are machine-specific (absolute paths) and should be gitignored.
- * hivelore init appends them to .gitignore automatically.
- *
- * Project-level configs take precedence over user-level configs in Cursor and
- * VS Code when the workspace is opened. This is the canonical fix for the
- * "MCP server uses wrong project root in multi-project setups" bug.
- */
-export async function configureProjectMcpClients(root: string): Promise<ConfigureResult[]> {
-  const entry = projectMcpEntry(root);
-  const results: ConfigureResult[] = [];
-
-  // ── Cursor: <root>/.cursor/mcp.json ──────────────────────────────────────
-  try {
-    const cursorPath = path.join(root, ".cursor", "mcp.json");
-    let config: { mcpServers?: Record<string, unknown> } = {};
-    if (existsSync(cursorPath)) {
-      try { config = JSON.parse(await readFile(cursorPath, "utf8")); } catch { /* keep empty */ }
-    }
-    config.mcpServers ??= {};
-    delete config.mcpServers["haive"]; // legacy key superseded by "hivelore"
-    config.mcpServers["hivelore"] = entry;
-    await mkdir(path.dirname(cursorPath), { recursive: true });
-    await writeFile(cursorPath, JSON.stringify(config, null, 2) + "\n", "utf8");
-    results.push({ client: "Cursor (project)", status: "configured", path: cursorPath });
-  } catch (err) {
-    results.push({ client: "Cursor (project)", status: "error", error: String(err) });
-  }
-
-  // ── VS Code: <root>/.vscode/mcp.json ─────────────────────────────────────
-  try {
-    const vscodePath = path.join(root, ".vscode", "mcp.json");
-    let config: { servers?: Record<string, unknown> } = {};
-    if (existsSync(vscodePath)) {
-      try { config = JSON.parse(await readFile(vscodePath, "utf8")); } catch { /* keep empty */ }
-    }
-    config.servers ??= {};
-    delete config.servers["haive"]; // legacy key superseded by "hivelore"
-    config.servers["hivelore"] = { ...entry, type: "stdio" };
-    await mkdir(path.dirname(vscodePath), { recursive: true });
-    await writeFile(vscodePath, JSON.stringify(config, null, 2) + "\n", "utf8");
-    results.push({ client: "VS Code (workspace)", status: "configured", path: vscodePath });
-  } catch (err) {
-    results.push({ client: "VS Code (workspace)", status: "error", error: String(err) });
-  }
-
-  // ── Claude Code: <root>/.mcp.json ────────────────────────────────────────
-  try {
-    const mcpPath = path.join(root, ".mcp.json");
-    let config: { mcpServers?: Record<string, unknown> } = {};
-    if (existsSync(mcpPath)) {
-      try { config = JSON.parse(await readFile(mcpPath, "utf8")); } catch { /* keep empty */ }
-    }
-    config.mcpServers ??= {};
-    delete config.mcpServers["haive"]; // legacy key superseded by "hivelore"
-    config.mcpServers["hivelore"] = { ...entry, type: "stdio" };
-    await writeFile(mcpPath, JSON.stringify(config, null, 2) + "\n", "utf8");
-    results.push({ client: "Claude Code (project)", status: "configured", path: mcpPath });
-  } catch (err) {
-    results.push({ client: "Claude Code (project)", status: "error", error: String(err) });
-  }
-
-  return results;
+/** Migrate only the Hivelore entries in a project file; do not rewrite other servers' args. */
+export async function repairLegacyProjectMcpFile(file: string): Promise<ConfigureResult> {
+  const parent = path.dirname(file);
+  const nested = [".cursor", ".vscode", ".roo", ".gemini"].includes(path.basename(parent));
+  return configureJson({ client: "Project MCP", file,
+    key: path.basename(parent) === ".vscode" ? "servers" : "mcpServers" }, nested ? path.dirname(parent) : parent);
 }

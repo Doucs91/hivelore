@@ -377,7 +377,7 @@ describe("Hivelore CLI integration", () => {
     };
     expect(cursorConfig.mcpServers["hivelore"]).toBeDefined();
     expect(cursorConfig.mcpServers["hivelore"]!.command).toBe("hivelore");
-    expect(cursorConfig.mcpServers["hivelore"]!.args).toEqual(["mcp", "--stdio"]);
+    expect(cursorConfig.mcpServers["hivelore"]!.args).toEqual(["mcp", "--stdio", "--dir", workDir]); // hivelore:allow 2026-06-05-attempt-adding-a-cli-briefing-test — reads existing config; does not add memories to the shared fixture
     expect(cursorConfig.mcpServers["hivelore"]!.env?.["HAIVE_PROJECT_ROOT"]).toBe(workDir);
   });
 
