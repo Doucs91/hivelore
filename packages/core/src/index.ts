@@ -66,3 +66,6 @@ export * from "./agent-context.js";
 export * from "./pr-review-ingest.js";
 
 export * from "./task-session.js";
+
+export * from "./compact-context.js";
+export * from "./outcomes.js";

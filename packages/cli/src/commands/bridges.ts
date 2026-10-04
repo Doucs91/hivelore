@@ -58,7 +58,7 @@ export function registerBridges(program: Command): void {
       "--only <targets>",
       "comma-separated list of targets to generate (e.g. cline,windsurf,agents)",
     )
-    .option("--max-memories <n>", "max memories to inject per bridge", "8")
+    .option("--max-memories <n>", "optional rotating breadcrumbs (default: stable navigation and hard rules)", "0")
     .option("--dry-run", "show what would change without writing")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: BridgesSyncOptions) => {
@@ -126,7 +126,7 @@ export function registerBridges(program: Command): void {
       }
 
       // ── Generate + write (delegated to the shared writer) ─────────────
-      const maxMemories = Math.max(1, Number(opts.maxMemories ?? 8));
+      const maxMemories = Math.max(0, Number(opts.maxMemories ?? 0));
       const res = await writeBridgeFiles(root, paths, { targets, maxMemories, dryRun });
 
       if (dryRun) {
@@ -154,13 +154,13 @@ export function registerBridges(program: Command): void {
     .alias("list")
     .description("List bridge targets and whether their Hivelore-managed blocks are current")
     .option("-d, --dir <dir>", "project root")
-    .option("--max-memories <n>", "max memories expected in generated bridge blocks", "8")
+    .option("--max-memories <n>", "max memories expected in generated bridge blocks", "0")
     .action(async (opts: BridgesStatusOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
       const statuses = await getBridgeFileStatuses(root, paths, {
         targets: BRIDGE_TARGETS,
-        maxMemories: Math.max(1, Number(opts.maxMemories ?? 8)),
+        maxMemories: Math.max(0, Number(opts.maxMemories ?? 0)),
       });
       console.log(ui.bold("Hivelore bridge targets:"));
       for (const status of statuses) {

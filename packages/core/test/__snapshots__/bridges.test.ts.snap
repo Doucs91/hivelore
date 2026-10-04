@@ -22,11 +22,11 @@ Keep default context small; pull deeper memories, code maps, or docs only when t
    (task + files/symbols). Treat its \`breadcrumbs\` as the first map, not as a full manual.
 2. **Drill down only if needed**: use \`mem_get\` for a surfaced memory, \`code_map\` for exact symbols,
    \`code_search\` for semantic code lookup, or \`mem_relevant_to\` once project context is already loaded.
-3. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. Capture durable repo-specific failures with \`mem_tried\`; ordinary command misses need no memory.
 4. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-5. **Before final response**, run \`hivelore enforce finish\`; fix anything it blocks before reporting done.
+5. Start a task with \`hivelore enforce session-start --mode read|local|commit|release --session-id <id>\` according to the requested scope and repository policy. Finish with \`hivelore enforce finish --session-id <id>\`. Existing release policies remain authoritative.
 
-If the hivelore MCP server is not available, tell the developer rather than silently skipping it.
+If MCP is unavailable, use \`hivelore briefing --files <paths> --task <task>\`, or read \`.ai/project-context.md\` and search \`.ai/memories/\`. Report the unavailable integration.
 
 ## Safety
 
@@ -86,11 +86,11 @@ Keep default context small; pull deeper memories, code maps, or docs only when t
    (task + files/symbols). Treat its \`breadcrumbs\` as the first map, not as a full manual.
 2. **Drill down only if needed**: use \`mem_get\` for a surfaced memory, \`code_map\` for exact symbols,
    \`code_search\` for semantic code lookup, or \`mem_relevant_to\` once project context is already loaded.
-3. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. Capture durable repo-specific failures with \`mem_tried\`; ordinary command misses need no memory.
 4. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-5. **Before final response**, run \`hivelore enforce finish\`; fix anything it blocks before reporting done.
+5. Start a task with \`hivelore enforce session-start --mode read|local|commit|release --session-id <id>\` according to the requested scope and repository policy. Finish with \`hivelore enforce finish --session-id <id>\`. Existing release policies remain authoritative.
 
-If the hivelore MCP server is not available, tell the developer rather than silently skipping it.
+If MCP is unavailable, use \`hivelore briefing --files <paths> --task <task>\`, or read \`.ai/project-context.md\` and search \`.ai/memories/\`. Report the unavailable integration.
 
 ## Safety
 
@@ -150,11 +150,11 @@ Keep default context small; pull deeper memories, code maps, or docs only when t
    (task + files/symbols). Treat its \`breadcrumbs\` as the first map, not as a full manual.
 2. **Drill down only if needed**: use \`mem_get\` for a surfaced memory, \`code_map\` for exact symbols,
    \`code_search\` for semantic code lookup, or \`mem_relevant_to\` once project context is already loaded.
-3. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. Capture durable repo-specific failures with \`mem_tried\`; ordinary command misses need no memory.
 4. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-5. **Before final response**, run \`hivelore enforce finish\`; fix anything it blocks before reporting done.
+5. Start a task with \`hivelore enforce session-start --mode read|local|commit|release --session-id <id>\` according to the requested scope and repository policy. Finish with \`hivelore enforce finish --session-id <id>\`. Existing release policies remain authoritative.
 
-If the hivelore MCP server is not available, tell the developer rather than silently skipping it.
+If MCP is unavailable, use \`hivelore briefing --files <paths> --task <task>\`, or read \`.ai/project-context.md\` and search \`.ai/memories/\`. Report the unavailable integration.
 
 ## Safety
 
@@ -214,11 +214,11 @@ Keep default context small; pull deeper memories, code maps, or docs only when t
    (task + files/symbols). Treat its \`breadcrumbs\` as the first map, not as a full manual.
 2. **Drill down only if needed**: use \`mem_get\` for a surfaced memory, \`code_map\` for exact symbols,
    \`code_search\` for semantic code lookup, or \`mem_relevant_to\` once project context is already loaded.
-3. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. Capture durable repo-specific failures with \`mem_tried\`; ordinary command misses need no memory.
 4. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-5. **Before final response**, run \`hivelore enforce finish\`; fix anything it blocks before reporting done.
+5. Start a task with \`hivelore enforce session-start --mode read|local|commit|release --session-id <id>\` according to the requested scope and repository policy. Finish with \`hivelore enforce finish --session-id <id>\`. Existing release policies remain authoritative.
 
-If the hivelore MCP server is not available, tell the developer rather than silently skipping it.
+If MCP is unavailable, use \`hivelore briefing --files <paths> --task <task>\`, or read \`.ai/project-context.md\` and search \`.ai/memories/\`. Report the unavailable integration.
 
 ## Safety
 
@@ -278,11 +278,11 @@ Keep default context small; pull deeper memories, code maps, or docs only when t
    (task + files/symbols). Treat its \`breadcrumbs\` as the first map, not as a full manual.
 2. **Drill down only if needed**: use \`mem_get\` for a surfaced memory, \`code_map\` for exact symbols,
    \`code_search\` for semantic code lookup, or \`mem_relevant_to\` once project context is already loaded.
-3. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. Capture durable repo-specific failures with \`mem_tried\`; ordinary command misses need no memory.
 4. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-5. **Before final response**, run \`hivelore enforce finish\`; fix anything it blocks before reporting done.
+5. Start a task with \`hivelore enforce session-start --mode read|local|commit|release --session-id <id>\` according to the requested scope and repository policy. Finish with \`hivelore enforce finish --session-id <id>\`. Existing release policies remain authoritative.
 
-If the hivelore MCP server is not available, tell the developer rather than silently skipping it.
+If MCP is unavailable, use \`hivelore briefing --files <paths> --task <task>\`, or read \`.ai/project-context.md\` and search \`.ai/memories/\`. Report the unavailable integration.
 
 ## Safety
 
@@ -342,11 +342,11 @@ Keep default context small; pull deeper memories, code maps, or docs only when t
    (task + files/symbols). Treat its \`breadcrumbs\` as the first map, not as a full manual.
 2. **Drill down only if needed**: use \`mem_get\` for a surfaced memory, \`code_map\` for exact symbols,
    \`code_search\` for semantic code lookup, or \`mem_relevant_to\` once project context is already loaded.
-3. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. Capture durable repo-specific failures with \`mem_tried\`; ordinary command misses need no memory.
 4. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-5. **Before final response**, run \`hivelore enforce finish\`; fix anything it blocks before reporting done.
+5. Start a task with \`hivelore enforce session-start --mode read|local|commit|release --session-id <id>\` according to the requested scope and repository policy. Finish with \`hivelore enforce finish --session-id <id>\`. Existing release policies remain authoritative.
 
-If the hivelore MCP server is not available, tell the developer rather than silently skipping it.
+If MCP is unavailable, use \`hivelore briefing --files <paths> --task <task>\`, or read \`.ai/project-context.md\` and search \`.ai/memories/\`. Report the unavailable integration.
 
 ## Safety
 
@@ -406,11 +406,11 @@ Keep default context small; pull deeper memories, code maps, or docs only when t
    (task + files/symbols). Treat its \`breadcrumbs\` as the first map, not as a full manual.
 2. **Drill down only if needed**: use \`mem_get\` for a surfaced memory, \`code_map\` for exact symbols,
    \`code_search\` for semantic code lookup, or \`mem_relevant_to\` once project context is already loaded.
-3. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. Capture durable repo-specific failures with \`mem_tried\`; ordinary command misses need no memory.
 4. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-5. **Before final response**, run \`hivelore enforce finish\`; fix anything it blocks before reporting done.
+5. Start a task with \`hivelore enforce session-start --mode read|local|commit|release --session-id <id>\` according to the requested scope and repository policy. Finish with \`hivelore enforce finish --session-id <id>\`. Existing release policies remain authoritative.
 
-If the hivelore MCP server is not available, tell the developer rather than silently skipping it.
+If MCP is unavailable, use \`hivelore briefing --files <paths> --task <task>\`, or read \`.ai/project-context.md\` and search \`.ai/memories/\`. Report the unavailable integration.
 
 ## Safety
 
@@ -474,11 +474,11 @@ Keep default context small; pull deeper memories, code maps, or docs only when t
    (task + files/symbols). Treat its \`breadcrumbs\` as the first map, not as a full manual.
 2. **Drill down only if needed**: use \`mem_get\` for a surfaced memory, \`code_map\` for exact symbols,
    \`code_search\` for semantic code lookup, or \`mem_relevant_to\` once project context is already loaded.
-3. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. Capture durable repo-specific failures with \`mem_tried\`; ordinary command misses need no memory.
 4. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-5. **Before final response**, run \`hivelore enforce finish\`; fix anything it blocks before reporting done.
+5. Start a task with \`hivelore enforce session-start --mode read|local|commit|release --session-id <id>\` according to the requested scope and repository policy. Finish with \`hivelore enforce finish --session-id <id>\`. Existing release policies remain authoritative.
 
-If the hivelore MCP server is not available, tell the developer rather than silently skipping it.
+If MCP is unavailable, use \`hivelore briefing --files <paths> --task <task>\`, or read \`.ai/project-context.md\` and search \`.ai/memories/\`. Report the unavailable integration.
 
 ## Safety
 
@@ -538,11 +538,11 @@ Keep default context small; pull deeper memories, code maps, or docs only when t
    (task + files/symbols). Treat its \`breadcrumbs\` as the first map, not as a full manual.
 2. **Drill down only if needed**: use \`mem_get\` for a surfaced memory, \`code_map\` for exact symbols,
    \`code_search\` for semantic code lookup, or \`mem_relevant_to\` once project context is already loaded.
-3. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. Capture durable repo-specific failures with \`mem_tried\`; ordinary command misses need no memory.
 4. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-5. **Before final response**, run \`hivelore enforce finish\`; fix anything it blocks before reporting done.
+5. Start a task with \`hivelore enforce session-start --mode read|local|commit|release --session-id <id>\` according to the requested scope and repository policy. Finish with \`hivelore enforce finish --session-id <id>\`. Existing release policies remain authoritative.
 
-If the hivelore MCP server is not available, tell the developer rather than silently skipping it.
+If MCP is unavailable, use \`hivelore briefing --files <paths> --task <task>\`, or read \`.ai/project-context.md\` and search \`.ai/memories/\`. Report the unavailable integration.
 
 ## Safety
 
@@ -602,11 +602,11 @@ Keep default context small; pull deeper memories, code maps, or docs only when t
    (task + files/symbols). Treat its \`breadcrumbs\` as the first map, not as a full manual.
 2. **Drill down only if needed**: use \`mem_get\` for a surfaced memory, \`code_map\` for exact symbols,
    \`code_search\` for semantic code lookup, or \`mem_relevant_to\` once project context is already loaded.
-3. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. Capture durable repo-specific failures with \`mem_tried\`; ordinary command misses need no memory.
 4. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-5. **Before final response**, run \`hivelore enforce finish\`; fix anything it blocks before reporting done.
+5. Start a task with \`hivelore enforce session-start --mode read|local|commit|release --session-id <id>\` according to the requested scope and repository policy. Finish with \`hivelore enforce finish --session-id <id>\`. Existing release policies remain authoritative.
 
-If the hivelore MCP server is not available, tell the developer rather than silently skipping it.
+If MCP is unavailable, use \`hivelore briefing --files <paths> --task <task>\`, or read \`.ai/project-context.md\` and search \`.ai/memories/\`. Report the unavailable integration.
 
 ## Safety
 
@@ -666,11 +666,11 @@ Keep default context small; pull deeper memories, code maps, or docs only when t
    (task + files/symbols). Treat its \`breadcrumbs\` as the first map, not as a full manual.
 2. **Drill down only if needed**: use \`mem_get\` for a surfaced memory, \`code_map\` for exact symbols,
    \`code_search\` for semantic code lookup, or \`mem_relevant_to\` once project context is already loaded.
-3. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. Capture durable repo-specific failures with \`mem_tried\`; ordinary command misses need no memory.
 4. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-5. **Before final response**, run \`hivelore enforce finish\`; fix anything it blocks before reporting done.
+5. Start a task with \`hivelore enforce session-start --mode read|local|commit|release --session-id <id>\` according to the requested scope and repository policy. Finish with \`hivelore enforce finish --session-id <id>\`. Existing release policies remain authoritative.
 
-If the hivelore MCP server is not available, tell the developer rather than silently skipping it.
+If MCP is unavailable, use \`hivelore briefing --files <paths> --task <task>\`, or read \`.ai/project-context.md\` and search \`.ai/memories/\`. Report the unavailable integration.
 
 ## Safety
 
@@ -730,11 +730,11 @@ Keep default context small; pull deeper memories, code maps, or docs only when t
    (task + files/symbols). Treat its \`breadcrumbs\` as the first map, not as a full manual.
 2. **Drill down only if needed**: use \`mem_get\` for a surfaced memory, \`code_map\` for exact symbols,
    \`code_search\` for semantic code lookup, or \`mem_relevant_to\` once project context is already loaded.
-3. **When an approach fails**, call \`mem_tried\` right away so the next agent skips the dead end.
+3. Capture durable repo-specific failures with \`mem_tried\`; ordinary command misses need no memory.
 4. **Before closing** a substantive session, run the \`post_task\` prompt to capture what was learned.
-5. **Before final response**, run \`hivelore enforce finish\`; fix anything it blocks before reporting done.
+5. Start a task with \`hivelore enforce session-start --mode read|local|commit|release --session-id <id>\` according to the requested scope and repository policy. Finish with \`hivelore enforce finish --session-id <id>\`. Existing release policies remain authoritative.
 
-If the hivelore MCP server is not available, tell the developer rather than silently skipping it.
+If MCP is unavailable, use \`hivelore briefing --files <paths> --task <task>\`, or read \`.ai/project-context.md\` and search \`.ai/memories/\`. Report the unavailable integration.
 
 ## Safety
 

@@ -1,3 +1,4 @@
+import { hasQualifiedSymbol } from "./ast-parser.js";
 import { readFile, readdir, stat, realpath } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -111,7 +112,8 @@ export async function verifyAnchor(
       for (const file of existingAbsPaths) {
         try {
           const contents = await readFile(file, "utf8");
-          if (contents.includes(sym)) {
+          const qualified = sym.includes(".") ? await hasQualifiedSymbol(contents, path.extname(file), sym) : null;
+          if (qualified === true || (qualified === null && contents.includes(sym))) {
             found = true;
             break;
           }

@@ -43,8 +43,8 @@ export function registerMemoryVerify(memory: Command): void {
       "    hivelore memory verify --id 2026-04-28-gotcha-x # check one memory\n",
     )
     .option("--id <id>", "verify a single memory by id")
-    .option("--all", "verify every memory (default if --id is omitted)")
-    .option("--update", "write status=stale or status=validated back to disk")
+    .option("--all", "also display successful and anchorless checks")
+    .option("--update", "mark stale records; restore repaired anchors to proposed, not validated")
     .option("--json", "emit machine-readable JSON (for CI / agents)")
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: VerifyOptions) => {
@@ -85,7 +85,7 @@ export function registerMemoryVerify(memory: Command): void {
         const result = await verifyAnchor(mem, { projectRoot: root });
         const isAnchored =
           mem.frontmatter.anchor.paths.length > 0 ||
-          mem.frontmatter.anchor.symbols.length > 0;
+          mem.frontmatter.anchor.symbols.length > 0 || Boolean(mem.frontmatter.checks?.length);
         const rel = path.relative(root, filePath);
 
         if (!isAnchored) {
@@ -114,7 +114,7 @@ export function registerMemoryVerify(memory: Command): void {
         } else {
           freshCount++;
           entries.push({ id: mem.frontmatter.id, status: "fresh", path: rel });
-          if (!opts.json) console.log(`${ui.dim("fresh")}  ${mem.frontmatter.id}`);
+          if (!opts.json && opts.all) console.log(`${ui.dim("fresh")}  ${mem.frontmatter.id}`);
         }
 
         if (opts.update) {
@@ -146,7 +146,7 @@ export function registerMemoryVerify(memory: Command): void {
       ];
       if (opts.update) summary.push(`${updated} updated on disk`);
       ui.info(summary.join(" · "));
-      if (anchorlessIds.length > 0) {
+      if (anchorlessIds.length > 0 && opts.all) {
         console.log(
           ui.dim(
             `Anchorless memories (no paths/symbols — staleness cannot be detected):\n` +
@@ -177,8 +177,8 @@ function applyVerification(
   // Reset stale_reason when re-validating; keep validated/proposed status as is,
   // promote draft→validated when verification passes.
   const nextStatus =
-    mem.frontmatter.status === "stale" || mem.frontmatter.status === "draft"
-      ? "validated"
+    mem.frontmatter.status === "stale"
+      ? "proposed"
       : mem.frontmatter.status;
   return {
     frontmatter: {

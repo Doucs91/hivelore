@@ -2,6 +2,7 @@ import { findProjectRoot, resolveHaivePaths, type HaivePaths } from "@hivelore/c
 
 export interface HaiveContext {
   paths: HaivePaths;
+  sessionId?: string;
 }
 
 export interface CreateContextOptions {

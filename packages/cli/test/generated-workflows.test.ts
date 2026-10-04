@@ -75,9 +75,10 @@ describe("generated GitHub Actions workflows", () => {
       expect(doc.on!.pull_request ?? null).toBeNull();
     });
 
-    it("refreshes the agent breadcrumbs, not only .ai/", () => {
-      expect(CI_WORKFLOW).toContain("hivelore sync --since HEAD~1");
-      expect(CI_WORKFLOW).toContain("hivelore bridges sync");
+    it("never writes or pushes team knowledge from CI", () => {
+      expect(CI_WORKFLOW).not.toContain("git push");
+      expect(CI_WORKFLOW).not.toContain("contents: write");
+      expect(CI_WORKFLOW).toContain("hivelore memory verify --json");
     });
   });
 });

@@ -82,7 +82,7 @@ export async function writeBridgeFiles(
     });
   }
 
-  const maxMemories = Math.max(1, opts.maxMemories ?? 8);
+  const maxMemories = Math.max(0, opts.maxMemories ?? 0);
   const eligible = [];
   for (const memory of memories) {
     if (!memory.frontmatter.checks?.length || !(await verifyAnchor(memory, { projectRoot: root })).stale) eligible.push(memory);
@@ -181,7 +181,7 @@ export async function getBridgeFileStatuses(
     if (!memory.frontmatter.checks?.length || !(await verifyAnchor(memory, { projectRoot: root })).stale) eligible.push(memory);
   }
   const outputs = generateBridges(eligible, sensors, {
-    maxMemories: Math.max(1, opts.maxMemories ?? 8),
+    maxMemories: Math.max(0, opts.maxMemories ?? 0),
     targets: opts.targets,
   });
 

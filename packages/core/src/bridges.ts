@@ -177,7 +177,7 @@ function renderMemoriesBlock(topMemories: BridgeMemoryEntry[]): string {
     "",
   ];
   if (topMemories.length === 0) {
-    lines.push("_(no validated memories yet — run `hivelore sync` to populate)_");
+    lines.push("Read `.ai/project-context.md`; request file-specific context with `get_briefing` or `hivelore briefing --files <paths> --task <task>`.");
   } else {
     for (const m of topMemories) {
       // Path-scoping: surface the files a lesson applies to so the agent knows
@@ -240,11 +240,11 @@ const HAIVE_PREAMBLE =
   "   (task + files/symbols). Treat its `breadcrumbs` as the first map, not as a full manual.\n" +
   "2. **Drill down only if needed**: use `mem_get` for a surfaced memory, `code_map` for exact symbols,\n" +
   "   `code_search` for semantic code lookup, or `mem_relevant_to` once project context is already loaded.\n" +
-  "3. **When an approach fails**, call `mem_tried` right away so the next agent skips the dead end.\n" +
+  "3. Capture durable repo-specific failures with `mem_tried`; ordinary command misses need no memory.\n" +
   "4. **Before closing** a substantive session, run the `post_task` prompt to capture what was learned.\n" +
-  "5. **Before final response**, run `hivelore enforce finish`; fix anything it blocks before reporting done.\n" +
+  "5. Start a task with `hivelore enforce session-start --mode read|local|commit|release --session-id <id>` according to the requested scope and repository policy. Finish with `hivelore enforce finish --session-id <id>`. Existing release policies remain authoritative.\n" +
   "\n" +
-  "If the hivelore MCP server is not available, tell the developer rather than silently skipping it.\n" +
+  "If MCP is unavailable, use `hivelore briefing --files <paths> --task <task>`, or read `.ai/project-context.md` and search `.ai/memories/`. Report the unavailable integration.\n" +
   "\n" +
   "## Safety\n" +
   "\n" +

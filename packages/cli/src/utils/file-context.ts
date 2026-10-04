@@ -1,8 +1,9 @@
 import path from "node:path";
 import {
+  completeExcerpt, estimateTokens, recordKnowledgeOutcome,
   loadMemoriesFromDir, memoryMatchesAnchorPaths, isRetiredMemory, verifyAnchor,
   readSessionBriefingMarker, writeBriefingMarker, trackReads, supersededMemoryIds,
-  normalizeSessionId, extractActionsBriefBody, type HaivePaths,
+  normalizeSessionId, type HaivePaths,
 } from "@hivelore/core";
 import { sessionIdentity } from "./task-session.js";
 
@@ -32,13 +33,25 @@ export async function injectFileContext(paths: HaivePaths, files: string[], sess
     if (displayed.length === 3) break;
   }
   if (!displayed.length) return null;
-  const text = ["Hivelore — relevant team policy for this edit", ...displayed.map(({ memory: m }) =>
-    `${m.frontmatter.id}${m.frontmatter.requires_human_approval ? " — HUMAN CONFIRMATION REQUIRED" : ""}\n` +
-    `Applies to: ${relative.filter(f => memoryMatchesAnchorPaths(m, [f])).slice(0, 3).join(", ")}\n` +
-    extractActionsBriefBody(m.body).trim().slice(0, 400))].join("\n\n");
-  const ids = displayed.map(m => m.memory.frontmatter.id);
+  const chunks = ["Hivelore — relevant team policy for this edit"];
+  const ids: string[] = [];
+  for (const { memory: m, filePath } of displayed) {
+    const source = path.relative(paths.root, filePath).replace(/\\/g, "/");
+    const body = completeExcerpt(m.body.replace(/^#+[^\n]*\n/gm, "").trim(), 420);
+    const entry = `${m.frontmatter.id}${m.frontmatter.requires_human_approval ? " — HUMAN CONFIRMATION REQUIRED" : ""}\n` +
+      `Applies to: ${relative.filter(f => memoryMatchesAnchorPaths(m, [f])).slice(0, 3).join(", ")}\n` +
+      `Evidence: ${m.frontmatter.evidence ?? "unverified claim"}. Source: ${source}\n` +
+      (body || "Read the source before editing: this instruction exceeds the context budget.");
+    if (estimateTokens([...chunks, entry].join("\n\n")) > 300) continue;
+    chunks.push(entry);
+    // A pointer alone is not consultation of the actual instruction.
+    if (body) ids.push(m.frontmatter.id);
+  }
+  if (chunks.length === 1) return null;
+  const text = chunks.join("\n\n");
   await writeBriefingMarker(paths, { sessionId: id, task: marker?.task ?? "file context",
     source: "haive-pre-edit", files: relative, memoryIds: [...consulted, ...ids] });
   await trackReads(paths, ids);
+  for (const memoryId of ids) await recordKnowledgeOutcome(paths, { id: memoryId, kind: "exposed", session_id: id, files: relative, source: "hook", evidence: "observed" }).catch(() => {});
   return text;
 }

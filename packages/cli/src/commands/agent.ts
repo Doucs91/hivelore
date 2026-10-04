@@ -1,6 +1,7 @@
+import { exerciseHarness } from "../utils/harness-proof.js";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
@@ -16,6 +17,7 @@ interface AgentOptions {
   yes?: boolean;
   global?: boolean;
   noGlobal?: boolean;
+  exercise?: boolean;
 }
 
 interface AgentDetection {
@@ -23,6 +25,7 @@ interface AgentDetection {
   initialized: boolean;
   project_mcp: McpConfigInspection[];
   session_connection: "unverified";
+  recent_mcp_access?: unknown;
   codex_mcp: ReturnType<typeof inspectCodexMcp>;
   installed_agents: Array<{ agent: string; command: string; installed: boolean; mcp_configured?: boolean }>;
   recommended_mode: "mcp" | "wrapped" | "fallback";
@@ -66,14 +69,18 @@ export function registerAgent(program: Command): void {
     .command("check")
     .description("Test MCP initialization and tool discovery (does not prove access inside your AI session).")
     .option("-d, --dir <dir>", "project root")
+    .option("--exercise", "exercise context delivery, validated sensor GREEN/RED and hook latency in a disposable repository")
     .option("--json", "emit JSON", false)
     .action(async (opts: AgentOptions) => {
       const root = findProjectRoot(opts.dir);
       const result = await checkMcpServer(root, path.resolve(process.argv[1]!));
-      if (opts.json) console.log(JSON.stringify(result, null, 2));
+      const exercise = opts.exercise ? await exerciseHarness(path.resolve(process.argv[1]!)) : undefined;
+      if (exercise && !exercise.passed) process.exitCode = 1;
+      if (opts.json) console.log(JSON.stringify({ ...result, ...(exercise ? { exercise } : {}) }, null, 2));
       else {
-        if (result.server_reachable) ui.success(`MCP server ${result.server_version}: ${result.tools.length} tools discovered.`);
+        if (result.server_reachable) ui.success(`MCP server ${result.server_version}: ${result.tools.length} tools discovered; briefing exercised=${result.briefing_exercised}.`);
         else ui.error(`MCP handshake failed: ${result.error}`);
+        if (exercise) console.log(JSON.stringify(exercise, null, 2));
         ui.info("Session connection remains unverified. Restart your AI client, inspect its MCP list, then call get_briefing.");
       }
       if (!result.server_reachable) process.exitCode = 1;
@@ -169,6 +176,7 @@ export async function detectAgentMode(dir?: string): Promise<AgentDetection> {
     initialized: existsSync(paths.haiveDir),
     project_mcp: projectMcp,
     session_connection: "unverified",
+    recent_mcp_access: await readFile(path.join(paths.runtimeDir, "enforcement", "mcp-access.json"), "utf8").then(raw => JSON.parse(raw)).catch(() => null),
     codex_mcp: codex,
     installed_agents: installedAgents,
     recommended_mode: recommendedMode,
@@ -238,6 +246,7 @@ function printDetection(detection: AgentDetection, json: boolean): void {
     console.log(`${marker} ${agent.agent} (${agent.command})${mcp}`);
   }
   console.log(`Codex MCP: ${detection.codex_mcp.status}`);
+  if (detection.recent_mcp_access) console.log(`Recent MCP access: ${JSON.stringify(detection.recent_mcp_access)}`);
   console.log("Session connection: unverified. Restart the client and call get_briefing to confirm access.");
   console.log(ui.bold(`Recommended mode: ${detection.recommended_mode}`));
   console.log(`  ${detection.recommended_command}`);

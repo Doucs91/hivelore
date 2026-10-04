@@ -15,6 +15,9 @@ export interface TaskSession {
   head: string;
   started_at: string;
   mode?: CompletionMode;
+  task?: string;
+  next_steps?: string;
+  accomplished?: string;
   baseline: Record<string, string>;
   observed: Record<string, string>;
 }
@@ -93,12 +96,12 @@ export async function saveTaskSession(paths: HaivePaths, state: TaskSession, id?
 }
 
 /** Called only at an explicit task/session start, before any edit. */
-export async function startTaskSession(paths: HaivePaths, id?: string, mode?: CompletionMode): Promise<TaskSession> {
+export async function startTaskSession(paths: HaivePaths, id?: string, mode?: CompletionMode, task?: string): Promise<TaskSession> {
   const baseline = await worktreeSnapshot(paths.root);
   const branch = (await gitText(paths.root, ["symbolic-ref", "--short", "-q", "HEAD"]).catch(() => "")).trim();
   const head = (await gitText(paths.root, ["rev-parse", "HEAD"]).catch(() => "")).trim();
   const state: TaskSession = { version: 1, root: paths.root, branch, head,
-    started_at: new Date().toISOString(), baseline, observed: baseline, ...(mode ? { mode } : {}) };
+    started_at: new Date().toISOString(), baseline, observed: baseline, ...(mode ? { mode } : {}), ...(task ? { task } : {}) };
   await saveTaskSession(paths, state, id);
   return state;
 }

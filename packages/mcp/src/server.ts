@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -380,6 +381,7 @@ export function createHaiveServer(
   options: CreateContextOptions = {},
 ): { server: McpServer; context: HaiveContext; tracker: SessionTracker } {
   const context = createContext(options);
+  context.sessionId = options.env?.HIVELORE_SESSION_ID ?? process.env.HIVELORE_SESSION_ID ?? process.env.CLAUDE_SESSION_ID ?? randomUUID();
   const config = loadConfigSync(context.paths);
   const toolProfile =
     (options.env?.HIVELORE_TOOL_PROFILE as ToolProfile | undefined) ??
@@ -425,6 +427,15 @@ export function createHaiveServer(
         if (BRIEFING_TOOLS.has(name)) {
           const result = await handler(input as TInput);
           briefingLoaded = true;
+          const client = server.server.getClientVersion();
+          if (client && client.name !== "hivelore-diagnostic") {
+            const receiptDir = path.join(context.paths.runtimeDir, "enforcement");
+            await mkdir(receiptDir, { recursive: true }).then(() => writeFile(path.join(receiptDir, "mcp-access.json"), JSON.stringify({
+              at: new Date().toISOString(), client: client.name, tool: name,
+              session_id: (input as { session_id?: string }).session_id ?? context.sessionId,
+              evidence: "Successful MCP request; not proof that another or later session is connected.",
+            }))).catch(() => {});
+          }
           tracker.record(name, toolSummary(input, result));
           return result;
         }

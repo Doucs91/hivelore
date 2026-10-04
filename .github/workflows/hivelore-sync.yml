@@ -1,146 +1,58 @@
 name: hivelore-sync
-
 on:
   push:
-    branches: [main, master]
-  # Every PR, whatever its target branch — this repo merges into develop (see
-  # convention-git-workflow-develop-vers-main), so PR checks must run there too.
+    branches: [main, master, develop]
   pull_request:
-
+permissions:
+  contents: read
 jobs:
-  # On push to main/master: sync anchors + auto-promote + commit changes
-  sync-on-merge:
-    if: github.event_name == 'push'
+  memory-health:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - uses: pnpm/action-setup@v4
         with:
           version: 9.14.2
-
-      # Build the CLI from this repo — the published package can lag the repo
-      # (and did not exist at all during the @hiveai → @hivelore rename).
       - name: build hivelore from repo
         run: |
           pnpm install --frozen-lockfile
           pnpm -r build
-          echo "$(pwd)/scripts" >> "$GITHUB_PATH"
-          mkdir -p scripts && printf '#!/bin/sh\nexec node "%s/packages/cli/dist/index.js" "$@"\n' "$(pwd)" > scripts/hivelore && chmod +x scripts/hivelore
-
-      - name: refresh memory anchors + auto-promote
-        run: hivelore sync --since HEAD~1 || true
-
-      - name: commit updated memories (if any)
+      - name: inspect memory health (read only)
+        shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .ai/
-          git diff --cached --quiet || git commit -m "chore: hivelore sync [skip ci]"
-          git push
-
-  # On pull request: warn if PR touches files that would invalidate memories
-  pr-stale-check:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
+          set +e
+          node packages/cli/dist/index.js memory verify --json > /tmp/hivelore-health.json
+          status=$?
+          set -e
+          node -e 'const r=JSON.parse(require("fs").readFileSync("/tmp/hivelore-health.json","utf8")); if (!r.summary || r.error) process.exit(2); const stale=r.results.filter(x=>x.status==="stale"); console.log(stale.length ? stale.slice(0,5).map(x=>x.id+": "+x.reason).join("\n") : "No stale anchors detected. Anchor presence does not prove every claim.");' >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -gt 1 ]; then exit "$status"; fi
+      - uses: actions/upload-artifact@v4
         with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.14.2
-
-      # Build the CLI from this repo — the published package can lag the repo
-      # (and did not exist at all during the @hiveai → @hivelore rename).
-      - name: build hivelore from repo
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm -r build
-          echo "$(pwd)/scripts" >> "$GITHUB_PATH"
-          mkdir -p scripts && printf '#!/bin/sh\nexec node "%s/packages/cli/dist/index.js" "$@"\n' "$(pwd)" > scripts/hivelore && chmod +x scripts/hivelore
-
-      - name: verify memory anchors touched by this PR
-        id: verify
-        env:
-          NO_COLOR: '1'
-        run: |
-          hivelore memory verify 2>&1 | sed -r 's/\x1b\[[0-9;]*m//g' | tee /tmp/hivelore-verify.txt || true
-          # Read the real count ("… · N stale · …"), not lines containing the word "stale".
-          STALE=$(grep -oE '[0-9]+ stale' /tmp/hivelore-verify.txt | grep -oE '^[0-9]+' | head -1)
-          echo "stale_count=${STALE:-0}" >> "$GITHUB_OUTPUT"
-
-      - name: comment on PR if stale memories detected
-        if: steps.verify.outputs.stale_count != '0'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const report = fs.readFileSync('/tmp/hivelore-verify.txt', 'utf8').trim();
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `### hivelore — Stale memories detected\n\nSome memories anchored to code modified in this PR may be outdated:\n\n\`\`\`\n${report}\n\`\`\`\n\nRun \`hivelore memory verify --update\` locally to refresh them before merging.`
-            });
-
-  # ── Hivelore PR Memory Check ─────────────────────────────────────────────────
-  # Posts a comment on every PR surfacing memories relevant to the changed files.
-  # Reviewers and AI agents see gotchas, conventions, and action_required items
-  # before they start coding.
+          name: hivelore-memory-health
+          path: /tmp/hivelore-health.json
+      - name: harness regression gate
+        if: hashFiles('.ai/eval/baseline.json') != ''
+        run: node packages/cli/dist/index.js eval --regression-gate
+      - name: unconfigured regression gate
+        if: hashFiles('.ai/eval/baseline.json') == ''
+        run: echo "Regression gate not configured; no quality result claimed." >> "$GITHUB_STEP_SUMMARY"
   pr-memory-check:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
       contents: read
+      pull-requests: write
     steps:
-      # Enough history for the action to measure which files EVERY PR touches (a roadmap, a
-      # changelog): those carry no information in a diff and are excluded from memory matching.
-      # With a shallow checkout the measurement is skipped, never guessed.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 100
-
+          persist-credentials: false
       - uses: Doucs91/hivelore/packages/github-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # post-if-empty: 'true'   # uncomment to always post (even when no memories found)
-          # max-memories: '5'       # limit memories per file in the comment
-
-  # On push to main: push shared memories to the hub (if hubPath is configured)
-  # Uncomment and configure hubPath in .ai/hivelore.config.json to enable.
-  # hub-push:
-  #   if: github.event_name == 'push'
-  #   needs: sync-on-merge
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     contents: write
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
-  #     - uses: actions/setup-node@v4
-  #       with:
-  #         node-version: '20'
-  #     - name: install hivelore
-  #       run: npm install -g @hivelore/cli
-  #     - name: push shared memories to hub
-  #       run: hivelore hub push --commit
-  #       # Requires hubPath in .ai/hivelore.config.json pointing to a cloned hub repo.
+          max-memories: '5'

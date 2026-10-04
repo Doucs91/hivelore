@@ -463,3 +463,27 @@ function childIsKeyword(node: Parser.SyntaxNode, keyword: string): boolean {
   }
   return false;
 }
+
+/** Qualified anchors refer to declarations (Class.field), not a literal dotted string. */
+export async function hasQualifiedSymbol(source: string, ext: string, symbol: string): Promise<boolean | null> {
+  const grammar = GRAMMAR_BY_EXT[ext];
+  if (!grammar || !(await ensureInit()) || !parser) return null;
+  const lang = await getLanguage(grammar);
+  if (!lang) return null;
+  parser.setLanguage(lang);
+  const tree = parser.parse(source);
+  try {
+    if (tree.rootNode.hasError) return null;
+    const parts = symbol.split(".");
+    const find = (node: Parser.SyntaxNode, rest: string[]): boolean => {
+      let found = false;
+      walk(node, candidate => {
+        if (found || /comment|string/.test(candidate.type)) return;
+        if (candidate.childForFieldName("name")?.text !== rest[0]) return;
+        if (rest.length === 1 || find(candidate, rest.slice(1))) found = true;
+      });
+      return found;
+    };
+    return find(tree.rootNode, parts);
+  } finally { tree.delete(); }
+}

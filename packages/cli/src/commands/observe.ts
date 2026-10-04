@@ -72,6 +72,8 @@ function buildSummary(payload: HookPayload): string {
 }
 
 async function readStdin(maxBytes: number): Promise<string> {
+  const buffered = (globalThis as { hiveloreHookPayload?: string }).hiveloreHookPayload;
+  if (buffered !== undefined) return buffered;
   if (process.stdin.isTTY) return "";
   return await new Promise((resolve) => {
     const chunks: Buffer[] = [];
@@ -225,7 +227,7 @@ export function registerObserve(program: Command): void {
             const branch = (await gitText(root, ["symbolic-ref", "--short", "-q", "HEAD"]).catch(() => "")).trim();
             if (branch === state.branch) {
               const current = await worktreeSnapshot(root);
-              files = [...new Set([...files, ...changedSince(state.observed, current)])];
+              files = changedSince(state.observed, current).filter(file => !file.startsWith(".ai/") && !["AGENTS.md", "CLAUDE.md", "GEMINI.md"].includes(file));
               await saveTaskSession(paths, { ...state, observed: current }, payload.session_id);
               const context = await injectFileContext(paths, files, payload.session_id);
               if (context) console.log(JSON.stringify({ hookSpecificOutput: {

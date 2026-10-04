@@ -1,8 +1,7 @@
 import { existsSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
 import { Command } from "commander";
 import {
-  applyFeedbackAdjustment,
+  recordKnowledgeOutcome,
   computeImpact,
   findProjectRoot,
   getUsage,
@@ -12,12 +11,13 @@ import {
   recommendFeedbackAdjustment,
   resolveHaivePaths,
   saveUsageIndex,
-  serializeMemory,
 } from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
 interface FeedbackOptions {
+  outcome?: "corrected" | "verified";
+  reference?: string;
   applied?: boolean;
   rejected?: boolean;
   reason?: string;
@@ -33,14 +33,16 @@ export function registerMemoryFeedback(memory: Command): void {
         "(mirror of the mem_feedback MCP tool). 'applied' = it steered your work; " +
         "'rejected' = it was wrong/unhelpful. Feeds `hivelore memory impact`.",
     )
+    .option("--outcome <kind>", "corrected | verified (reported outcome; requires --reference)")
+    .option("--reference <ref>", "commit, test report, or incident reference supporting the report")
     .option("--applied", "the memory changed what you did (positive signal)", false)
     .option("--rejected", "the memory was wrong/outdated/unhelpful (negative signal)", false)
     .option("--reason <text>", "why it was rejected (stored on the usage record)")
     .option("--json", "emit JSON", false)
     .option("-d, --dir <dir>", "project root")
     .action(async (id: string, opts: FeedbackOptions) => {
-      if (opts.applied === opts.rejected) {
-        ui.error("Specify exactly one of --applied or --rejected.");
+      if (opts.outcome ? (!["corrected", "verified"].includes(opts.outcome) || !opts.reference || opts.applied || opts.rejected) : opts.applied === opts.rejected) {
+        ui.error("Choose --applied, --rejected, or --outcome corrected|verified with --reference.");
         process.exitCode = 1;
         return;
       }
@@ -60,6 +62,12 @@ export function registerMemoryFeedback(memory: Command): void {
         return;
       }
 
+      await recordKnowledgeOutcome(paths, { id, kind: opts.outcome ?? (opts.applied ? "applied" : "rejected"),
+        source: "cli", evidence: "reported", ...(opts.reference ? { reference: opts.reference } : {}) });
+      if (opts.outcome) {
+        console.log(JSON.stringify({ id, outcome: opts.outcome, reference: opts.reference, evidence: "reported" }));
+        return;
+      }
       const index = await loadUsageIndex(paths);
       const outcome = opts.applied ? "applied" : "rejected";
       if (opts.applied) recordApplied(index, id);
@@ -70,11 +78,7 @@ export function registerMemoryFeedback(memory: Command): void {
       const adjustment = opts.rejected
         ? recommendFeedbackAdjustment(target.memory.frontmatter, usage)
         : { action: "none" as const, reason: "No automatic adjustment needed." };
-      const adjustedFrontmatter = applyFeedbackAdjustment(target.memory.frontmatter, adjustment);
-      if (adjustedFrontmatter !== target.memory.frontmatter) {
-        target.memory.frontmatter = adjustedFrontmatter;
-        await writeFile(target.filePath, serializeMemory(target.memory), "utf8");
-      }
+
       const impact = computeImpact(target.memory.frontmatter, usage);
 
       if (opts.json) {
