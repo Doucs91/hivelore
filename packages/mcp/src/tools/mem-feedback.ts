@@ -1,5 +1,5 @@
 import {
-  applyFeedbackAdjustment,
+  recordKnowledgeOutcome,
   computeImpact,
   getUsage,
   loadMemoriesFromDir,
@@ -8,12 +8,10 @@ import {
   recordRejection,
   recommendFeedbackAdjustment,
   saveUsageIndex,
-  serializeMemory,
   type ImpactTier,
   type FeedbackAdjustment,
 } from "@hivelore/core";
 import { existsSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
 
@@ -85,11 +83,7 @@ export async function memFeedback(
   const adjustment = input.outcome === "rejected"
     ? recommendFeedbackAdjustment(target.memory.frontmatter, usage)
     : { action: "none" as const, reason: "No automatic adjustment needed." };
-  const adjustedFrontmatter = applyFeedbackAdjustment(target.memory.frontmatter, adjustment);
-  if (adjustedFrontmatter !== target.memory.frontmatter) {
-    target.memory.frontmatter = adjustedFrontmatter;
-    await writeFile(target.filePath, serializeMemory(target.memory), "utf8");
-  }
+  await recordKnowledgeOutcome(ctx.paths, { id: input.id, kind: input.outcome, source: "mcp", evidence: "reported" }).catch(() => {});
   const impact = computeImpact(target.memory.frontmatter, usage);
 
   return {

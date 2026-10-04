@@ -17,7 +17,6 @@ import {
   type MemoryScope,
   type MemoryType,
 } from "@hivelore/core";
-import { applyAutopilotRepairs } from "../utils/autopilot.js";
 import { ui } from "../utils/ui.js";
 
 interface AddOptions {
@@ -48,7 +47,7 @@ interface AddOptions {
 
 export function registerMemoryAdd(memory: Command): void {
   memory
-    .command("save")
+    .command("save [text]")
     .alias("add")
     .description(
       "Save a piece of knowledge as a persistent memory. Mirrors MCP mem_save. Alias: add.\n\n" +
@@ -63,7 +62,7 @@ export function registerMemoryAdd(memory: Command): void {
       "  Tips:\n" +
       "    • --paths anchors the memory to source files for staleness detection\n" +
       "    • --topic enables upsert: future adds with the same topic update the existing memory\n" +
-      "    • In autopilot mode, memories go directly to validated with team scope by default\n\n" +
+      "    • New projects capture drafts; validation requires supporting evidence\n\n" +
       "  Examples:\n" +
       "    hivelore memory add --type gotcha --slug jpa-open-in-view --scope team \\\\\n" +
       "      --paths src/main/resources/application.properties \\\\\n" +
@@ -71,7 +70,7 @@ export function registerMemoryAdd(memory: Command): void {
       "    hivelore memory add --type convention --slug flyway-no-modify --topic flyway \\\\\n" +
       "      --scope team --body \"Never modify existing migrations. Create V{n+1}__desc.sql.\"\n",
     )
-    .requiredOption("--type <type>", "skill | convention | decision | gotcha | architecture | glossary | attempt")
+    .option("--type <type>", "skill | convention | decision | gotcha | architecture | glossary | attempt", "gotcha")
     .option("--slug <slug>", "short kebab-case identifier used in the file name (auto-derived from --title/--body when omitted)")
     .option("--title <text>", "memory title — becomes the first heading of the body")
     .option("--scope <scope>", "personal | team | module (default: config default; team in autopilot)")
@@ -98,7 +97,8 @@ export function registerMemoryAdd(memory: Command): void {
     .option("--activation-glob <csv>", "skill only: comma-separated path globs that trigger this skill")
     .option("--activation-always", "skill only: always surface this skill (no triggers needed)")
     .option("-d, --dir <dir>", "project root")
-    .action(async (opts: AddOptions & { autoTag?: boolean; content?: string }) => {
+    .action(async (text: string | undefined, opts: AddOptions & { autoTag?: boolean; content?: string }) => {
+      if (text && !opts.body) opts.body = text;
       if (opts.body === undefined && opts.content !== undefined) opts.body = opts.content;
       const shape = MemoryFrontmatterSchema.innerType().shape;
       const evidenceFields = {
@@ -212,7 +212,7 @@ export function registerMemoryAdd(memory: Command): void {
           ui.success(`Updated (topic upsert) ${path.relative(root, topicMatch.filePath)}`);
           ui.info(`id=${fm.id}  revision=${revisionCount}`);
           printSensorLoopHint(opts.type, body, newFrontmatter.anchor.paths, Boolean(newFrontmatter.sensor));
-          await runPostMemoryAutopilot(root, paths, config);
+          // Saving one lesson must not rewrite unrelated corpus files.
           return;
         }
       }
@@ -267,7 +267,7 @@ export function registerMemoryAdd(memory: Command): void {
       ui.success(`Created ${path.relative(root, file)}`);
       ui.info(`id=${frontmatter.id}  scope=${frontmatter.scope}  status=${frontmatter.status}`);
       printSensorLoopHint(opts.type, body, anchorPaths, Boolean(frontmatter.sensor));
-      await runPostMemoryAutopilot(root, paths, config);
+      // Maintenance remains explicit.
       if (inferredTags.length > 0) {
         ui.info(`auto-tagged: ${inferredTags.join(", ")}  (use --no-auto-tag to disable)`);
       }
@@ -305,24 +305,6 @@ export function registerMemoryAdd(memory: Command): void {
         );
       }
     });
-}
-
-async function runPostMemoryAutopilot(
-  root: string,
-  paths: ReturnType<typeof resolveHaivePaths>,
-  config: Awaited<ReturnType<typeof loadConfig>>,
-): Promise<void> {
-  if (!config.autopilot && config.autoRepair?.corpus !== true) return;
-  const repairs = await applyAutopilotRepairs(root, paths, {
-    applyConfig: false,
-    applyContext: false,
-    applyCorpus: true,
-    applyCodeMap: false,
-    applyCodeSearch: false,
-  });
-  for (const repair of repairs) {
-    ui.info(repair.message);
-  }
 }
 
 function parseCsv(value: string | undefined): string[] {
@@ -367,11 +349,7 @@ function normalizeBody(rawBody: string, title: string, titleExplicit: boolean): 
   return [
     `# ${heading}`,
     "",
-    "## Guidance",
     trimmed,
-    "",
-    "## Why",
-    "Recorded in Hivelore so future agents can apply this project rule consistently.",
     "",
   ].join("\n");
 }

@@ -224,6 +224,14 @@ npm install -g @hivelore/embeddings
 ---
 
 <a id="the-60-second-proof"></a>
+## Verify the complete integration
+
+Run `hivelore agent check --exercise --json` to exercise MCP briefing, targeted hook context,
+and a validated sensor against good and bad code in an isolated temporary repository. It also
+reports local no-op hook latency. This is a synthetic installation proof, not a productivity benchmark.
+New projects default to local task completion and draft capture; existing policies remain intact.
+See [the twelve product improvements and migration notes](docs/product-excellence-0.64.md).
+
 ## The 60-second proof — watch a lesson stop a commit
 
 > This is the exact flow shown in the demo above.
@@ -341,7 +349,7 @@ session has access. See [MCP connection troubleshooting](docs/mcp-client-setup.m
 ```bash
 hivelore enforce install       # Installs Git hooks + CI enforcement template
 hivelore enforce status        # Current enforcement posture
-hivelore enforce check         # Pre-commit policy gate
+hivelore enforce check --stage pre-commit  # Scan the staged change
 hivelore enforce ci            # CI entrypoint (exits 1 on violations)
 ```
 

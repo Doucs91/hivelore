@@ -1,5 +1,7 @@
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import { estimateTokens, findProjectRoot } from "@hivelore/core";
@@ -13,7 +15,7 @@ interface BenchmarkOptions {
 
 interface AgentBenchmarkRow {
   fixture: string;
-  group: "haive" | "plain" | "unknown";
+  group: "haive" | "plain" | "context" | "unknown";
   commands: number;
   files_read: number;
   files_modified: number;
@@ -28,6 +30,11 @@ interface AgentBenchmarkRow {
   duration_seconds: number | null;
   total_tokens: number | null;
   runner_id: string | null;
+  model: string | null;
+  checkout: string | null;
+  budget: string | null;
+  prompt_hash: string | null;
+  human_interventions: number | null;
   evaluator_id: string | null;
   independent_evaluation: boolean | null;
 }
@@ -36,6 +43,40 @@ export function registerBenchmark(program: Command): void {
   const benchmark = program
     .command("benchmark")
     .description("Measure Hivelore's VALUE: paired Hivelore-vs-plain agent runs (correctness, tokens, tools). Different from `selftest` (which only checks local install latency).");
+
+  benchmark.command("prepare")
+    .description("Prepare a balanced three-arm, repeated comparison against a documented AGENTS.md baseline")
+    .requiredOption("--suite <file>", "JSON suite with cases: [{id, ...}]")
+    .requiredOption("--model <name>", "identical model for all arms")
+    .requiredOption("--out <directory>", "new output directory")
+    .option("--repeats <n>", "repetitions per task", "3")
+    .option("--budget <tokens>", "identical token budget per run", "50000")
+    .action(async (opts: { suite: string; model: string; out: string; repeats: string; budget: string }) => {
+      const suite = JSON.parse(await readFile(opts.suite, "utf8")) as { cases: Array<{ id: string }> };
+      const repeats = Number(opts.repeats), budget = Number(opts.budget);
+      if (!Array.isArray(suite.cases) || !suite.cases.length || !Number.isInteger(repeats) || repeats < 2 || repeats > 20 || !Number.isInteger(budget) || budget <= 0) throw new Error("Require cases, 2–20 repetitions and a positive token budget.");
+      if (new Set(suite.cases.map(task => task.id)).size !== suite.cases.length) throw new Error("Case IDs must be unique.");
+      if (existsSync(opts.out)) throw new Error("Output already exists; choose a new directory to preserve results.");
+      const checkout = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+      const arms = ["plain", "context", "haive"] as const;
+      const runs = suite.cases.flatMap((task, index) => {
+        if (!/^[a-zA-Z0-9_-]+$/.test(task.id)) throw new Error("Case IDs must be safe directory names.");
+        return Array.from({ length: repeats }, (_, repetition) => arms.map((_, position) => ({
+          task: task.id, repetition: repetition + 1, arm: arms[(position + repetition + index) % 3]!,
+          model: opts.model, checkout, budget, case_hash: createHash("sha256").update(JSON.stringify(task)).digest("hex"),
+        }))).flat();
+      });
+      await mkdir(opts.out, { recursive: true });
+      for (const run of runs) {
+        const dir = path.join(opts.out, `${run.task}-r${run.repetition}-${run.arm}`);
+        await mkdir(dir);
+        await writeFile(path.join(dir, "run.json"), JSON.stringify(run, null, 2) + "\n");
+        await writeFile(path.join(dir, "BENCHMARK_AGENT_REPORT.md"), `# Agent report\n\n## Outcome\n- Model: ${run.model}\n- Checkout: ${run.checkout}\n- Budget: ${run.budget}\n- Prompt hash: TODO\n- Task completed: TODO\n- Tests passed: TODO\n- Policy violations: TODO\n- Duration seconds: TODO\n- Total tokens: TODO\n- Human interventions: TODO\n- Runner ID: TODO\n- Evaluator ID: TODO\n- Independent evaluation: no\n`);
+      }
+      await writeFile(path.join(opts.out, "protocol.json"), JSON.stringify({ version: 1, repeats, runs,
+        baseline: "Same source, task, knowledge, tests and tools. Plain receives a good AGENTS.md and local search; context adds retrieval; haive adds validated gates. Use isolated checkouts and blind independent evaluation. Never train on the held-out oracle." }, null, 2));
+      console.log(JSON.stringify({ prepared_runs: runs.length, evidence_grade: "insufficient", next: "Execute each run with the same runner, record telemetry and independent outcomes, then benchmark report." }));
+    });
 
   benchmark
     .command("report")
@@ -70,16 +111,13 @@ export function registerBenchmark(program: Command): void {
       console.log([
         "# Hivelore Agent Benchmark Demo",
         "",
-        "1. Create paired fixtures: one `*-haive`, one `*-plain`.",
-        "2. Put the same failing tests in both fixtures.",
-        "3. Add precise `.ai/memories/team/*.md` policy memories only to the Hivelore fixture.",
-        "4. Run equal agents in parallel:",
-        "   - Hivelore agents must run `hivelore briefing --files ... --task ...` first.",
-        "   - Plain agents must not read `.ai` or call Hivelore.",
-        "5. Require every agent to write `BENCHMARK_AGENT_REPORT.md`.",
-        "   Its `## Outcome` section must include: Task completed, Tests passed, Policy violations, Duration seconds, Total tokens, Runner ID, Evaluator ID, Independent evaluation.",
-        "6. Run `hivelore benchmark report --dir <benchmark-root> --out RESULTS.md`.",
-        "7. Do not make comparative claims until evidence_grade=decision-ready (>=10 paired tasks with complete outcomes).",
+        "1. Prepare a suite of at least 10 held-out tasks with benchmark prepare --suite suite.json --model <model> --out runs.",
+        "2. Give every arm the same repository, task, domain knowledge, tests, model and budget.",
+        "3. Plain uses a good AGENTS.md; context adds retrieval; haive adds validated gates.",
+        "4. Execute the balanced order in protocol.json in isolated checkouts, at least three repetitions per task.",
+        "5. Record complete outcomes and runner telemetry; use a blind evaluator distinct from the runner.",
+        "6. Run hivelore benchmark report --dir runs --out RESULTS.md.",
+        "7. Decision-ready is an evidence-completeness threshold, not proof of statistical superiority.",
         "",
         "Recommended metrics: pass rate, test iterations, files read, files changed, visible artifacts, decision quality, and token proxy.",
       ].join("\n"));
@@ -109,7 +147,7 @@ async function collectRows(root: string): Promise<AgentBenchmarkRow[]> {
 }
 
 function parseAgentReport(fixture: string, report: string): AgentBenchmarkRow {
-  const group = fixture.endsWith("-haive") ? "haive" : fixture.endsWith("-plain") ? "plain" : "unknown";
+  const group = fixture.endsWith("-haive") ? "haive" : fixture.endsWith("-plain") ? "plain" : fixture.endsWith("-context") ? "context" : "unknown";
   return {
     fixture,
     group,
@@ -127,6 +165,9 @@ function parseAgentReport(fixture: string, report: string): AgentBenchmarkRow {
     duration_seconds: reportNumber(report, "Duration seconds"),
     total_tokens: reportNumber(report, "Total tokens"),
     runner_id: reportValue(report, "Runner ID"),
+    model: reportValue(report, "Model"), checkout: reportValue(report, "Checkout"),
+    budget: reportValue(report, "Budget"), prompt_hash: reportValue(report, "Prompt hash"),
+    human_interventions: reportNumber(report, "Human interventions"),
     evaluator_id: reportValue(report, "Evaluator ID"),
     independent_evaluation: reportBoolean(report, "Independent evaluation"),
   };
@@ -144,14 +185,31 @@ function summarizeRows(rows: AgentBenchmarkRow[]) {
     row.duration_seconds !== null && row.total_tokens !== null && row.runner_id !== null &&
     row.evaluator_id !== null && row.evaluator_id !== row.runner_id && row.independent_evaluation === true,
   );
-  const decisionReady = pairedTasks >= 10 && outcomeComplete;
+  const contextRows = byGroup("context");
+  const triplets = new Set(contextRows.map(r => r.fixture.replace(/-context$/, "")));
+  const comparative = contextRows.length > 0;
+  const comparable = !comparative || rows.every(row => {
+    const key = row.fixture.replace(/-(haive|plain|context)$/, "");
+    const peers = rows.filter(r => r.fixture.replace(/-(haive|plain|context)$/, "") === key);
+    return peers.length === 3 && new Set(peers.map(r => r.group)).size === 3 && row.human_interventions !== null &&
+      ["model", "checkout", "budget", "prompt_hash"].every(field => {
+        const value = row[field as keyof AgentBenchmarkRow];
+        return value && value !== "TODO" && peers.every(peer => peer[field as keyof AgentBenchmarkRow] === value);
+      });
+  });
+  const distinctTasks = new Set(rows.map(r => r.fixture.replace(/(?:-r\d+)?-(haive|plain|context)$/, ""))).size;
+  const repeated = !comparative || [...new Set(rows.map(r => r.fixture.replace(/(?:-r\d+)?-(haive|plain|context)$/, "")))].every(task =>
+    [...triplets].filter(key => key.replace(/-r\d+$/, "") === task).length >= 3);
+  const decisionReady = pairedTasks >= 10 && outcomeComplete && comparable && repeated && (!comparative || distinctTasks >= 10);
   return {
     fixtures: rows.length,
     paired_tasks: pairedTasks,
     evidence_grade: decisionReady ? "decision-ready" : "insufficient",
     evidence_reason: decisionReady
-      ? "At least 10 paired tasks with complete outcomes reviewed by an evaluator distinct from the runner."
+      ? "Complete independently evaluated outcomes; three-arm comparisons additionally require >=10 distinct tasks, >=3 repetitions and matched execution metadata. This threshold does not establish statistical superiority."
       : `Need >=10 paired tasks, complete Outcome fields, and independent evaluator attestations; found ${pairedTasks} pair(s), outcome_complete=${outcomeComplete}.`,
+    comparison: { comparable, repeated, distinct_tasks: distinctTasks, three_arm: comparative },
+    context: summarizeGroup(contextRows),
     haive: summarizeGroup(haiveRows),
     plain: summarizeGroup(plainRows),
   };
@@ -195,7 +253,8 @@ function renderMarkdown(
     "| Group | Fixtures | Commands | Files read | Files modified | Test iterations | Terminal failures | Decision mentions | Report tokens (est, report only) | Hivelore impact |",
     "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     groupLine("Hivelore", summary.haive),
-    groupLine("Plain", summary.plain),
+    groupLine("Plain (AGENTS.md)", summary.plain),
+    groupLine("Context only", summary.context),
     "",
     "## Fixtures",
     "",
@@ -218,7 +277,8 @@ function renderMarkdown(
 
 function reportValue(report: string, label: string): string | null {
   const match = new RegExp(`^[-*]\\s*${escapeRegExp(label)}\\s*:\\s*(.+)$`, "im").exec(report);
-  return match?.[1]?.trim() ?? null;
+  const value = match?.[1]?.trim();
+  return value && value !== "TODO" ? value : null;
 }
 
 function reportBoolean(report: string, label: string): boolean | null {
@@ -233,7 +293,7 @@ function reportNumber(report: string, label: string): number | null {
   const value = reportValue(report, label);
   if (!value) return null;
   const parsed = Number(value.replace(/,/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function groupLine(label: string, group: ReturnType<typeof summarizeGroup>): string {

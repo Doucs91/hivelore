@@ -1,3 +1,4 @@
+import { resetProjectContextEmission, completeExcerpt } from "@hivelore/core";
 import { execFile, execFileSync, spawn } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -124,6 +125,7 @@ export function buildHookFileContent(current: string, ownBody: string): string {
 }
 
 interface HookPayload {
+  source?: string;
   cwd?: string;
   session_id?: string;
   prompt?: string;
@@ -417,28 +419,34 @@ export function registerEnforce(program: Command): void {
       if (!existsSync(paths.haiveDir)) return;
       await mkdir(paths.runtimeDir, { recursive: true });
       const sessionId = sessionIdentity(opts.sessionId ?? payload.session_id);
-      if (await gitText(root, ["rev-parse", "--is-inside-work-tree"]).catch(() => "")) await startTaskSession(paths, sessionId, opts.mode);
-      const task = opts.task ?? payload.prompt ?? "Start an AI coding session in this Hivelore-initialized project.";
-      const budget = resolveBriefingBudget("quick", {
-        max_tokens: 2500,
-        max_memories: 5,
+      const existingSession = await loadTaskSession(paths, sessionId);
+      if (!existingSession || !["compact", "resume"].includes(payload.source ?? "")) {
+        if (await gitText(root, ["rev-parse", "--is-inside-work-tree"]).catch(() => "")) await startTaskSession(paths, sessionId, opts.mode, opts.task ?? payload.prompt);
+      }
+      await resetProjectContextEmission(paths, sessionId);
+      await writeBriefingMarker(paths, { sessionId, source: "session-start", accumulate: false });
+      const task = opts.task ?? payload.prompt ?? existingSession?.task ?? "Start an AI coding session in this Hivelore-initialized project.";
+      const hasTask = Boolean(opts.task ?? payload.prompt ?? (payload.source === "compact" || payload.source === "resume" ? existingSession?.task : undefined));
+      const budget = resolveBriefingBudget(undefined, {
+        max_tokens: 1000,
+        max_memories: hasTask ? 3 : 0,
         include_module_contexts: false,
       });
       const briefing = await getBriefing(
         {
           task,
+          session_id: sessionId,
           files: [],
           max_tokens: budget.max_tokens,
           max_memories: budget.max_memories,
           include_project_context: true,
           include_module_contexts: budget.include_module_contexts,
-          semantic: true,
+          semantic: hasTask,
           include_stale: false,
           track: true,
           format: "actions",
           symbols: [],
           min_semantic_score: 0.25,
-          budget_preset: "quick",
         },
         { paths },
       );
@@ -449,6 +457,7 @@ export function registerEnforce(program: Command): void {
         memoryIds: briefing.memories.map((m) => m.id),
       });
 
+      if (existingSession?.next_steps && ["compact", "resume"].includes(payload.source ?? "")) console.log(`Task: ${existingSession.task ?? ""}\nNext: ${existingSession.next_steps}`);
       console.log("Hivelore briefing loaded. Agents must consult this before editing.");
       for (const item of briefing.action_required) {
         console.log(`\n[Human confirmation required] ${item.developer_message}`);
@@ -457,10 +466,10 @@ export function registerEnforce(program: Command): void {
         console.log("\n## Relevant memories");
         for (const memory of briefing.memories.slice(0, 6)) {
           console.log(`\n### ${memory.id} (${memory.scope}/${memory.type}, ${memory.confidence})`);
-          console.log(memory.body.slice(0, 1000));
+          console.log(completeExcerpt(memory.body, 1000) || `Read .ai/memories/ for ${memory.id} before editing.`);
         }
       }
-      if (briefing.last_session) {
+      if (hasTask && briefing.last_session) {
         // Never print a recap without its date. Undated, it reads as the current state of the
         // project — which is how an eight-day-old recap kept telling every new session that a
         // long-settled naming question was still open (field report 2026-09-05 §4).
@@ -470,10 +479,10 @@ export function registerEnforce(program: Command): void {
         if (typeof ls.age_days === "number") age.push(`${ls.age_days}d ago`);
         if (typeof ls.commits_since === "number") age.push(`${ls.commits_since} commit(s) since`);
         const header = age.length > 0 ? `## Last session — ${age.join(", ")}` : "## Last session";
-        console.log(`\n${header}${ls.stale ? " ⚠ stale" : ""}\n${ls.body.slice(0, 1200)}`);
+        console.log(`\n${header}${ls.stale ? " ⚠ stale" : ""}\n${completeExcerpt(ls.body, 1200)}`);
       }
       if (briefing.project_context?.content) {
-        console.log(`\n## Project context\n${briefing.project_context.content.slice(0, 1800)}`);
+        console.log(`\n## Project context\n${completeExcerpt(briefing.project_context.content, 1800)}`);
       }
       for (const warning of briefing.setup_warnings) {
         console.log(`\n[setup warning] ${warning}`);
@@ -3238,10 +3247,9 @@ export function managedGitHookSpecs(): Array<{ name: string; body: string }> {
     { name: "pre-commit", body: block("_hivelore enforce check --stage pre-commit --dir . || exit $?") },
     { name: "pre-push", body: block("_hivelore enforce check --stage pre-push --dir . || exit $?") },
     { name: "commit-msg", body: block('_hivelore enforce commit-msg "$1" --dir . || exit $?') },
-    // Absorbed from the removed `install-hooks` command (v0.32.0): keep anchors fresh after every
-    // pull/merge/rebase so the next agent's briefing reflects moved/deleted files.
-    { name: "post-merge", body: block("_hivelore sync --quiet --since ORIG_HEAD || true") },
-    { name: "post-rewrite", body: block("_hivelore sync --quiet --since ORIG_HEAD || true") },
+    // Retain managed hook slots for migration, but keep corpus maintenance explicit.
+    { name: "post-merge", body: block("# Corpus maintenance is explicit: hivelore sync. No writes on merge/rebase.") },
+    { name: "post-rewrite", body: block("# Corpus maintenance is explicit: hivelore sync. No writes on merge/rebase.") },
   ];
 }
 
@@ -3309,7 +3317,7 @@ async function installGitEnforcement(root: string): Promise<void> {
     await writeFile(file, buildHookFileContent(current, hook.body), "utf8");
     await chmod(file, 0o755);
   }
-  ui.success("Installed git hooks: pre-commit, pre-push, commit-msg (blocking) + post-merge, post-rewrite (sync)");
+  ui.success("Installed git hooks: pre-commit, pre-push, commit-msg (blocking) + post-merge, post-rewrite (read-only)");
 }
 
 async function installCiEnforcement(root: string): Promise<void> {
@@ -3506,7 +3514,7 @@ function printReport(report: EnforcementReport, json: boolean, explain = false, 
   // Verbose paths (CI, --explain) keep the whole report; `--verbose` (quiet=false) restores it too.
   if (quiet && !report.should_block && changeActionable.length === 0) {
     const ok = report.findings.filter((f) => f.severity === "ok").length;
-    ui.success(`Hivelore gate passed${stageLabel(report)} — ${ok} check(s), 0 issue(s)${deferredLabel(report)}.`);
+    ui.success(`${hasDeferredChecks(report) ? "Hivelore checks incomplete" : "Hivelore gate passed"}${stageLabel(report)} — ${ok} check(s), 0 issue(s)${deferredLabel(report)}.`);
     return;
   }
 
@@ -3541,8 +3549,8 @@ function printReport(report: EnforcementReport, json: boolean, explain = false, 
     for (const finding of report.findings) printFinding(finding);
   }
   if (report.should_block) ui.error("Hivelore enforcement gate failed.");
-  else if (changeActionable.length > 0) ui.success(`Hivelore gate passed${stageLabel(report)} — ${changeActionable.length} advisory finding(s), 0 blocking${deferredLabel(report)}.`);
-  else ui.success(`Hivelore enforcement gate passed${stageLabel(report)}${deferredLabel(report)}.`);
+  else if (changeActionable.length > 0) ui.success(`${hasDeferredChecks(report) ? "Hivelore checks incomplete" : "Hivelore gate passed"}${stageLabel(report)} — ${changeActionable.length} advisory finding(s), 0 blocking${deferredLabel(report)}.`);
+  else ui.success(`${hasDeferredChecks(report) ? "Hivelore checks incomplete" : "Hivelore enforcement gate passed"}${stageLabel(report)}${deferredLabel(report)}.`);
   // A blocking rule can be a false positive. Name the escape hatch at the one moment it is natural —
   // the block itself — or friction is only ever reported into commit messages (field report §2.1).
   if (report.should_block && report.findings.some((f) => CONTENT_CATCH_CODES.has(f.code))) {
@@ -3586,6 +3594,8 @@ function formatAge(ms: number): string {
  * that stage had never evaluated. A gate never says "passed" about a check it skipped — the count
  * is part of the sentence, in the human output, not only in `--json`. */
 const DEFERRED_CODES = new Set(["antipattern-gate-deferred"]);
+
+function hasDeferredChecks(report: EnforcementReport): boolean { return report.findings.some(f => DEFERRED_CODES.has(f.code)); }
 
 function deferredLabel(report: EnforcementReport): string {
   const deferred = report.findings.filter((f) => DEFERRED_CODES.has(f.code));
@@ -3729,6 +3739,8 @@ function isGeneratedArtifact(file: string): boolean {
 }
 
 async function readStdin(maxBytes: number): Promise<string> {
+  const buffered = (globalThis as { hiveloreHookPayload?: string }).hiveloreHookPayload;
+  if (buffered !== undefined) return buffered;
   if (process.stdin.isTTY) return "";
   return await new Promise((resolve) => {
     const chunks: Buffer[] = [];

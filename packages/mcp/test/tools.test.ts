@@ -706,7 +706,7 @@ describe("Hivelore MCP tools", () => {
     });
   });
 
-  describe("inline auto-promote in get_briefing (Phase 4)", () => {
+  describe("briefing never promotes shared memories", () => {
     it("does not promote after exposure even when autoPromoteMinReads=1", async () => {
       // Autopilot-style config: promote immediately on first read
       await writeFile(
@@ -762,7 +762,7 @@ describe("Hivelore MCP tools", () => {
       expect(promoted?.memory.frontmatter.status).toBe("proposed");
     });
 
-    it("promotes only after five confirmed applications", async () => {
+    it("leaves promotion to explicit maintenance even after five confirmed applications", async () => {
       // Save a proposed memory
       const saved = await memSave(
         {
@@ -819,10 +819,10 @@ describe("Hivelore MCP tools", () => {
       for (let i = 0; i < 5; i++) recordApplied(usage, saved.id);
       await saveUsageIndex(ctx.paths, usage);
       await getBriefing(briefingOpts, ctx);
-      // Confirmed use now satisfies the promotion threshold.
+      // Confirmed use is a maintenance signal, never permission for a read to rewrite shared truth.
       const afterMems = await loadMemoriesFromDir(ctx.paths.memoriesDir);
       const promoted = afterMems.find((m) => m.memory.frontmatter.id === saved.id);
-      expect(promoted?.memory.frontmatter.status).toBe("validated");
+      expect(promoted?.memory.frontmatter.status).toBe("proposed");
     });
   });
 

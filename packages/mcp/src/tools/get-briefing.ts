@@ -1,6 +1,7 @@
+import { resetProjectContextEmission, sessionIdentity } from "@hivelore/core";
 import { loadTaskSession, startTaskSession } from "@hivelore/core";
 import { execFile } from "node:child_process";
-import { readFile, writeFile, readdir } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { promisify } from "node:util";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -10,7 +11,6 @@ import {
   renderBootstrapChecklist,
   briefingProofLine,
   computeImpact,
-  DEFAULT_AUTO_PROMOTE_RULE,
   deriveConfidence,
   estimateTokens,
   evaluateSkillActivation,
@@ -18,7 +18,6 @@ import {
   extractActionsBriefBody,
   getUsage,
   inferModulesFromPaths,
-  isAutoPromoteEligible,
   isDecaying,
   isRetiredMemory,
   literalMatchesAllTokens,
@@ -37,12 +36,12 @@ import {
   queryCodeMap,
   readSessionHandoff,
   resolveBriefingBudget,
-  serializeMemory,
   specificityScore,
   adaptiveSemanticFloor,
   GUESSABLE_THRESHOLD,
   tokenizeQuery,
   trackReads,
+  recordKnowledgeOutcome,
   verifyAnchor,
   supersededMemoryIds,
   truncateToTokens,
@@ -83,6 +82,8 @@ export type {
 } from "./briefing-types.js";
 
 export const GetBriefingInputSchema = {
+  session_id: z.string().optional().describe("Stable harness session ID; isolates consultation and context delivery."),
+  context_reset: z.boolean().optional().describe("Set after compaction to restore context without resetting task attribution."),
   task: z
     .string()
     .optional()
@@ -104,7 +105,7 @@ export const GetBriefingInputSchema = {
   max_memories: z
     .number()
     .int()
-    .positive()
+    .nonnegative()
     .default(8)
     .describe("Cap on memories surfaced regardless of token budget"),
   include_project_context: z
@@ -192,8 +193,13 @@ export async function getBriefing(
   input: GetBriefingInput,
   ctx: HaiveContext,
 ): Promise<BriefingOutput> {
-  if (input.track && !input.deterministic && existsSync(ctx.paths.haiveDir) && !await loadTaskSession(ctx.paths)) {
-    await startTaskSession(ctx.paths).catch(() => { /* Retrieval also supports projects without Git. */ });
+  const sessionId = sessionIdentity(input.session_id ?? ctx.sessionId);
+  if (input.context_reset) {
+    await resetProjectContextEmission(ctx.paths, sessionId);
+    await writeBriefingMarker(ctx.paths, { sessionId, source: "context-reset", accumulate: false });
+  }
+  if (input.track && !input.deterministic && existsSync(ctx.paths.haiveDir) && !await loadTaskSession(ctx.paths, sessionId)) {
+    await startTaskSession(ctx.paths, sessionId, undefined, input.task).catch(() => { /* Retrieval also supports projects without Git. */ });
   }
   const resolvedBudget = resolveBriefingBudget(input.budget_preset, {
     max_tokens: input.max_tokens,
@@ -506,31 +512,13 @@ export async function getBriefing(
 
     memories.push(...ranked.slice(0, briefingMaxMemories));
 
-    // ── Track reads + inline auto-promote ─────────────────────────────────
-    if (input.track && memories.length > 0) {
+    // Retrieval records local exposure only; corpus promotion requires explicit maintenance.
+  }
 
-      const freshUsage = await loadUsageIndex(ctx.paths);
-      // Use configured autoPromoteMinReads — not the hardcoded default.
-      // (gotcha: 2026-05-04-gotcha-auto-promote-ignores-config-minreads)
-      const cfg = await loadConfig(ctx.paths);
-      const rule = {
-        minReads: cfg.autoPromoteMinReads ?? DEFAULT_AUTO_PROMOTE_RULE.minReads,
-        maxRejections: DEFAULT_AUTO_PROMOTE_RULE.maxRejections,
-      };
-      for (const m of memories) {
-        const loaded = byId.get(m.id);
-        if (!loaded) continue;
-        const u = getUsage(freshUsage, m.id);
-        if (!isAutoPromoteEligible(loaded.memory.frontmatter, u, rule)) continue;
-        // Auto-promotion trusts a memory WITHOUT review → mark it "auto" so a human can audit it later.
-        const newFm = { ...loaded.memory.frontmatter, status: "validated" as const, validated_by: "auto" as const };
-        try {
-          await writeFile(loaded.filePath, serializeMemory({ frontmatter: newFm, body: loaded.memory.body }), "utf8");
-          m.status = "validated";
-          m.confidence = "trusted";
-        } catch { /* non-fatal */ }
-      }
-    }
+  const taskCheckpoint = await loadTaskSession(ctx.paths, sessionId);
+  if (taskCheckpoint?.task && (input.context_reset || taskCheckpoint.next_steps)) {
+    lastSession = { id: `task:${sessionId}`, scope: "ephemeral", revision_count: 0,
+      body: `Task: ${taskCheckpoint.task}\nNext: ${taskCheckpoint.next_steps ?? "Inspect current task state before continuing."}` };
   }
 
   // ── Project context ────────────────────────────────────────────────────
@@ -543,11 +531,11 @@ export async function getBriefing(
   let contextOmittedRecent = false;
   if (projectContextRaw && input.dedupe_project_context !== false) {
     const ctxHash = hashProjectContext(projectContextRaw);
-    if (await projectContextRecentlyEmitted(ctx.paths, ctxHash)) {
+    if (await projectContextRecentlyEmitted(ctx.paths, ctxHash, Date.now(), sessionId)) {
       contextOmittedRecent = true;
       projectContextRaw = "";
     } else {
-      await recordProjectContextEmission(ctx.paths, ctxHash);
+      await recordProjectContextEmission(ctx.paths, ctxHash, Date.now(), sessionId);
     }
   }
   const isTemplateContext =
@@ -987,11 +975,15 @@ export async function getBriefing(
   if (totalTokens + breadcrumbTokens > briefingMaxTokens) { breadcrumbs = undefined; breadcrumbTokens = 0; }
   if (input.track && outputMemories.length) {
     await trackReads(ctx.paths, outputMemories.map((m) => m.id)).catch(() => {});
+    for (const memory of outputMemories) await recordKnowledgeOutcome(ctx.paths, {
+      id: memory.id, kind: "exposed", session_id: sessionId, files: input.files,
+      source: "mcp", evidence: "observed",
+    }).catch(() => {});
   }
   // ── Briefing marker (satisfies enforcement gate for MCP-native agents) ─
   if (existsSync(ctx.paths.haiveDir)) {
     await writeBriefingMarker(ctx.paths, {
-      sessionId: process.env.HIVELORE_SESSION_ID ?? process.env.HAIVE_SESSION_ID ?? process.env.CLAUDE_SESSION_ID,
+      sessionId,
       ...(input.task ? { task: input.task } : {}),
       source: "mcp-get-briefing",
       files: input.files,

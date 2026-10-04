@@ -87,7 +87,7 @@ describe("MCP client configuration", () => {
     expect((await configureProjectMcpClients(dir)).every((r) => r.status === "configured")).toBe(true);
     const got = JSON.parse(await readFile(file, "utf8"));
     expect(got.custom).toBe(42); expect(got.mcpServers.other).toEqual({ command: "other" });
-    expect(got.mcpServers.hivelore).toMatchObject({ command: "hivelore", timeout: 99, env: { CUSTOM: "keep", HAIVE_PROJECT_ROOT: dir } });
+    expect(got.mcpServers.hivelore).toMatchObject({ command: "hivelore", timeout: 99, env: { CUSTOM: "keep" }, args: ["mcp", "--stdio"] });
   });
   it("never overwrites malformed JSON, invalid entries or disabled servers", async () => {
     for (const raw of ['{ bad json', '[]', '{"mcpServers": []}', '{"mcpServers":{"hivelore":{}}}', '{"mcpServers":{"haive":{"command":"haive","disabled":true}}}', '{"mcpServers":{"hivelore":{"command":"hivelore","disabled":true}}}']) {

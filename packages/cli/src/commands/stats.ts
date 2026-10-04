@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  loadKnowledgeOutcomes, summarizeKnowledgeOutcomes,
   aggregateUsage,
   assessBehaviourCoverage,
   buildPreventionReceipt,
@@ -35,6 +36,16 @@ export function registerStats(program: Command): void {
   const stats = program
     .command("stats")
     .description("Show MCP tool-usage stats and prevention receipts.");
+
+  stats.command("outcomes").description("Delivery and reported outcomes, separated from deterministic sensor catches")
+    .action(async () => {
+      const opts = stats.opts<{ dir?: string; since?: string }>();
+      const paths = resolveHaivePaths(findProjectRoot(opts.dir));
+      const since = parseSince(opts.since ?? "30d") ?? new Date(0);
+      const events = (await loadKnowledgeOutcomes(paths)).filter(e => Date.parse(e.at) >= since.getTime());
+      const catches = (await loadPreventionEvents(paths)).filter(e => Date.parse(e.at) >= since.getTime());
+      console.log(JSON.stringify({ ...summarizeKnowledgeOutcomes(events), sensor_catches: catches, timeline: events }, null, 2));
+    });
 
   const receiptCmd = stats
     .command("receipt")

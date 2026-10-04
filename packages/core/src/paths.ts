@@ -3,18 +3,18 @@ import path from "node:path";
 
 export const HAIVE_DIR = ".ai";
 
-const ROOT_MARKERS = [".ai", ".git", "package.json"];
 
 export function findProjectRoot(startDir: string = process.cwd()): string {
   let current = path.resolve(startDir);
-  const fsRoot = path.parse(current).root;
-  while (current !== fsRoot) {
-    for (const marker of ROOT_MARKERS) {
-      if (existsSync(path.join(current, marker))) return current;
-    }
-    current = path.dirname(current);
+  let fallback: string | undefined;
+  while (true) {
+    if (existsSync(path.join(current, ".ai"))) return current;
+    if (existsSync(path.join(current, ".git"))) return current;
+    if (!fallback && existsSync(path.join(current, "package.json"))) fallback = current;
+    const parent = path.dirname(current);
+    if (parent === current) return fallback ?? path.resolve(startDir);
+    current = parent;
   }
-  return path.resolve(startDir);
 }
 
 export const PROJECT_CONTEXT_FILE = "project-context.md";

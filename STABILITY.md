@@ -108,3 +108,21 @@ Use the same session ID throughout a task; hooks use the harness session ID. A b
 after 12 hours. A missing baseline or branch change falls back to inspecting the whole worktree;
 read completion instead refuses to claim an unchanged task. Completion contracts do not replace
 builds or functional tests, and a local finish only reports the policy scan that it actually ran.
+
+## Additions in 0.64
+
+`get_briefing` accepts optional `session_id` and `context_reset`. The reset clears emission and
+consultation receipts for that session while preserving its original task baseline. `mem_session_end`
+accepts optional `session_id` to checkpoint task progress. Read-only briefing and feedback never
+promote or rewrite shared corpus records; promotion remains explicit maintenance.
+
+`agent check --exercise`, `stats outcomes`, `memory feedback --outcome corrected|verified --reference`,
+and `benchmark prepare` are additive. Existing applied/rejected feedback remains supported. New
+`init --completion-mode` selects a task default; existing configurations are preserved. New projects
+default to local completion and draft capture. Project Claude MCP configurations are portable.
+
+`memory verify` still checks the entire corpus by default, but prints only exceptions; `--all` prints
+successful checks too and JSON remains complete. `--update` restores stale records to proposed,
+not validated: existing anchors cannot validate arbitrary claims. Generated bridge breadcrumbs
+now default to zero, with explicit `--max-memories` available. Merge/rewrite hooks no longer mutate
+the corpus. See the release migration notes before updating a legacy auto-writing health workflow.

@@ -119,7 +119,7 @@ describe("Hivelore CLI integration", () => {
     expect(syncWorkflow).toContain("Doucs91/hivelore/packages/github-action@v");
     expect(syncWorkflow).not.toContain("Doucs91/hivelore/packages/github-action@main");
     // No-op-safe harness quality regression gate is wired into the generated CI.
-    expect(syncWorkflow).toContain("pr-eval-gate");
+    expect(syncWorkflow).toContain("harness regression gate");
     expect(syncWorkflow).toContain("hivelore eval --regression-gate");
     const enforcementWorkflow = await readFile(path.join(workDir, ".github/workflows/hivelore-enforcement.yml"), "utf8");
     expect(enforcementWorkflow).toContain("HIVELORE_BASE_SHA");
@@ -140,7 +140,7 @@ describe("Hivelore CLI integration", () => {
     };
     expect(config.autopilot).toBe(true);
     expect(config.defaultScope).toBe("team");
-    expect(config.defaultStatus).toBe("validated");
+    expect(config.defaultStatus).toBe("draft");
     expect(config.autoRepair?.context).toBe(true);
     expect(config.autoRepair?.corpus).toBe(true);
     expect(config.autoRepair?.codeMap).toBe(true);
@@ -198,11 +198,11 @@ describe("Hivelore CLI integration", () => {
 
       const claude = await readFile(path.join(bridgeDir, "CLAUDE.md"), "utf8");
       const agents = await readFile(path.join(bridgeDir, "AGENTS.md"), "utf8");
-      expect(claude).toContain("bridge-demo");
+      expect(claude).not.toContain("bridge-demo");
       expect(claude).toContain("haive:bridge-start");
       expect(agents).toContain("haive:memories-start");
       expect(agents).toContain("haive:bridge-start");
-      expect(agents).toContain("bridge-demo");
+      expect(agents).not.toContain("bridge-demo");
     } finally {
       await rm(bridgeDir, { recursive: true, force: true });
     }
@@ -495,14 +495,14 @@ describe("Hivelore CLI integration", () => {
     expect(stdout).not.toContain("auto-promote");
   });
 
-  it("init adds project-level MCP configs to .gitignore", async () => {
+  it("init ignores machine-specific MCP configs but keeps portable project configuration shareable", async () => {
     const gitignore = await readFile(path.join(workDir, ".gitignore"), "utf8");
     expect(gitignore).toContain(".cursor/mcp.json");
     expect(gitignore).toContain(".vscode/mcp.json");
-    expect(gitignore).toContain(".mcp.json");
+    expect(gitignore.split("\n")).not.toContain(".mcp.json");
   });
 
-  it("memory add uses autopilot defaults by default", async () => {
+  it("memory add uses draft capture for new repositories", async () => {
     await run(workDir, [
       "memory",
       "add",
@@ -517,7 +517,7 @@ describe("Hivelore CLI integration", () => {
     expect(files.length).toBe(1);
     const content = await readFile(path.join(teamDir, files[0]!), "utf8");
     expect(content).toContain("scope: team");
-    expect(content).toContain("status: validated");
+    expect(content).toContain("status: draft");
     expect(content).toContain("Always use pnpm in this project.");
     // Embeddings index generation is BEST-EFFORT: it needs the Transformers.js model, which can fail
     // to download in CI (the old hard assertion flaked releases). Assert it when the model produced an
@@ -1301,6 +1301,9 @@ describe("Hivelore CLI integration", () => {
       await mkdir(path.join(repo, "src"), { recursive: true });
       await writeFile(path.join(repo, "src", "changed.ts"), "export const changed = true;\n", "utf8");
 
+      const configFile = path.join(repo, ".ai/hivelore.config.json");
+      const sessionConfig = JSON.parse(await readFile(configFile, "utf8"));
+      await writeFile(configFile, JSON.stringify({ ...sessionConfig, autoSessionRecap: true }));
       const { stdout } = await run(repo, ["session", "end", "--auto", "--dir", repo]);
 
       expect(stdout).toContain("Session recap");
@@ -2298,7 +2301,7 @@ describe("Hivelore CLI integration", () => {
       await mkdir(path.join(repo, "packages/cli/src"), { recursive: true });
       await writeFile(path.join(repo, "packages/cli/src/index.ts"), "export const changed = true;\n", "utf8");
 
-      const result = await runAllowFailure(repo, ["enforce", "finish", "--json", "--dir", repo]);
+      const result = await runAllowFailure(repo, ["enforce", "finish", "--mode", "release", "--json", "--dir", repo]);
       const report = JSON.parse(result.stdout) as {
         should_block: boolean;
         findings: Array<{ code: string; severity: string }>;
@@ -2333,7 +2336,7 @@ describe("Hivelore CLI integration", () => {
       await exec("git", ["add", "."], { cwd: repo });
       await exec("git", ["commit", "-m", "change shippable code without bump"], { cwd: repo });
 
-      const result = await runAllowFailure(repo, ["enforce", "finish", "--json", "--dir", repo]);
+      const result = await runAllowFailure(repo, ["enforce", "finish", "--mode", "release", "--json", "--dir", repo]);
       const report = JSON.parse(result.stdout) as {
         should_block: boolean;
         findings: Array<{ code: string; severity: string }>;
@@ -2366,7 +2369,7 @@ describe("Hivelore CLI integration", () => {
       await writeFile(path.join(repo, ".ai/.cache/code-map.json"), '{"version":1,"files":{"src/x.ts":{"exports":[],"loc":1}}}\n', "utf8");
       await writeFile(path.join(repo, ".ai/code-map.json"), '{"version":1,"files":{"src/x.ts":{"exports":[],"loc":1}}}\n', "utf8");
 
-      const result = await runAllowFailure(repo, ["enforce", "finish", "--json", "--dir", repo]);
+      const result = await runAllowFailure(repo, ["enforce", "finish", "--mode", "release", "--json", "--dir", repo]);
       const report = JSON.parse(result.stdout) as {
         findings: Array<{ code: string; severity: string }>;
       };
@@ -2425,7 +2428,7 @@ describe("Hivelore CLI integration", () => {
       await exec("git", ["commit", "-m", "push shippable code without bump"], { cwd: repo });
       await exec("git", ["push"], { cwd: repo });
 
-      const result = await runAllowFailure(repo, ["enforce", "finish", "--json", "--dir", repo]);
+      const result = await runAllowFailure(repo, ["enforce", "finish", "--mode", "release", "--json", "--dir", repo]);
       const report = JSON.parse(result.stdout) as {
         should_block: boolean;
         findings: Array<{ code: string; severity: string }>;
@@ -2470,7 +2473,7 @@ describe("Hivelore CLI integration", () => {
       );
       await chmod(path.join(fakeBin, "gh"), 0o755);
 
-      const result = await runAllowFailure(repo, ["enforce", "finish", "--json", "--dir", repo], {
+      const result = await runAllowFailure(repo, ["enforce", "finish", "--mode", "release", "--json", "--dir", repo], {
         PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
       });
       const report = JSON.parse(result.stdout) as {
@@ -2517,7 +2520,7 @@ describe("Hivelore CLI integration", () => {
       );
       await chmod(path.join(fakeBin, "gh"), 0o755);
 
-      const result = await runAllowFailure(repo, ["enforce", "finish", "--json", "--dir", repo], {
+      const result = await runAllowFailure(repo, ["enforce", "finish", "--mode", "release", "--json", "--dir", repo], {
         PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
       });
       const report = JSON.parse(result.stdout) as {

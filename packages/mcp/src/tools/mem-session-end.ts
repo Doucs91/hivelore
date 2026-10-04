@@ -10,6 +10,7 @@ import { writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import {
+  loadTaskSession, saveTaskSession, sessionIdentity,
   buildFrontmatter,
   buildRecapWithHistory,
   loadMemoriesFromDir,
@@ -21,6 +22,7 @@ import type { HaiveContext } from "../context.js";
 import { clearPendingDistill } from "../session-tracker.js";
 
 export const MemSessionEndInputSchema = {
+  session_id: z.string().optional().describe("Task session to checkpoint independently of the rolling recap."),
   goal: z
     .string()
     .min(1)
@@ -54,8 +56,8 @@ export const MemSessionEndInputSchema = {
 };
 
 export type MemSessionEndInput = {
-  [K in keyof typeof MemSessionEndInputSchema]: z.infer<(typeof MemSessionEndInputSchema)[K]>;
-};
+  [K in Exclude<keyof typeof MemSessionEndInputSchema, "session_id">]: z.infer<(typeof MemSessionEndInputSchema)[K]>;
+} & { session_id?: string };
 
 export interface MemSessionEndOutput {
   id: string;
@@ -99,6 +101,9 @@ export async function memSessionEnd(
     throw new Error(`No .ai/ directory at ${ctx.paths.root}. Run 'hivelore init' first.`);
   }
 
+  const sessionId = sessionIdentity(input.session_id ?? ctx.sessionId);
+  const session = await loadTaskSession(ctx.paths, sessionId);
+  if (session) await saveTaskSession(ctx.paths, { ...session, task: input.goal, accomplished: input.accomplished, next_steps: input.next_steps }, sessionId);
   const body = buildBody(input);
   const topic = recapTopic(input.scope, input.module);
 

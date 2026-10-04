@@ -61,7 +61,7 @@ async function readConfig(target: ConfigTarget): Promise<{ raw: string; config: 
   return { raw, config, servers };
 }
 
-async function configureJson(target: ConfigTarget, root?: string): Promise<ConfigureResult> {
+async function configureJson(target: ConfigTarget, root?: string, portable = false): Promise<ConfigureResult> {
   const base = { client: target.client, path: target.file };
   try {
     const { raw, servers } = await readConfig(target);
@@ -82,17 +82,18 @@ async function configureJson(target: ConfigTarget, root?: string): Promise<Confi
     }
     const legacy = object(servers.haive) && isLegacyMcpCommand(servers.haive.command);
     const stale = object(current) && isLegacyMcpCommand(current.command);
-    if (current && !stale && !root && !legacy) return { ...base, status: "already_configured" };
+    if (current && !stale && !root && !legacy && !portable) return { ...base, status: "already_configured" };
     // Preserve customized working transports and all client-specific options.
     // Refresh the project root only on entries we recognize as the bundled server.
     const bundled = object(current) && current.command === "hivelore" && Array.isArray(current.args) && current.args[0] === "mcp";
-    if (!current || stale || (root && bundled)) {
+    if (!current || stale || ((root || portable) && bundled)) {
       const env = object(current) && object(current.env) ? current.env : {};
+      if (portable) { delete env.HAIVE_PROJECT_ROOT; delete env.HIVELORE_PROJECT_ROOT; }
       servers.hivelore = {
         ...(object(current) ? current : {}),
         command: "hivelore", args: ["mcp", "--stdio", ...(root ? ["--dir", root] : [])],
         ...(target.type ? { type: target.type } : {}),
-        ...(root ? { env: { ...env, HAIVE_PROJECT_ROOT: root, HIVELORE_PROJECT_ROOT: root } } : {}),
+        ...(root ? { env: { ...env, HAIVE_PROJECT_ROOT: root, HIVELORE_PROJECT_ROOT: root } } : portable ? { env } : {}),
       };
     }
     const options = { formattingOptions: { insertSpaces: true, tabSize: 2 } };
@@ -120,7 +121,10 @@ export async function autoConfigureMcpClients(): Promise<ConfigureResult[]> {
 }
 export async function configureProjectMcpClients(root: string): Promise<ConfigureResult[]> {
   const results: ConfigureResult[] = [];
-  for (const target of projectTargets(root)) results.push(await configureJson(target, root));
+  for (const target of projectTargets(root)) {
+    const portable = target.client === "Claude Code (project)";
+    results.push(await configureJson(target, portable ? undefined : root, portable));
+  }
   // Generated configurations carry machine-specific roots. Keep newly generated files local.
   if (existsSync(path.join(root, ".git"))) {
     const ignorePath = path.join(root, ".gitignore");
@@ -128,7 +132,7 @@ export async function configureProjectMcpClients(root: string): Promise<Configur
     const lines = new Set(existing.split(/\r?\n/).map((line) => line.trim()));
     const missing = results.filter((r) => r.status !== "error" && r.path)
       .map((r) => path.relative(root, r.path!).split(path.sep).join("/"))
-      .filter((file) => !lines.has(file) && !lines.has(`/${file}`));
+      .filter((file) => file !== ".mcp.json" && !lines.has(file) && !lines.has(`/${file}`));
     if (missing.length) await writeFile(ignorePath, existing + (existing.endsWith("\n") || !existing ? "" : "\n") + missing.join("\n") + "\n", "utf8");
   }
   return results;

@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,6 +28,24 @@ async function save(slug: string, body: string, extra = {}) {
 }
 
 describe("client feedback regressions", () => {
+  it("restores context after a reset without leaking deduplication between sessions", async () => {
+    await writeFile(ctx.paths.projectContext, "# Architecture\nUse the transaction wrapper.");
+    const opts = { ...input, dedupe_project_context: true };
+    expect((await getBriefing({ ...opts, session_id: "a" }, ctx)).project_context?.content).toContain("Use the transaction wrapper.");
+    expect((await getBriefing({ ...opts, session_id: "a" }, ctx)).project_context).toMatchObject({ omitted_recent: true });
+    expect((await getBriefing({ ...opts, session_id: "b" }, ctx)).project_context?.content).toContain("Use the transaction wrapper.");
+    expect((await getBriefing({ ...opts, session_id: "a", context_reset: true }, ctx)).project_context?.content).toContain("Use the transaction wrapper.");
+  });
+
+  it("keeps negative feedback local instead of rewriting a shared rule", async () => {
+    const { memFeedback } = await import("../src/tools/mem-feedback.js");
+    const id = await save("feedback", "Use currentContract.");
+    const file = path.join(ctx.paths.teamDir, `${id}.md`);
+    const original = await readFile(file, "utf8");
+    for (let i = 0; i < 5; i++) await memFeedback({ id, outcome: "rejected", reason: "Needs review" }, ctx);
+    expect(await readFile(file, "utf8")).toBe(original);
+  });
+
   it("records a tool call once through central registration, including explicit reads", async () => {
     const id = await save("logged", "Use currentContract.");
     const record = vi.spyOn(SessionTracker.prototype, "record").mockImplementation(() => {});

@@ -6,6 +6,16 @@ project follows semantic versioning once it ships its first stable release.
 
 ## [Unreleased]
 
+## [0.64.0] — Quiet integration, session continuity and measurable outcomes
+
+- Keep briefing and feedback read-only for shared memories; remove corpus writes from merge hooks and health CI. Newly generated bridges use stable navigation without rotating breadcrumbs.
+- Exercise actual MCP briefing and provide `agent check --exercise`: isolated context injection, validated GREEN/RED sensor checks and measured no-op hook latency. Make project Claude configuration portable and fix nested-package root discovery.
+- Deliver small, complete file-specific instructions with source/evidence; avoid read-only shell context injection and load the full CLI only when a hook needs it.
+- Preserve task baselines through compaction, isolate context receipts by session, and restore task checkpoints. Add MCP `session_id`/`context_reset` support.
+- Default new repositories to local completion and draft capture. Add one-line memory save, quieter verification and structural qualified Java anchors. Preserve existing repository completion policies.
+- Add explicit local outcome accounting and a balanced three-arm benchmark preparation protocol. Distinguish observed delivery, reported utility and sensor catches; no inferred time savings or unperformed benchmark claims.
+- Document migrations, reproducible proof, regression coverage and the remaining independent field-validation work in `docs/product-excellence-0.64.md`.
+
 ## [0.63.1] — Repair MCP access across AI clients
 
 - Repair Codex registration through its native CLI: replace dead `haive` commands, retain other servers and explicit disabling, and stop pinning global MCP to one project.
