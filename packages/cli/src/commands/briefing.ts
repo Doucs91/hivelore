@@ -442,7 +442,7 @@ export function registerBriefing(program: Command): void {
         await trackReads(paths, ids).catch(() => {});
         await writeBriefingMarker(paths, { source: "haive-briefing-cli", task: opts.task,
           sessionId: process.env.HIVELORE_SESSION_ID ?? process.env.HAIVE_SESSION_ID ?? process.env.CLAUDE_SESSION_ID,
-          memoryIds: ids, files: filePaths }).catch(() => {});
+          memoryIds: [], files: filePaths }).catch(() => {});
         console.log(JSON.stringify({
           task: opts.task ?? null,
           files: filePaths,
@@ -459,6 +459,7 @@ export function registerBriefing(program: Command): void {
             priority: priorities[i],
             score: item.score,
             file: path.relative(root, item.filePath),
+            delivery: "partial",
             summary: (item.memory.body.split("\n").map((l) => l.replace(/^#+\s*/, "").trim()).find((l) => l.length > 0) ?? "").slice(0, 140),
           })),
         }, null, 2));
@@ -506,7 +507,7 @@ export function registerBriefing(program: Command): void {
         }).text;
         if (!stopped() && excerpt) {
           out(excerpt);
-          displayedIds.push(fm.id);
+          if (excerpt === item.memory.body.trim()) displayedIds.push(fm.id);
         }
         out("");
       }

@@ -294,6 +294,7 @@ function toolSummary(input: unknown, result: unknown): string | undefined {
 export const ENFORCEMENT_PROFILE_TOOLS = [
   "get_briefing",
   "mem_save",
+  "mem_feedback",
   // Correcting a memory is part of the default loop, not a maintenance chore: `mem_save` rejects a
   // duplicate body and tells the agent to "use mem_update to modify", so leaving mem_update out of
   // this profile pointed the agent at a tool it could not call — its only way out was a near-dup
@@ -334,7 +335,6 @@ export const MAINTENANCE_PROFILE_TOOLS = [
   "mem_distill",
   "mem_timeline",
   "mem_conflict_candidates",
-  "mem_feedback",
   "ingest_findings",
 ] as const;
 
@@ -431,7 +431,7 @@ export function createHaiveServer(
           if (client && client.name !== "hivelore-diagnostic") {
             const receiptDir = path.join(context.paths.runtimeDir, "enforcement");
             await mkdir(receiptDir, { recursive: true }).then(() => writeFile(path.join(receiptDir, "mcp-access.json"), JSON.stringify({
-              at: new Date().toISOString(), client: client.name, tool: name,
+              at: new Date().toISOString(), client: client.name, tool: name, server_version: SERVER_VERSION, pid: process.pid,
               session_id: (input as { session_id?: string }).session_id ?? context.sessionId,
               evidence: "Successful MCP request; not proof that another or later session is connected.",
             }))).catch(() => {});
@@ -1009,7 +1009,7 @@ export function createHaiveServer(
     [
       "Mark a memory as validated (trusted, approved by a human or the team).",
       "",
-      "In autopilot mode, memories are validated automatically — you rarely need this.",
+      "New projects capture drafts. Approve only after reviewing the claim and its evidence.",
       "In manual mode, call this after reviewing a proposed memory to activate it.",
       "",
       "PARAMETERS:",
@@ -1049,12 +1049,14 @@ export function createHaiveServer(
       "  - outcome='applied'  → the memory steered your work (strong positive signal)",
       "  - outcome='rejected' → it was wrong/outdated/unhelpful (negative signal)",
       "",
-      "A read only means a memory was surfaced; 'applied' means it demonstrably helped.",
+      "A read only means a memory was surfaced; 'applied' is a reported utility signal, not independently verified proof.",
       "This powers `hivelore memory impact` (impact tiers + prune candidates) and future ranking.",
       "",
       "PARAMETERS:",
       "  id      — full memory id the feedback is about",
-      "  outcome — 'applied' | 'rejected'",
+      "  outcome — applied | rejected | corrected | verified",
+      "  reference — required for corrected/verified; reported commit or test-report reference",
+      "  catch_id — optional recorded catch identity; linked verified requires a prior correction",
       "  reason  — why it was rejected (optional, stored on the usage record)",
       "",
       "RETURNS: { ok, id, outcome, usage:{read_count,applied_count,rejected_count}, impact:{score,tier,signals} }",
@@ -1069,7 +1071,7 @@ export function createHaiveServer(
       "List memories in 'proposed' status awaiting review, sorted by read count.",
       "",
       "USE IN MANUAL MODE to see what memories are waiting for human review.",
-      "In autopilot mode, proposed memories auto-approve after 72h.",
+      "New projects disable automatic approval; existing repositories retain their configured policy.",
       "",
       "High read_count on a proposed memory = many agents found it useful without",
       "rejecting it = strong signal to approve.",
@@ -1403,8 +1405,8 @@ export async function runHaiveMcpStdio(options: { root?: string }): Promise<void
 }
 
 export async function writeMcpRuntimeMarker(context: HaiveContext): Promise<void> {
-  await mkdir(context.paths.runtimeDir, { recursive: true });
-  await writeFile(path.join(context.paths.runtimeDir, "mcp-server.json"), JSON.stringify({
+  await mkdir(path.join(context.paths.runtimeDir, "mcp-servers"), { recursive: true });
+  await writeFile(path.join(context.paths.runtimeDir, "mcp-servers", `${process.pid}.json`), JSON.stringify({
     version: SERVER_VERSION,
     pid: process.pid,
     started_at: new Date().toISOString(),

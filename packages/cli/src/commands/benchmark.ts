@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
-import { estimateTokens, findProjectRoot } from "@hivelore/core";
+import { assessBenchmarkEvidence, type BenchmarkProtocolRun, estimateTokens, findProjectRoot } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
 interface BenchmarkOptions {
@@ -87,7 +87,20 @@ export function registerBenchmark(program: Command): void {
     .action(async (opts: BenchmarkOptions) => {
       const root = resolveBenchmarkRoot(opts.dir);
       const rows = await collectRows(root);
-      const summary = summarizeRows(rows);
+      let protocol: BenchmarkProtocolRun[] | undefined;
+      try {
+        const parsed = JSON.parse(await readFile(path.join(root, "protocol.json"), "utf8"));
+        if (parsed.version === 1 && Array.isArray(parsed.runs)) {
+          protocol = parsed.runs;
+          // Every per-run manifest must still match the planned run. Missing arms are not a new protocol.
+          for (const run of protocol!) {
+            if (!run || typeof run.task !== "string" || !/^[a-zA-Z0-9_-]+$/.test(run.task) || !["plain", "context", "haive"].includes(run.arm) || !Number.isInteger(run.repetition)) throw new Error("Invalid run");
+            const manifest = JSON.parse(await readFile(path.join(root, `${run.task}-r${run.repetition}-${run.arm}`, "run.json"), "utf8"));
+            if (["task", "repetition", "arm", "model", "checkout", "budget", "case_hash"].some(k => manifest[k] !== run[k as keyof BenchmarkProtocolRun])) throw new Error("Run manifest changed");
+          }
+        }
+      } catch { protocol = undefined; }
+      const summary = summarizeRows(rows, protocol);
 
       if (opts.json) {
         console.log(JSON.stringify({ root, summary, rows }, null, 2));
@@ -173,46 +186,11 @@ function parseAgentReport(fixture: string, report: string): AgentBenchmarkRow {
   };
 }
 
-function summarizeRows(rows: AgentBenchmarkRow[]) {
-  const byGroup = (group: AgentBenchmarkRow["group"]) => rows.filter((r) => r.group === group);
-  const haiveRows = byGroup("haive");
-  const plainRows = byGroup("plain");
-  const taskName = (fixture: string): string => fixture.replace(/-(haive|plain)$/, "");
-  const plainTasks = new Set(plainRows.map((row) => taskName(row.fixture)));
-  const pairedTasks = new Set(haiveRows.map((row) => taskName(row.fixture)).filter((name) => plainTasks.has(name))).size;
-  const outcomeComplete = rows.length > 0 && rows.every((row) =>
-    row.task_completed !== null && row.tests_passed !== null && row.policy_violations !== null &&
-    row.duration_seconds !== null && row.total_tokens !== null && row.runner_id !== null &&
-    row.evaluator_id !== null && row.evaluator_id !== row.runner_id && row.independent_evaluation === true,
-  );
-  const contextRows = byGroup("context");
-  const triplets = new Set(contextRows.map(r => r.fixture.replace(/-context$/, "")));
-  const comparative = contextRows.length > 0;
-  const comparable = !comparative || rows.every(row => {
-    const key = row.fixture.replace(/-(haive|plain|context)$/, "");
-    const peers = rows.filter(r => r.fixture.replace(/-(haive|plain|context)$/, "") === key);
-    return peers.length === 3 && new Set(peers.map(r => r.group)).size === 3 && row.human_interventions !== null &&
-      ["model", "checkout", "budget", "prompt_hash"].every(field => {
-        const value = row[field as keyof AgentBenchmarkRow];
-        return value && value !== "TODO" && peers.every(peer => peer[field as keyof AgentBenchmarkRow] === value);
-      });
-  });
-  const distinctTasks = new Set(rows.map(r => r.fixture.replace(/(?:-r\d+)?-(haive|plain|context)$/, ""))).size;
-  const repeated = !comparative || [...new Set(rows.map(r => r.fixture.replace(/(?:-r\d+)?-(haive|plain|context)$/, "")))].every(task =>
-    [...triplets].filter(key => key.replace(/-r\d+$/, "") === task).length >= 3);
-  const decisionReady = pairedTasks >= 10 && outcomeComplete && comparable && repeated && (!comparative || distinctTasks >= 10);
-  return {
-    fixtures: rows.length,
-    paired_tasks: pairedTasks,
-    evidence_grade: decisionReady ? "decision-ready" : "insufficient",
-    evidence_reason: decisionReady
-      ? "Complete independently evaluated outcomes; three-arm comparisons additionally require >=10 distinct tasks, >=3 repetitions and matched execution metadata. This threshold does not establish statistical superiority."
-      : `Need >=10 paired tasks, complete Outcome fields, and independent evaluator attestations; found ${pairedTasks} pair(s), outcome_complete=${outcomeComplete}.`,
-    comparison: { comparable, repeated, distinct_tasks: distinctTasks, three_arm: comparative },
-    context: summarizeGroup(contextRows),
-    haive: summarizeGroup(haiveRows),
-    plain: summarizeGroup(plainRows),
-  };
+function summarizeRows(rows: AgentBenchmarkRow[], protocol?: BenchmarkProtocolRun[]) {
+  return { fixtures: rows.length, ...assessBenchmarkEvidence(rows, protocol),
+    context: summarizeGroup(rows.filter(r => r.group === "context")),
+    haive: summarizeGroup(rows.filter(r => r.group === "haive")),
+    plain: summarizeGroup(rows.filter(r => r.group === "plain")) };
 }
 
 function summarizeGroup(rows: AgentBenchmarkRow[]) {

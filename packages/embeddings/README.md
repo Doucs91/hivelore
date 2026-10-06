@@ -12,6 +12,14 @@ When installed alongside `@hivelore/cli`, this package helps Hivelore surface th
 
 ---
 
+## Version and verification
+
+Keep this add-on on the same release as `@hivelore/cli` (0.65.0 for this release).
+After upgrading, restart any long-running MCP clients. `hivelore agent check --json` reports
+known server versions; `hivelore embeddings status` checks the local semantic index.
+Semantic relevance does not prove policy validity or benchmark superiority, and partial policy
+results still require a complete `mem_get` read before they count as consulted.
+
 ## Why optional?
 
 This package pulls in heavy ML dependencies (`@xenova/transformers`, `onnxruntime-node`, `sharp`) and downloads a ~110MB model on first use. It is **not installed by default** so that the core Hivelore experience stays lightweight.

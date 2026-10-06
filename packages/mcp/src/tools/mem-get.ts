@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import {
+  writeBriefingMarker, sessionIdentity,
   deriveConfidence,
   verifyAnchor,
   getUsage,
@@ -12,11 +13,10 @@ import type { HaiveContext } from "../context.js";
 
 export const MemGetInputSchema = {
   id: z.string().min(1).describe("Memory id to fetch"),
+  session_id: z.string().optional().describe("Hook session id to credit this complete read to"),
 };
 
-export type MemGetInput = {
-  [K in keyof typeof MemGetInputSchema]: z.infer<(typeof MemGetInputSchema)[K]>;
-};
+export type MemGetInput = { id: string; session_id?: string };
 
 export interface MemGetOutput {
   id: string;
@@ -49,6 +49,8 @@ export async function memGet(input: MemGetInput, ctx: HaiveContext): Promise<Mem
   const fm = found.memory.frontmatter;
   const u = getUsage(await trackReads(ctx.paths, [fm.id]), fm.id);
   const check = fm.checks?.length ? await verifyAnchor(found.memory, { projectRoot: ctx.paths.root }) : null;
+  await writeBriefingMarker(ctx.paths, { sessionId: sessionIdentity(input.session_id ?? ctx.sessionId),
+    source: "mcp-mem-get", memoryIds: [fm.id] });
   return {
     id: fm.id,
     scope: fm.scope,

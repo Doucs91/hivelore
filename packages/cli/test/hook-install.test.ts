@@ -1,5 +1,9 @@
+import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { stripHiveloreHookBlock, buildHookFileContent, hookIsStale } from "../src/commands/enforce.js";
+import { stripHiveloreHookBlock, buildHookFileContent, hookIsStale, detectStaleGitHooks, repairStaleGitHooks } from "../src/commands/enforce.js";
 
 // The current-format block the installer writes for pre-commit.
 const OWN_BODY = `#!/bin/sh
@@ -106,4 +110,35 @@ describe("buildHookFileContent — idempotent regeneration", () => {
     // And the pure Hivelore case is stable too.
     expect(buildHookFileContent(buildHookFileContent(LEGACY_HOOK, OWN_BODY), OWN_BODY)).toBe(OWN_BODY);
   });
+});
+
+describe("automatic sync migration", () => {
+  const old = "#!/bin/sh\n# Hivelore enforcement hook\n_hivelore sync --quiet --since ORIG_HEAD || true\ncustom_cleanup\n";
+  const current = "#!/bin/sh\n# Hivelore enforcement hook\n# Corpus maintenance is explicit: hivelore sync. No writes on merge/rebase.\n";
+  it("replaces managed auto-sync while preserving custom commands, idempotently", () => {
+    expect(hookIsStale(old)).toBe(true);
+    const migrated = buildHookFileContent(old, current);
+    expect(migrated).toContain("custom_cleanup");
+    expect(migrated).not.toContain("--since ORIG_HEAD");
+    expect(hookIsStale(migrated)).toBe(false);
+    expect(buildHookFileContent(migrated, current)).toBe(migrated);
+    expect(stripHiveloreHookBlock(current + "custom_tail\n")).toBe("custom_tail");
+    expect(hookIsStale("#!/bin/sh\nhivelore sync\n")).toBe(false);
+  });
+});
+
+it("migrates the actual core.hooksPath and preserves user commands", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "hook-migration-"));
+  try {
+    execFileSync("git", ["init", "-b", "main"], { cwd: root });
+    execFileSync("git", ["config", "core.hooksPath", ".custom-hooks"], { cwd: root });
+    await mkdir(path.join(root, ".custom-hooks"));
+    const file = path.join(root, ".custom-hooks", "post-merge");
+    await writeFile(file, "#!/bin/sh\n# Hivelore enforcement hook\n_hivelore sync --quiet --since ORIG_HEAD || true\ncustom_cleanup\n");
+    expect(await detectStaleGitHooks(root)).toEqual(["post-merge"]);
+    expect(await repairStaleGitHooks(root)).toEqual(["post-merge"]);
+    expect(await readFile(file, "utf8")).toContain("custom_cleanup");
+    expect(await readFile(file, "utf8")).not.toContain("--since ORIG_HEAD");
+    expect(await repairStaleGitHooks(root)).toEqual([]);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });

@@ -667,7 +667,7 @@ export async function getBriefing(
     const share = Math.floor(remainingMemoryTokens / (memories.length - index));
     if (share < 20) break;
     const excerpt = truncateToTokens(m.body, { maxTokens: share, mode: "head" });
-    trimmedMemories.push({ ...m, body: excerpt.text });
+    trimmedMemories.push({ ...m, body: excerpt.text, delivery: excerpt.truncated ? "partial" : "full" });
     remainingMemoryTokens -= excerpt.estimatedTokens;
   }
 
@@ -686,9 +686,9 @@ export async function getBriefing(
   // ── Format + priority + why ────────────────────────────────────────────
   const formattedMemories =
     input.format === "compact"
-      ? trimmedMemories.map((m) => ({ ...m, body: compactSummary(m.body) }))
+      ? trimmedMemories.map((m) => ({ ...m, body: compactSummary(m.body), delivery: "partial" as const }))
       : input.format === "actions"
-        ? trimmedMemories.map((m) => ({ ...m, body: extractActionsBriefBody(m.body) }))
+        ? trimmedMemories.map((m) => ({ ...m, body: extractActionsBriefBody(m.body), delivery: "partial" as const }))
         : trimmedMemories;
 
   let outputMemories = formattedMemories.map((m) => ({
@@ -707,7 +707,7 @@ export async function getBriefing(
     if (hasDirectHits) {
       outputMemories = outputMemories.map((m) =>
         m.priority === "background"
-          ? { ...m, body: `${compactSummary(m.body)}\n(background — full body: mem_get("${m.id}"))` }
+          ? { ...m, delivery: "partial" as const, body: `${compactSummary(m.body)}\n(background — full body: mem_get("${m.id}"))` }
           : m,
       );
     }
@@ -987,7 +987,7 @@ export async function getBriefing(
       ...(input.task ? { task: input.task } : {}),
       source: "mcp-get-briefing",
       files: input.files,
-      memoryIds: outputMemories.map((m) => m.id),
+      memoryIds: outputMemories.filter(m => m.delivery === "full").map((m) => m.id),
     }).catch(() => { /* marker is best-effort — never fail the briefing on it */ });
   }
 

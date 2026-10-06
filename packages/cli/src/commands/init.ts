@@ -568,11 +568,11 @@ export function registerInit(program: Command): void {
       console.log();
 
       if (autopilot) {
-        console.log(ui.bold("Autopilot mode is ON — Hivelore runs itself:"));
-        console.log(ui.dim("  ✓ Memories go directly to validated (no approval needed)"));
-        console.log(ui.dim("  ✓ Proposed memories auto-approve after 72h without rejection"));
+        console.log(ui.bold("Autopilot hooks are ON — capture and enforcement are configured:"));
+        console.log(ui.dim("  ✓ New captures remain drafts unless your configuration explicitly opts into validation"));
+        console.log(ui.dim("  ✓ Review proposed memories explicitly; no time-based approval by default"));
         console.log(ui.dim("  ✓ Session recap saved automatically when the AI session closes"));
-        console.log(ui.dim("  ✓ Code-map refreshes automatically after every pull"));
+        console.log(ui.dim("  ✓ Refresh the code-map explicitly with hivelore index code"));
         console.log(ui.dim("  ✓ Agent-agnostic enforcement gates installed (MCP, git, CI, wrapper-ready)"));
         console.log(ui.dim("  ✓ CI workflows created (sync + enforcement)"));
         if (stacksToSeed.length > 0) {

@@ -54,7 +54,7 @@ function isEvaluation(value: unknown): value is SensorEvaluation {
   if (!value || typeof value !== "object") return false;
   const v = value as Partial<SensorEvaluation>;
   return typeof v.at === "string" && typeof v.memory_id === "string" &&
-    (v.kind === "regex" || v.kind === "shell" || v.kind === "test") &&
+    (v.kind === "regex" || v.kind === "ast" || v.kind === "shell" || v.kind === "test") &&
     (v.stage === "pre-commit" || v.stage === "pre-push" || v.stage === "ci" || v.stage === "manual") &&
     typeof v.head_sha === "string" && typeof v.scope_hash === "string" &&
     (v.outcome === "fired" || v.outcome === "silent" || v.outcome === "unrunnable");

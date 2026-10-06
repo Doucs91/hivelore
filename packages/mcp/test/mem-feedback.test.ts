@@ -42,6 +42,13 @@ describe("memFeedback", () => {
     await rm(workDir, { recursive: true, force: true });
   });
 
+  it("requires references for correction/verification, and does not count them as applications", async () => {
+    expect((await memFeedback({ id, outcome: "corrected" }, ctx)).ok).toBe(false);
+    expect(await memFeedback({ id, outcome: "corrected", reference: "commit-sha" }, ctx)).toMatchObject({ ok: true, evidence: "reported" });
+    expect(await memFeedback({ id, outcome: "verified", reference: "test-report" }, ctx)).toMatchObject({ ok: true, evidence: "reported" });
+    const applied = await memFeedback({ id, outcome: "applied" }, ctx);
+    expect(applied.usage?.applied_count).toBe(1);
+  });
   it("records an applied outcome and returns updated impact", async () => {
     const r1 = await memFeedback({ id, outcome: "applied", reason: undefined }, ctx);
     expect(r1.ok).toBe(true);

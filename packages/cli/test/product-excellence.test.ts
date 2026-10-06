@@ -76,6 +76,28 @@ describe("complete product paths", () => {
     const { access } = await import("node:fs/promises");
     await expect(access(path.join(root, "runs"))).rejects.toThrow();
   });
+  it("matches report evidence to every prepared run, rejecting altered manifests and missing arms", async () => {
+    await writeFile(path.join(root, "suite.json"), JSON.stringify({ cases: Array.from({ length: 10 }, (_, i) => ({ id: `task${i}` })) }));
+    await run(["benchmark", "prepare", "--suite", "suite.json", "--out", "runs", "--model", "same-model"]);
+    const protocol = JSON.parse(await readFile(path.join(root, "runs/protocol.json"), "utf8"));
+    for (const r of protocol.runs) {
+      const report = ["# Report", "## Outcome", "- Task completed: yes", "- Tests passed: yes", "- Policy violations: 0",
+        "- Duration seconds: 10", "- Total tokens: 100", "- Human interventions: 0", "- Runner ID: agent", "- Evaluator ID: reviewer",
+        "- Independent evaluation: yes", `- Model: ${r.model}`, `- Checkout: ${r.checkout}`, `- Budget: ${r.budget}`, "- Prompt hash: identical-task-prompt"].join("\n");
+      await writeFile(path.join(root, "runs", `${r.task}-r${r.repetition}-${r.arm}`, "BENCHMARK_AGENT_REPORT.md"), report);
+    }
+    const report = async () => JSON.parse((await run(["benchmark", "report", "--dir", path.join(root, "runs"), "--json"])).stdout);
+    expect((await report()).summary.evidence_grade).toBe("decision-ready");
+    const first = protocol.runs[0];
+    const manifest = path.join(root, "runs", `${first.task}-r${first.repetition}-${first.arm}`, "run.json");
+    await writeFile(manifest, JSON.stringify({ ...first, model: "changed" }));
+    expect((await report()).summary.evidence_grade).toBe("insufficient");
+    await writeFile(manifest, JSON.stringify(first));
+    for (const r of protocol.runs.filter((r: { arm: string }) => r.arm === "context")) {
+      await rm(path.join(root, "runs", `${r.task}-r${r.repetition}-${r.arm}`), { recursive: true });
+    }
+    expect((await report()).summary.evidence_grade).toBe("insufficient");
+  });
   it("prepares balanced comparisons and never claims evidence from empty report templates", async () => {
     await writeFile(path.join(root, "suite.json"), JSON.stringify({ cases: [{ id: "task-one" }] }));
     await run(["benchmark", "prepare", "--suite", "suite.json", "--out", "runs", "--model", "same-model"]);

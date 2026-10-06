@@ -71,7 +71,7 @@ import { commandScopeHash, evaluation, gitHeadSha } from "../utils/sensor-evalua
 import { applyAutopilotRepairs } from "../utils/autopilot.js";
 import { collectScaffoldLoopGaps, describeScaffoldGap } from "../utils/post-incident-scan.js";
 
-import { injectFileContext } from "../utils/file-context.js";
+import { runPreEdit } from "../utils/pre-edit.js";
 import { dirtyStatusEntries, loadTaskSession, startTaskSession, sessionIdentity, worktreeSnapshot, taskDirtyFiles, changedSince, gitText, type CompletionMode } from "../utils/task-session.js";
 
 declare const __HAIVE_VERSION__: string;
@@ -97,7 +97,7 @@ const ENFORCE_HOOK_MARKER = "# Hivelore enforcement hook";
  */
 export function stripHiveloreHookBlock(content: string): string {
   const markerRe = /^\s*#\s*(?:hivelore|h[aA]ive)\b.*\bhook\b/i;
-  const invocationRe = /^\s*_?(?:hivelore|haive)\b.*\|\|/i;
+  const invocationRe = /^\s*_?(?:hivelore|haive)\b.*\|\||^\s*# Corpus maintenance is explicit:/i;
   const shebangRe = /^\s*#!.*\bsh\b/;
   const out: string[] = [];
   let inBlock = false;
@@ -454,7 +454,7 @@ export function registerEnforce(program: Command): void {
         sessionId,
         task,
         source: opts.source ?? "claude-session-start",
-        memoryIds: briefing.memories.map((m) => m.id),
+        memoryIds: briefing.memories.filter(m => m.delivery === "full").map((m) => m.id),
       });
 
       if (existingSession?.next_steps && ["compact", "resume"].includes(payload.source ?? "")) console.log(`Task: ${existingSession.task ?? ""}\nNext: ${existingSession.next_steps}`);
@@ -495,49 +495,10 @@ export function registerEnforce(program: Command): void {
     .option("-d, --dir <dir>", "project root")
     .action(async (opts: EnforceOptions) => {
       const payload = await readHookPayload();
-      const root = resolveRoot(opts.dir, payload);
-      if (!root) return;
-      const paths = resolveHaivePaths(root);
-      if (!existsSync(paths.haiveDir)) return;
-      if (!isWriteLikeTool(payload)) return;
-
-      const config = await loadConfig(paths);
-      if (config.enforcement?.requireBriefingFirst === false) return;
-      const gate = config.enforcement?.preEditGate ?? "advise";
-
-      const targetFiles = extractToolPaths(payload, root);
-      const contextText = await injectFileContext(paths, targetFiles, payload.session_id);
-      if (!contextText) return;
-
-      if (gate === "block") {
-        // Legacy strict behaviour: block — but with the actual content and no separate command.
-        // The relevant policy is already recorded, so simply re-issuing the edit passes.
-        console.error(
-          contextText +
-          "\n\nThe relevant context is now recorded — re-issue the same edit to proceed " +
-          "(no `hivelore briefing` command needed). To make this advisory instead of blocking, set " +
-          '`{ "enforcement": { "preEditGate": "advise" } }` in .ai/hivelore.config.json.',
-        );
-        process.exit(2);
-      }
-
-      // advise (default): inject the context into the agent and ALLOW the edit — zero round-trip.
-      // Commit-time decision-coverage + CI enforcement remain the hard backstops.
-      emitPreToolUseContext(contextText);
+      process.exitCode = await runPreEdit(payload, opts.dir);
     });
 }
 
-/** Emit a Claude Code PreToolUse hook result that injects context for the model WITHOUT blocking. */
-function emitPreToolUseContext(text: string): void {
-  console.log(
-    JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        additionalContext: text,
-      },
-    }),
-  );
-}
 
 /**
  * Behaviour-loop accounting at the exit gate: a scaffolded post-incident test whose assertion is
@@ -1238,7 +1199,7 @@ async function writeWrapperBriefing(
     sessionId,
     task,
     source: "haive-run",
-    memoryIds: briefing.memories.map((m) => m.id),
+    memoryIds: briefing.memories.filter(m => m.delivery === "full").map((m) => m.id),
   });
   const dir = path.join(paths.runtimeDir, "enforcement", "briefings");
   await mkdir(dir, { recursive: true });
@@ -1794,7 +1755,8 @@ async function verifyDecisionCoverage(
           `Surfaced ${relevant.length} relevant decision/policy memor${relevant.length === 1 ? "y" : "ies"} ` +
           `for ${changedFiles.length} changed file(s) at commit time` +
           (missing.length > 0 ? ` (${missing.length} not previously briefed — now recorded)` : "") +
-          ". Set enforcement.autoBrief=false to require a manual briefing first.",
+          ". Set enforcement.autoBrief=false to require a manual briefing first.\n\n" +
+          missing.map(m => `${m.frontmatter.id}\n${m.body}`).join("\n\n"),
         memory_ids: relevant.slice(0, 12).map(({ memory }) => memory.frontmatter.id),
         affected_files: changedFiles.slice(0, 10),
       }];
@@ -3263,12 +3225,19 @@ export function hookIsStale(content: string): boolean {
   const callsRemovedBinary = /^\s*haive\s+(?:enforce|sync)\b/m.test(content);
   const markerCount = (content.match(/#\s*(?:hivelore|h[aA]ive)\b[^\n]*\bhook\b/gi) ?? []).length;
   const shebangCount = (content.match(/^\s*#!.*\bsh\b/gm) ?? []).length;
-  return callsRemovedBinary || markerCount > 1 || shebangCount > 1;
+  const automaticSync = markerCount > 0 && /^\s*_?(?:hivelore|haive)\s+sync\b/m.test(content);
+  return callsRemovedBinary || automaticSync || markerCount > 1 || shebangCount > 1;
+}
+
+async function resolveGitHooksDir(root: string): Promise<string | null> {
+  try { return path.resolve(root, (await execFileAsync("git", ["rev-parse", "--git-path", "hooks"], { cwd: root })).stdout.trim()); }
+  catch { return null; }
 }
 
 /** Names of managed hooks that exist and are BROKEN (legacy `haive` call or duplicated block). */
 export async function detectStaleGitHooks(root: string): Promise<string[]> {
-  const hooksDir = path.join(root, ".git", "hooks");
+  const hooksDir = await resolveGitHooksDir(root);
+  if (!hooksDir) return [];
   if (!existsSync(hooksDir)) return [];
   const stale: string[] = [];
   for (const hook of managedGitHookSpecs()) {
@@ -3286,7 +3255,8 @@ export async function detectStaleGitHooks(root: string): Promise<string[]> {
  * {@link buildHookFileContent}. Returns the names repaired. Safe to call from `doctor` for self-heal.
  */
 export async function repairStaleGitHooks(root: string): Promise<string[]> {
-  const hooksDir = path.join(root, ".git", "hooks");
+  const hooksDir = await resolveGitHooksDir(root);
+  if (!hooksDir) return [];
   if (!existsSync(hooksDir)) return [];
   const repaired: string[] = [];
   for (const hook of managedGitHookSpecs()) {
@@ -3302,8 +3272,8 @@ export async function repairStaleGitHooks(root: string): Promise<string[]> {
 }
 
 async function installGitEnforcement(root: string): Promise<void> {
-  const hooksDir = path.join(root, ".git", "hooks");
-  if (!existsSync(path.join(root, ".git"))) {
+  const hooksDir = await resolveGitHooksDir(root);
+  if (!hooksDir) {
     ui.warn("No .git directory found; git enforcement hooks skipped.");
     return;
   }
@@ -3683,46 +3653,6 @@ function resolveRoot(dir: string | undefined, payload: HookPayload): string | nu
   }
 }
 
-function isWriteLikeTool(payload: HookPayload): boolean {
-  const tool = payload.tool_name ?? "";
-  if (["Edit", "Write", "MultiEdit", "NotebookEdit"].includes(tool)) return true;
-  if (tool !== "Bash") return false;
-  const command = String(payload.tool_input?.["command"] ?? "");
-  return /\b(rm|mv|cp|mkdir|touch|tee|sed|perl|python|node|npm|pnpm|yarn|git)\b/.test(command) ||
-    />{1,2}/.test(command);
-}
-
-function extractToolPaths(payload: HookPayload, root: string): string[] {
-  const input = payload.tool_input ?? {};
-  const values: unknown[] = [
-    input["file_path"],
-    input["path"],
-    input["notebook_path"],
-  ];
-  if (Array.isArray(input["file_paths"])) values.push(...input["file_paths"]);
-  if (Array.isArray(input["files"])) values.push(...input["files"]);
-
-  if (payload.tool_name === "MultiEdit" && Array.isArray(input["edits"])) {
-    for (const edit of input["edits"]) {
-      if (edit && typeof edit === "object" && "file_path" in edit) {
-        values.push((edit as { file_path?: unknown }).file_path);
-      }
-    }
-  }
-
-  const out = new Set<string>();
-  for (const value of values) {
-    if (typeof value !== "string" || !value.trim()) continue;
-    out.add(normalizeToolPath(value, root));
-  }
-  return [...out].filter(Boolean).sort();
-}
-
-function normalizeToolPath(file: string, root: string): string {
-  const normalized = file.replace(/\\/g, "/");
-  if (!path.isAbsolute(normalized)) return normalized.replace(/^\.\//, "");
-  return path.relative(root, normalized).replace(/\\/g, "/");
-}
 
 
 /**

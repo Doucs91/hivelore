@@ -1,3 +1,4 @@
+import { readMcpRuntimeInstances } from "@hivelore/core";
 import { existsSync, statSync } from "node:fs";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -628,7 +629,7 @@ export function registerDoctor(program: Command): void {
             severity: "warn",
             code: "stale-code-map",
             message: `code-map is ${Math.round(ageDays)} days old (${indexedCount} files indexed).`,
-            fix: "hivelore index code   # or rely on the post-merge git hook",
+            fix: "hivelore index code   # explicit maintenance; merge hooks do not rebuild indexes",
           });
         }
         // Detect a near-empty code-map: many source files on disk but few indexed (untracked source
@@ -895,19 +896,10 @@ async function collectMcpRuntimeFindings(
   paths: ReturnType<typeof resolveHaivePaths>,
   expectedVersion: string,
 ): Promise<Finding[]> {
-  const markerFile = path.join(paths.runtimeDir, "mcp-server.json");
-  if (!existsSync(markerFile)) return [];
-  try {
-    const marker = JSON.parse(await readFile(markerFile, "utf8")) as McpRuntimeMarker;
-    let alive = false;
-    if (typeof marker.pid === "number") {
-      try { process.kill(marker.pid, 0); alive = true; } catch { alive = false; }
-    }
-    const finding = mcpRuntimeVersionFinding(marker, expectedVersion, alive);
+  return (await readMcpRuntimeInstances(paths)).flatMap(marker => {
+    const finding = mcpRuntimeVersionFinding(marker, expectedVersion, true);
     return finding ? [finding] : [];
-  } catch {
-    return [];
-  }
+  });
 }
 
 function emit(findings: Finding[], opts: DoctorOptions, repairs: AutopilotRepair[] = []): void {
