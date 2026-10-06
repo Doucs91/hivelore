@@ -1,5 +1,5 @@
 import {
-  recordKnowledgeOutcome,
+  recordReportedOutcome,
   computeImpact,
   getUsage,
   loadMemoriesFromDir,
@@ -18,25 +18,30 @@ import type { HaiveContext } from "../context.js";
 export const MemFeedbackInputSchema = {
   id: z.string().min(1).describe("Full memory id the feedback is about"),
   outcome: z
-    .enum(["applied", "rejected"])
+    .enum(["applied", "rejected", "corrected", "verified"])
     .describe(
       "'applied' = this memory changed what you did (strong positive utility signal); " +
         "'rejected' = it was wrong/outdated/unhelpful (negative signal, blocks auto-promotion).",
     ),
+  reference: z.string().optional().describe("Required for corrected/verified: commit, test report or incident reference (reported, not authenticated)"),
+  catch_id: z.string().optional().describe("Catch identity from stats outcomes; verified requires a prior linked correction"),
+  session_id: z.string().optional(),
   reason: z
     .string()
     .optional()
     .describe("Why it was rejected (stored on the memory's usage record). Only used for outcome='rejected'."),
 };
 
-export type MemFeedbackInput = {
-  [K in keyof typeof MemFeedbackInputSchema]: z.infer<(typeof MemFeedbackInputSchema)[K]>;
-};
+export type MemFeedbackInput = { id: string; outcome: "applied" | "rejected" | "corrected" | "verified";
+  reason?: string; reference?: string; catch_id?: string; session_id?: string; };
 
 export interface MemFeedbackOutput {
   ok: boolean;
   id: string;
-  outcome?: "applied" | "rejected";
+  outcome?: MemFeedbackInput["outcome"];
+  evidence?: "reported";
+  reference?: string;
+  catch_id?: string;
   error?: string;
   usage?: {
     read_count: number;
@@ -71,6 +76,13 @@ export async function memFeedback(
     return { ok: false, id: input.id, error: `No memory with id '${input.id}'.` };
   }
 
+  try {
+    await recordReportedOutcome(ctx.paths, { id: input.id, kind: input.outcome, source: "mcp",
+      reference: input.reference, catch_id: input.catch_id, session_id: input.session_id ?? ctx.sessionId });
+  } catch (error) { return { ok: false, id: input.id, error: (error as Error).message }; }
+  if (input.outcome === "corrected" || input.outcome === "verified") return {
+    ok: true, id: input.id, outcome: input.outcome, evidence: "reported", reference: input.reference, catch_id: input.catch_id,
+  };
   const index = await loadUsageIndex(ctx.paths);
   if (input.outcome === "applied") {
     recordApplied(index, input.id);
@@ -83,7 +95,6 @@ export async function memFeedback(
   const adjustment = input.outcome === "rejected"
     ? recommendFeedbackAdjustment(target.memory.frontmatter, usage)
     : { action: "none" as const, reason: "No automatic adjustment needed." };
-  await recordKnowledgeOutcome(ctx.paths, { id: input.id, kind: input.outcome, source: "mcp", evidence: "reported" }).catch(() => {});
   const impact = computeImpact(target.memory.frontmatter, usage);
 
   return {

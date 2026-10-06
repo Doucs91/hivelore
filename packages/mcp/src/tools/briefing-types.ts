@@ -8,6 +8,8 @@ export interface BriefingQuality {
 }
 
 export interface BriefingMemory {
+  /** Only full delivery counts toward decision consultation. */
+  delivery?: "full" | "partial";
   id: string;
   scope: string;
   type: string;

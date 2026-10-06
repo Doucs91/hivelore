@@ -2580,7 +2580,7 @@ describe("Hivelore CLI integration", () => {
     expect(stdout).toContain("Evidence grade: **insufficient**");
   });
 
-  it("benchmark evidence becomes decision-ready only with ten independently evaluated pairs", async () => {
+  it("legacy benchmark pairs without protocol and comparable metadata remain insufficient", async () => {
     const benchDir = path.join(workDir, "benchmarks", "paired-contract");
     const report = (runner: string, evaluator: string): string => [
       "# Benchmark Agent Report", "", "## Outcome",
@@ -2597,7 +2597,7 @@ describe("Hivelore CLI integration", () => {
     }
     const { stdout } = await run(workDir, ["benchmark", "report", "--dir", benchDir, "--json"]);
     const result = JSON.parse(stdout) as { summary: { paired_tasks: number; evidence_grade: string } };
-    expect(result.summary).toMatchObject({ paired_tasks: 10, evidence_grade: "decision-ready" });
+    expect(result.summary).toMatchObject({ paired_tasks: 10, evidence_grade: "insufficient" });
   });
 
   it("doctor --json reports stale-draft-memories when a draft is older than 30 days", async () => {

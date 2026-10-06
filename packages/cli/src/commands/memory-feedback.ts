@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { Command } from "commander";
 import {
-  recordKnowledgeOutcome,
+  recordReportedOutcome,
   computeImpact,
   findProjectRoot,
   getUsage,
@@ -18,6 +18,7 @@ import { ui } from "../utils/ui.js";
 interface FeedbackOptions {
   outcome?: "corrected" | "verified";
   reference?: string;
+  catchId?: string;
   applied?: boolean;
   rejected?: boolean;
   reason?: string;
@@ -34,6 +35,7 @@ export function registerMemoryFeedback(memory: Command): void {
         "'rejected' = it was wrong/unhelpful. Feeds `hivelore memory impact`.",
     )
     .option("--outcome <kind>", "corrected | verified (reported outcome; requires --reference)")
+    .option("--catch-id <id>", "link to a recorded catch from stats outcomes")
     .option("--reference <ref>", "commit, test report, or incident reference supporting the report")
     .option("--applied", "the memory changed what you did (positive signal)", false)
     .option("--rejected", "the memory was wrong/outdated/unhelpful (negative signal)", false)
@@ -62,8 +64,9 @@ export function registerMemoryFeedback(memory: Command): void {
         return;
       }
 
-      await recordKnowledgeOutcome(paths, { id, kind: opts.outcome ?? (opts.applied ? "applied" : "rejected"),
-        source: "cli", evidence: "reported", ...(opts.reference ? { reference: opts.reference } : {}) });
+      try { await recordReportedOutcome(paths, { id, kind: opts.outcome ?? (opts.applied ? "applied" : "rejected"),
+        source: "cli", catch_id: opts.catchId, ...(opts.reference ? { reference: opts.reference } : {}) });
+      } catch (error) { ui.error((error as Error).message); process.exitCode = 1; return; }
       if (opts.outcome) {
         console.log(JSON.stringify({ id, outcome: opts.outcome, reference: opts.reference, evidence: "reported" }));
         return;

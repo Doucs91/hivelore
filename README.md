@@ -228,9 +228,33 @@ npm install -g @hivelore/embeddings
 
 Run `hivelore agent check --exercise --json` to exercise MCP briefing, targeted hook context,
 and a validated sensor against good and bad code in an isolated temporary repository. It also
-reports local no-op hook latency. This is a synthetic installation proof, not a productivity benchmark.
+reports first-edit latency and ten-sample median/p95 timings for reads, repeated edits and shell calls. This is a synthetic installation proof, not a productivity benchmark.
 New projects default to local task completion and draft capture; existing policies remain intact.
-See [the twelve product improvements and migration notes](docs/product-excellence-0.64.md).
+See [the audit fixes and upgrade guide](docs/audit-reliability-0.65.md).
+
+After upgrading, run `hivelore agent setup --no-global` to repair managed legacy Git hooks,
+then restart your AI client. A successful fresh handshake does not upgrade a running conversation.
+`hivelore agent check --json` lists known live MCP versions and remaining migration work.
+Legacy CI workflows receive a `.candidate` replacement for review; custom hook commands are preserved.
+
+### Complete policies and traceable outcomes
+
+Short applicable policies are injected before edits. When a policy cannot fit, the hook emits
+an explicit **instruction not delivered** pointer instead of silently dropping its exceptions.
+Partial briefings do not count as complete consultation. Use `mem_get` with the hook’s
+`session_id`, or `hivelore memory get <id> --session-id <session>`, to read and credit the whole policy.
+
+`mem_feedback` is available in the default MCP profile. Report `applied`/`rejected`, or
+`corrected`/`verified` with a commit, test-report or incident `reference`. An optional `catch_id`
+links feedback to an interception listed by `hivelore stats outcomes`. Linked verification
+requires a preceding correction. Reports distinguish declared outcomes from a subsequent
+observed silent sensor check; they do not authenticate references or infer bugs avoided/time saved.
+
+Benchmark reports require at least **10 distinct tasks × 3 repetitions**, comparable model,
+checkout, budget and prompt metadata, independent evaluation attestations, and matching
+`protocol.json`/`run.json` manifests to qualify as `decision-ready`. Repeating one task or
+removing an arm cannot satisfy a prepared protocol. This grade describes evidence completeness,
+not proven superiority or authenticated execution.
 
 ## The 60-second proof — watch a lesson stop a commit
 
@@ -562,6 +586,7 @@ All records can be anchored to file paths and symbol names. When anchored code c
 | Tool | Description |
 |---|---|
 | `get_briefing` | ⭐ Project context + decisions + gotchas + ranked breadcrumbs in one call |
+| `mem_feedback` | Report applied/rejected or referenced corrected/verified outcomes; optionally link a sensor catch |
 | `mem_save` | Save repo policy knowledge (decision, gotcha, convention, attempt, architecture) |
 | `mem_tried` | Record a failed approach so future agents do not repeat it |
 | `mem_search` | Full-text or semantic search across context records |

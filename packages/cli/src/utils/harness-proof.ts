@@ -35,13 +35,23 @@ export async function exerciseHarness(cliEntry: string) {
     const red = await run(["sensors", "check", "--json"]);
     const payload = JSON.stringify({ cwd: root, session_id: "proof", tool_name: "Edit", tool_input: { file_path: path.join(root, "source.ts") } });
     const injected = await invokeHook(cliEntry, root, ["enforce", "pre-tool-use"], payload);
-    const samples = [];
-    for (let i = 0; i < 10; i++) samples.push((await invokeHook(cliEntry, root, ["enforce", "pre-tool-use"], JSON.stringify({ cwd: root, tool_name: "Bash", tool_input: { command: "ls" } }))).ms);
-    samples.sort((a, b) => a - b);
+    const latencies: Record<string, { samples: number; median: number; p95: number }> = {};
+    const scenarios = {
+      bash_read: { tool_name: "Bash", tool_input: { command: "ls" } },
+      read: { tool_name: "Read", tool_input: { file_path: "source.ts" } },
+      edit_repeated: { session_id: "proof", tool_name: "Edit", tool_input: { file_path: "source.ts" } },
+      bash_script: { tool_name: "Bash", tool_input: { command: "python script.py" } },
+    };
+    for (const [name, tool] of Object.entries(scenarios)) {
+      const samples: number[] = [];
+      for (let i = 0; i < 10; i++) samples.push((await invokeHook(cliEntry, root, ["enforce", "pre-tool-use"], JSON.stringify({ cwd: root, ...tool }))).ms);
+      samples.sort((a, b) => a - b);
+      latencies[name] = { samples: samples.length, median: (samples[4]! + samples[5]!) / 2, p95: samples[9]! };
+    }
     const report = { synthetic: true, sensor_validated: true, correct_change_passed: green.code === 0,
       known_bad_change_blocked: red.code === 1 && red.stdout.includes(fm.id),
       edit_context_delivered: injected.output.includes(fm.id),
-      no_op_hook_ms: { samples: samples.length, median: samples[4], p95: samples[9] },
+      no_op_hook_ms: latencies.bash_read, hook_latency_ms: latencies, first_edit_ms: injected.ms,
       interpretation: "Synthetic plumbing and latency check; not a customer ROI or agent-quality benchmark." };
     return { ...report, passed: report.correct_change_passed && report.known_bad_change_blocked && report.edit_context_delivered };
   } finally { await rm(root, { recursive: true, force: true }); }

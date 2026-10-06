@@ -149,12 +149,20 @@ hivelore agent setup --yes
 Detect and configure the best Hivelore mode for the current machine.
 
 ```bash
+hivelore agent check --exercise --json # fresh MCP handshake, policy/sensor proof, per-path hook timings
 hivelore agent detect                 # inspect project MCP + installed agents
 hivelore agent status                 # same report, human-readable or --json
 hivelore agent setup                  # project MCP + optional global MCP setup
 hivelore agent setup --no-global      # project-only setup, no user config writes
 hivelore agent setup --yes            # approve user-level MCP config writes
 ```
+
+After an upgrade, `agent setup --no-global` repairs managed legacy merge/rewrite hooks,
+preserves custom hook commands, prepares `.candidate` replacements for legacy CI sync workflows,
+and performs a fresh MCP handshake. Review CI candidates before replacing workflows.
+Restart the AI client: a diagnostic server cannot upgrade an existing conversation.
+`agent check --json` reports known live server versions, stale hooks and migration work.
+Existing explicitly disabled client configurations stay disabled.
 
 Modes:
 
@@ -267,13 +275,21 @@ actionable: every setup finding should carry the exact command to run next.
 
 ### `hivelore benchmark`
 
-Turn Hivelore-vs-plain agent trials into a repeatable demo/report.
+Prepare a balanced comparison of plain agents, an AGENTS.md context baseline, and Hivelore.
 
 ```bash
+hivelore benchmark prepare --suite suite.json --model MODEL --out runs --repeats 3
 hivelore benchmark demo
 hivelore benchmark report --dir benchmarks/agent-benchmark
 hivelore benchmark report --dir benchmarks/agent-benchmark --out RESULTS.md
 ```
+
+A suite is JSON with `cases: [{"id":"task-name", ...}]`. Preparation writes a protocol,
+per-run manifests and report templates; it does not execute agents. Complete the reports
+without changing the manifests. `decision-ready` requires 10 distinct tasks, three repetitions,
+matching manifests and comparable model/checkout/budget/prompt metadata, complete outcomes
+and independent evaluator attestations. Missing arms or legacy reports cannot bypass these checks.
+The grade does not authenticate the reports or establish statistical superiority.
 
 The report summarizes agent effort from `BENCHMARK_AGENT_REPORT.md` files: commands, files read, files modified, test iterations, terminal failures, decision mentions, token proxy, and whether Hivelore memory shaped the outcome.
 
@@ -404,6 +420,20 @@ Print the full body, frontmatter, and usage stats of a memory. (`hivelore memory
 hivelore memory get 2025-01-15-gotcha-flyway-strict
 ```
 
+#### `hivelore memory feedback`
+
+```bash
+hivelore memory feedback MEMORY_ID --applied
+hivelore memory feedback MEMORY_ID --rejected --reason "Policy is outdated"
+hivelore stats outcomes --json
+hivelore memory feedback MEMORY_ID --outcome corrected --reference COMMIT --catch-id CATCH_ID
+hivelore memory feedback MEMORY_ID --outcome verified --reference TEST_REPORT --catch-id CATCH_ID
+```
+
+Get `CATCH_ID` from `stats outcomes`. A linked verification needs a prior correction for the same
+catch. References are reported evidence, not executed or authenticated by Hivelore. The outcome
+report links those declarations to subsequent silent sensor checks when observed locally.
+
 #### `hivelore memory update`
 
 Update a memory's body, tags, or anchor without changing its id or history.
@@ -487,6 +517,20 @@ hivelore memory digest --out digest.md  # Write to file
 The digest groups memories by type, shows confidence level (⬜ unverified / 🟡 low / 🟢 trusted / ⭐ authoritative), anchor, read count, and action checkboxes for easy bulk review.
 
 ---
+
+### Policy delivery and consultation
+
+A hook never credits a shortened policy as a complete read. Long policies become explicit
+"instruction NOT delivered" pointers; fetch the whole memory before editing:
+
+```bash
+hivelore memory get MEMORY_ID --session-id HOOK_SESSION_ID
+```
+
+The MCP equivalent is `mem_get({id, session_id})`. Partial MCP briefings expose `delivery: "partial"`;
+CLI JSON summaries also remain partial. Complete reads are credited only to the matching session.
+Hooks skip irrelevant read calls; targeted edits still load and verify applicable memories.
+Use `agent check --exercise --json` to measure first/repeated edit, Read and Bash paths on your machine.
 
 ### `hivelore briefing`
 

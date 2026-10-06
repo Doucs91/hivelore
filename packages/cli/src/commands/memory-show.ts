@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import {
+  writeBriefingMarker, sessionIdentity,
   deriveConfidence,
   findProjectRoot,
   getUsage,
@@ -13,6 +14,7 @@ import { loadMemoriesFromDir } from "../utils/fs.js";
 import { ui } from "../utils/ui.js";
 
 interface ShowOptions {
+  sessionId?: string;
   raw?: boolean;
   dir?: string;
 }
@@ -22,6 +24,7 @@ export function registerMemoryShow(memory: Command): void {
     .command("get <id>")
     .alias("show")
     .description("Print a memory's frontmatter, body, and confidence/usage. Mirrors MCP mem_get. Alias: show")
+    .option("--session-id <id>", "credit the complete read to this hook session")
     .option("--raw", "print the raw file contents instead of a summary")
     .option("-d, --dir <dir>", "project root")
     .action(async (id: string, opts: ShowOptions) => {
@@ -41,6 +44,7 @@ export function registerMemoryShow(memory: Command): void {
         return;
       }
 
+      await writeBriefingMarker(paths, { sessionId: sessionIdentity(opts.sessionId), source: "cli-memory-get", memoryIds: [id] });
       if (opts.raw) {
         console.log(await readFile(found.filePath, "utf8"));
         return;

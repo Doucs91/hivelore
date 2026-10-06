@@ -4,6 +4,15 @@ All notable changes to Hivelore are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loosely and the
 project follows semantic versioning once it ships its first stable release.
 
+## [0.65.0] — Audit reliability and traceable outcomes
+
+- Preserve policy integrity: long edit-hook policies emit explicit unread pointers; shortened briefings and JSON summaries never credit complete consultation. Full CLI/MCP reads can resolve a matching hook session. Commit-time auto-briefing includes the actual policy bodies.
+- Migrate managed legacy merge/rewrite sync hooks, preserving custom commands and Git hook paths. Track live MCP servers per process so a new diagnostic cannot hide an older session; prepare reviewable legacy CI candidates.
+- Require distinct tasks, repetitions, comparable metadata, independent outcome attestations and matching protocol/run manifests for benchmark decision readiness, including legacy two-arm reports.
+- Dispatch read/no-target hooks before loading the CLI; isolate edit handling and measure first edit, repeated edit, Read and Bash latency separately.
+- Expose feedback in the default MCP profile; link referenced correction/verification reports to known catches and subsequent observed sensor checks. Preserve AST evaluations in the ledger. Never infer causality or savings.
+- Refresh GitHub and all four npm package READMEs, remove obsolete default auto-approval/index-refresh messages, and document migration and evidence limits.
+
 ## [Unreleased]
 
 ## [0.64.0] — Quiet integration, session continuity and measurable outcomes

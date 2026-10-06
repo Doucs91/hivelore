@@ -18,11 +18,18 @@ This package is consumed by `@hivelore/cli` and `@hivelore/mcp`. You do **not** 
 
 Core owns the durable types and local runtime markers used by Hivelore policy gates:
 
-- `.ai/haive.config.json` config loading/merging
+- `.ai/hivelore.config.json` config loading/merging
 - strict enforcement settings (`requireBriefingFirst`, session recap, memory verification, stale-decision blocking)
 - briefing markers under `.ai/.runtime/enforcement/briefings/`
 - anchor verification for stale decisions and gotchas
 - path resolution for project, memory, runtime, and module directories
+
+### Evidence and integration primitives
+
+- `assessBenchmarkEvidence`: validates distinct tasks, repetitions, comparable metadata and protocol completeness; report authenticity is outside its scope.
+- `recordReportedOutcome` / `correlateKnowledgeOutcomes`: link a known catch to referenced corrections and later sensor evaluations, separating reported from observed evidence.
+- `readMcpRuntimeInstances`: reads live per-process receipts and the legacy receipt without letting a new diagnostic hide an older process.
+- Briefing markers credit complete delivery only; partial summaries remain unconsulted until a full read.
 
 ### Memory schema (Zod)
 

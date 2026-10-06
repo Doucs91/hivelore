@@ -1,6 +1,6 @@
 import path from "node:path";
 import {
-  completeExcerpt, estimateTokens, recordKnowledgeOutcome,
+  estimateTokens, recordKnowledgeOutcome,
   loadMemoriesFromDir, memoryMatchesAnchorPaths, isRetiredMemory, verifyAnchor,
   readSessionBriefingMarker, writeBriefingMarker, trackReads, supersededMemoryIds,
   normalizeSessionId, type HaivePaths,
@@ -37,11 +37,12 @@ export async function injectFileContext(paths: HaivePaths, files: string[], sess
   const ids: string[] = [];
   for (const { memory: m, filePath } of displayed) {
     const source = path.relative(paths.root, filePath).replace(/\\/g, "/");
-    const body = completeExcerpt(m.body.replace(/^#+[^\n]*\n/gm, "").trim(), 420);
+    const completeBody = m.body.trim();
+    const body = completeBody.length <= 420 ? completeBody : "";
     const entry = `${m.frontmatter.id}${m.frontmatter.requires_human_approval ? " — HUMAN CONFIRMATION REQUIRED" : ""}\n` +
       `Applies to: ${relative.filter(f => memoryMatchesAnchorPaths(m, [f])).slice(0, 3).join(", ")}\n` +
       `Evidence: ${m.frontmatter.evidence ?? "unverified claim"}. Source: ${source}\n` +
-      (body || "Read the source before editing: this instruction exceeds the context budget.");
+      (body || "Full instruction NOT delivered. Read the source before editing; exceptions may appear later.");
     if (estimateTokens([...chunks, entry].join("\n\n")) > 300) continue;
     chunks.push(entry);
     // A pointer alone is not consultation of the actual instruction.

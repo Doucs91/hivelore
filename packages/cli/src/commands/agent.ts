@@ -1,3 +1,5 @@
+import { integrationHealth } from "../utils/integration-health.js";
+import { repairStaleGitHooks } from "./enforce.js";
 import { exerciseHarness } from "../utils/harness-proof.js";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -74,13 +76,17 @@ export function registerAgent(program: Command): void {
     .action(async (opts: AgentOptions) => {
       const root = findProjectRoot(opts.dir);
       const result = await checkMcpServer(root, path.resolve(process.argv[1]!));
+      const integration = await integrationHealth(root);
       const exercise = opts.exercise ? await exerciseHarness(path.resolve(process.argv[1]!)) : undefined;
       if (exercise && !exercise.passed) process.exitCode = 1;
-      if (opts.json) console.log(JSON.stringify({ ...result, ...(exercise ? { exercise } : {}) }, null, 2));
+      if (opts.json) console.log(JSON.stringify({ ...result, integration, ...(exercise ? { exercise } : {}) }, null, 2));
       else {
         if (result.server_reachable) ui.success(`MCP server ${result.server_version}: ${result.tools.length} tools discovered; briefing exercised=${result.briefing_exercised}.`);
         else ui.error(`MCP handshake failed: ${result.error}`);
         if (exercise) console.log(JSON.stringify(exercise, null, 2));
+        for (const name of integration.stale_hooks) ui.warn(`Outdated Git hook: ${name}. Run ${integration.repair_command}.`);
+        for (const file of integration.legacy_ci_workflows) ui.warn(`Legacy CI still writes to Git: ${file}. Run ${integration.repair_command} and review its .candidate.`);
+        if (integration.restart_required) ui.warn("An older MCP process is alive. Restart the client after updating.");
         ui.info("Session connection remains unverified. Restart your AI client, inspect its MCP list, then call get_briefing.");
       }
       if (!result.server_reachable) process.exitCode = 1;
@@ -99,12 +105,18 @@ export function registerAgent(program: Command): void {
         global: opts.global !== false && opts.noGlobal !== true,
         interactive: process.stdin.isTTY,
       });
+      const verification = await checkMcpServer(result.detection.root, path.resolve(process.argv[1]!));
+      if (!verification.server_reachable) process.exitCode = 1;
       if ([...result.project_results, ...result.global_results].some((item) => item.status === "error")) process.exitCode = 1;
       if (opts.json) {
-        console.log(JSON.stringify(result, null, 2));
+        console.log(JSON.stringify({ ...result, verification }, null, 2));
         return;
       }
       printSetupResult(result);
+      if (result.repaired_hooks.length) ui.success(`Migrated Git hooks: ${result.repaired_hooks.join(", ")}`);
+      for (const candidate of result.ci_candidates) ui.warn(`Review ${candidate} before replacing the legacy workflow.`);
+      if (!verification.server_reachable) { ui.error(`Fresh handshake failed: ${verification.error}`); process.exitCode = 1; }
+      else ui.success(`Fresh MCP briefing passed (${verification.server_version}); restart existing client sessions.`);
     });
 }
 
@@ -117,10 +129,22 @@ export async function setupAgentMode(
   global_results: ConfigureResult[];
   mode_file: string;
   global_skipped_reason?: string;
+  repaired_hooks: string[];
+  ci_candidates: string[];
 }> {
   const root = findProjectRoot(dir);
   const paths = resolveHaivePaths(root);
   const projectResults = await configureProjectMcpClients(root);
+  const repairedHooks = await repairStaleGitHooks(root);
+  const health = await integrationHealth(root);
+  const ciCandidates: string[] = [];
+  for (const file of health.legacy_ci_workflows) {
+    const { renderCiSyncWorkflow } = await import("./init.js");
+    const candidate = `${file}.candidate`;
+    // A previously reviewed candidate may contain human edits; never overwrite it.
+    if (!existsSync(path.join(root, candidate))) await writeFile(path.join(root, candidate), renderCiSyncWorkflow(), { encoding: "utf8", flag: "wx" });
+    ciCandidates.push(candidate);
+  }
 
   let globalResults: ConfigureResult[] = [];
   let globalSkippedReason: string | undefined;
@@ -143,6 +167,7 @@ export async function setupAgentMode(
   return {
     detection,
     project_results: projectResults,
+    repaired_hooks: repairedHooks, ci_candidates: ciCandidates,
     global_results: globalResults,
     mode_file: modeFile,
     ...(globalSkippedReason ? { global_skipped_reason: globalSkippedReason } : {}),

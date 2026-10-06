@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
-  loadKnowledgeOutcomes, summarizeKnowledgeOutcomes,
+  loadKnowledgeOutcomes, summarizeKnowledgeOutcomes, correlateKnowledgeOutcomes, loadSensorLedger, preventionCatchId,
   aggregateUsage,
   assessBehaviourCoverage,
   buildPreventionReceipt,
@@ -44,7 +44,8 @@ export function registerStats(program: Command): void {
       const since = parseSince(opts.since ?? "30d") ?? new Date(0);
       const events = (await loadKnowledgeOutcomes(paths)).filter(e => Date.parse(e.at) >= since.getTime());
       const catches = (await loadPreventionEvents(paths)).filter(e => Date.parse(e.at) >= since.getTime());
-      console.log(JSON.stringify({ ...summarizeKnowledgeOutcomes(events), sensor_catches: catches, timeline: events }, null, 2));
+      console.log(JSON.stringify({ ...summarizeKnowledgeOutcomes(events), sensor_catches: catches.map(e => ({ ...e, catch_id: preventionCatchId(e) })), timeline: events,
+        correlations: correlateKnowledgeOutcomes(catches, events, await loadSensorLedger(paths)) }, null, 2));
     });
 
   const receiptCmd = stats

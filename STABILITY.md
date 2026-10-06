@@ -28,7 +28,7 @@ These are covered by SemVer once 1.0 ships: a breaking change requires a major v
 |---|---|
 | `hivelore init` | — |
 | `hivelore doctor` | — |
-| `hivelore agent` | `setup`, `status` |
+| `hivelore agent` | `detect`, `setup`, `status`, `check` |
 | `hivelore briefing` | — |
 | `hivelore bridges` | `list`, `sync` |
 | `hivelore enforce` | `install`, `status`, `check`, `ci`, `finish`, `commit-msg` |
@@ -126,3 +126,12 @@ successful checks too and JSON remains complete. `--update` restores stale recor
 not validated: existing anchors cannot validate arbitrary claims. Generated bridge breadcrumbs
 now default to zero, with explicit `--max-memories` available. Merge/rewrite hooks no longer mutate
 the corpus. See the release migration notes before updating a legacy auto-writing health workflow.
+
+## 0.65 evidence contract
+
+Default MCP includes `mem_feedback` (16 tools). Corrected/verified feedback requires a reference;
+optional catch linkage rejects unknown/mismatched catches and verification before correction.
+Observed local sensor results remain separate from reported outcomes. Partial briefings never
+credit full policy consultation; `mem_get` and `memory get --session-id` complete the read.
+Benchmark decision readiness requires matched manifests, >=10 distinct tasks, >=3 repetitions,
+comparable metadata and complete independent evaluation attestations in both two/three-arm modes.

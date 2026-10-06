@@ -46,7 +46,7 @@ npm install -g @hivelore/cli
 cd my-project
 hivelore init          # .ai/, policy config, hooks, CI workflow, code-map
 hivelore enforce install
-# hivelore init --manual  # if you want to approve memories yourself
+# New captures remain drafts by default; review explicitly before trusting them.
 
 # 3. Point your AI client at the MCP server (see Client configuration below)
 
@@ -56,6 +56,22 @@ hivelore enforce install
 ```
 
 ---
+
+## Upgrade and outcome integrity
+
+Use `hivelore agent setup --no-global` after upgrading the CLI, then restart your AI client.
+A newly spawned diagnostic reports its own version; existing conversations keep their old process.
+`agent check --json` lists known live versions separately. Prefer the bundled CLI MCP server so a
+separately installed `hivelore-mcp` cannot accidentally lag behind your CLI.
+
+`get_briefing` marks shortened memories `delivery: "partial"` and does not credit a full consultation.
+Read the complete policy with `mem_get({id, session_id})`; use the hook session ID when resolving
+an instruction-not-delivered warning.
+
+Default-profile `mem_feedback` accepts `applied`, `rejected`, `corrected` and `verified`.
+The last two require `reference`; optional `catch_id` links a recorded interception from
+`hivelore stats outcomes`. Linked verification requires a prior correction. Those claims remain
+reported evidence, separate from observed sensor results; no reference is executed automatically.
 
 ## Client configuration
 
@@ -119,22 +135,29 @@ The project root can also be set via the `HAIVE_PROJECT_ROOT` environment variab
 
 By default, Hivelore runs with `HAIVE_TOOL_PROFILE=enforcement`. This keeps the agent surface small and aligned with the product promise.
 
-Default tools:
+Default tools (16):
 
 - `get_briefing`
 - `mem_relevant_to`
 - `mem_save`
+- `mem_feedback`
+- `mem_update`
 - `mem_tried`
 - `mem_search`
 - `mem_get`
 - `mem_verify`
 - `code_map`
+- `code_search`
 - `pre_commit_check`
 - `mem_session_end`
+- `propose_sensor`
+- `scaffold_test`
+- `report_friction`
 
 Default prompts:
 
 - `bootstrap_project`
+- `bootstrap_repo`
 - `post_task`
 
 ### Tool Profiles
@@ -173,7 +196,7 @@ One-shot policy briefing: returns project context + module contexts + ranked dec
 | `symbols` | `[]` | Symbol names to look up in the code-map (e.g. `["PaymentService"]`). Returns file + line + kind without grepping. Requires `hivelore index code`. |
 | `max_tokens` | `8000` | Token budget for the entire response. Sections are truncated to fit. |
 | `max_memories` | `8` | Max memories to include. |
-| `format` | `"full"` | `"full"` = complete bodies · `"compact"` = 1-line summaries (call `mem_get` for details) |
+| `format` | `"full"` | `"full"` = budgeted bodies · `"compact"` / `"actions"` = excerpts; `delivery` identifies partial results |
 | `semantic` | `true` | Use embedding-based ranking if `@hivelore/embeddings` is indexed. |
 | `include_stale` | `false` | Include stale memories (may be outdated). |
 | `track` | `true` | Increment read_count for returned memories. |

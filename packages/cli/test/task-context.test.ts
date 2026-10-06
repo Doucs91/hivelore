@@ -33,6 +33,21 @@ beforeEach(async () => {
 afterEach(async () => { vi.unstubAllEnvs(); await rm(root, { recursive: true, force: true }); });
 
 describe("task attribution and passive file context", () => {
+  it("never credits an omitted exception, and stops reminding only after a complete session read", async () => {
+    const paths = resolveHaivePaths(root);
+    await mkdir(paths.teamDir, { recursive: true });
+    const fm = buildFrontmatter({ type: "decision", slug: "long-policy", scope: "team", status: "validated", paths: ["source with spaces.ts"] });
+    const body = "Use approvedClient. " + "Detailed justification. ".repeat(30) + "Exception: use legacyClient for offline migration.";
+    await writeFile(path.join(paths.teamDir, `${fm.id}.md`), serializeMemory({ frontmatter: fm, body }));
+    for (let i = 0; i < 2; i++) {
+      expect(await injectFileContext(paths, ["source with spaces.ts"], "long")).toContain("Full instruction NOT delivered");
+      expect((await readSessionBriefingMarker(paths, "long"))?.memory_ids ?? []).not.toContain(fm.id);
+    }
+    const read = await promisify(execFile)(process.execPath, [cli, "memory", "get", fm.id, "--session-id", "long", "--dir", root]);
+    expect(read.stdout).toContain("Exception: use legacyClient for offline migration.");
+    expect(await injectFileContext(paths, ["source with spaces.ts"], "long")).toBeNull();
+    expect(await injectFileContext(paths, ["source with spaces.ts"], "different-session")).toContain("NOT delivered");
+  });
   it("consultation coverage requires active policy, not deliberately excluded context", async () => {
     const paths = resolveHaivePaths(root);
     await mkdir(paths.teamDir, { recursive: true });
