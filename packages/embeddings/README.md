@@ -14,7 +14,7 @@ When installed alongside `@hivelore/cli`, this package helps Hivelore surface th
 
 ## Version and verification
 
-Keep this add-on on the same release as `@hivelore/cli` (0.67.1 for this release).
+Keep this add-on on the same release as `@hivelore/cli` (0.67.2 for this release).
 After upgrading, restart any long-running MCP clients. `hivelore agent check --json` reports
 known server versions; `hivelore embeddings status` checks the local semantic index.
 Semantic relevance does not prove policy validity or benchmark superiority, and partial policy

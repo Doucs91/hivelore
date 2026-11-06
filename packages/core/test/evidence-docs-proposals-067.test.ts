@@ -277,3 +277,34 @@ describe("sensor weakening is judged on values, not on YAML layout", () => {
     expect(sameParsedSensor(folded, "not a memory")).toBe(false);
   });
 });
+
+describe("incident links stay precise (dogfooding on the 0.67 branch)", () => {
+  const decision = memory("decision", "pnpm-workspaces", { anchor: { paths: ["package.json", "src/app.ts"], symbols: [] } });
+
+  it("ignores a feature commit that merely mentions the word regression", () => {
+    expect(proposeCaptures({
+      commits: [{ sha: "f1", subject: "feat: capture from signals", body: "Lists regression fixes touching justified code.", files: ["src/app.ts"] }],
+      diff: [], memories: [decision],
+    })).toEqual([]);
+  });
+
+  it("never treats a version manifest as the code a decision justified", () => {
+    expect(proposeCaptures({
+      commits: [{ sha: "f2", subject: "fix: release regression", body: "Broken since v1.2.", files: ["package.json"] }],
+      diff: [], memories: [decision],
+    })).toEqual([]);
+  });
+
+  it("keeps a targeted regression fix, and a revert", () => {
+    const fix = proposeCaptures({
+      commits: [{ sha: "f3", subject: "fix: app crash", body: "Root cause: the regression came from the cache change.", files: ["src/app.ts"] }],
+      diff: [], memories: [decision],
+    });
+    expect(fix.map((p) => p.kind)).toEqual(["incident-link"]);
+    const revert = proposeCaptures({
+      commits: [{ sha: "f4", subject: "Revert \"feat: new cache\"", body: "", files: ["src/app.ts"] }],
+      diff: [], memories: [decision],
+    });
+    expect(revert.map((p) => p.kind)).toEqual(["incident-link"]);
+  });
+});

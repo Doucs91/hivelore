@@ -81,6 +81,14 @@ const FIX_SUBJECT_RE = /^(?:fix|hotfix|bugfix)(?:\([^)]*\))?!?:|^fix(?:es|ed)?\s
 const CAUSAL_RE =
   /\b(?:because|caused by|root cause|due to|turned out|the (?:issue|problem|bug|cause) was|was (?:silently|being|never|not)|otherwise|so that|which (?:broke|meant|caused)|parce que|à cause|en raison|sinon)\b/i;
 const NON_SOURCE_RE = /(?:^|\/)(?:pnpm-lock\.yaml|package-lock\.json|yarn\.lock|bun\.lockb|Cargo\.lock|go\.sum|poetry\.lock|composer\.lock)$|^\.ai\/|(?:^|\/)CHANGELOG[^/]*$|\.(?:md|mdx|rst|txt|snap)$|(?:^|\/)dist\//i;
+/** Version manifests change in every release commit — never evidence that a decision failed. */
+const MANIFEST_RE = /(?:^|\/)(?:package\.json|pyproject\.toml|Cargo\.toml|go\.mod|pom\.xml|build\.gradle(?:\.kts)?|composer\.json|Gemfile)$/;
+const TRAILER_RE = /^(?:Co-Authored-By|Signed-off-by|Reviewed-by|Acked-by|Change-Id|Hivelore-[\w-]+):.*$/gim;
+
+function stripTrailers(body: string): string {
+  return body.replace(TRAILER_RE, "");
+}
+
 const ANCHORING_TYPES = new Set<MemoryType>(["decision", "convention", "architecture", "gotcha"]);
 
 function shellQuote(text: string): string {
@@ -149,20 +157,35 @@ export function proposeCaptures(input: CaptureProposalInput): CaptureProposal[] 
   const live = input.memories.filter(isLive);
   const out: CaptureProposal[] = [];
   const amended = new Set<string>();
+  /** Commits already turned into an incident link: their lesson is the amendment, not a new gotcha. */
+  const linkedCommits = new Set<string>();
 
   // ── 1. Incident links: a regression fix touching code a memory justified ──
+  // Only a commit that IS a fix (conventional fix/hotfix, or a revert) and SAYS it repairs a
+  // regression qualifies — a feature commit that merely mentions the word is not an incident — and
+  // only a targeted one: a fix spread over many files cannot be attributed to one decision.
   for (const commit of input.commits) {
-    const message = `${commit.subject}\n${commit.body}`;
-    if (!REGRESSION_RE.test(message)) continue;
-    const files = commit.files.filter((f) => !NON_SOURCE_RE.test(f));
-    if (files.length === 0) continue;
+    if (!FIX_SUBJECT_RE.test(commit.subject) && !/^revert\b/i.test(commit.subject)) continue;
+    const message = `${commit.subject}\n${stripTrailers(commit.body)}`;
+    if (!REGRESSION_RE.test(message) && !/^revert\b/i.test(commit.subject)) continue;
+    const files = commit.files.filter((f) => !NON_SOURCE_RE.test(f) && !MANIFEST_RE.test(f));
+    if (files.length === 0 || files.length > 8) continue;
     const named = new Set([...message.matchAll(/\b(\d{4}-\d{2}-\d{2}-[a-z_]+-[a-z0-9-]+)\b/g)].map((m) => m[1]!));
-    for (const memory of live) {
+    const candidates = live
+      .filter(({ frontmatter: fm }) => !amended.has(fm.id) && ANCHORING_TYPES.has(fm.type))
+      .map((memory) => ({
+        memory,
+        hit: files.find((f) => memory.frontmatter.anchor.paths.some((a) => !isGlobPath(a) && anchorMatches(a, f))),
+      }))
+      .filter(({ memory, hit }) => hit || named.has(memory.frontmatter.id))
+      // Named first, then decisions (they "justify" code), then the rest.
+      .sort((a, b) => Number(named.has(b.memory.frontmatter.id)) - Number(named.has(a.memory.frontmatter.id)) ||
+        Number(b.memory.frontmatter.type === "decision") - Number(a.memory.frontmatter.type === "decision"))
+      .slice(0, 2);
+    for (const { memory, hit } of candidates) {
       const fm = memory.frontmatter;
-      if (amended.has(fm.id) || !ANCHORING_TYPES.has(fm.type)) continue;
-      const hit = files.find((f) => fm.anchor.paths.some((a) => anchorMatches(a, f)));
-      if (!hit && !named.has(fm.id)) continue;
       amended.add(fm.id);
+      linkedCommits.add(commit.sha);
       const target = hit ?? files[0]!;
       const hasChecklist = fm.sensor?.kind === "checklist";
       out.push({
@@ -219,7 +242,7 @@ export function proposeCaptures(input: CaptureProposalInput): CaptureProposal[] 
 
   // ── 3. Fix lessons: a fix commit that explains its cause, on files no memory covers ──
   for (const commit of input.commits) {
-    if (!FIX_SUBJECT_RE.test(commit.subject)) continue;
+    if (!FIX_SUBJECT_RE.test(commit.subject) || linkedCommits.has(commit.sha)) continue;
     if (commit.files.some((f) => f.startsWith(".ai/memories/"))) continue; // captured in the same commit
     const files = commit.files.filter((f) => !NON_SOURCE_RE.test(f)).slice(0, 3);
     if (files.length === 0) continue;

@@ -4,6 +4,16 @@ All notable changes to Hivelore are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loosely and the
 project follows semantic versioning once it ships its first stable release.
 
+## [0.67.2] — Capture proposals stay precise
+
+Dogfooding `memory propose` on its own branch produced five false "incident links": the feature commit
+*described* "regression fixes", and every memory anchored to `package.json` looked justified-and-broken.
+- Incident links now require a commit that IS a fix (`fix:`/`hotfix:`, or a revert) and says it repairs
+  a regression, outside trailers; version manifests (`package.json`, `pyproject.toml`, …) never count;
+  a fix spread over more than 8 files is not attributed; at most two memories per commit (named ones,
+  then decisions), exact anchors only.
+- A commit that produced an incident link does not also produce a duplicate gotcha candidate.
+
 ## [0.67.1] — The weakening gate judges values, not YAML layout
 
 - **A canonical rewrite is not a weakening.** The sensor-weakening gate read diff lines, so unfolding
