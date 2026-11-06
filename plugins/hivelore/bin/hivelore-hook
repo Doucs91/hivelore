@@ -11,7 +11,7 @@ fi
 case "$*" in
   "enforce user-prompt"|"enforce session-start")
     if command -v npx >/dev/null 2>&1; then
-      exec npx --yes @hivelore/cli@0.68.1 "$@" 2>/dev/null
+      exec npx --yes @hivelore/cli@0.68.2 "$@" 2>/dev/null
     fi
     ;;
 esac

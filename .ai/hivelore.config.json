@@ -46,5 +46,5 @@
     "runCommandSensors": true,
     "evalRegressionGate": "block"
   },
-  "cliVersion": "0.68.1"
+  "cliVersion": "0.68.2"
 }

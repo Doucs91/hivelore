@@ -77,6 +77,12 @@ export function registerWhy(program: Command): void {
         process.exitCode = 1;
         return;
       }
+      try { await run("gh", ["repo", "view", "--json", "nameWithOwner"], root); } catch {
+        if (opts.json) console.log(JSON.stringify({ run: null, message: "no GitHub repository gh can read for this checkout" }));
+        else ui.error("`ci why`: this checkout has no GitHub repository `gh` can read (no remote, or not authenticated for it).");
+        process.exitCode = 1;
+        return;
+      }
       let runId = opts.run;
       if (!runId) {
         const head = (await run("git", ["rev-parse", "HEAD"], root).catch(() => "")).trim();

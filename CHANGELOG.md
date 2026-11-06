@@ -4,6 +4,25 @@ All notable changes to Hivelore are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loosely and the
 project follows semantic versioning once it ships its first stable release.
 
+## [0.68.2] — Fixes from an end-to-end campaign in fresh repositories
+
+The published 0.68.1 was run, as a user would, in three new repositories (a TypeScript service with a
+CLAUDE.md, a Python service with an AGENTS.md, a monorepo without Hivelore) — init, enforce install,
+rules audit/arm, command guards through the real hook, commit gates, developer corrections, doc
+warnings, why, memory propose, false positives, the MCP server through a real client, cache migration,
+forward-compatible sensors, version pin, root detection, and the Claude Code plugin (`claude plugin
+validate` for the plugin and the marketplace). 68 of 71 checks passed; the failures led to:
+
+- **A denial explains itself.** A command guard's message is the prohibition and its reason ("NEVER run
+  `npm publish` from an agent — releases go through CI"), not the bare ban.
+- **An in-repo cache recreated after the move is folded into the user cache and removed** — the case of
+  an older CLI (a global install, a git hook) writing `.ai/.cache` again after the migration.
+- **Incident links point at decisions** (or memories named in the fix message), not at a gotcha that
+  happens to be anchored to the same file.
+- **`ci why` says when the checkout has no GitHub repository `gh` can read**, instead of "no failed run".
+
+After the fixes: 72/72 on the development build.
+
 ## [0.68.1] — Command guards that actually fire, arming that never over-reaches
 
 Found by arming this repository's own rules with the published 0.68.0:

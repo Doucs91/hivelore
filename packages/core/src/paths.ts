@@ -196,9 +196,22 @@ export function migrateLegacyCache(paths: HaivePaths): CacheMigrationResult {
   const legacy = legacyCacheDir(paths.root);
   if (path.resolve(paths.cacheDir) === path.resolve(legacy)) return { migrated: false };
   try {
-    if (!existsSync(legacy) || existsSync(paths.cacheDir)) return { migrated: false };
+    if (!existsSync(legacy)) return { migrated: false };
     const entries = readdirSync(legacy).filter((name) => name !== ".gitignore");
     if (entries.length === 0) return { migrated: false };
+    if (existsSync(paths.cacheDir)) {
+      // Both exist: an older CLI (a global install, a git hook) recreated the in-repo cache after the
+      // move. Fold in what the user cache lacks, drop the rest — it is a cache, and the user cache wins.
+      for (const name of entries) {
+        const src = path.join(legacy, name);
+        const dest = path.join(paths.cacheDir, name);
+        try {
+          if (!existsSync(dest)) renameSync(src, dest);
+        } catch { /* cross-device or busy: dropped below */ }
+      }
+      rmSync(legacy, { recursive: true, force: true });
+      return { migrated: true, how: "renamed", from: legacy, to: paths.cacheDir };
+    }
     mkdirSync(path.dirname(paths.cacheDir), { recursive: true });
     try {
       renameSync(legacy, paths.cacheDir);

@@ -48,11 +48,27 @@ const PATH_LIKE = /^(?:\.{0,2}\/)?[\w@.-]+(?:\/[\w@.*-]+)+$|^[\w-]+\.(?:ts|tsx|j
 const EDIT_VERB = /\b(?:edit|modify|change|touch|rewrite|delete|remove|commit|rename|modifier|toucher|supprimer|éditer|changer)\b/i;
 
 /** The clauses of a rule that carry the prohibition ("Do not use X — it does Y" → "Do not use X"). */
+const CLAUSE_SPLIT = /(?<=[.;!?])\s+|\s+[—–]\s+|\s+-{1,2}\s+|:\s+(?=[A-Z])/;
+
 export function prohibitionClauses(text: string): string[] {
   return text
-    .split(/(?<=[.;!?])\s+|\s+[—–]\s+|\s+-{1,2}\s+|:\s+(?=[A-Z])/)
+    .split(CLAUSE_SPLIT)
     .map((c) => c.trim())
     .filter((c) => c && isProhibition(c));
+}
+
+/**
+ * The prohibition WITH its reason, as the agent should read it when the check fires: "NEVER run
+ * `npm publish` from an agent — releases go through CI". The reason is the clause right after the
+ * prohibition when it is not itself another instruction.
+ */
+export function prohibitionStatement(text: string): string {
+  const clauses = text.split(CLAUSE_SPLIT).map((c) => c.trim()).filter(Boolean);
+  const i = clauses.findIndex(isProhibition);
+  if (i < 0) return "";
+  const next = clauses[i + 1];
+  const reason = next && !isProhibition(next) && !/^(?:always|use|run|call|prefer)\b/i.test(next) ? next : "";
+  return `${clauses[i]}${reason ? ` — ${reason}` : ""}`.replace(/\*\*/g, "").trim();
 }
 
 /** "never"/"forbidden" anywhere; "do not"/"must not"/"avoid" only when they OPEN the clause ("code you do not understand" is not a ban). */
@@ -104,7 +120,7 @@ export function planRuleArming(rules: AuditedRule[]): { plans: ArmPlan[]; skippe
     // every push. Compound commands (`a && b`) are examples, never a single thing to deny. The clause is
     // also what the agent is told when the check fires, and what names the memory.
     const forbidden = prohibitionClauses(text).join(" ");
-    const said = forbidden.replace(/\*\*/g, "").trim() || text;
+    const said = prohibitionStatement(text) || text;
     const message = `${said.length > 200 ? `${said.slice(0, 199)}…` : said} (${rule.file}:${rule.line})`;
     const slug = slugFrom(said);
     const ticks = backticked(forbidden).filter((t) => !/&&|\|\||;|\|/.test(t));

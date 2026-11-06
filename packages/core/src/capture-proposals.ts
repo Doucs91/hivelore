@@ -195,7 +195,8 @@ export function proposeCaptures(input: CaptureProposalInput): CaptureProposal[] 
     if (files.length === 0 || files.length > 8) continue;
     const named = new Set([...message.matchAll(/\b(\d{4}-\d{2}-\d{2}-[a-z_]+-[a-z0-9-]+)\b/g)].map((m) => m[1]!));
     const candidates = live
-      .filter(({ frontmatter: fm }) => !amended.has(fm.id) && ANCHORING_TYPES.has(fm.type))
+      // A DECISION justifies code; a gotcha anchored to the same file warns about something else.
+      .filter(({ frontmatter: fm }) => !amended.has(fm.id) && (fm.type === "decision" || named.has(fm.id)))
       .map((memory) => ({
         memory,
         // Exact file anchors only: a memory anchored to a whole directory or glob did not justify

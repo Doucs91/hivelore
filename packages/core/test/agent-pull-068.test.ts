@@ -258,3 +258,36 @@ describe("command patterns tolerate options before the subcommand", () => {
     expect(new RegExp(commandPattern("git push --tags")).test("git push origin v1")).toBe(false);
   });
 });
+
+describe("end-to-end campaign fixes", () => {
+  it("a guard tells the agent the reason, not just the ban", async () => {
+    const { prohibitionStatement } = await import("../src/index.js");
+    expect(prohibitionStatement("NEVER run `npm publish` from an agent — releases go through CI.")).toBe("NEVER run `npm publish` from an agent — releases go through CI.");
+    expect(prohibitionStatement("`git push` the tag. Do not use `git push --tags` — it pushes every local tag.")).toBe("Do not use `git push --tags` — it pushes every local tag.");
+    expect(prohibitionStatement("Do not use X — use Y instead.")).toBe("Do not use X");
+  });
+
+  it("an incident link points at the decision, not at a gotcha that shares the file", () => {
+    const gotcha = memory("gotcha", "raw-date", { anchor: { paths: ["src/charge.ts"], symbols: [] } });
+    expect(proposeCaptures({ commits: [{ sha: "c1", subject: "fix: regression in charge", body: "", files: ["src/charge.ts"] }], diff: [], memories: [gotcha] })
+      .filter((p) => p.kind === "incident-link")).toEqual([]);
+  });
+
+  it("an in-repo cache recreated after the move is folded into the user cache and removed", async () => {
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const pathMod = await import("node:path");
+    const { migrateLegacyCache, resolveHaivePaths } = await import("../src/index.js");
+    const root = fs.mkdtempSync(pathMod.join(os.tmpdir(), "hv-merge-"));
+    const userCache = fs.mkdtempSync(pathMod.join(os.tmpdir(), "hv-user-"));
+    fs.writeFileSync(pathMod.join(userCache, "usage.json"), "{\"new\":true}");
+    fs.mkdirSync(pathMod.join(root, ".ai", ".cache"), { recursive: true });
+    fs.writeFileSync(pathMod.join(root, ".ai", ".cache", "usage.json"), "{\"old\":true}");
+    fs.writeFileSync(pathMod.join(root, ".ai", ".cache", "observations.jsonl"), "{}\n");
+    const paths = { ...resolveHaivePaths(root), cacheDir: userCache };
+    expect(migrateLegacyCache(paths).migrated).toBe(true);
+    expect(fs.existsSync(pathMod.join(root, ".ai", ".cache"))).toBe(false);
+    expect(fs.readFileSync(pathMod.join(userCache, "usage.json"), "utf8")).toBe("{\"new\":true}");
+    expect(fs.existsSync(pathMod.join(userCache, "observations.jsonl"))).toBe(true);
+  });
+});
