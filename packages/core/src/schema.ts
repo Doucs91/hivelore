@@ -40,7 +40,14 @@ export const AnchorSchema = z.object({
  * (they require I/O and must run from the CLI, not core).
  */
 export const SensorSchema = z.object({
-  kind: z.enum(["regex", "ast", "shell", "test"]).default("regex"),
+  /**
+   * checklist = a REQUIRED VERIFICATION, not a pattern: when a change touches the sensor's paths the
+   * gate prints `message` as the step to perform, and at `block` severity the commit message must
+   * carry `Hivelore-Checked: <memory-id>`. Fills the gap between pattern sensors (which catch code
+   * shapes, not missing verifications) and passive memories (which the agent may never retrieve) —
+   * the gap behind a known caveat that shipped to production twice (field report #9 §1, §9.1).
+   */
+  kind: z.enum(["regex", "ast", "shell", "test", "checklist"]).default("regex"),
   /**
    * kind=regex: regex source, matched against added diff lines / file content.
    * kind=ast: an ast-grep structural pattern (e.g. `stripe.paymentIntents.create($$$)`) — matched
@@ -200,6 +207,20 @@ export const MemoryFrontmatterSchema = z
      *   abandoned — considered and rejected; kept so it is not re-attempted
      */
     lifecycle: z.enum(["applied", "planned", "abandoned"]).optional(),
+    /**
+     * The memory in ONE actionable line — "When X, do Y, because Z". Briefings and edit-time
+     * reminders deliver this line, never a head-first cut of the body: decision memories are written
+     * context → reason → instruction, so truncation kept the context and dropped the instruction
+     * (field report #11 §5). The body stays available on demand (mem_get).
+     */
+    rule: z.string().min(1).max(400).optional(),
+    /**
+     * Pointer to the source of truth when the knowledge lives in a document, e.g.
+     * `docs/deployment/runbook.md#rotate-owner-password`. A memory that copies a doc drifts from it;
+     * a memory that points keeps the doc authoritative and makes it surface at the right edit
+     * (field report #11 §9).
+     */
+    source: z.string().min(1).optional(),
   })
   .refine(
     (data) => data.scope !== "module" || !!data.module,

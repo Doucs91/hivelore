@@ -55,9 +55,79 @@ function stripUndefined<T>(value: T): T {
   return value;
 }
 
+/**
+ * Never fold long scalars. js-yaml folds any string past 80 columns into a `>-` block, which is
+ * valid YAML but was misread by every line-based consumer — the GitHub Action took `>-` itself as an
+ * anchor path and reported "anchor paths missing" for files that existed, and a hand-unfolded file
+ * was folded again by the next `mem_update` (field report #10 §1). One line per scalar keeps the
+ * file canonical, greppable and diff-stable.
+ */
+const YAML_DUMP_OPTIONS = { lineWidth: -1 } as const;
+
+/** "2026-05-07-gotcha-flyway-no-modify" → "Gotcha Flyway No Modify" — the canonical fallback title. */
+export function titleFromMemoryId(id: string): string {
+  return id
+    .replace(/^\d{4}-\d{2}-\d{2}-/, "")
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+/**
+ * The canonical body: every memory opens with a Markdown heading.
+ *
+ * The heading used to be added AFTER the fact — by the autopilot lint repair during `sync` — so a
+ * memory saved, committed and merged came back minutes later with a `# Title Cased Slug` line the
+ * agent never wrote, a dirty worktree, and a `finish` that refused to close until one more PR
+ * committed it (field reports #10 §2, #12 §6). Writing the final form at save time makes every later
+ * normalization a no-op.
+ */
+export function canonicalMemoryBody(id: string, body: string): string {
+  const trimmed = body.trim();
+  if (/^#{1,3}\s+\S/m.test(trimmed)) return body;
+  const title = titleFromMemoryId(id) || id;
+  return trimmed ? `# ${title}\n\n${trimmed}` : `# ${title}`;
+}
+
+/**
+ * Frontmatter fields whose schema default carries no information. Writing them made every memory
+ * open with a wall of `null`/`false`/`0` lines — 4,567 frontmatter lines against 2,092 lines of
+ * knowledge in one corpus (field report #12 §3.3). The parser restores the defaults, so omitting
+ * them is lossless; a non-default value is always written.
+ */
+const OMIT_WHEN_DEFAULT: ReadonlyArray<[string, unknown]> = [
+  ["expires_when", null],
+  ["verified_at", null],
+  ["stale_reason", null],
+  ["last_read_at", null],
+  ["requires_human_approval", false],
+  ["validated_by", null],
+  ["revision_count", 0],
+];
+
+function isEmptyArray(value: unknown): boolean {
+  return Array.isArray(value) && value.length === 0;
+}
+
+function dropDefaults(frontmatter: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...frontmatter };
+  for (const [key, value] of OMIT_WHEN_DEFAULT) if (out[key] === value) delete out[key];
+  if (isEmptyArray(out["related_ids"])) delete out["related_ids"];
+  const sensor = out["sensor"];
+  if (sensor && typeof sensor === "object" && !Array.isArray(sensor)) {
+    const next = { ...(sensor as Record<string, unknown>) };
+    if (next["autogen"] === false) delete next["autogen"];
+    if (next["last_fired"] === null) delete next["last_fired"];
+    out["sensor"] = next;
+  }
+  return out;
+}
+
 export function serializeMemory(memory: Memory): string {
-  const clean = stripUndefined(memory.frontmatter) as Record<string, unknown>;
-  return matter.stringify(memory.body, clean);
+  const clean = dropDefaults(stripUndefined(memory.frontmatter) as Record<string, unknown>);
+  const body = canonicalMemoryBody(memory.frontmatter.id, memory.body);
+  return matter.stringify(body, clean, YAML_DUMP_OPTIONS as unknown as matter.GrayMatterOption<string, never>);
 }
 
 export function newMemoryId(type: string, slug: string, date = new Date()): string {
@@ -90,6 +160,8 @@ export function buildFrontmatter(input: {
   evidence?: MemoryFrontmatter["evidence"];
   checks?: MemoryFrontmatter["checks"];
   supersedes?: string[];
+  rule?: string;
+  source?: string;
 }): MemoryFrontmatter {
   const now = new Date();
   const id = newMemoryId(input.type, input.slug, now);
@@ -116,6 +188,8 @@ export function buildFrontmatter(input: {
     evidence: input.evidence,
     checks: input.checks,
     supersedes: input.supersedes,
+    rule: input.rule?.trim() || undefined,
+    source: input.source?.trim() || undefined,
     revision_count: 0,
     related_ids: input.relatedIds ?? [],
   });

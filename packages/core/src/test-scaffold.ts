@@ -537,7 +537,7 @@ export interface ScaffoldLoopGap {
  */
 export function assessScaffoldLoop(
   files: Array<{ path: string; content: string }>,
-  memories: Array<{ id: string; sensorKind?: "regex" | "ast" | "shell" | "test" | null }>,
+  memories: Array<{ id: string; sensorKind?: "regex" | "ast" | "shell" | "test" | "checklist" | null }>,
 ): ScaffoldLoopGap[] {
   const byId = new Map(memories.map((m) => [m.id, m]));
   const gaps: ScaffoldLoopGap[] = [];

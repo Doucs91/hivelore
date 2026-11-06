@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createContext, type CreateContextOptions, type HaiveContext } from "./context.js";
+import { projectBriefingForAgent } from "./tools/briefing-agent-view.js";
 import {
   BootstrapProjectSaveInputSchema,
   bootstrapProjectSave,
@@ -178,7 +180,7 @@ import {
   type ImportDocsArgs,
 } from "./prompts/import-docs.js";
 import { SessionTracker } from "./session-tracker.js";
-import { hasRecentBriefingMarker, loadConfigSync } from "@hivelore/core";
+import { ensurePersonalMemoriesIgnored, hasRecentBriefingMarker, loadConfigSync, sessionIdFromEnv } from "@hivelore/core";
 
 // Re-export tool implementations so `@hivelore/cli` (and integrators) can call
 // them programmatically without going through the MCP stdio transport.
@@ -266,12 +268,16 @@ export const SERVER_NAME = "hivelore";
 export const SERVER_VERSION = __HAIVE_VERSION__;
 export type ToolProfile = "enforcement" | "maintenance" | "experimental" | "full";
 
+/**
+ * Compact JSON: the reader is a model, not `jq`. Pretty-printing made ~17% of every briefing
+ * indentation whitespace (field report #11 §2).
+ */
 function jsonResult(data: unknown) {
   return {
     content: [
       {
         type: "text" as const,
-        text: JSON.stringify(data, null, 2),
+        text: JSON.stringify(data),
       },
     ],
   };
@@ -291,34 +297,45 @@ function toolSummary(input: unknown, result: unknown): string | undefined {
   return Array.isArray(files) ? files.filter((file): file is string => typeof file === "string").slice(0, 8).map(file => file.slice(0, 200)).join(", ") : undefined;
 }
 
+/**
+ * The default surface: the tools field data shows agents actually call, and nothing else.
+ *
+ * Every exposed tool costs schema tokens and a choice on every turn. Over 8 days one agent used 2 of
+ * 16 default tools (field report #11 §8); code_map/code_search, mem_search, mem_verify, mem_feedback,
+ * mem_session_end and scaffold_test were never or almost never called across 14 measured sessions
+ * (#10 §8, #12 §4.1), and harness research consistently finds that fewer tools perform better. They
+ * remain one switch away: HIVELORE_TOOL_PROFILE=maintenance (or enforcement.toolProfile).
+ */
 export const ENFORCEMENT_PROFILE_TOOLS = [
   "get_briefing",
+  "mem_get",
   "mem_save",
-  "mem_feedback",
-  // Correcting a memory is part of the default loop, not a maintenance chore: `mem_save` rejects a
-  // duplicate body and tells the agent to "use mem_update to modify", so leaving mem_update out of
-  // this profile pointed the agent at a tool it could not call — its only way out was a near-dup
-  // memory. Deletion deliberately stays maintenance-only: `mem_delete` unlinks the file with no
-  // guard, and dropping a block-sensor memory silently removes enforcement.
+  // Correcting a memory is part of the default loop: `mem_save` rejects a duplicate body and tells
+  // the agent to "use mem_update to modify". Deletion stays maintenance-only (no guard on unlink).
   "mem_update",
   "mem_tried",
-  "mem_search",
-  "mem_get",
-  "mem_verify",
-  "mem_relevant_to",
-  "code_map",
-  "code_search",
-  "pre_commit_check",
-  "mem_session_end",
   "propose_sensor",
-  "scaffold_test",
+  "pre_commit_check",
   // Must live in the DEFAULT profile or it is never used: an agent only reports friction in the
   // session where it hit the friction, and it will not switch profiles to do so.
   "report_friction",
 ] as const;
 
+/** Tools moved out of the default surface in 0.66 — still registered under `maintenance`. */
+export const RETIRED_DEFAULT_TOOLS = [
+  "mem_feedback",
+  "mem_search",
+  "mem_verify",
+  "mem_relevant_to",
+  "code_map",
+  "code_search",
+  "mem_session_end",
+  "scaffold_test",
+] as const;
+
 export const MAINTENANCE_PROFILE_TOOLS = [
   ...ENFORCEMENT_PROFILE_TOOLS,
+  ...RETIRED_DEFAULT_TOOLS,
   "mem_suggest_topic",
   "mem_for_files",
   "mem_list",
@@ -381,8 +398,9 @@ export function createHaiveServer(
   options: CreateContextOptions = {},
 ): { server: McpServer; context: HaiveContext; tracker: SessionTracker } {
   const context = createContext(options);
-  context.sessionId = options.env?.HIVELORE_SESSION_ID ?? process.env.HIVELORE_SESSION_ID ?? process.env.CLAUDE_SESSION_ID ?? randomUUID();
+  context.sessionId = options.env?.HIVELORE_SESSION_ID ?? sessionIdFromEnv() ?? randomUUID();
   const config = loadConfigSync(context.paths);
+  if (existsSync(context.paths.haiveDir)) void ensurePersonalMemoriesIgnored(context.paths);
   const toolProfile =
     (options.env?.HIVELORE_TOOL_PROFILE as ToolProfile | undefined) ??
     (options.env?.HAIVE_TOOL_PROFILE as ToolProfile | undefined) ?? // legacy env name
@@ -760,7 +778,8 @@ export function createHaiveServer(
     ].join("\n"),
     GetBriefingInputSchema,
     async (input: GetBriefingInput) => {
-      return jsonResult(await getBriefing(input, context));
+      const briefing = await getBriefing(input, context);
+      return jsonResult(input.verbose ? briefing : projectBriefingForAgent(briefing, context.paths.root));
     },
   );
 

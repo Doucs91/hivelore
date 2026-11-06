@@ -9,7 +9,6 @@ import {
   allocateBudget,
   assessBootstrapState,
   renderBootstrapChecklist,
-  briefingProofLine,
   computeImpact,
   deriveConfidence,
   estimateTokens,
@@ -27,7 +26,6 @@ import {
   memoryHasExcludedTag,
   hashProjectContext,
   loadMemoriesFromDir,
-  loadPreventionEvents,
   loadUsageIndex,
   memoryMatchesAnchorPaths,
   projectContextRecentlyEmitted,
@@ -48,8 +46,10 @@ import {
   writeBriefingMarker,
   type LoadedMemory,
   type UsageIndex,
+  memoryRuleLine,
 } from "@hivelore/core";
 import { z } from "zod";
+import { fitBriefingToBudget, projectBriefingForAgent } from "./briefing-agent-view.js";
 import { loadAnchorChurn } from "../anchor-churn.js";
 import type { HaiveContext } from "../context.js";
 import { pendingDistillPath, type PendingDistill } from "../session-tracker.js";
@@ -176,6 +176,13 @@ export const GetBriefingInputSchema = {
       "applied so the undifferentiated mass of weak hits is trimmed while the top hit is always kept. " +
       "Set an explicit value to raise the bar further; it never lowers the adaptive one. " +
       "Has no effect on memories matched via anchor/module/literal — those are always kept.",
+    ),
+  verbose: z
+    .boolean()
+    .optional()
+    .describe(
+      "Return the full diagnostic payload (scores, impact, reasons, budget breakdown) instead of the lean " +
+      "agent view. Agents never need it; it exists for debugging ranking.",
     ),
   budget_preset: z
     .enum(["quick", "balanced", "deep"])
@@ -470,9 +477,13 @@ export async function getBriefing(
         (m.reasons.includes("module") ? 2 : 0) +
         (m.reasons.includes("semantic") ? 2 : 0) +
         (m.reasons.includes("domain") ? 1 : 0);
+      // Relevance ranks on ADMISSION (validated), not on the review label: an auto-validated memory
+      // is labelled `low` so the agent knows nobody reviewed it (field report #12 §4.5), but that
+      // honesty must not reshuffle relevance against reviewed memories of equal standing.
       const confidenceScore = (m: BriefingMemory): number =>
         m.confidence === "authoritative" ? 4 :
         m.confidence === "trusted" ? 3 :
+        m.confidence === "low" && m.status === "validated" ? 3 :
         m.confidence === "low" ? 1 :
         m.confidence === "stale" ? -2 : 0;
       // Demonstrated-utility nudge (0..3): a memory that agents actually applied — or
@@ -684,12 +695,20 @@ export async function getBriefing(
   }
 
   // ── Format + priority + why ────────────────────────────────────────────
+  // Every memory carries its one actionable line. `compact` is the rule alone; `actions` keeps the
+  // bullet excerpt after it. A head-first body cut is never the only thing an agent receives
+  // (field report #11 §5).
+  const withRules = trimmedMemories.map((m) => {
+    const loaded = byId.get(m.id)?.memory;
+    const rule = loaded ? memoryRuleLine(loaded) : "";
+    return { ...m, rule: rule || compactSummary(m.body), ...(loaded?.frontmatter.source ? { source: loaded.frontmatter.source } : {}) };
+  });
   const formattedMemories =
     input.format === "compact"
-      ? trimmedMemories.map((m) => ({ ...m, body: compactSummary(m.body), delivery: "partial" as const }))
+      ? withRules.map((m) => ({ ...m, body: "", delivery: "partial" as const }))
       : input.format === "actions"
-        ? trimmedMemories.map((m) => ({ ...m, body: extractActionsBriefBody(m.body), delivery: "partial" as const }))
-        : trimmedMemories;
+        ? withRules.map((m) => ({ ...m, body: extractActionsBriefBody(m.body), delivery: "partial" as const }))
+        : withRules;
 
   let outputMemories = formattedMemories.map((m) => ({
     ...m,
@@ -723,8 +742,13 @@ export async function getBriefing(
 
   // ── Code-map symbol lookup ─────────────────────────────────────────────
   let symbolLocations: BriefingOutput["symbol_locations"];
+  // Look up the symbols the caller ASKED for, plus symbols of memories anchored to a passed file —
+  // never every symbol of every surfaced memory. Unrequested lookups were the largest section of a
+  // quick briefing (7.7k chars, more than all memory bodies together), matched on generic task words
+  // and pointing at unrelated modules (field reports #9 §5, #11 §2).
   const symbolsToLookup = new Set<string>(input.symbols);
   for (const m of outputMemories) {
+    if (m.priority !== "must_read" || !m.reasons.includes("anchor")) continue;
     for (const sym of byId.get(m.id)?.memory.frontmatter.anchor.symbols ?? []) {
       symbolsToLookup.add(sym);
     }
@@ -736,19 +760,22 @@ export async function getBriefing(
       for (const sym of symbolsToLookup) {
         const { files } = queryCodeMap(codeMap, { symbol: sym });
         if (files.length > 0) {
-          symbolLocations.push({
-            symbol: sym,
-            locations: files.flatMap((f) =>
-              f.entry.exports
-                .filter((e) => e.name.toLowerCase().includes(sym.toLowerCase()))
-                .map((e) => ({
-                  file: f.path,
-                  kind: e.kind,
-                  line: e.line,
-                  ...(e.description ? { description: e.description } : {}),
-                })),
-            ),
-          });
+          const all = files.flatMap((f) =>
+            f.entry.exports
+              .filter((e) => e.name.toLowerCase().includes(sym.toLowerCase()))
+              .map((e) => ({
+                file: f.path,
+                kind: e.kind,
+                line: e.line,
+                exact: e.name === sym,
+                ...(e.description ? { description: e.description.slice(0, 120) } : {}),
+              })),
+          );
+          // Exact name matches only when there are any; otherwise the five closest. "Memory" used
+          // to return 60 locations of everything whose name merely contained the word.
+          const exact = all.filter((l) => l.exact);
+          const locations = (exact.length > 0 ? exact : all).slice(0, 5).map(({ exact: _exact, ...l }) => l);
+          if (locations.length > 0) symbolLocations.push({ symbol: sym, locations });
         }
       }
       if (symbolLocations.length === 0) symbolLocations = undefined;
@@ -880,7 +907,9 @@ export async function getBriefing(
       });
       // Surface the directive only when there are genuine main code areas — that is exactly when the
       // enforce gate will block, so the "your commit will be blocked" message stays truthful.
-      if (bootstrap.state !== "ready" && bootstrap.metrics.mainAreas > 0) {
+      // Cold corpus only. On a populated repo the "first agent" directive is false and teaches the
+      // agent to skim every notice (field reports #9 §2, #11); coverage gaps stay in `doctor`.
+      if (bootstrap.state === "cold" && bootstrap.metrics.mainAreas > 0) {
         maintenanceNotices.push({
           id: "__bootstrap_required__",
           summary: "First-agent bootstrap: fill the repo knowledge layer before substantive work",
@@ -918,16 +947,12 @@ export async function getBriefing(
     }
     if (memoriesEmpty && hasMemoriesDir && input.task) {
       hints.push(
-        "No memories matched this task. Try mem_search with broader/different terms, " +
-        "or call mem_for_files with the files you intend to edit.",
+        "Nothing relevant for this task. Pass the `files` you will edit if you have not — anchored " +
+        "policy only surfaces for them — otherwise proceed normally.",
       );
     }
-    if (input.task && outputMemories.length > 0 && actionRequired.length === 0) {
-      hints.push(
-        "After completing the task: capture failed approaches with mem_tried, " +
-        "new gotchas and validated patterns with mem_save.",
-      );
-    }
+    // No standing "after the task, capture with mem_tried/mem_save" hint: printed on every briefing,
+    // it became wallpaper (field report #9 §2). The instruction lives once, in the bridge file.
     if (
       outputMemories.length > 2 &&
       !input.budget_preset &&
@@ -948,14 +973,9 @@ export async function getBriefing(
     );
   }
 
-  // ── Proof line (Lot B × Lot C coordination point) ─────────────────────
-  // Surface the measured outcome — "this harness prevented N repeated mistakes" — directly in the
-  // briefing so the moat is visible in-context, not only in `hivelore dashboard`. briefingProofLine()
-  // returns null when there are no recent catches, so an empty/cold corpus never shows a hollow claim.
-  if (outputMemories.length > 0 && existsSync(ctx.paths.haiveDir)) {
-    const proof = briefingProofLine(await loadPreventionEvents(ctx.paths));
-    if (proof) hints.push(proof);
-  }
+  // No "this harness prevented N repeated mistakes" line here: a count nobody can check from the
+  // briefing reads as marketing and changed from 4 to 3 overnight with no list behind it (field
+  // reports #10 §7, #11 §8). The evidence lives in `hivelore report`, case by case.
 
   let breadcrumbs = buildBriefingBreadcrumbs({
     memories: outputMemories,
@@ -980,18 +1000,7 @@ export async function getBriefing(
       source: "mcp", evidence: "observed",
     }).catch(() => {});
   }
-  // ── Briefing marker (satisfies enforcement gate for MCP-native agents) ─
-  if (existsSync(ctx.paths.haiveDir)) {
-    await writeBriefingMarker(ctx.paths, {
-      sessionId,
-      ...(input.task ? { task: input.task } : {}),
-      source: "mcp-get-briefing",
-      files: input.files,
-      memoryIds: outputMemories.filter(m => m.delivery === "full").map((m) => m.id),
-    }).catch(() => { /* marker is best-effort — never fail the briefing on it */ });
-  }
-
-  return {
+  const output: BriefingOutput = {
     ...(input.task ? { task: input.task } : {}),
     server_version: serverVersion(),
     search_mode: searchMode,
@@ -1046,6 +1055,23 @@ export async function getBriefing(
       },
     },
   };
+
+  // The budget covers the whole agent-facing payload, envelope included (field report #11 §2).
+  // Trimming happens BEFORE the consultation marker so a dropped body is never credited as read.
+  fitBriefingToBudget(output, ctx.paths.root, briefingMaxTokens);
+  output.estimated_tokens = projectBriefingForAgent(output, ctx.paths.root).estimated_tokens;
+
+  // ── Briefing marker (satisfies enforcement gate for MCP-native agents) ─
+  if (existsSync(ctx.paths.haiveDir)) {
+    await writeBriefingMarker(ctx.paths, {
+      sessionId,
+      ...(input.task ? { task: input.task } : {}),
+      source: "mcp-get-briefing",
+      files: input.files,
+      memoryIds: output.memories.filter(m => m.delivery === "full" && !m.body_omitted).map((m) => m.id),
+    }).catch(() => { /* marker is best-effort — never fail the briefing on it */ });
+  }
+  return output;
 }
 
 /**

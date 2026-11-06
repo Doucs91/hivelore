@@ -1,4 +1,5 @@
 import { supersededMemoryIds } from "./loader.js";
+import { memoryRuleLine } from "./rule-line.js";
 /**
  * Native bridge generator — produces agent-harness-specific config files
  * from the Hivelore corpus (validated memories + block sensors).
@@ -158,7 +159,7 @@ export function prepareBridgeData(
       id: m.frontmatter.id,
       scope: m.frontmatter.scope,
       type: m.frontmatter.type,
-      summary: bridgeMemorySummary(m.body),
+      summary: memoryRuleLine(m) || bridgeMemorySummary(m.body),
       paths: m.frontmatter.anchor?.paths ?? [],
     }));
 
@@ -236,13 +237,15 @@ const HAIVE_PREAMBLE =
   "\n" +
   "## Working through Hivelore\n" +
   "\n" +
-  "1. **Before editing** for a goal, call `get_briefing` with `budget_preset:\"quick\"` and `format:\"actions\"`\n" +
-  "   (task + files/symbols). Treat its `breadcrumbs` as the first map, not as a full manual.\n" +
-  "2. **Drill down only if needed**: use `mem_get` for a surfaced memory, `code_map` for exact symbols,\n" +
-  "   `code_search` for semantic code lookup, or `mem_relevant_to` once project context is already loaded.\n" +
-  "3. Capture durable repo-specific failures with `mem_tried`; ordinary command misses need no memory.\n" +
-  "4. **Before closing** a substantive session, run the `post_task` prompt to capture what was learned.\n" +
-  "5. Start a task with `hivelore enforce session-start --mode read|local|commit|release --session-id <id>` according to the requested scope and repository policy. Finish with `hivelore enforce finish --session-id <id>`. Existing release policies remain authoritative.\n" +
+  "1. **Before editing code** for a goal, call `get_briefing` with the task and the `files` you will edit.\n" +
+  "   Each memory comes with a one-line `rule`; `must_read` means it is anchored to one of those files.\n" +
+  "   Read the full body with `mem_get` only when the rule is not enough. Docs-only or typo changes can skip it.\n" +
+  "2. **When something you tried fails for a reason worth remembering**, call `mem_tried` once (what, why, instead).\n" +
+  "   Ordinary command misses (a grep with no match, a typo) need no memory.\n" +
+  "3. **Before reporting done**, run `hivelore enforce finish`. It judges only the files this task changed —\n" +
+  "   never commit, ignore or delete files that were already modified before the task started.\n" +
+  "\n" +
+  "Hooks handle session start and edit-time reminders automatically; there is no session id to pass.\n" +
   "\n" +
   "If MCP is unavailable, use `hivelore briefing --files <paths> --task <task>`, or read `.ai/project-context.md` and search `.ai/memories/`. Report the unavailable integration.\n" +
   "\n" +

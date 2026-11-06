@@ -18,6 +18,7 @@ import {
   serializeMemory,
   specificityScore,
   type LoadedMemory,
+  titleFromMemoryId,
 } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 
@@ -289,12 +290,7 @@ export async function lintMemoriesAsync(
 }
 
 function titleFromId(id: string): string {
-  const withoutDate = id.replace(/^\d{4}-\d{2}-\d{2}-/, "");
-  return withoutDate
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
-    .join(" ");
+  return titleFromMemoryId(id);
 }
 
 function suggestAnchors(

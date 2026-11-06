@@ -8,6 +8,8 @@ export const MemUpdateInputSchema = {
   evidence: MemoryFrontmatterSchema.innerType().shape.evidence,
   checks: MemoryFrontmatterSchema.innerType().shape.checks,
   supersedes: MemoryFrontmatterSchema.innerType().shape.supersedes,
+  rule: z.string().min(1).max(400).optional().describe("New one-line actionable rule ('When X, do Y, because Z')"),
+  source: z.string().min(1).optional().describe("New pointer to the source-of-truth doc section"),
   id: z.string().min(1).describe("Id of the memory to update"),
   body: z.string().optional().describe("New Markdown body — replaces the existing body"),
   tags: z
@@ -63,12 +65,14 @@ export async function memUpdate(
     ...(input.evidence !== undefined ? { evidence: input.evidence } : {}),
     ...(input.checks !== undefined ? { checks: input.checks } : {}),
     ...(input.supersedes !== undefined ? { supersedes: input.supersedes } : {}),
+    ...(input.rule !== undefined ? { rule: input.rule.trim() } : {}),
+    ...(input.source !== undefined ? { source: input.source.trim() } : {}),
     ...(input.tags !== undefined ? { tags: input.tags } : {}),
     ...(input.domain !== undefined ? { domain: input.domain } : {}),
     ...(input.author !== undefined ? { author: input.author } : {}),
   };
 
-  for (const key of ["evidence", "checks", "supersedes"] as const) {
+  for (const key of ["evidence", "checks", "supersedes", "rule", "source"] as const) {
     if (input[key] !== undefined) updated_fields.push(key);
   }
   if (input.tags !== undefined) updated_fields.push("tags");

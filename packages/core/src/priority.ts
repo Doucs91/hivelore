@@ -97,16 +97,20 @@ export function classifyMemoryPriority(signals: PrioritySignals): MemoryPriority
   // Real corroboration is a strong semantic hit or an explicit symbol match.
   const corroborated = signals.strongSemantic || signals.directSymbol;
 
+  // `must_read` means "this is about the exact thing you are touching": a human gate, an anchor on
+  // the passed file, or a symbol the caller asked for. A semantic or literal task match — however
+  // strong — is `useful`. When every label came out must_read, none carried information (field
+  // reports #11 §4, #12 §1.2); attempts and skills still rank first WITHIN `useful` (see priorityRank
+  // callers' type ordering) but no longer claim the top tier on wording alone.
   if (
     signals.requiresHumanApproval ||
     strongAnchor ||
     signals.directSymbol ||
-    (weakAnchor && corroborated) ||
-    (isNegative && (signals.exactTaskMatch || signals.strongSemantic)) ||
-    (isSkill && (signals.exactTaskMatch || signals.strongSemantic))
+    (weakAnchor && corroborated)
   ) {
     return "must_read";
   }
+  if ((isNegative || isSkill) && (signals.exactTaskMatch || signals.strongSemantic)) return "useful";
 
   // A weak anchor still means the memory governs a file in play — it stays `useful`, ahead of a
   // purely semantic hit. It just no longer crowds the top rank.

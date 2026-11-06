@@ -46,6 +46,7 @@ import { registerAgent } from "./commands/agent.js";
 import { registerSensors } from "./commands/sensors.js";
 import { registerIngest } from "./commands/ingest.js";
 import { registerReport } from "./commands/report.js";
+import { registerRules } from "./commands/rules.js";
 import { registerDashboard } from "./commands/dashboard.js";
 import { registerDevLink } from "./commands/dev-link.js";
 import { registerCoverage } from "./commands/coverage.js";
@@ -76,6 +77,7 @@ registerAgent(program);
 registerSensors(program);
 registerIngest(program);
 registerReport(program);
+registerRules(program);
 registerDashboard(program);
 registerCoverage(program);
 registerMergeDriver(program);
@@ -144,6 +146,8 @@ const CORE_ROOT_COMMANDS = new Set([
   "enforce",
   "run",
   "sensors",
+  "rules",
+  "report",
   "sync",
   "mcp",
   "memory",

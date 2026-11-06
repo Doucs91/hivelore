@@ -61,6 +61,12 @@ import {
   type CommandSensorSpec,
   type LoadedMemory,
   type HaiveConfig,
+  ensurePersonalMemoriesIgnored,
+  selectChecklists,
+  checklistAcknowledged,
+  CHECKLIST_TRAILER,
+  signalFailures,
+  sanitizeFailureSummary,
 } from "@hivelore/core";
 import type { GateFinding } from "@hivelore/core";
 import { astEngineAvailable, getBriefing, preCommitCheck, runAstSensorOnContent } from "@hivelore/mcp";
@@ -72,7 +78,8 @@ import { applyAutopilotRepairs } from "../utils/autopilot.js";
 import { collectScaffoldLoopGaps, describeScaffoldGap } from "../utils/post-incident-scan.js";
 
 import { runPreEdit } from "../utils/pre-edit.js";
-import { dirtyStatusEntries, loadTaskSession, startTaskSession, sessionIdentity, worktreeSnapshot, taskDirtyFiles, changedSince, gitText, type CompletionMode } from "../utils/task-session.js";
+import { resetEditContextLedger } from "../utils/file-context.js";
+import { dirtyStatusEntries, loadTaskSession, latestTaskSession, startTaskSession, sessionIdentity, sessionIdFromEnv, worktreeSnapshot, taskDirtyFiles, changedSince, gitText, TASK_BASELINE_EXCLUSION_MAX_AGE_MS, type CompletionMode } from "../utils/task-session.js";
 
 declare const __HAIVE_VERSION__: string;
 
@@ -297,15 +304,20 @@ export function registerEnforce(program: Command): void {
 
   enforce
     .command("check")
-    .description("Run the Hivelore policy gate. Intended for pre-commit, pre-push, wrappers, and any agent client.")
+    .description(
+      "Run the Hivelore policy gate. Intended for pre-commit, pre-push, wrappers, and any agent client.\n" +
+      "  By default (--stage local) it scans the whole worktree diff against HEAD — staged AND unstaged.\n" +
+      "  --staged scans only what is staged, exactly like the pre-commit hook.",
+    )
     .option("-d, --dir <dir>", "project root")
-    .option("--stage <stage>", "local | pre-commit | pre-push | ci", "local")
-    .option("--session <id>", "session id to attribute the briefing marker to (default: $HIVELORE_SESSION_ID / $HAIVE_SESSION_ID / $CLAUDE_SESSION_ID)")
+    .option("--stage <stage>", "local (worktree vs HEAD) | pre-commit (staged) | pre-push | ci", "local")
+    .option("--staged", "alias for --stage pre-commit: check only the staged changes", false)
+    .option("--session <id>", "session id to attribute the briefing marker to (default: $HIVELORE_SESSION_ID / $HAIVE_SESSION_ID / $CLAUDE_SESSION_ID / $CLAUDE_CODE_SESSION_ID)")
     .option("--explain", "group findings by blocking/review/info and show repair commands", false)
     .option("--verbose", "show every check (including the passing ones), not just what needs action", false)
     .option("--json", "emit JSON", false)
-    .action(async (opts: EnforceOptions) => {
-      const stage = opts.stage ?? "local";
+    .action(async (opts: EnforceOptions & { staged?: boolean }) => {
+      const stage = opts.staged ? "pre-commit" : opts.stage ?? "local";
       const report = await buildEnforcementReport(opts.dir, stage, resolveSessionId(opts.session));
       // Compact on the interactive/commit paths; CI, --explain and --verbose keep the full report.
       const quiet = stage !== "ci" && !opts.explain && !opts.verbose;
@@ -401,6 +413,11 @@ export function registerEnforce(program: Command): void {
         ui.error(verdict.message);
         process.exit(1);
       }
+      const checklist = await checkChecklistAcknowledgements(root, msgfile);
+      if (checklist.block) {
+        ui.error(checklist.message);
+        process.exit(1);
+      }
     });
 
   enforce
@@ -418,10 +435,12 @@ export function registerEnforce(program: Command): void {
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) return;
       await mkdir(paths.runtimeDir, { recursive: true });
+      await ensurePersonalMemoriesIgnored(paths);
       const sessionId = sessionIdentity(opts.sessionId ?? payload.session_id);
       const existingSession = await loadTaskSession(paths, sessionId);
       if (!existingSession || !["compact", "resume"].includes(payload.source ?? "")) {
         if (await gitText(root, ["rev-parse", "--is-inside-work-tree"]).catch(() => "")) await startTaskSession(paths, sessionId, opts.mode, opts.task ?? payload.prompt);
+        await resetEditContextLedger(paths, sessionId);
       }
       await resetProjectContextEmission(paths, sessionId);
       await writeBriefingMarker(paths, { sessionId, source: "session-start", accumulate: false });
@@ -600,11 +619,22 @@ async function buildFinishReport(dir: string | undefined, opts: FinishOptions = 
   }
   const sameBranch = session && session.branch === (status.branch ?? "");
   const snapshot = await worktreeSnapshot(root);
-  const owned = sameBranch ? taskDirtyFiles(session, snapshot) : Object.keys(snapshot);
-  if (sameBranch) {
+  // Ownership is judged against the bytes recorded when the task started — never against HEAD or
+  // the branch, which a checkout, a pull or a squash-merge moves under files nobody touched (field
+  // report #11 §1). When this session recorded nothing, borrow the most recent baseline of any
+  // session rather than claiming every dirty file: the alternative told an obedient agent to commit
+  // and push the developer's work in progress (#10 §3).
+  const exclusionBaseline = session ??
+    await loadTaskSession(paths, opts.sessionId, { maxAgeMs: TASK_BASELINE_EXCLUSION_MAX_AGE_MS });
+  const borrowed = exclusionBaseline ? null : await latestTaskSession(paths);
+  const baseline = exclusionBaseline ?? borrowed?.session ?? null;
+  const owned = baseline ? taskDirtyFiles(baseline, snapshot) : Object.keys(snapshot);
+  if (baseline) {
     const untouched = status.dirtyFiles.filter(file => !owned.includes(file));
     if (untouched.length) findings.push({ severity: "info", code: "task-preexisting-changes",
-      message: `${untouched.length} pre-existing file(s) are unchanged by this task.`, affected_files: untouched });
+      message: `${untouched.length} pre-existing file(s) are unchanged by this task` +
+        (borrowed ? ` (baseline borrowed from session ${borrowed.id}, started ${borrowed.session.started_at.slice(0, 16)}).` : "."),
+      affected_files: untouched });
     status.dirtyFiles = status.dirtyFiles.filter(file => owned.includes(file));
     status.untrackedFiles = status.untrackedFiles.filter(file => owned.includes(file));
   }
@@ -656,11 +686,17 @@ async function buildFinishReport(dir: string | undefined, opts: FinishOptions = 
           : untrackedFiles.length > 0
             ? `${dirtyFiles.length} file(s) are uncommitted (${modifiedCount} modified, ${untrackedFiles.length} untracked).`
             : `${dirtyFiles.length} file(s) are modified but not committed.`,
-      fix: shippableDirty.length > 0
-        ? "Bump the lockstep package version if needed, then `git add`, `git commit`, `git tag vX.Y.Z`, `git push && git push origin vX.Y.Z` (not `--tags`)."
-        : untrackedOnly
-          ? "Commit them — or add them to .gitignore if they are meant to stay local. Untracking a file without ignoring it leaves the worktree permanently dirty."
-          : "Commit and push these changes before reporting the task done.",
+      fix: !baseline
+        // Without a baseline the gate cannot tell the task's files from someone else's work in
+        // progress. A gate an agent is trained to obey must never prescribe shipping files it
+        // cannot attribute (field report #11 §1): scope the instruction to the task.
+        ? "Commit and push only the files THIS task changed. Leave files that were already modified or untracked before the task started exactly as they are — never commit, ignore or delete someone else's work to make this gate pass.\n" +
+          "No task baseline was recorded, so Hivelore cannot tell them apart: start the next task with `hivelore enforce session-start` (the Claude Code hook does this automatically)."
+        : shippableDirty.length > 0
+          ? "Bump the lockstep package version if needed, then `git add`, `git commit`, `git tag vX.Y.Z`, `git push && git push origin vX.Y.Z` (not `--tags`)."
+          : untrackedOnly
+            ? "These files were created during this task. Commit them — or add them to .gitignore if they are meant to stay local."
+            : "Commit and push the changes this task made before reporting the task done.",
       reason: "The multi-agent git-sync decision requires agents to leave completed work committed and pushed, not as a local diff.",
       affected_files: dirtyFiles.slice(0, 12),
       impact: hygieneOnly ? 0 : 100,
@@ -1003,7 +1039,9 @@ async function checkFailureCapture(
   paths: ReturnType<typeof resolveHaivePaths>,
   config: HaiveConfig,
 ): Promise<EnforcementFinding[]> {
-  const gate = config.enforcement?.failureCaptureGate ?? "warn";
+  // Quiet by default: an `uncaptured-failures` line on every finish was a nag about non-lessons
+  // (field report #10 §5). Teams that want the ratchet opt in with "warn" or "block".
+  const gate = config.enforcement?.failureCaptureGate ?? "off";
   if (gate === "off") return [];
 
   const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
@@ -1030,7 +1068,8 @@ async function checkFailureCapture(
     .filter(({ memory }) => ["attempt", "gotcha"].includes(memory.frontmatter.type))
     .map(({ memory }) => memory.frontmatter.created_at);
 
-  const uncaptured = findUncapturedFailures(failures, captureTimes);
+  const uncaptured = findUncapturedFailures(signalFailures(failures), captureTimes)
+    .map((f) => ({ ...f, summary: sanitizeFailureSummary(f.summary) }));
   if (uncaptured.length === 0) {
     return [{
       severity: "ok",
@@ -1286,13 +1325,19 @@ async function checkBootstrapComplete(
   // other agents see the code. Blocking every local pre-commit trained `--no-verify` and taxed quick
   // iteration in throwaway/experimental repos; at pre-commit/local the gate is a warn, not an error.
   const enforcedStage = stage === "pre-push" || stage === "ci";
-  const blocking = gate === "block" && hasCodeAreas && productionCodeChanged && enforcedStage;
+  // Only a COLD corpus (no filled project context, or no team memory at all) can block: that is the
+  // "first agent" situation the gate exists for. A populated repo with a coverage gap in one area is
+  // advice, not a precondition for pushing — blocking it told agents on 160-memory repos that they
+  // were "the first agent on this repo" (field report #9 §2).
+  const blocking = gate === "block" && hasCodeAreas && productionCodeChanged && enforcedStage && assessment.state === "cold";
   const severity: EnforcementFinding["severity"] = blocking ? "error" : hasCodeAreas ? "warn" : "info";
   return [{
     severity,
     code: "bootstrap-incomplete",
     message:
-      `First-agent bootstrap ${blocking ? "REQUIRED" : "pending"} — the repo knowledge layer is ${assessment.state}; ` +
+      (assessment.state === "cold"
+        ? `First-agent bootstrap ${blocking ? "REQUIRED" : "pending"} — the repo knowledge layer is cold; `
+        : `Knowledge coverage gaps — the repo knowledge layer is partial; `) +
       `later agents will rely on it. Close these gaps:\n${renderBootstrapChecklist(assessment)}`,
     fix: "Invoke the bootstrap_repo MCP prompt — it drives project-context, module contexts, anchored memories, and propose_sensor for each main area. (Override: enforcement.bootstrapGate, or `git commit --no-verify`.)",
     impact: blocking ? 40 : severity === "warn" ? 5 : 0,
@@ -1405,23 +1450,17 @@ async function buildEnforcementReport(
 
   if (config.enforcement?.requireSessionRecap !== false && (stage === "pre-push" || stage === "ci")) {
     const hasRecap = await hasRecentSessionRecap(paths);
+    // Continuity notes are a convenience, not a precondition for shipping code. As an error this
+    // fired at pre-push while the same session's briefing showed a recap dated that day — one more
+    // false alarm that taught agents to skim the gate (field report #9 §2). Reported, never scored.
     findings.push(hasRecap
-      ? { severity: "ok", code: "session-recap-present", message: "A recent session_recap memory exists." }
-      : stage === "ci"
-        ? {
-            severity: "warn",
-            code: "session-recap-missing",
-            message: "No recent session_recap memory was found. CI reports this as a warning because personal recaps are usually not committed.",
-            fix: "Run `hivelore session end --scope team --goal ... --accomplished ...` if you want a team recap visible in CI.",
-            impact: 5,
-          }
-        : {
-            severity: "error",
-            code: "session-recap-missing",
-            message: "No recent session_recap memory was found.",
-            fix: "Run `hivelore session end --goal ... --accomplished ...` before pushing.",
-            impact: 20,
-          });
+      ? { severity: "ok", code: "session-recap-present", message: "A recent session recap or handoff exists." }
+      : {
+          severity: "info",
+          code: "session-recap-missing",
+          message: "No recent session recap or handoff was found (informational).",
+          fix: "Optional: `hivelore session end --goal ... --accomplished ... --next ...` leaves a handoff for the next session.",
+        });
   }
 
   // Resolved once and shared: several gates need to know WHAT CHANGED in order to judge the change
@@ -2011,6 +2050,22 @@ async function runSensorGate(
     if (!changedPathsFromDiff(diff).some(isSensorScannablePath)) return [];
 
     const findings: EnforcementFinding[] = [];
+    // ── Checklists: a required verification triggered by the paths a change touches (field report
+    // #9 §9.1). Printed as one advisory line here; a block-severity checklist is enforced by the
+    // commit-msg hook, which is the only stage that can see the author's acknowledgement trailer.
+    for (const c of selectChecklists(scannable, changedPathsFromDiff(diff).filter(isSensorScannablePath))) {
+      findings.push({
+        severity: "warn",
+        code: "checklist-required",
+        message: `Verify before shipping — ${c.memory_id}: ${c.message}${incidentSuffix(c.incident)}`,
+        fix: c.severity === "block"
+          ? `Do the verification, then add \`${CHECKLIST_TRAILER}: ${c.memory_id}\` to the commit message (the commit-msg hook requires it).`
+          : "Advisory — perform the verification before shipping.",
+        memory_ids: [c.memory_id],
+        affected_files: c.matched.slice(0, 5),
+        impact: 0,
+      });
+    }
     // A `local` preview must not be logged as a commit-time evaluation: prevention receipts and
     // sensor health are counted per stage, and a preview would inflate `pre-commit` with runs that
     // never guarded a commit. It is the same thing `sensors check` does — a manual evaluation.
@@ -2796,6 +2851,41 @@ const CI_SKIP_DIRECTIVE = /\[skip ci\]|\[ci skip\]|\[no ci\]|\[skip actions\]|\*
  * commits (which correctly use [skip ci]) working. Comment lines (`#…`, stripped by git) are
  * ignored so merely discussing the directive in a comment never blocks.
  */
+/**
+ * Block-severity checklists: a commit touching their paths must carry `Hivelore-Checked: <id>` —
+ * the author's explicit statement that the required verification was performed. Merge commits are
+ * exempt (each merged commit was checked when it was made).
+ */
+async function checkChecklistAcknowledgements(
+  root: string,
+  msgfile: string,
+): Promise<{ block: boolean; message: string }> {
+  const paths = resolveHaivePaths(root);
+  if (!existsSync(paths.memoriesDir)) return { block: false, message: "" };
+  const gitDir = (await runCommand("git", ["rev-parse", "--git-dir"], root).catch(() => "")).trim();
+  if (gitDir && existsSync(path.resolve(root, gitDir, "MERGE_HEAD"))) return { block: false, message: "" };
+  const staged = (await runCommand("git", ["diff", "--cached", "--name-only"], root).catch(() => ""))
+    .split("\n").map((s) => s.trim()).filter(Boolean).filter(isSensorScannablePath);
+  if (staged.length === 0) return { block: false, message: "" };
+  const memories = (await loadMemoriesFromDir(paths.memoriesDir))
+    .map((l) => l.memory)
+    .filter((m) => m.frontmatter.sensor?.kind === "checklist" && m.frontmatter.status === "validated" && !isRetiredMemory(m.frontmatter, m.body));
+  const required = selectChecklists(memories, staged).filter((c) => c.severity === "block");
+  if (required.length === 0) return { block: false, message: "" };
+  const file = path.isAbsolute(msgfile) ? msgfile : path.join(root, msgfile);
+  const raw = (await readFile(file, "utf8").catch(() => "")).split("\n").filter((line) => !line.startsWith("#")).join("\n");
+  const missing = required.filter((c) => !checklistAcknowledged(raw, c.memory_id));
+  if (missing.length === 0) return { block: false, message: "" };
+  return {
+    block: true,
+    message:
+      "This commit touches files that require a stated verification:\n" +
+      missing.map((c) => `  • ${c.message}\n    (${c.memory_id} — ${c.matched.slice(0, 3).join(", ")})`).join("\n") +
+      "\nPerform it, then add one trailer line per item to the commit message:\n" +
+      missing.map((c) => `  ${CHECKLIST_TRAILER}: ${c.memory_id}`).join("\n"),
+  };
+}
+
 async function checkCommitMessageSkipCi(
   root: string,
   msgfile: string,
@@ -3296,6 +3386,14 @@ async function installCiEnforcement(root: string): Promise<void> {
   const legacyPath = path.join(workflowsDir, "haive-enforcement.yml");
   await mkdir(workflowsDir, { recursive: true });
   const workflow = renderCiEnforcementWorkflow();
+  // A team that merged the managed block into ANOTHER workflow file (GitHub bills and lists one run
+  // per workflow file) must not get hivelore-enforcement.yml recreated next to it — that silently
+  // doubled their CI runs and forced a warning comment in their workflow (field report #11 §7).
+  const adopted = await findAdoptedEnforcementBlock(workflowsDir, [workflowPath, legacyPath]);
+  if (adopted && !existsSync(workflowPath) && !existsSync(legacyPath)) {
+    ui.info(`Hivelore enforcement block found in ${path.relative(root, adopted)} — preserved; not recreating hivelore-enforcement.yml.`);
+    return;
+  }
   // Migrate: adopt the managed block from a legacy haive-enforcement.yml, then remove it so CI does
   // not run twice. Markers of both eras are recognised.
   const source = existsSync(workflowPath) ? workflowPath : existsSync(legacyPath) ? legacyPath : null;
@@ -3324,6 +3422,19 @@ async function installCiEnforcement(root: string): Promise<void> {
   ui.success(`Created ${path.relative(root, workflowPath)}`);
 }
 
+/** A workflow file, other than the ones we own, that carries the managed enforcement marker. */
+async function findAdoptedEnforcementBlock(workflowsDir: string, owned: string[]): Promise<string | null> {
+  const names = await readdir(workflowsDir).catch(() => [] as string[]);
+  for (const name of names.sort()) {
+    if (!/\.ya?ml$/.test(name)) continue;
+    const file = path.join(workflowsDir, name);
+    if (owned.includes(file)) continue;
+    const body = await readFile(file, "utf8").catch(() => "");
+    if (/# (?:hivelore|haive):enforcement-workflow:start/.test(body)) return file;
+  }
+  return null;
+}
+
 export function renderCiEnforcementWorkflow(): string {
   return `# hivelore:enforcement-workflow:start
 name: hivelore-enforcement
@@ -3347,7 +3458,8 @@ jobs:
         with:
           node-version: '20'
       - name: Install Hivelore
-        run: npm install -g @hivelore/cli
+        # Pinned to the CLI that generated this file (field report #10 §4).
+        run: npm install -g @hivelore/cli@${__HAIVE_VERSION__} --no-fund --no-audit
       - name: Enforce Hivelore policy
         id: gate
         env:
@@ -3484,7 +3596,7 @@ function printReport(report: EnforcementReport, json: boolean, explain = false, 
   // Verbose paths (CI, --explain) keep the whole report; `--verbose` (quiet=false) restores it too.
   if (quiet && !report.should_block && changeActionable.length === 0) {
     const ok = report.findings.filter((f) => f.severity === "ok").length;
-    ui.success(`${hasDeferredChecks(report) ? "Hivelore checks incomplete" : "Hivelore gate passed"}${stageLabel(report)} — ${ok} check(s), 0 issue(s)${deferredLabel(report)}.`);
+    ui.success(`Hivelore gate passed${stageLabel(report)} — ${ok} check(s), 0 issue(s)${deferredLabel(report)}.`);
     return;
   }
 
@@ -3519,8 +3631,8 @@ function printReport(report: EnforcementReport, json: boolean, explain = false, 
     for (const finding of report.findings) printFinding(finding);
   }
   if (report.should_block) ui.error("Hivelore enforcement gate failed.");
-  else if (changeActionable.length > 0) ui.success(`${hasDeferredChecks(report) ? "Hivelore checks incomplete" : "Hivelore gate passed"}${stageLabel(report)} — ${changeActionable.length} advisory finding(s), 0 blocking${deferredLabel(report)}.`);
-  else ui.success(`${hasDeferredChecks(report) ? "Hivelore checks incomplete" : "Hivelore enforcement gate passed"}${stageLabel(report)}${deferredLabel(report)}.`);
+  else if (changeActionable.length > 0) ui.success(`Hivelore gate passed${stageLabel(report)} — ${changeActionable.length} advisory finding(s), 0 blocking${deferredLabel(report)}.`);
+  else ui.success(`Hivelore enforcement gate passed${stageLabel(report)}${deferredLabel(report)}.`);
   // A blocking rule can be a false positive. Name the escape hatch at the one moment it is natural —
   // the block itself — or friction is only ever reported into commit messages (field report §2.1).
   if (report.should_block && report.findings.some((f) => CONTENT_CATCH_CODES.has(f.code))) {
@@ -3534,13 +3646,7 @@ function printReport(report: EnforcementReport, json: boolean, explain = false, 
  * have nothing to scope to from the command line.
  */
 function resolveSessionId(explicit?: string): string | undefined {
-  return (
-    explicit?.trim() ||
-    process.env.HIVELORE_SESSION_ID?.trim() ||
-    process.env.HAIVE_SESSION_ID?.trim() ||
-    process.env.CLAUDE_SESSION_ID?.trim() ||
-    undefined
-  );
+  return explicit?.trim() || sessionIdFromEnv();
 }
 
 /** POSIX single-quoting, so a failure summary containing quotes/newlines pastes as one argument. */
@@ -3565,12 +3671,17 @@ function formatAge(ms: number): string {
  * is part of the sentence, in the human output, not only in `--json`. */
 const DEFERRED_CODES = new Set(["antipattern-gate-deferred"]);
 
-function hasDeferredChecks(report: EnforcementReport): boolean { return report.findings.some(f => DEFERRED_CODES.has(f.code)); }
-
+/**
+ * Say WHERE a deferred check runs instead of calling the gate "incomplete". A ✓ next to
+ * "incomplete" on 271 of 273 pushes was wallpaper, not a status (field reports #9 §2, #12 §1.3):
+ * the pre-push diff scan is deferred by design because every pushed commit was scanned at
+ * pre-commit, and CI re-scans the range. The sentence still names the deferral — a gate never claims
+ * a scan it did not run — it just stops pretending the push is unverified.
+ */
 function deferredLabel(report: EnforcementReport): string {
   const deferred = report.findings.filter((f) => DEFERRED_CODES.has(f.code));
   if (deferred.length === 0) return "";
-  return `, ${deferred.length} deferred (${deferred.map((f) => f.code.replace(/-deferred$/, "")).join(", ")} — see \`--explain\`)`;
+  return "; the diff scan ran at each commit and re-runs in CI";
 }
 
 /** Name the hook/stage in the pass line so pre-commit (then pre-push on the same push) don't read

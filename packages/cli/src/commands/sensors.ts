@@ -556,7 +556,7 @@ export function registerSensors(program: Command): void {
       "      --command 'npx archunit-cli check --rule no-http-in-transactional'",
     )
     .argument("<memory-id>", "memory id to attach the sensor to")
-    .option("--kind <kind>", "regex (default) | ast (structural — comments/strings can't false-positive) | shell | test (route the team's own oracle)", "regex")
+    .option("--kind <kind>", "regex (default) | ast (structural — comments/strings can't false-positive) | shell | test (route the team's own oracle) | checklist (a required verification when --paths change)", "regex")
     .option("--pattern <regex>", "kind=regex: regex matching the FAULTY usage")
     .option("--from-fix <ref>", "kind=regex: MINE the pattern from the fix diff (<ref>..HEAD, scoped to the lesson anchors) — the removed line is the mistake, the added line the correct marker. Turns authoring into confirming.")
     .option("--rule <json>", "kind=ast: full ast-grep Rule JSON (kind/inside/has/not/all/any)")
@@ -578,6 +578,31 @@ export function registerSensors(program: Command): void {
     .action(async (id: string, opts: SensorsProposeOptions) => {
       // ── Command + AST sensors: delegate to the shared MCP handler (commands: the oracle must
       // PASS on the current tree; ast: structural validation via the optional engine). ──
+      if (opts.kind === "checklist") {
+        if (!opts.message?.trim()) {
+          rejectProposal(opts, "missing-message", "--kind checklist requires --message: the verification to perform.");
+          return;
+        }
+        const root = findProjectRoot(opts.dir);
+        const { proposeSensor } = await import("@hivelore/mcp");
+        const out = await proposeSensor(
+          {
+            memory_id: id,
+            kind: "checklist",
+            message: opts.message.trim(),
+            severity: (opts.severity === "warn" ? "warn" : "block"),
+            paths: opts.paths ? parseCsvList(opts.paths) : [],
+            ...(opts.exclude ? { exclude: parseCsvList(opts.exclude) } : {}),
+            ...(opts.incident ? { incident: opts.incident } : {}),
+          } as unknown as Parameters<typeof proposeSensor>[0],
+          { paths: resolveHaivePaths(root) },
+        );
+        if (opts.json) console.log(JSON.stringify(out, null, 2));
+        else if (out.accepted) ui.success(out.guidance ?? "Checklist armed.");
+        else ui.error(out.guidance ?? out.reason ?? "Checklist rejected.");
+        if (!out.accepted) process.exitCode = 1;
+        return;
+      }
       if (opts.kind === "shell" || opts.kind === "test" || opts.kind === "ast") {
         if ((opts.kind === "shell" || opts.kind === "test") && !opts.command?.trim()) {
           rejectProposal(opts, "missing-command", "--kind shell|test requires --command.");
@@ -1043,4 +1068,8 @@ async function readTrackedTextFiles(root: string, maxFiles: number): Promise<Sen
     }
   }
   return out;
+}
+
+function parseCsvList(value: string): string[] {
+  return value.split(",").map((part) => part.trim()).filter(Boolean);
 }

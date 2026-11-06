@@ -384,7 +384,9 @@ describe("Hivelore MCP tools", () => {
       );
 
       expect(briefing.memories[0]?.id).toBe(anchored.id);
-      expect(briefing.memories[0]?.priority).toBe("must_read");
+      // A glob anchor names an AREA, not the passed file: it ranks first, as `useful`. `must_read`
+      // is reserved for an anchor on the exact file (field report #11 §4).
+      expect(briefing.memories[0]?.priority).toBe("useful");
       expect(briefing.memories[0]?.why?.some((w) => w.includes("Glob anchor match"))).toBe(true);
       expect(briefing.breadcrumbs?.start_here[0]).toContain(anchored.id);
       expect(briefing.breadcrumbs?.drill_down.some((d) => d.includes(`mem_get("${anchored.id}")`))).toBe(true);
@@ -488,7 +490,7 @@ describe("Hivelore MCP tools", () => {
       expect(marker!.memory_ids).toContain(anchored.id);
     });
 
-    it("keeps directly relevant attempts as must_read", async () => {
+    it("ranks directly relevant attempts first (useful without an anchor)", async () => {
       const attempt = await memSave(
         {
           type: "attempt",
@@ -521,7 +523,8 @@ describe("Hivelore MCP tools", () => {
       );
 
       expect(briefing.memories[0]?.id).toBe(attempt.id);
-      expect(briefing.memories[0]?.priority).toBe("must_read");
+      // Wording alone never claims must_read; the attempt still ranks first.
+      expect(briefing.memories[0]?.priority).toBe("useful");
       expect(briefing.memories[0]?.why?.join(" ")).toContain("Failed-approach");
     });
 

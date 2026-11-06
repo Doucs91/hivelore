@@ -1,6 +1,6 @@
 import { readMcpRuntimeInstances } from "@hivelore/core";
 import { existsSync, statSync } from "node:fs";
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { execFileSync, execSync } from "node:child_process";
 import { Command } from "commander";
@@ -43,6 +43,8 @@ import {
   loadFrictionState,
   groupFriction,
   resolveHaivePaths,
+  loadMemoriesFromDir,
+  serializeMemory,
   type LoadedMemory,
   type SensorTarget,
   type UsageEvent,
@@ -133,6 +135,7 @@ export function registerDoctor(program: Command): void {
             applyConfig: true,
             applyContext: true,
             applyCorpus: true,
+            applyCorpusFileFixes: true,
             applyCodeMap: true,
             applyCodeSearch: true,
             forceCodeMap: true,
@@ -769,6 +772,7 @@ export function registerDoctor(program: Command): void {
       findings.push(...await collectInstallFindings(root, __HAIVE_VERSION__));
       findings.push(...await collectMcpRuntimeFindings(paths, __HAIVE_VERSION__));
       findings.push(...await collectToolchainFindings(root));
+      findings.push(...await collectWritePathHazards(root, paths.memoriesDir, Boolean(opts.fix && !opts.dryRun)));
 
       // ── 8. Legacy standalone haive-mcp ──────────────────────────────────────
       // MCP runs inside `hivelore mcp --stdio` — updating @hivelore/cli is enough.
@@ -1616,4 +1620,96 @@ function extractAbsoluteHaiveBins(text: string): string[] {
     out.add(p);
   }
   return [...out].sort();
+}
+
+/**
+ * Things in the corpus or the CI that break OTHER components — the write-path hazards of field
+ * report #10 §9.6 and #8. Each finding names its repair; `--fix` applies the safe ones.
+ */
+export async function collectWritePathHazards(root: string, memoriesDir: string, fix: boolean): Promise<Finding[]> {
+  const findings: Finding[] = [];
+  const git = (args: string[]): string => {
+    try { return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 16 * 1024 * 1024 }); }
+    catch { return ""; }
+  };
+
+  // 1. Folded YAML scalars written by CLIs before 0.66 — misread by older GitHub Actions.
+  if (existsSync(memoriesDir)) {
+    const folded: string[] = [];
+    for (const { filePath, memory } of await loadMemoriesFromDir(memoriesDir)) {
+      const raw = await readFile(filePath, "utf8").catch(() => "");
+      const fm = raw.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
+      if (!/^\s*(?:-\s+)?[\w-]*:?\s*[>|][-+]?\s*$/m.test(fm)) continue;
+      folded.push(path.relative(root, filePath));
+      if (fix) await writeFile(filePath, serializeMemory(memory), "utf8");
+    }
+    if (folded.length > 0) {
+      findings.push({
+        severity: fix ? "info" : "warn",
+        code: "memory-folded-yaml",
+        message: fix
+          ? `Rewrote ${folded.length} memory file(s) with unfolded YAML scalars.`
+          : `${folded.length} memory file(s) contain folded YAML scalars (\`>-\`), which line-based readers — including Hivelore GitHub Actions before 0.66 — misread as anchor paths: ${folded.slice(0, 3).join(", ")}${folded.length > 3 ? ", …" : ""}.`,
+        ...(fix ? {} : { fix: "hivelore doctor --fix   (rewrites them canonically; commit the result)" }),
+        section: "Corpus health",
+      });
+    }
+  }
+
+  // 2. Personal memories must never be tracked.
+  const trackedPersonal = git(["ls-files", ".ai/memories/personal"]).split("\n").filter((f) => f && !f.endsWith(".gitignore"));
+  if (trackedPersonal.length > 0) {
+    findings.push({
+      severity: "warn",
+      code: "personal-memories-tracked",
+      message: `${trackedPersonal.length} personal memory file(s) are tracked by git — personal notes are private and machine-local.`,
+      fix: "git rm -r --cached .ai/memories/personal && git commit -m 'chore: stop tracking personal memories'   (history keeps them: purge separately if sensitive)",
+      section: "Corpus health",
+    });
+  }
+
+  // 3. Untracked files inside the TEAM corpus are one `git add .ai/memories/team` away from a commit.
+  const untrackedTeam = git(["ls-files", "--others", "--exclude-standard", ".ai/memories/team"]).split("\n").filter(Boolean);
+  if (untrackedTeam.length > 0) {
+    findings.push({
+      severity: "info",
+      code: "team-memories-untracked",
+      message: `${untrackedTeam.length} untracked file(s) under .ai/memories/team (${untrackedTeam.slice(0, 3).join(", ")}${untrackedTeam.length > 3 ? ", …" : ""}). Stage memory files by name, never the whole directory, so a draft is not swept into a commit.`,
+      section: "Corpus health",
+    });
+  }
+
+  // 4. CI that installs unpinned code, or pushes `[skip ci]` commits to integration branches.
+  const workflowsDir = path.join(root, ".github", "workflows");
+  for (const file of await readdir(workflowsDir).catch(() => [] as string[])) {
+    if (!/\.ya?ml$/.test(file)) continue;
+    const body = await readFile(path.join(workflowsDir, file), "utf8").catch(() => "");
+    if (!/hivelore|haive/i.test(body)) continue;
+    const rel = `.github/workflows/${file}`;
+    if (/npm (?:install|i) -g @hivelore\/cli(?!@)/.test(body) || /@hivelore\/cli@latest/.test(body)) {
+      findings.push({
+        severity: "warn",
+        code: "ci-unpinned-hivelore",
+        message: `${rel} installs @hivelore/cli without a pinned version — every run executes whatever was published last.`,
+        fix: `Pin it: npm install -g @hivelore/cli@${__HAIVE_VERSION__}   (or re-run \`hivelore enforce install\` to regenerate the managed workflow)`,
+        section: "Protection",
+      });
+    }
+    if (/(?:hivelore|haive) sync/.test(body) && /git push/.test(body)) {
+      const skipCi = /\[skip ci\]|\[ci skip\]/.test(body);
+      findings.push({
+        severity: "warn",
+        code: "ci-sync-pushes-commits",
+        message:
+          `${rel} runs \`hivelore sync\` and pushes the result${skipCi ? " with [skip ci] in the commit subject" : ""}. ` +
+          (skipCi
+            ? "A squash-merge of a promotion PR inherits that subject and silently skips the release pipeline. "
+            : "") +
+          "Corpus maintenance no longer needs a bot commit: 0.64+ keeps runtime state out of versioned files.",
+        fix: "Replace the job with the read-only memory-health job from `hivelore init --with-ci` (written as hivelore-sync.yml.candidate when a legacy workflow exists).",
+        section: "Protection",
+      });
+    }
+  }
+  return findings;
 }

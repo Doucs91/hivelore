@@ -35,6 +35,12 @@ export interface BriefingMemory {
   why?: string[];
   body: string;
   file_path: string;
+  /** The memory in one actionable line (explicit `rule` field, else derived from the body). */
+  rule?: string;
+  /** Pointer to the source-of-truth document, when the memory defers to one. */
+  source?: string;
+  /** Set by the budget fitter when the body was dropped to keep the whole payload in budget. */
+  body_omitted?: boolean;
 }
 
 export interface CodeMapSymbolHit {
@@ -163,5 +169,7 @@ export interface BriefingOutput {
     /** Per-section token spend. `breadcrumbs` is present only when the breadcrumbs map is emitted. */
     spent: { project: number; modules: number; memories: number; breadcrumbs?: number };
     preset_applied?: "quick" | "balanced" | "deep";
+    /** What the whole-payload budget fitter removed, in order (absent when nothing was trimmed). */
+    trimmed?: string[];
   };
 }

@@ -253,9 +253,11 @@ describe("generateBridges", () => {
   it("frames generated bridges as breadcrumb maps with quick drill-down guidance", () => {
     const [out] = generateBridges([VALIDATED_MEMORY], [], { targets: ["windsurf"] });
     expect(out?.content).toContain("small breadcrumb map");
-    expect(out?.content).toContain('budget_preset:"quick"');
-    expect(out?.content).toContain("Drill down only if needed");
+    expect(out?.content).toContain("one-line `rule`");
+    expect(out?.content).toContain("hivelore enforce finish");
     expect(out?.content).toContain("Top breadcrumbs only");
+    // Never instruct an agent to pass a session id it cannot know (field report #12 §3.4).
+    expect(out?.content).not.toContain("--session-id <id>");
   });
 
   it("injects sensor message in block sensors section", () => {

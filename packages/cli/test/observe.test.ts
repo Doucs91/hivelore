@@ -95,3 +95,19 @@ describe("detectFailure — a command that exited 0 did not fail", () => {
     expect(bash("grep -q needle haystack.txt", { exit_code: 1, stdout: "" })).toBe(false);
   });
 });
+
+describe("bash write detection (field report #9 §3)", async () => {
+  const { bashCommandMayWrite } = await import("../src/utils/pre-edit.js");
+  it("treats reads as reads", () => {
+    for (const cmd of ["ls captures/", "cat src/a.ts", "git status", "git diff HEAD", "git log --oneline -5",
+      "grep -rn foo src 2>/dev/null", "rg x | head -5", "git show HEAD:src/a.ts 2>&1"]) {
+      expect(bashCommandMayWrite(cmd), cmd).toBe(false);
+    }
+  });
+  it("treats writers as writers", () => {
+    for (const cmd of ["echo x > src/a.ts", "sed -i 's/a/b/' src/a.ts", "git commit -m x", "git checkout main",
+      "python3 script.py", "cp a b", "cat <<'EOF' >> notes.md"]) {
+      expect(bashCommandMayWrite(cmd), cmd).toBe(true);
+    }
+  });
+});

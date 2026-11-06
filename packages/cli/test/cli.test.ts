@@ -730,12 +730,13 @@ describe("Hivelore CLI integration", () => {
     ]);
 
     const personalDir = path.join(workDir, ".ai/memories/personal");
-    const beforeFiles = await readdir(personalDir);
+    // The personal directory also holds its own .gitignore (personal memories are never committed).
+    const beforeFiles = (await readdir(personalDir)).filter((f) => f.endsWith(".md"));
     const id = beforeFiles[0]!.replace(/\.md$/, "");
 
     await run(workDir, ["memory", "promote", id, "--dir", workDir]);
 
-    const afterPersonal = await readdir(personalDir);
+    const afterPersonal = (await readdir(personalDir)).filter((f) => f.endsWith(".md"));
     expect(afterPersonal.length).toBe(0);
 
     const teamDir = path.join(workDir, ".ai/memories/team");
@@ -837,13 +838,13 @@ describe("Hivelore CLI integration", () => {
       "--dir", workDir,
     ]);
     const personalDir = path.join(workDir, ".ai/memories/personal");
-    const filesBefore = await readdir(personalDir);
+    const filesBefore = (await readdir(personalDir)).filter((f) => f.endsWith(".md"));
     expect(filesBefore.length).toBe(1);
     const id = filesBefore[0]!.replace(/\.md$/, "");
 
     await run(workDir, ["memory", "rm", id, "--yes", "--dir", workDir]);
 
-    const filesAfter = await readdir(personalDir);
+    const filesAfter = (await readdir(personalDir)).filter((f) => f.endsWith(".md"));
     expect(filesAfter.length).toBe(0);
   });
 
@@ -1320,7 +1321,7 @@ describe("Hivelore CLI integration", () => {
     }
   });
 
-  it("CI enforcement warns but does not block when only session recap is missing", async () => {
+  it("CI enforcement reports a missing session recap as information, never a blocker (field report #9 §2)", async () => {
     const { stdout } = await run(workDir, ["enforce", "ci", "--json", "--dir", workDir]);
     const report = JSON.parse(stdout) as {
       should_block: boolean;
@@ -1328,7 +1329,7 @@ describe("Hivelore CLI integration", () => {
     };
     const recap = report.findings.find((f) => f.code === "session-recap-missing");
     expect(report.should_block).toBe(false);
-    expect(recap?.severity).toBe("warn");
+    expect(recap?.severity).toBe("info");
   });
 
   it("CI enforcement scans the committed base/head diff, not only staged changes", async () => {

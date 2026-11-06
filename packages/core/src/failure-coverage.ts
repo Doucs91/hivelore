@@ -117,6 +117,53 @@ function commandText(summary: string): string {
 }
 
 /**
+ * Remove machine-local noise from a failure summary before it reaches a memory or a message:
+ * absolute home/temp paths, session UUIDs and long hex ids. Auto-captured drafts used to carry raw
+ * command lines with `/tmp/claude-1000/home…` paths and a session UUID in their slug and body
+ * (field report #10 §5).
+ */
+export function sanitizeFailureSummary(summary: string): string {
+  return summary
+    .replace(/(?:\/(?:home|Users|tmp|var\/folders|private\/tmp)\/[^\s'"`]+)/g, "<path>")
+    .replace(/[A-Za-z]:\\(?:Users|Temp)\\[^\s'"`]+/g, "<path>")
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "<id>")
+    .replace(/\b[0-9a-f]{20,}\b/gi, "<hash>")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * The failures worth a human's attention: never exploratory lookups (a `grep` that found nothing, a
+ * `head` closing a pipe), and only a REPEAT (a retry loop) or a substantive test/build/lint command.
+ * The same bar applies everywhere a failure is surfaced — recap, finish, auto-capture — so no
+ * surface asks the agent to write lessons the capture pipeline itself would discard (field reports
+ * #10 §5, #12 §3.2).
+ */
+export function signalFailures<T extends FailureObservation>(failures: T[]): T[] {
+  const counts = new Map<string, number>();
+  const kept: T[] = [];
+  for (const f of failures) {
+    const cmd = commandText(f.summary.trim());
+    if (!cmd || EXPLORATORY_RE.test(cmd)) continue;
+    const key = normalizeSummary(sanitizeFailureSummary(f.summary));
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    kept.push(f);
+  }
+  return kept.filter((f) => {
+    const key = normalizeSummary(sanitizeFailureSummary(f.summary));
+    return (counts.get(key) ?? 0) >= 2 || SUBSTANTIVE_RE.test(commandText(f.summary.trim()));
+  });
+}
+
+/** "pnpm test --filter x" → "pnpm test": the intent a lesson title and slug should carry. */
+export function failureIntent(summary: string): string {
+  const words = sanitizeFailureSummary(commandText(summary))
+    .split(/\s+/)
+    .filter((w) => w && !w.startsWith("-") && !w.includes("<") && !/[|;&>]/.test(w));
+  return words.slice(0, 3).join(" ") || "command";
+}
+
+/**
  * Cluster failure observations by normalized summary and template the top ones into PROPOSED
  * lesson drafts — the deterministic last leg of the passive-capture pipeline (claude-mem captures
  * passively; Hivelore additionally turns the failures into REVIEWABLE corpus candidates).
@@ -131,7 +178,7 @@ export function distillFailureObservations(
   const max = options.max ?? 3;
   const clusters = new Map<string, { first: FailureObservation & { files?: string[] }; count: number; files: Set<string>; substantive: boolean }>();
   for (const f of failures) {
-    const summary = f.summary.trim();
+    const summary = sanitizeFailureSummary(f.summary);
     const cmd = commandText(summary);
     if (!summary || EXPLORATORY_RE.test(cmd)) continue;
     const key = normalizeSummary(summary);
@@ -151,10 +198,9 @@ export function distillFailureObservations(
     .sort((a, b) => b.count - a.count || b.first.ts.localeCompare(a.first.ts))
     .slice(0, max)
     .map(({ first, count, files }) => {
-      const summary = first.summary.trim();
-      const firstLine = summary.split("\n")[0]!.slice(0, 120);
+      const summary = sanitizeFailureSummary(first.summary);
       return {
-        what: `${first.tool} failed: ${firstLine}`,
+        what: `\`${failureIntent(summary)}\` failed${count > 1 ? ` ${count}×` : ""}`,
         why_failed: summary.slice(0, 400),
         paths: [...files].slice(0, 6),
         occurrences: count,

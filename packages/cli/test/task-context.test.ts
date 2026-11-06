@@ -33,20 +33,45 @@ beforeEach(async () => {
 afterEach(async () => { vi.unstubAllEnvs(); await rm(root, { recursive: true, force: true }); });
 
 describe("task attribution and passive file context", () => {
-  it("never credits an omitted exception, and stops reminding only after a complete session read", async () => {
+  it("delivers the rule once per session, never credits an omitted exception, and resets per session", async () => {
     const paths = resolveHaivePaths(root);
     await mkdir(paths.teamDir, { recursive: true });
     const fm = buildFrontmatter({ type: "decision", slug: "long-policy", scope: "team", status: "validated", paths: ["source with spaces.ts"] });
     const body = "Use approvedClient. " + "Detailed justification. ".repeat(30) + "Exception: use legacyClient for offline migration.";
     await writeFile(path.join(paths.teamDir, `${fm.id}.md`), serializeMemory({ frontmatter: fm, body }));
-    for (let i = 0; i < 2; i++) {
-      expect(await injectFileContext(paths, ["source with spaces.ts"], "long")).toContain("Full instruction NOT delivered");
-      expect((await readSessionBriefingMarker(paths, "long"))?.memory_ids ?? []).not.toContain(fm.id);
-    }
+    // The reminder carries the rule itself, not a bare pointer (field report #12 §4.2)…
+    const first = await injectFileContext(paths, ["source with spaces.ts"], "long");
+    expect(first).toContain("Use approvedClient.");
+    expect(first).toContain("details: mem_get");
+    expect(first).not.toContain("NOT delivered");
+    // …is never credited as a complete consultation…
+    expect((await readSessionBriefingMarker(paths, "long"))?.memory_ids ?? []).not.toContain(fm.id);
+    // …and is not repeated on the next edit of the same session (#12 §3.1).
+    expect(await injectFileContext(paths, ["source with spaces.ts"], "long")).toBeNull();
     const read = await promisify(execFile)(process.execPath, [cli, "memory", "get", fm.id, "--session-id", "long", "--dir", root]);
     expect(read.stdout).toContain("Exception: use legacyClient for offline migration.");
+    expect((await readSessionBriefingMarker(paths, "long"))?.memory_ids ?? []).toContain(fm.id);
     expect(await injectFileContext(paths, ["source with spaces.ts"], "long")).toBeNull();
-    expect(await injectFileContext(paths, ["source with spaces.ts"], "different-session")).toContain("NOT delivered");
+    expect(await injectFileContext(paths, ["source with spaces.ts"], "different-session")).toContain("details: mem_get");
+  });
+
+  it("never reminds from a session recap, and a decision only on its exact file", async () => {
+    const paths = resolveHaivePaths(root);
+    await mkdir(paths.teamDir, { recursive: true });
+    await mkdir(path.join(root, "src"), { recursive: true });
+    await mkdir(path.join(root, "captures"), { recursive: true });
+    await writeFile(path.join(root, "src", "app.ts"), "export {};\n");
+    await writeFile(path.join(root, "captures", "IMG_1.PNG"), "png");
+    const recap = buildFrontmatter({ type: "session_recap", slug: "recap", scope: "team", status: "validated", paths: ["captures/IMG_1.PNG"] });
+    const areaDecision = buildFrontmatter({ type: "decision", slug: "area", scope: "team", status: "validated", paths: ["src"] });
+    const gotcha = buildFrontmatter({ type: "gotcha", slug: "area-gotcha", scope: "team", status: "validated", paths: ["src"] });
+    await writeFile(path.join(paths.teamDir, `${recap.id}.md`), serializeMemory({ frontmatter: recap, body: "# Recap\n\nDid things." }));
+    await writeFile(path.join(paths.teamDir, `${areaDecision.id}.md`), serializeMemory({ frontmatter: areaDecision, body: "# Area\n\nThe whole area uses X." }));
+    await writeFile(path.join(paths.teamDir, `${gotcha.id}.md`), serializeMemory({ frontmatter: gotcha, body: "# Trap\n\nInstead: call the typed client." }));
+    expect(await injectFileContext(paths, ["captures/IMG_1.PNG"], "recap")).toBeNull();
+    const text = await injectFileContext(paths, ["src/app.ts"], "area");
+    expect(text).toContain("call the typed client");
+    expect(text).not.toContain("The whole area uses X");
   });
   it("consultation coverage requires active policy, not deliberately excluded context", async () => {
     const paths = resolveHaivePaths(root);
@@ -115,6 +140,41 @@ describe("task attribution and passive file context", () => {
     expect(taskDirtyFiles(task, await worktreeSnapshot(root))).toEqual(["source with spaces.ts"]);
     expect(await readFile(path.join(root, "client feedback.md"), "utf8")).toBe("client text\n");
     expect((await loadTaskSession(paths, "task"))?.mode).toBe("local");
+  });
+
+  it("finish never claims the developer's untouched WIP after HEAD moves, under the hook's Claude session (#10 §3, #11 §1)", async () => {
+    const paths = resolveHaivePaths(root);
+    await mkdir(paths.haiveDir, { recursive: true });
+    await writeFile(path.join(paths.haiveDir, "hivelore.config.json"), JSON.stringify({ autopilot: false, enforcement: { completionMode: "commit" } }));
+    await gitText(root, ["add", "."]); await gitText(root, ["commit", "-m", "config"]);
+    await writeFile(path.join(root, "source with spaces.ts"), "developer wip\n");
+    // The SessionStart hook records the baseline under Claude Code's session UUID…
+    await startTaskSession(paths, "claude-uuid-1", "commit");
+    // …the task branches, commits, comes back, and a squash-merge moves HEAD.
+    await gitText(root, ["checkout", "-b", "feature"]);
+    await writeFile(path.join(root, "feature.ts"), "export const x = 1;\n");
+    await gitText(root, ["add", "feature.ts"]); await gitText(root, ["commit", "-m", "feature"]);
+    await gitText(root, ["checkout", "main"]);
+    await gitText(root, ["merge", "--squash", "feature"]); await gitText(root, ["commit", "-m", "squash feature"]);
+    // The agent runs finish from its shell: no --session-id, only CLAUDE_CODE_SESSION_ID.
+    const result = await promisify(execFile)(process.execPath, [cli, "enforce", "finish", "--mode", "commit", "--json", "--dir", root],
+      { env: { ...process.env, CLAUDE_CODE_SESSION_ID: "claude-uuid-1" } })
+      .then((r) => JSON.parse(r.stdout)).catch((e: { stdout: string }) => JSON.parse(e.stdout));
+    expect(result.should_block, JSON.stringify(result.findings)).toBe(false);
+    expect(result.findings.some((f: { code: string }) => f.code === "task-preexisting-changes")).toBe(true);
+    expect(await readFile(path.join(root, "source with spaces.ts"), "utf8")).toBe("developer wip\n");
+  });
+
+  it("without any baseline, finish scopes its instruction to the task's own files", async () => {
+    const paths = resolveHaivePaths(root);
+    await mkdir(paths.haiveDir, { recursive: true });
+    await writeFile(path.join(paths.haiveDir, "hivelore.config.json"), JSON.stringify({ autopilot: false, enforcement: { completionMode: "commit" } }));
+    await gitText(root, ["add", "."]); await gitText(root, ["commit", "-m", "config"]);
+    await writeFile(path.join(root, "source with spaces.ts"), "someone's wip\n");
+    const result = await finish("commit", "never-started");
+    const blocker = result.findings.find((f: { code: string }) => f.code === "git-sync-uncommitted-changes");
+    expect(blocker?.fix).toContain("only the files THIS task changed");
+    expect(blocker?.fix).toContain("never commit, ignore or delete");
   });
 
   it("detects file effects of scripts whose names contain no target path", async () => {

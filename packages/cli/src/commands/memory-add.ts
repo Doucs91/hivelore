@@ -35,6 +35,8 @@ interface AddOptions {
   evidence?: string;
   checks?: string;
   supersedes?: string;
+  rule?: string;
+  source?: string;
   body?: string;
   bodyFile?: string;
   topic?: string;
@@ -89,6 +91,8 @@ export function registerMemoryAdd(memory: Command): void {
     .option("--evidence <level>", "hypothesis | observed | reproduced | tested")
     .option("--checks <json>", "declarative current-file checks: [{path, contains?, excludes?}]")
     .option("--supersedes <csv>", "memory IDs explicitly replaced by this knowledge")
+    .option("--rule <text>", "the memory in ONE actionable line ('When X, do Y, because Z') — what briefings and edit-time reminders deliver")
+    .option("--source <ref>", "pointer to the source-of-truth doc section, e.g. docs/runbook.md#rotate-password")
     .option("--body-file <path>", "read memory body from a Markdown file — for long content")
     .option("--no-auto-tag", "disable automatic tag suggestions inferred from anchor paths")
     .option("--topic <key>", "stable key for upsert: if a memory with this topic+scope already exists, update it in-place (revision_count++)")
@@ -105,6 +109,8 @@ export function registerMemoryAdd(memory: Command): void {
         ...(opts.evidence !== undefined ? { evidence: shape.evidence.parse(opts.evidence) } : {}),
         ...(opts.checks !== undefined ? { checks: shape.checks.parse(JSON.parse(opts.checks)) } : {}),
         ...(opts.supersedes !== undefined ? { supersedes: parseCsv(opts.supersedes) } : {}),
+        ...(opts.rule?.trim() ? { rule: opts.rule.trim() } : {}),
+        ...(opts.source?.trim() ? { source: opts.source.trim() } : {}),
       };
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);

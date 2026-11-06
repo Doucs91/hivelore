@@ -4,6 +4,77 @@ All notable changes to Hivelore are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loosely and the
 project follows semantic versioning once it ships its first stable release.
 
+## [0.66.0] — Field reports #8–#12: a boring write path, quiet output, and checklists
+
+Five field reports from agents working daily on a production repository (issues #8–#12) agreed on
+one thing: the gate is the product, and everything around it had grown louder than it. This
+release fixes every correctness problem they found in the write path, makes agent-facing output
+small and honest, and adds three primitives built on the same deterministic doctrine.
+
+### Never do harm
+- **`finish` no longer tells an agent to commit someone else's work.** Claude Code exports
+  `CLAUDE_CODE_SESSION_ID`; Hivelore only read `CLAUDE_SESSION_ID`, so every CLI call from the agent
+  missed the baseline the SessionStart hook had recorded and claimed every dirty file as the task's.
+  Session ids now resolve from `CLAUDE_CODE_SESSION_ID` too (CLI, MCP, briefing markers).
+  Ownership compares file *contents* only — a branch switch, pull or squash-merge no longer turns the
+  developer's untouched WIP into "uncommitted changes" — and a missing baseline borrows the most
+  recent one instead of attributing everything. Without any baseline, the fix text is scoped: commit
+  only what this task changed, never commit, ignore or delete pre-existing files (#10 §3, #11 §1).
+- **One YAML writer, one reader.** Memory files are written without folded scalars (`lineWidth: -1`),
+  and the GitHub Action parses them with the same bundled library instead of a line parser that took
+  `>-` for an anchor path. A round-trip test pins writer and reader together (#10 §1).
+- **No more post-hoc edits.** The canonical body (with its heading) is written at save time;
+  automatic `sync` no longer rewrites committed memories — only an explicit `doctor --fix` does
+  (#10 §2, #12 §6). Default-valued frontmatter fields (`verified_at: null`, `revision_count: 0`, …)
+  are no longer written: the parser restores them, the files shrink, the diffs stay quiet (#12 §3.3).
+- **Personal memories can no longer be committed by accident:** their directory carries its own
+  `.gitignore`, created by `init`, the SessionStart hook and the MCP server (#8 §2).
+- **Pinned CI.** Generated workflows install the exact CLI version that wrote them; the PR action
+  installs nothing at all (it is self-contained), so no unpinned code runs next to write credentials.
+  `enforce install` no longer recreates `hivelore-enforcement.yml` when the managed block was merged
+  into another workflow (#10 §4, #11 §7).
+
+### Quiet, precise output
+- **Edit-time reminders:** at most once per memory per session; only gotchas, conventions, attempts,
+  checklists, human gates and block sensors — a decision only when anchored to the exact file, never
+  a session recap; each reminder carries the rule line itself instead of "Full instruction NOT
+  delivered". Read-only shell commands (`ls`, `cat`, `git status`) never trigger one (#9 §3, #12 §4.2).
+- **Briefings:** a lean, versioned agent payload (`schema: hivelore.briefing.agent/1`) — every memory
+  has a one-line `rule`, diagnostic fields (impact/semantic scores, read counts, absolute paths) moved
+  behind `verbose: true`, compact JSON. The budget covers the **whole** serialized response and is
+  enforced by trimming in a fixed order; dropped bodies are never credited as consulted. Symbol
+  lookups only for requested symbols, exact names first, five locations max (#9 §5, #11 §2).
+- **Calibrated labels:** `must_read` means "anchored to a file you passed" (or a requested symbol);
+  directory/glob anchors and wording matches are `useful`. An auto-validated memory without
+  reproduced/tested evidence is labelled `low`, not `trusted` (#11 §4, #12 §1.2).
+- **Quiet hooks:** no "first agent on this repo" notice or bootstrap block on populated repos (`docs/`
+  and other non-code trees are not code areas); pre-push no longer prints "✓ … incomplete";
+  `session-recap-missing` is informational; no unverifiable "prevented N mistakes" line in briefings;
+  `uncaptured-failures` is opt-in (#9 §2, #10 §5, #11 §8).
+- **Recaps are logs, not policies:** never anchored to files, no "call mem_tried for each" nudge, only
+  repeated or build/test failures listed, local paths and session ids stripped (#9 §3–4, #12 §3.2).
+- **Generated agent instructions** match what the server returns: no `breadcrumbs` field that does not
+  exist, no `--session-id <id>` the agent cannot know (#11 §3, #12 §3.4).
+- **Default MCP surface: 8 tools** (`get_briefing`, `mem_get`, `mem_save`, `mem_update`, `mem_tried`,
+  `propose_sensor`, `pre_commit_check`, `report_friction`). The others remain under
+  `HIVELORE_TOOL_PROFILE=maintenance` (#11 §8).
+
+### New
+- **Checklist sensors** — a required verification when a change touches given paths, enforced at
+  `block` severity by a `Hivelore-Checked: <id>` commit trailer (#9 §9.1).
+  `hivelore sensors propose <id> --kind checklist --paths <glob> --message <step>`.
+- **`hivelore rules audit`** — classifies every imperative rule in CLAUDE.md / AGENTS.md /
+  `.cursor/rules` / copilot instructions as enforced, checkable-but-unenforced, or judgment. Read-only,
+  works without `init`; `--fail-under` for CI.
+- **`hivelore report harness`** — per sensor: runs, catches, live waivers, last hit; per memory: shown
+  vs applied/rejected; archive candidates, dangling anchors, expired decisions (#12 §4.3).
+- **`rule` and `source` memory fields** (`mem_save`, `mem_update`, `memory add --rule --source`): the
+  one line briefings deliver, and a pointer to the doc that stays the source of truth. `mem_save` warns
+  above 3 KB and when no rule can be derived (#11 §5, §9).
+- **`doctor`** flags folded YAML (and repairs it with `--fix`), tracked personal memories, untracked
+  files in the team corpus, unpinned CLI installs and legacy sync jobs pushing `[skip ci]` commits
+  (#8 §1, #10 §9.6). `enforce check --staged` is an alias for the pre-commit scan (#11 §8).
+
 ## [0.65.0] — Audit reliability and traceable outcomes
 
 - Preserve policy integrity: long edit-hook policies emit explicit unread pointers; shortened briefings and JSON summaries never credit complete consultation. Full CLI/MCP reads can resolve a matching hook session. Commit-time auto-briefing includes the actual policy bodies.

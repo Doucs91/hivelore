@@ -1,3 +1,4 @@
+import { deriveRuleLine } from "@hivelore/core";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -59,6 +60,23 @@ export const MemSaveInputSchema = {
   evidence: MemoryFrontmatterSchema.innerType().shape.evidence,
   checks: MemoryFrontmatterSchema.innerType().shape.checks,
   supersedes: MemoryFrontmatterSchema.innerType().shape.supersedes,
+  rule: z
+    .string()
+    .min(1)
+    .max(400)
+    .optional()
+    .describe(
+      "The memory in ONE actionable line: 'When X, do Y, because Z'. Briefings and edit-time reminders " +
+      "deliver this line; the body is fetched on demand. Strongly recommended for decision/gotcha/attempt.",
+    ),
+  source: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Pointer to the source-of-truth doc section (e.g. 'docs/runbook.md#rotate-password'). Prefer a short " +
+      "rule + source over copying a document into the body: a copy drifts, a pointer does not.",
+    ),
   lifecycle: z
     .enum(["applied", "planned", "abandoned"])
     .optional()
@@ -269,6 +287,8 @@ export async function memSave(
         ...(input.evidence !== undefined ? { evidence: input.evidence } : {}),
         ...(input.checks !== undefined ? { checks: input.checks } : {}),
         ...(input.supersedes !== undefined ? { supersedes: input.supersedes } : {}),
+        ...(input.rule !== undefined ? { rule: input.rule.trim() } : {}),
+        ...(input.source !== undefined ? { source: input.source.trim() } : {}),
         anchor: {
           commit: input.commit ?? fm.anchor.commit,
           paths: input.paths.length ? input.paths : fm.anchor.paths,
@@ -327,6 +347,8 @@ export async function memSave(
     evidence: input.evidence,
     checks: input.checks,
     supersedes: input.supersedes,
+    rule: input.rule,
+    source: input.source,
   });
   // Created already-validated by config (defaultStatus), not by explicit review → mark "auto".
   if (frontmatter.status === "validated") frontmatter.validated_by = "auto";
@@ -371,6 +393,7 @@ export async function memSave(
       ? `Anchor path(s) not found in project: ${invalidPaths.join(", ")}. They will be marked stale by \`hivelore sync\`.`
       : null,
     criticalAnchorWarning(frontmatter.type, frontmatter.status, frontmatter.anchor.paths, frontmatter.anchor.symbols),
+    shapeWarning(frontmatter.type, input.body, input.rule),
     warning ?? null,
     simWarnNew ?? null,
   ].filter(Boolean).join(" — ") || undefined;
@@ -386,6 +409,22 @@ export async function memSave(
     ...(invalidPaths.length > 0 ? { invalid_paths: invalidPaths } : {}),
     ...sensorLoopState(input.type, input.body, input.paths, frontmatter.sensor),
   };
+}
+
+/**
+ * Memories are read at edit time in one line, not as specs. Decision memories had grown to a median
+ * 2.9 KB (largest 12.5 KB) and a briefing showed ~10% of them, cut before the instruction (field
+ * report #11 §5). Nudge toward the shape that survives: a rule line, a short body, a doc pointer.
+ */
+export function shapeWarning(type: string, body: string, rule: string | undefined): string | null {
+  const notes: string[] = [];
+  if (body.length > 3000) {
+    notes.push(`Long body (${(body.length / 1024).toFixed(1)} KB): briefings deliver the \`rule\` line and a short excerpt — move the detail to a doc and point to it with \`source\`.`);
+  }
+  if (!rule && ["decision", "gotcha", "attempt", "convention"].includes(type) && !deriveRuleLine(body)) {
+    notes.push("No `rule` line: add one ('When X, do Y, because Z') so briefings and edit-time reminders can deliver it.");
+  }
+  return notes.length ? notes.join(" ") : null;
 }
 
 function criticalAnchorWarning(
