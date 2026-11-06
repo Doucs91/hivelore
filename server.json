@@ -6,12 +6,12 @@
     "url": "https://github.com/Doucs91/hivelore",
     "source": "github"
   },
-  "version": "0.53.1",
+  "version": "0.68.2",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@hivelore/mcp",
-      "version": "0.53.1",
+      "version": "0.68.2",
       "transport": {
         "type": "stdio"
       }

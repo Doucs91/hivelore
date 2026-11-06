@@ -4,6 +4,190 @@ All notable changes to Hivelore are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loosely and the
 project follows semantic versioning once it ships its first stable release.
 
+## [0.68.2] — Fixes from an end-to-end campaign in fresh repositories
+
+The published 0.68.1 was run, as a user would, in three new repositories (a TypeScript service with a
+CLAUDE.md, a Python service with an AGENTS.md, a monorepo without Hivelore) — init, enforce install,
+rules audit/arm, command guards through the real hook, commit gates, developer corrections, doc
+warnings, why, memory propose, false positives, the MCP server through a real client, cache migration,
+forward-compatible sensors, version pin, root detection, and the Claude Code plugin (`claude plugin
+validate` for the plugin and the marketplace). 68 of 71 checks passed; the failures led to:
+
+- **A denial explains itself.** A command guard's message is the prohibition and its reason ("NEVER run
+  `npm publish` from an agent — releases go through CI"), not the bare ban.
+- **An in-repo cache recreated after the move is folded into the user cache and removed** — the case of
+  an older CLI (a global install, a git hook) writing `.ai/.cache` again after the migration.
+- **Incident links point at decisions** (or memories named in the fix message), not at a gotcha that
+  happens to be anchored to the same file.
+- **`ci why` says when the checkout has no GitHub repository `gh` can read**, instead of "no failed run".
+
+After the fixes: 72/72 on the development build.
+
+## [0.68.1] — Command guards that actually fire, arming that never over-reaches
+
+Found by arming this repository's own rules with the published 0.68.0:
+- **Command guards now see every shell call.** The CLI entry's fast path skipped the PreToolUse hook for
+  any Bash command that named no file, so `npm publish` never reached the guard. Non-read-only shell
+  calls now go through (~150 ms); `ls`, `cat`, `git status` stay instant. An end-to-end test runs the
+  real entry point.
+- **A ban must be a ban.** "Before changing code you **do not** understand…" was read as a prohibition:
+  `do not` / `must not` / `avoid` now count only when they open the clause; `never` / `forbidden` anywhere.
+- **Enforcement must be specific.** `rules audit` called the npm-publish boundary "enforced" because the
+  word `release` appeared in an unrelated sensor's message; only specific tokens (commands, calls,
+  compound names) now prove enforcement.
+- **Guards tolerate options** before the subcommand (`pnpm --filter @x/core publish`), the same rule
+  mirrored into several instruction files becomes one check, and an armed memory states the prohibition
+  itself (`Do not use \`git push --tags\``) rather than the whole surrounding rule.
+- This repository now enforces its own boundaries: `npm publish` / `pnpm publish` / `publish:all` and
+  `git push --tags` are denied before an agent runs them. `.cursorrules` no longer says the opposite of
+  CLAUDE.md about `git push --tags` and npm publication.
+
+## [0.68.0] — Tools an agent reaches for on its own
+
+The question behind this release: what would make an agent use Hivelore — and suggest it — without
+an instruction file telling it to? Answer from a session spent using it: value at the moment the agent
+needs it, zero ceremony, never a wrong block, and being where agents look.
+
+### Prose becomes controls
+- **Command guards** (`sensor.kind: "command"`): a regex over the shell command an agent is about to
+  run. Claude Code's PreToolUse hook denies a matching Bash call before it runs (block) or warns (warn).
+  Heredocs, commit/PR messages and echo arguments are stripped first, so mentioning a command never
+  blocks; `bash -c "npm publish"` is still caught. `sensors propose --kind command`, `propose_sensor`.
+- **`hivelore rules arm`** turns the checkable prohibitions found by `rules audit` into checks — command
+  guards, protected-path checklists, regex sensors — validated against the repository first (does the
+  pattern match its own example; how often does it already occur; does a commit message mentioning it
+  pass). Only the clause that carries the prohibition is armed: "`git push` the tag. Do not use
+  `git push --tags`" denies the second command, never the first (caught dogfooding on this repo).
+
+### The moments that matter
+- **Developer corrections** (new UserPromptSubmit hook, `hivelore enforce user-prompt`): a lasting rule
+  stated while correcting the agent ("we never…", "in this repo…", "je t'ai déjà dit…") reaches the agent
+  as an offer to record it, and `memory propose` lists it (kind `user-correction`). One-off instructions,
+  questions and politeness stay silent. Only the rule sentence is kept, locally, for 14 days.
+- **`hivelore why <file[:line]>`** (CLI and MCP tool `why`, in the default profile): anchored rules,
+  sensors and checklists guarding the file (and whether the line matches one), doc warnings, the commit
+  that last changed the line, past fixes in the file.
+- **`hivelore ci why`**: the failed run for HEAD or the branch — failing steps, error lines and tests from
+  the failed log, jobs that never ran (billing, runners, timeouts) named as such, memories that saw it before.
+- **`hivelore sensors false-positive <id> --path <file>`**: records the wrong match (it counts against gate
+  precision) and proposes the narrowest exclude; `--apply` writes it.
+
+### No ritual, no tax
+- The generated agent rules no longer mandate `get_briefing` before every edit: hooks deliver each file's
+  rules; the agent is pointed at the situations where Hivelore helps (unfamiliar code, a lasting rule,
+  a red CI). The MCP server now sends **server instructions** saying exactly that.
+- Doc warnings at edit time use only what the edit ADDS (a file written whole contributes nothing) and
+  require the doc to cite the key as code — `read-only` in prose no longer matches.
+
+### Where agents look
+- **Claude Code plugin** (`/plugin marketplace add Doucs91/hivelore`, `/plugin install hivelore@hivelore`):
+  hooks + an agent **skill** whose description names the situations, not the features. Silent in
+  repositories without `.ai/` except for a once-per-session offer after a correction; steps aside where
+  `hivelore init` already installed the hooks. `init` / `enforce install` also write the skill to
+  `.claude/skills/hivelore/SKILL.md`.
+- **`llms.txt`** at the repository root; `server.json` refreshed for the MCP registry.
+
+### Same gate everywhere
+- **`cliVersion`** in `.ai/hivelore.config.json` (written by `init` / `enforce install`, never lowered): an
+  older CLI hands the invocation to a project-local `@hivelore/cli` of that version when installed, and
+  otherwise warns once a day with the install command. `doctor` reports both directions.
+- **Forward-compatible sensors**: a sensor kind written by a newer Hivelore no longer makes an older CLI
+  reject the whole memory (the lesson vanished silently); it is preserved verbatim, written back on save,
+  and reported by `doctor`.
+
+## [0.67.4] — Doc warnings: instructions, not narration
+
+Seen at the first edit with the published 0.67.3: two "doc warnings" about `CLAUDE.md` were narrative
+sentences from field reports ("sans jamais figurer dans CLAUDE.md", "pas comme une source").
+- `never` / `jamais` / `ne pas` now count only when they OPEN a sentence or list item ("Never reload
+  during a release", "Ne jamais modifier…"); mid-sentence they narrate. Normative `must` (RFC 2119
+  style, not "must-have"), "ne doit jamais", "il ne faut pas", "would break", "fails when"… still
+  count. On this repository, editing `CLAUDE.md` now shows no false warning, and the CONTRIBUTING.md
+  constraint on `sensors.ts` ("diff scanning must use `scannableSensorTargets`") still surfaces.
+
+## [0.67.3] — Incident links need an exact file anchor
+
+- A memory anchored to a whole directory or glob (e.g. "core is a pure layer" on `packages/core/src`)
+  did not justify one particular file: incident links now require an exact file anchor, consistent
+  with briefings, where directory anchors are already weak. Found by running `memory propose` on the
+  0.67 branch itself.
+
+## [0.67.2] — Capture proposals stay precise
+
+Dogfooding `memory propose` on its own branch produced five false "incident links": the feature commit
+*described* "regression fixes", and every memory anchored to `package.json` looked justified-and-broken.
+- Incident links now require a commit that IS a fix (`fix:`/`hotfix:`, or a revert) and says it repairs
+  a regression, outside trailers; version manifests (`package.json`, `pyproject.toml`, …) never count;
+  a fix spread over more than 8 files is not attributed; at most two memories per commit (named ones,
+  then decisions), exact anchors only.
+- A commit that produced an incident link does not also produce a duplicate gotcha candidate.
+
+## [0.67.1] — The weakening gate judges values, not YAML layout
+
+- **A canonical rewrite is not a weakening.** The sensor-weakening gate read diff lines, so unfolding
+  `command: >-` onto one line (what `doctor --fix` does) looked like "sensor command changed" and
+  blocked the commit and CI. Each line-level finding is now confirmed against the parsed sensors of
+  the base and head versions; only a real change of what the sensor checks remains (fail-closed when
+  a version cannot be parsed).
+- **CI reads approvals from every commit of the change.** On a pull request the checkout is GitHub's
+  merge commit, so `Hivelore-Sensor-Change` trailers written by the author were never seen and an
+  approved change failed CI. Approvals are now collected over the CI diff range.
+
+## [0.67.0] — The repo's own knowledge speaks up: docs caveats, falsifiable evidence, capture from signals
+
+0.66 made the write path safe and the output quiet. This release closes the gap field report #9 called
+the most expensive moment of a session — "the repo knew, and the tool did not tell" — and replaces
+capture that depends on the agent's initiative with candidates derived from what the branch did.
+
+### Docs-aware caveats
+- **The repo's tracked docs are read, never copied.** When a briefing or an edit names a file, a
+  symbol, or a config key the edit itself touches, Hivelore surfaces the doc paragraphs that WARN about
+  it ("enforcing `worker-src` would break the PDF viewer") with their location; plain mentions become
+  pointers (`also_in`). In `get_briefing` (`docs.caveats`), in the CLI briefing, and in the edit-time
+  reminder — once per paragraph per session. Tracked files only (`docs/**`, READMEs, ADRs, root prose;
+  never CHANGELOG or generated bridges), bounded reads, `docCaveats: false` to opt out (#9 §1, #11 §9).
+
+### Falsifiable evidence
+- **`verified_by` and `cannot_detect`** on memories (`mem_save`, `mem_update`, `memory add/update
+  --verified-by --cannot-detect`): what verified a claim, and what that verification could not see.
+  The blind spot is delivered next to the rule (`blind_spot` in the briefing).
+- **Labels follow the proof:** `authoritative` now needs both fields on top of human review and a
+  tested claim; an auto-validated memory is `trusted` only when it names what reproduced it.
+  `mem_save` asks for the limits when evidence is claimed without them (#9 §9.3).
+
+### Capture from signals, not from initiative
+- **`hivelore memory propose`** reads the branch and lists 0–5 candidates with the exact command that
+  records each: a regression fix touching code a decision justified (record what its evidence missed,
+  arm a checklist), a regex sensor whose scope missed the bug class the branch just fixed (widen it), a
+  `fix:` commit that explains its cause (a gotcha), a retry loop (an attempt). `--accept <n>` records
+  the complete ones and stages the file into the same PR. `finish` adds one quiet line when candidates
+  exist, nothing otherwise (#8 §6, #9 §7 and §9.4, #11).
+- `memory update --sensor-paths` widens or narrows an attached sensor's scope; `memory update` also
+  gains `--rule` and `--source`.
+
+### Session recaps are a local handoff, never shared corpus
+- `mem_session_end` saves team/module requests as personal (gitignored) and never anchors a recap to
+  files; when the repo sets `autoSessionRecap: false` it writes the local `NEXT.md` handoff instead of
+  a memory. `post_task` no longer ends with a mandatory recap: it points to `memory propose`. `init`
+  gitignores `NEXT.md`; the generated agent rules say "no session recaps — commits and the PR say what
+  was done" (#9 §4, #12 §3.2, §5).
+
+### Caches leave the repository
+- Embedding indexes, the code map, the observation journal and local telemetry now live in
+  `~/.cache/hivelore/<repo>-<hash>/` (XDG / `%LOCALAPPDATA%` aware), per checkout — not in a 181 MB
+  `.ai/.cache` inside the tree. The old directory is moved on first use; `doctor --fix` cleans
+  leftovers. Opt back in with `HIVELORE_CACHE_DIR=.ai/.cache` or `"cacheDir": ".ai/.cache"` in the
+  config (#11 §8).
+- `hivelore report harness` also flags `source:` pointers to docs that no longer exist.
+
+### Smaller fixes from the earlier field reviews
+- The project root is found the way `git` finds it: a stray `.ai/` (only `.cache`/`.runtime`) in a
+  subfolder no longer makes `enforce check` from `frontend/` answer "not initialized".
+- Memory ids carry the author's local calendar date (a memory saved at 23:00 in Montréal is no longer
+  named after tomorrow), and slugs transliterate accents ("décision" → `decision`, not `d-cision`).
+- The `agent setup` MCP diagnostic forwards `HIVELORE_*` settings to the server it starts, so both
+  read the same cache.
+
 ## [0.66.0] — Field reports #8–#12: a boring write path, quiet output, and checklists
 
 Five field reports from agents working daily on a production repository (issues #8–#12) agreed on

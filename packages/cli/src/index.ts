@@ -1,4 +1,8 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { Command } from "commander";
+import { findProjectRoot, migrateLegacyCache, resolveHaivePaths } from "@hivelore/core";
+import { enforcePinnedVersion } from "./utils/version-pin.js";
 import { registerBriefing } from "./commands/briefing.js";
 import { registerEmbeddings, registerIndexSemantic } from "./commands/embeddings.js";
 import { registerIndexCode } from "./commands/index-code.js";
@@ -38,6 +42,8 @@ import { registerMemoryArchive } from "./commands/memory-archive.js";
 import { registerDoctor } from "./commands/doctor.js";
 import { registerPrecommit } from "./commands/precommit.js";
 import { registerMemoryLint } from "./commands/memory-lint.js";
+import { registerMemoryPropose } from "./commands/memory-propose.js";
+import { registerWhy } from "./commands/why.js";
 import { registerResolveProject } from "./commands/resolve-project.js";
 import { registerEnforce } from "./commands/enforce.js";
 import { registerRelease } from "./commands/release.js";
@@ -117,6 +123,7 @@ registerMemoryConflictCandidates(memory); // `memory conflicts [a] [b]` (+ alias
 registerMemoryResolveConflict(memory);  // hidden alias — canonical: memory conflicts <a> <b>
 registerMemoryArchive(memory);
 registerMemoryLint(memory);
+registerMemoryPropose(memory);
 
 const session = program.command("session").description(
   "Manage session lifecycle.\n\n" +
@@ -126,6 +133,7 @@ const session = program.command("session").description(
 );
 registerSessionEnd(session);
 
+registerWhy(program);
 registerStats(program);
 registerBench(program);
 registerBenchmark(program);
@@ -147,6 +155,8 @@ const CORE_ROOT_COMMANDS = new Set([
   "run",
   "sensors",
   "rules",
+  "why",
+  "ci",
   "report",
   "sync",
   "mcp",
@@ -159,6 +169,7 @@ const CORE_ROOT_COMMANDS = new Set([
 // as command aliases, so existing scripts keep working.
 const CORE_MEMORY_COMMANDS = new Set([
   "save",
+  "propose",
   "list",
   "search",
   "get",
@@ -171,6 +182,20 @@ const CORE_MEMORY_COMMANDS = new Set([
 const CORE_SESSION_COMMANDS = new Set(["end"]);
 
 applySurfaceVisibility(program);
+
+// One-time move of a pre-0.67 in-repo `.ai/.cache` to the user cache directory (cheap no-op after).
+program.hook("preAction", (_root, action) => {
+  try {
+    const dir = (action.opts() as { dir?: string }).dir;
+    const projectRoot = findProjectRoot(dir);
+    if (existsSync(path.join(projectRoot, ".ai"))) {
+      migrateLegacyCache(resolveHaivePaths(projectRoot));
+      enforcePinnedVersion(projectRoot, __HAIVE_VERSION__);
+    }
+  } catch {
+    /* cache housekeeping never blocks a command */
+  }
+});
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   if (isZodError(err)) {

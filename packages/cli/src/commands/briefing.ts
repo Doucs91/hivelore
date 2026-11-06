@@ -28,6 +28,10 @@ import {
   tokenizeQuery,
   trackReads,
   writeBriefingMarker,
+  findDocCaveats,
+  loadDocFiles,
+  renderDocCaveat,
+  type DocCaveatsResult,
 } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
 import { buildRadar, radarHasContent, type RadarReport } from "../utils/briefing-radar.js";
@@ -275,6 +279,22 @@ export function registerBriefing(program: Command): void {
 
       const all = ownMemories;
       const filePaths = markerFiles;
+      // Warnings the repo's own docs write about these files/symbols (field report #9 §1).
+      let docCaveats: DocCaveatsResult = { caveats: [], mentions: [] };
+      const docSymbols = parseCsv(opts.symbols);
+      if (filePaths.length > 0 || docSymbols.length > 0) {
+        const cfg = await loadConfig(paths).catch(() => null);
+        if (cfg?.docCaveats !== false) {
+          try { docCaveats = findDocCaveats(loadDocFiles(root), { files: filePaths, symbols: docSymbols }); } catch { /* bonus only */ }
+        }
+      }
+      const printDocCaveats = (): void => {
+        if (json || docCaveats.caveats.length + docCaveats.mentions.length === 0) return;
+        out(`${ui.bold("=== Doc warnings ===")}\n`);
+        for (const caveat of docCaveats.caveats) out(`  • ${renderDocCaveat(caveat)}`);
+        if (docCaveats.mentions.length) out(ui.dim(`  also documented in: ${docCaveats.mentions.map((m) => `${m.doc}:${m.line}`).join(", ")}`));
+        out("");
+      };
       const tokens = opts.task ? tokenizeQuery(opts.task) : null;
       const scopeFilter = opts.scope ?? "all";
 
@@ -387,6 +407,7 @@ export function registerBriefing(program: Command): void {
       if (top.length === 0) {
         if (json) { console.log(JSON.stringify({ task: opts.task ?? null, memories: [], briefing_quality: "thin" }, null, 2)); return; }
         await printOptionalContext();
+        printDocCaveats();
         ui.info("No relevant memories found.");
         const draftCount = all.filter(
           (m) =>
@@ -406,6 +427,7 @@ export function registerBriefing(program: Command): void {
 
       if (stopped()) return;
       const usageIndex = await loadUsageIndex(paths).catch(() => null);
+      printDocCaveats();
       out(`${ui.bold("=== Relevant Memories ===")}\n`);
       const priorities = top.map((item) =>
         classifyCliPriority(
@@ -449,6 +471,8 @@ export function registerBriefing(program: Command): void {
           briefing_quality: quality,
           inferred_modules: inferredModules,
           module_contexts: moduleContexts,
+          ...(docCaveats.caveats.length ? { doc_caveats: docCaveats.caveats } : {}),
+          ...(docCaveats.mentions.length ? { doc_mentions: docCaveats.mentions } : {}),
           counts: { must_read: mustReadCount, useful: usefulCount, background: backgroundCount },
           recap_id: recaps[0]?.memory.frontmatter.id ?? null,
           memories: top.map((item, i) => ({

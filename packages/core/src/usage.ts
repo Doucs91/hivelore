@@ -67,7 +67,7 @@ export function emptyUsageIndex(): UsageIndex {
 }
 
 export function usagePath(paths: HaivePaths): string {
-  return path.join(paths.haiveDir, ".cache", USAGE_FILE);
+  return path.join(paths.cacheDir, USAGE_FILE);
 }
 
 export async function loadUsageIndex(paths: HaivePaths): Promise<UsageIndex> {

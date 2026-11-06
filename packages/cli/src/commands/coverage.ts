@@ -115,7 +115,7 @@ export function registerCoverage(program: Command): void {
 
       const sinceMs = Date.now() - days * 86_400_000;
       const agentHotFiles: HotFile[] = useAgent
-        ? (await readAgentHotFiles(root, path.join(paths.haiveDir, ".cache", "observations.jsonl"), sinceMs))
+        ? (await readAgentHotFiles(root, path.join(paths.cacheDir, "observations.jsonl"), sinceMs))
             .filter((h) => !isNoisePath(h.path))
         : [];
 

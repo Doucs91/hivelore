@@ -229,6 +229,17 @@ npm install -g @hivelore/cli
 npm install -g @hivelore/embeddings
 ```
 
+**Claude Code plugin** — hooks + agent skill in one step, in every repository you open:
+
+```
+/plugin marketplace add Doucs91/hivelore
+/plugin install hivelore@hivelore
+```
+
+In a repository without `.ai/` the plugin stays silent, except to offer — once — to turn a correction
+you just gave the agent into an enforced rule. Where `hivelore init` already installed the hooks, the
+plugin's copy steps aside.
+
 ---
 
 <a id="the-60-second-proof"></a>
@@ -438,7 +449,7 @@ not a missing feature.
 | **Feedback** | `hivelore sensors check` | Scan the diff against documented lessons |
 | **Gate** | `hivelore enforce finish` | Exit gate before you call the task done |
 | **Sync** | `hivelore sync` | Re-check stale anchors, refresh bridge files |
-| **Close** | `hivelore session end` | Save a recap for the next session |
+| **Close** | `hivelore memory propose` | Review lesson candidates derived from the branch; unfinished work leaves a local `NEXT.md` |
 
 **One vocabulary across CLI and MCP.** The memory verbs mirror the MCP tool names, so an agent learns
 them once: `hivelore memory save/search/get/delete` ↔ `mem_save`/`mem_search`/`mem_get`/`mem_delete`
@@ -461,8 +472,34 @@ npx @hivelore/cli rules audit
 #   CLAUDE.md:55  NEVER run `npm publish` from an agent.   signals: code token, command
 ```
 
-Each checkable rule is one `sensors propose` away from being refused by the gate instead of hoped for.
-`--fail-under <pct>` turns it into a CI check.
+`--fail-under <pct>` turns it into a CI check. And `rules arm` turns the checkable prohibitions into
+checks, validated against the repository before anything is written:
+
+```bash
+hivelore rules arm            # plan: what each rule becomes, and what it would match today
+hivelore rules arm --apply    # write them (team memories, staged)
+#   [command/block] NEVER run `npm publish` from an agent.   → the agent's Bash call is denied before it runs
+#   [command/block] Do not use `git push --tags`              → denied; a commit message that mentions it passes
+#   [checklist]     Never edit `db/migrations/V1__init.sql`   → a change needs an acknowledgement at commit time
+#   [regex/warn]    Never call `LocalDate.now()` without a zone → flagged when a diff adds it
+```
+
+Only prohibitions are armed, and only what the prohibition clause names: "`git push` the tag. Do not use
+`git push --tags`" blocks the second command, never the first.
+
+## The agent asks, the repository answers
+
+- **"Why is this code like this?"** — `hivelore why src/slots.ts:42` (also an MCP tool): the rules
+  anchored to the file, the sensors and checklists that guard it (and whether this line is what a
+  sensor looks for), warnings from the repo's own docs, the commit that last changed the line, and the
+  past fixes in the file.
+- **"Why is CI red?"** — `hivelore ci why`: the failing steps and tests from the failed log, jobs that
+  never ran (billing, runners, timeouts) named as such, and the memories that saw the same failure before.
+- **"The developer just corrected me."** — a lasting rule stated while correcting the agent ("we never
+  mock the database in integration tests") reaches the agent as an offer to record it, and
+  `memory propose` lists it at the end of the task. Nothing is recorded without a yes.
+- **"This sensor is wrong here."** — `hivelore sensors false-positive <id> --path <file>` records it
+  (it counts against the gate's precision) and proposes the narrowest exclude.
 
 ## Is it preventing mistakes, or performing ceremony?
 
@@ -471,6 +508,38 @@ live `hivelore:allow` waivers and last hit (and the ones never evaluated); the m
 and whether anyone reported applying them; validated memories never surfaced in 60 days (archive
 candidates); anchors that no longer exist; decisions past their `expires_when` date. Nothing is
 inferred — no "time saved", no unverifiable totals.
+
+## The repo already knew — now it says so at the edit
+
+The costliest miss in one field report was a sentence sitting in `docs/`: "enforcing policy X would
+break component Y". X shipped a week later, the decision memory surfaced as `trusted`, the doc did not,
+and the failure lived in production for a week. Hivelore now reads your **tracked docs** (never copies
+them): when a briefing or an edit names a file, a symbol, or a config key the edit itself touches, the
+paragraphs that **warn** about it come back with their location —
+
+```
+Hivelore — before editing config/security/csp.ts:
+• docs/security.md:41 (Content Security Policy) — Enforcing `worker-src 'self'` would break the PDF
+  viewer: pdf.js starts its worker from a blob URL, and headless CI never sees the refusal.
+  (doc warning about worker-src · the doc is the source of truth)
+```
+
+Memories carry **falsifiable evidence** to match: `verified_by` (what checked the claim) and
+`cannot_detect` (what that check could not see). The blind spot travels with the rule, and
+`authoritative` requires both — "no reports for 7 days" next to a `trusted` label is how the miss
+above happened.
+
+## Capture from what the branch did, not from what the agent remembers
+
+`hivelore memory propose` reads the commits and the diff of the current branch and lists 0–5
+candidates, each with the command that records it: a regression fix touching code a decision
+justified (record what its evidence missed, arm a checklist), a sensor whose scope missed the bug class
+you just fixed elsewhere (widen it), a `fix:` commit that explains its cause (a gotcha), a retry loop
+(an attempt). `--accept <n>` records the complete ones and stages them into the same PR. `enforce
+finish` mentions it in one line when there is something to propose — and says nothing otherwise.
+
+There are no session recaps in the corpus: commits and the PR say what was done, `NEXT.md` (local,
+gitignored) carries open threads for unfinished work.
 
 ## Try it on your repo (5 minutes, reversible)
 
@@ -565,17 +634,20 @@ your-project/
 │   │   ├── personal/               # Private — gitignored
 │   │   ├── team/                   # Shared — committed to git
 │   │   └── module/<name>/          # Module-scoped memories
-│   ├── code-map.json               # Symbol index — deterministic, safe to commit
-│   ├── .runtime/                   # Local session state — gitignored
-│   └── .cache/                     # Indexes, churn, telemetry — gitignored
+│   └── .runtime/                   # Local session state — gitignored
 ├── CLAUDE.md                       # Auto-generated bridge (Claude Code)
 ├── AGENTS.md / GEMINI.md / …       # …and 10 more native bridges (see below)
+├── NEXT.md                         # Local handoff for unfinished work — gitignored
 └── .github/
     ├── copilot-instructions.md     # Auto-generated bridge for Copilot
     └── workflows/
         ├── hivelore-sync.yml       # Anchor verification on merge
         └── hivelore-enforcement.yml # Required policy gate
 ```
+
+Caches (embedding indexes, the code map, the observation journal, local telemetry) live outside the
+checkout, in `~/.cache/hivelore/<repo>-<hash>/` — one per worktree. Set `HIVELORE_CACHE_DIR` or
+`"cacheDir"` in `.ai/hivelore.config.json` (e.g. `.ai/.cache`) to keep them elsewhere.
 
 ### Native bridges — meet every agent where it is
 
@@ -628,6 +700,7 @@ Default profile — the tools agents actually use:
 | `mem_tried` | Record a failed approach so future agents do not repeat it (optionally arming a sensor in the same call) |
 | `propose_sensor` | ⭐ Turn a captured lesson into a **validated** guardrail: a regex/AST pattern, a command oracle, or a **checklist** — a required verification whenever a change touches given paths |
 | `pre_commit_check` | Diff against known gotchas, decisions, and stale anchors |
+| `why` | ⭐ Why is this code like this? `file` or `file:line` → anchored rules, sensors and checklists guarding it (and whether the line matches one), doc warnings, the commit that last changed the line, past fixes |
 | `report_friction` | Record friction with Hivelore itself, locally. Never sends anything — a human reviews with `hivelore report` and decides what becomes an issue |
 
 Maintenance profile (`HIVELORE_TOOL_PROFILE=maintenance`) adds, among others:
@@ -641,11 +714,11 @@ Maintenance profile (`HIVELORE_TOOL_PROFILE=maintenance`) adds, among others:
 | `code_map` | Look up symbols without manual grep when code-map is indexed |
 | `code_search` | Semantic search over exported symbols (needs `@hivelore/embeddings` + `hivelore index code-search`) |
 | `scaffold_test` | Generate a pending post-incident test from a lesson + the `sensors propose --kind test` line to arm it (monorepo-aware) |
-| `mem_session_end` | Save end-of-session recap for the next agent (the SessionEnd hook already does this) |
+| `mem_session_end` | Local handoff for unfinished work (`NEXT.md` or a personal recap) — never shared corpus |
 
 MCP profiles keep the product focused:
 
-- `HIVELORE_TOOL_PROFILE=enforcement` (default): the eight tools above. Fewer tools, fewer wrong choices.
+- `HIVELORE_TOOL_PROFILE=enforcement` (default): the nine tools above. Fewer tools, fewer wrong choices.
 - `HIVELORE_TOOL_PROFILE=maintenance`: corpus review, lifecycle, distillation, search, code-map/code-search, and project-context maintenance.
 - `HAIVE_TOOL_PROFILE=experimental` / `full`: legacy aliases for `maintenance` (the experimental
   diagnostics were removed in v0.32.0 — months of usage showed a single call across all of them).
@@ -656,7 +729,7 @@ MCP profiles keep the product focused:
 
 | Prompt | Description |
 |---|---|
-| `post_task` | ⭐ Post-task checklist — capture learnings before closing every session |
+| `post_task` | ⭐ Post-task checklist — capture only what a teammate could not guess, review `hivelore memory propose`, run `enforce finish` |
 | `bootstrap_repo` | ⭐ First-agent bootstrap — fills the whole knowledge layer the bootstrap gate requires (project-context, module contexts, anchored memories, a validated sensor per main area). Tailors a concrete checklist from the current corpus state and drives `bootstrap_project_save` → `mem_save` → `propose_sensor` until ready |
 | `bootstrap_project` | Analyze the codebase and write `.ai/project-context.md` |
 

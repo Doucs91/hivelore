@@ -64,18 +64,30 @@ function baseConfidence(
 ): ConfidenceLevel {
   if (fm.evidence === "hypothesis") return "low";
   if (fm.status === "validated") {
-    // Admission is not proof. Authority needs explicit human review AND a tested claim.
-    if (fm.validated_by === "human" && fm.evidence === "tested" && fm.verified_at) return "authoritative";
+    // Admission is not proof. Authority needs explicit human review AND a tested claim whose proof is
+    // falsifiable: what verified it, and what that verification could not see (field report #9 §9.3 —
+    // "a `trusted` label next to weak evidence is worse than no label").
+    if (fm.validated_by === "human" && fm.evidence === "tested" && fm.verified_at && hasFalsifiableEvidence(fm)) {
+      return "authoritative";
+    }
     // A validation that never fails is not a validation: in autopilot, `validated_by: auto` means
     // "has existed for three days", and 150 of 168 team memories in one repo carried `trusted` on
     // that basis alone (field report #12 §1.2, §4.5). Unreviewed content is labelled `low` unless
-    // its claim was reproduced or tested; a human or agent review keeps `trusted`.
-    if (fm.validated_by === "auto" && fm.evidence !== "reproduced" && fm.evidence !== "tested") return "low";
+    // its claim was reproduced or tested AND names what reproduced it; a human or agent review keeps
+    // `trusted`.
+    if (fm.validated_by === "auto" && !((fm.evidence === "reproduced" || fm.evidence === "tested") && fm.verified_by)) {
+      return "low";
+    }
     return "trusted";
   }
   if (fm.status === "proposed") return "low";
   // draft
   return "unverified";
+}
+
+/** Both halves of a falsifiable proof are stated: what verified it, and what that could not observe. */
+export function hasFalsifiableEvidence(fm: Pick<MemoryFrontmatter, "verified_by" | "cannot_detect">): boolean {
+  return !!fm.verified_by?.trim() && !!fm.cannot_detect?.trim();
 }
 
 export interface AutoPromoteRule {

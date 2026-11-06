@@ -135,7 +135,7 @@ async function reportIndexStatus(
   const mapMtime = mapFile ? statSync(mapFile).mtime.toISOString() : null;
 
   // Code-search embeddings index lives under .ai/.cache/embeddings/ (built by `index code-search`).
-  const searchIndexFile = path.join(paths.haiveDir, ".cache", "embeddings", "code-embeddings-index.json");
+  const searchIndexFile = path.join(paths.cacheDir, "embeddings", "code-embeddings-index.json");
   const searchIndexPresent = existsSync(searchIndexFile);
 
   // Freshness verdicts (cheap — no re-walk, no embedding):

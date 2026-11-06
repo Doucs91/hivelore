@@ -37,6 +37,11 @@ import {
   sensorAppliesToPath,
   scannableSensorTargets,
   serializeMemory,
+  loadUsageIndex,
+  saveUsageIndex,
+  recordRejection,
+  recordReportedOutcome,
+  suggestSensorExclude,
   withoutQuarantineNote,
   type SensorTarget,
   type CommandSensorSpec,
@@ -556,7 +561,7 @@ export function registerSensors(program: Command): void {
       "      --command 'npx archunit-cli check --rule no-http-in-transactional'",
     )
     .argument("<memory-id>", "memory id to attach the sensor to")
-    .option("--kind <kind>", "regex (default) | ast (structural — comments/strings can't false-positive) | shell | test (route the team's own oracle) | checklist (a required verification when --paths change)", "regex")
+    .option("--kind <kind>", "regex (default) | ast (structural — comments/strings can't false-positive) | shell | test (route the team's own oracle) | checklist (a required verification when --paths change) | command (deny a forbidden agent command before it runs)", "regex")
     .option("--pattern <regex>", "kind=regex: regex matching the FAULTY usage")
     .option("--from-fix <ref>", "kind=regex: MINE the pattern from the fix diff (<ref>..HEAD, scoped to the lesson anchors) — the removed line is the mistake, the added line the correct marker. Turns authoring into confirming.")
     .option("--rule <json>", "kind=ast: full ast-grep Rule JSON (kind/inside/has/not/all/any)")
@@ -578,6 +583,32 @@ export function registerSensors(program: Command): void {
     .action(async (id: string, opts: SensorsProposeOptions) => {
       // ── Command + AST sensors: delegate to the shared MCP handler (commands: the oracle must
       // PASS on the current tree; ast: structural validation via the optional engine). ──
+      if (opts.kind === "command") {
+        if (!opts.pattern?.trim() || !opts.message?.trim() || !opts.badExample?.trim()) {
+          rejectProposal(opts, "missing-command-guard", "--kind command requires --pattern (regex over the shell command), --message and --bad-example (a command it must deny).");
+          return;
+        }
+        const root = findProjectRoot(opts.dir);
+        const { proposeSensor } = await import("@hivelore/mcp");
+        const out = await proposeSensor(
+          {
+            memory_id: id,
+            kind: "command",
+            pattern: opts.pattern.trim(),
+            message: opts.message.trim(),
+            bad_example: opts.badExample.trim(),
+            severity: (opts.severity === "warn" ? "warn" : "block"),
+            paths: [],
+            ...(opts.incident ? { incident: opts.incident } : {}),
+          } as unknown as Parameters<typeof proposeSensor>[0],
+          { paths: resolveHaivePaths(root) },
+        );
+        if (opts.json) console.log(JSON.stringify(out, null, 2));
+        else if (out.accepted) ui.success(out.guidance ?? "Command guard armed.");
+        else ui.error(out.guidance ?? out.reason ?? "Command guard rejected.");
+        if (!out.accepted) process.exitCode = 1;
+        return;
+      }
       if (opts.kind === "checklist") {
         if (!opts.message?.trim()) {
           rejectProposal(opts, "missing-message", "--kind checklist requires --message: the verification to perform.");
@@ -911,6 +942,50 @@ export function registerSensors(program: Command): void {
       ui.info(`  2. Run ${scaffolds.length > 1 ? "them" : "it"}: ${scaffolds.map((s) => s.runCommand).join("  &&  ")}`);
       ui.info("  3. Arm it as a deterministic gate:");
       console.log(`     ${proposeCmd}`);
+    });
+
+  sensors
+    .command("false-positive <memory-id>")
+    .description(
+      "Report a sensor that fired where it should not. Records the rejection (it counts against the gate's\n" +
+      "  precision in `hivelore eval` / `report harness`) and proposes the narrowest exclude that silences it\n" +
+      "  there; --apply writes it. One wrong line only? Prefer `// hivelore:allow <id> — <reason>` on that line.",
+    )
+    .requiredOption("--path <file>", "the file where it fired wrongly")
+    .option("--reason <text>", "why this match is wrong")
+    .option("--apply", "add the suggested exclude to the sensor", false)
+    .option("--json", "machine-readable output", false)
+    .option("-d, --dir <dir>", "project root")
+    .action(async (id: string, opts: { path: string; reason?: string; apply?: boolean; json?: boolean; dir?: string }) => {
+      const root = findProjectRoot(opts.dir);
+      const paths = resolveHaivePaths(root);
+      const found = (await loadMemoriesFromDir(paths.memoriesDir)).find((l) => l.memory.frontmatter.id === id);
+      const sensor = found?.memory.frontmatter.sensor;
+      if (!found || !sensor) {
+        ui.error(`No sensor on memory ${id}.`);
+        process.exitCode = 1;
+        return;
+      }
+      const file = path.relative(root, path.resolve(root, opts.path)).replace(/\\/g, "/");
+      const index = await loadUsageIndex(paths);
+      await saveUsageIndex(paths, recordRejection(index, id, opts.reason?.trim() || `false positive on ${file}`));
+      await recordReportedOutcome(paths, { id, kind: "rejected", source: "cli", files: [file] }).catch(() => {});
+      const exclude = suggestSensorExclude(file);
+      const already = sensor.exclude?.includes(exclude) ?? false;
+      if (opts.apply && !already) {
+        const next = { ...sensor, exclude: [...(sensor.exclude ?? []), exclude] };
+        await writeFile(found.filePath, serializeMemory({ frontmatter: { ...found.memory.frontmatter, sensor: next }, body: found.memory.body }), "utf8");
+      }
+      const result = { memory_id: id, file, recorded: true, exclude, applied: Boolean(opts.apply && !already), already_excluded: already };
+      if (opts.json) { console.log(JSON.stringify(result, null, 2)); return; }
+      ui.success(`Recorded a false positive of ${id} on ${file} (counts against gate precision).`);
+      if (already) ui.info(`\`${exclude}\` is already excluded.`);
+      else if (opts.apply) {
+        ui.success(`Excluded \`${exclude}\` from ${id}.`);
+        ui.info(`Narrowing a rule is reviewed: commit with \`Hivelore-Sensor-Change: ${id}\` in the message.`);
+      } else {
+        ui.info(`Suggested scope fix: exclude \`${exclude}\` → hivelore sensors false-positive ${id} --path ${file} --apply`);
+      }
     });
 
   sensors

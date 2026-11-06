@@ -1,0 +1,19 @@
+#!/bin/sh
+# Hivelore hook entry point for the Claude Code plugin.
+#
+# Uses the installed `hivelore` when there is one. Without it, only the rare hooks (session start,
+# a developer message) fall back to the pinned npm package through npx; hooks that fire on every
+# edit never pay an npx start-up. A missing Hivelore never fails or delays the agent's action.
+export HIVELORE_HOOK_SOURCE=plugin
+if command -v hivelore >/dev/null 2>&1; then
+  exec hivelore "$@"
+fi
+case "$*" in
+  "enforce user-prompt"|"enforce session-start")
+    if command -v npx >/dev/null 2>&1; then
+      exec npx --yes @hivelore/cli@0.68.2 "$@" 2>/dev/null
+    fi
+    ;;
+esac
+cat >/dev/null 2>&1
+exit 0

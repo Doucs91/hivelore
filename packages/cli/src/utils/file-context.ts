@@ -4,7 +4,7 @@ import {
   estimateTokens, recordKnowledgeOutcome, memoryRuleLine, isGlobPath, globToRegExp, sensorAppliesToPath,
   loadMemoriesFromDir, memoryMatchesAnchorPaths, isRetiredMemory, verifyAnchor,
   readSessionBriefingMarker, writeBriefingMarker, trackReads, supersededMemoryIds,
-  normalizeSessionId, type HaivePaths,
+  normalizeSessionId, findDocCaveats, loadDocFiles, loadConfig, renderDocCaveat, type HaivePaths,
 } from "@hivelore/core";
 import { sessionIdentity } from "./task-session.js";
 
@@ -75,7 +75,23 @@ function typeRank(type: string): number {
  * carrying the rule itself — never a bare pointer (field reports #9 §3, #12 §3.1, §4.2). Only fully
  * delivered bodies count as consulted.
  */
-export async function injectFileContext(paths: HaivePaths, files: string[], sessionId?: string): Promise<string | null> {
+export interface FileContextOptions {
+  /**
+   * Distinctive tokens from the edit itself (config keys, directives — see `distinctiveEditTokens`).
+   * A doc warning that names one of them is surfaced even when it never names the file.
+   */
+  editKeys?: string[];
+}
+
+/** Hooks run on every edit: read less documentation than a briefing does. */
+const HOOK_DOC_LIMITS = { maxFiles: 200, maxBytesPerFile: 192 * 1024, maxTotalBytes: 2 * 1024 * 1024 };
+
+export async function injectFileContext(
+  paths: HaivePaths,
+  files: string[],
+  sessionId?: string,
+  options: FileContextOptions = {},
+): Promise<string | null> {
   const relative = files.map(file => path.relative(paths.root, path.resolve(paths.root, file)).replace(/\\/g, "/"))
     .filter(file => file && file !== ".." && !file.startsWith("../") && !file.startsWith(".ai/"));
   if (!relative.length) return null;
@@ -109,7 +125,20 @@ export async function injectFileContext(paths: HaivePaths, files: string[], sess
     displayed.push(candidate);
     if (displayed.length === 3) break;
   }
-  if (!displayed.length) return null;
+  // The repo's own docs, when they WARN about this file or a key the edit touches (field report #9 §1:
+  // "X would break Y" was written a week before X shipped, and nothing resurfaced it).
+  const docEntries: Array<{ key: string; text: string }> = [];
+  const config = await loadConfig(paths).catch(() => null);
+  if (config?.docCaveats !== false) {
+    try {
+      const found = findDocCaveats(loadDocFiles(paths.root, HOOK_DOC_LIMITS), { files: relative, keys: options.editKeys ?? [] }, { limit: 2, mentionLimit: 0, maxChars: 240 });
+      for (const caveat of found.caveats) {
+        const key = `doc:${caveat.doc}:${caveat.line}`;
+        if (!shown.has(key)) docEntries.push({ key, text: `• ${renderDocCaveat(caveat)}\n  (doc warning about ${caveat.target} · the doc is the source of truth)` });
+      }
+    } catch { /* docs are a bonus — never fail an edit hook on them */ }
+  }
+  if (!displayed.length && !docEntries.length) return null;
   const chunks = [`Hivelore — before editing ${relative.slice(0, 2).join(", ")}${relative.length > 2 ? ", …" : ""}:`];
   const ids: string[] = [];
   const newlyShown: string[] = [];
@@ -134,6 +163,11 @@ export async function injectFileContext(paths: HaivePaths, files: string[], sess
     // A rule line is not consultation of the whole instruction; a complete body is.
     if (complete) ids.push(fm.id);
   }
+  for (const doc of docEntries) {
+    if (estimateTokens([...chunks, doc.text].join("\n")) > 380) continue;
+    chunks.push(doc.text);
+    newlyShown.push(doc.key);
+  }
   if (chunks.length === 1) return null;
   const text = chunks.join("\n");
   const stamp = new Date().toISOString();
@@ -141,6 +175,6 @@ export async function injectFileContext(paths: HaivePaths, files: string[], sess
   await writeBriefingMarker(paths, { sessionId: id, task: marker?.task ?? "file context",
     source: "haive-pre-edit", files: relative, memoryIds: [...consulted, ...ids] });
   await trackReads(paths, ids);
-  for (const memoryId of newlyShown) await recordKnowledgeOutcome(paths, { id: memoryId, kind: "exposed", session_id: id, files: relative, source: "hook", evidence: "observed" }).catch(() => {});
+  for (const memoryId of newlyShown.filter((key) => !key.startsWith("doc:"))) await recordKnowledgeOutcome(paths, { id: memoryId, kind: "exposed", session_id: id, files: relative, source: "hook", evidence: "observed" }).catch(() => {});
   return text;
 }

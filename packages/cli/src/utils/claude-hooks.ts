@@ -6,7 +6,8 @@
  *
  * We add Hivelore-marked entries so we can find and replace them on re-runs:
  *   - SessionStart → `hivelore enforce session-start`
- *   - PreToolUse   → `hivelore enforce pre-tool-use` (matcher: Edit|Write|Bash)
+ *   - UserPromptSubmit → `hivelore enforce user-prompt` (developer corrections → rule offers)
+ *   - PreToolUse   → `hivelore enforce pre-tool-use` (matcher: Edit|Write|Bash; command guards deny)
  *   - PostToolUse  → `hivelore observe` (passive capture)
  *   - SessionEnd   → `hivelore session end --quiet --auto`
  *
@@ -67,6 +68,16 @@ const SESSION_START_GROUP: ClaudeHookGroup = {
   ],
 };
 
+const USER_PROMPT_GROUP: ClaudeHookGroup = {
+  hooks: [
+    {
+      type: "command",
+      command: "hivelore enforce user-prompt",
+      haive_tag: HAIVE_HOOK_TAG,
+    },
+  ],
+};
+
 const SESSION_END_GROUP: ClaudeHookGroup = {
   hooks: [
     {
@@ -89,6 +100,10 @@ export function patchClaudeSettings(input: ClaudeSettings | null): ClaudeSetting
   hooks.SessionStart = [
     ...dropHaiveGroups(hooks.SessionStart ?? []),
     SESSION_START_GROUP,
+  ];
+  hooks.UserPromptSubmit = [
+    ...dropHaiveGroups(hooks.UserPromptSubmit ?? []),
+    USER_PROMPT_GROUP,
   ];
   hooks.PreToolUse = [
     ...dropHaiveGroups(hooks.PreToolUse ?? []),

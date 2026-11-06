@@ -12,26 +12,16 @@ sensor:
   pattern: haive memory update <id> --tags \.\.\.
   paths:
     - packages/mcp/src/tools/anti-patterns-check.ts
-  message: >-
-    Editing a memory's own backing file trips that memory's anti-pattern gate
-    (false positive)
+  message: Editing a memory's own backing file trips that memory's anti-pattern gate (false positive)
   severity: warn
   autogen: true
-  last_fired: null
 tags:
   - enforcement
   - anti-pattern
   - false-positive
   - precommit
 created_at: '2026-06-03T02:25:48.541Z'
-expires_when: null
 verified_at: '2026-07-02T22:21:21.986Z'
-stale_reason: null
-related_ids: []
-last_read_at: null
-revision_count: 0
-requires_human_approval: false
-validated_by: null
 ---
 ## Editing a memory's own backing file trips that memory's anti-pattern gate (false positive)
 

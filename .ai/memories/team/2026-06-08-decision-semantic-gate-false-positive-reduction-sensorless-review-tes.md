@@ -1,6 +1,5 @@
 ---
-id: >-
-  2026-06-08-decision-semantic-gate-false-positive-reduction-sensorless-review-tes
+id: 2026-06-08-decision-semantic-gate-false-positive-reduction-sensorless-review-tes
 scope: team
 type: decision
 status: validated
@@ -11,13 +10,7 @@ anchor:
   symbols: []
 tags: []
 created_at: '2026-06-08T21:32:20.996Z'
-expires_when: null
 verified_at: '2026-07-02T22:21:21.997Z'
-stale_reason: null
-related_ids: []
-last_read_at: null
-revision_count: 0
-requires_human_approval: false
 validated_by: auto
 ---
 # Decision Semantic Gate False Positive Reduction Sensorless Review Tes

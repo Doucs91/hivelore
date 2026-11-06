@@ -17,7 +17,7 @@ export type SensorEvaluationOutcome = "fired" | "silent" | "unrunnable";
 export interface SensorEvaluation {
   at: string;
   memory_id: string;
-  kind: "regex" | "ast" | "shell" | "test" | "checklist";
+  kind: "regex" | "ast" | "shell" | "test" | "checklist" | "command";
   stage: SensorEvaluationStage;
   head_sha: string;
   scope_hash: string;

@@ -16,25 +16,15 @@ sensor:
   paths:
     - benchmarks/agent-benchmark/RESULTS.md
     - packages/cli/src/commands/benchmark.ts
-  message: >-
-    Do not claim a proven benchmark advantage until evidence_grade is
-    decision-ready.
+  message: Do not claim a proven benchmark advantage until evidence_grade is decision-ready.
   severity: block
-  autogen: false
-  last_fired: null
 tags:
   - benchmark
   - evidence
   - claims
 created_at: '2026-07-05T16:09:14.160Z'
-expires_when: null
 verified_at: '2026-07-05T16:49:08.836Z'
-stale_reason: null
-related_ids: []
-last_read_at: null
 topic: 'benchmark:unsupported-claims'
-revision_count: 0
-requires_human_approval: false
 validated_by: auto
 ---
 ## Gotcha
