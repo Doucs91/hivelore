@@ -227,6 +227,10 @@ function splitParagraphs(content: string, terms: Array<{ term: Term; re: RegExp 
   return out;
 }
 
+function backtickedSpans(text: string): string[] {
+  return [...text.matchAll(/`([^`]+)`/g)].map((m) => m[1]!);
+}
+
 function clipAround(text: string, needle: string | undefined, maxChars: number): string {
   const clean = text
     .replace(/^\s*(?:>\s*)+/, "")
@@ -266,6 +270,9 @@ export function findDocCaveats(docs: DocFile[], targets: DocTargets, opts: DocCa
       for (const entry of terms) {
         if (entry.term.caveatOnly && !caveat) continue;
         if (!entry.re.test(para.text)) continue;
+        // A config key counts only where the doc cites it as code: "`worker-src`" names the directive,
+        // "a read-only mount" is just English that happens to share the token.
+        if (entry.term.via === "key" && !backtickedSpans(para.text).some((span) => entry.re.test(span))) continue;
         if (!best || entry.term.weight > best.term.weight) best = entry;
       }
       if (best) {

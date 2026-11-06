@@ -119,6 +119,15 @@ export interface HaiveConfig {
   cacheDir?: string;
 
   /**
+   * The Hivelore CLI version this repository's gates are written for. Hooks and git hooks call
+   * whichever `hivelore` the machine has; an OLDER one silently lacks newer sensor kinds (a command
+   * guard it cannot read is a rule nobody enforces). When the running CLI is older, it hands off to a
+   * project-local `@hivelore/cli` of this version when one is installed, and otherwise warns once a
+   * day with the exact install command. Written by `hivelore init` / `enforce install`.
+   */
+  cliVersion?: string;
+
+  /**
    * On automatic session end, write/overwrite an ephemeral `NEXT.md` handoff at the repo root
    * (open threads + next steps). Default: false. Meant to be gitignored — one overwritten file,
    * not an accumulating corpus memory. Surfaced as `last_session` when no recap memory exists.

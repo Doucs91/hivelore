@@ -46,7 +46,15 @@ export interface RepeatedFailure {
   files?: string[];
 }
 
-export type CaptureProposalKind = "incident-link" | "sensor-scope-gap" | "fix-lesson" | "repeated-failure";
+export type CaptureProposalKind = "user-correction" | "incident-link" | "sensor-scope-gap" | "fix-lesson" | "repeated-failure";
+
+export interface RecordedCorrection {
+  /** The developer's rule sentence. */
+  rule: string;
+  /** ISO time it was said. */
+  at: string;
+  strength: "repeat" | "correction" | "rule";
+}
 
 export interface CaptureProposal {
   kind: CaptureProposalKind;
@@ -71,6 +79,8 @@ export interface CaptureProposalInput {
   diff: BranchFileDiff[];
   memories: Memory[];
   failures?: RepeatedFailure[];
+  /** Rules the developer stated while correcting the agent (UserPromptSubmit hook). */
+  corrections?: RecordedCorrection[];
   /** Max proposals returned (default 5). */
   limit?: number;
 }
@@ -124,6 +134,19 @@ function covered(memories: Memory[], files: string[], text: string): boolean {
     let shared = 0;
     for (const w of words) if (mine.has(w)) shared++;
     return shared >= 3;
+  });
+}
+
+/** A rule already recorded in so many words (no file anchor needed). */
+function coveredByRule(memories: Memory[], rule: string): boolean {
+  const words = tokens(rule);
+  if (words.size < 3) return false;
+  return memories.some((m) => {
+    if (!["convention", "decision", "gotcha", "attempt"].includes(m.frontmatter.type)) return false;
+    const mine = tokens(`${m.frontmatter.rule ?? ""} ${m.body}`);
+    let shared = 0;
+    for (const w of words) if (mine.has(w)) shared++;
+    return shared >= Math.min(4, words.size);
   });
 }
 
@@ -286,7 +309,30 @@ export function proposeCaptures(input: CaptureProposalInput): CaptureProposal[] 
     });
   }
 
-  const order: Record<CaptureProposalKind, number> = { "incident-link": 0, "sensor-scope-gap": 1, "fix-lesson": 2, "repeated-failure": 3 };
+  // ── 0. Developer corrections: the team rule, stated by the person entitled to state it ──
+  const seenRules = new Set<string>();
+  for (const correction of input.corrections ?? []) {
+    const key = correction.rule.toLowerCase().replace(/\s+/g, " ");
+    if (seenRules.has(key)) continue;
+    seenRules.add(key);
+    if (coveredByRule(live, correction.rule)) continue;
+    const title = correction.rule.replace(/[.!]+$/, "").slice(0, 80);
+    out.push({
+      kind: "user-correction",
+      title: `Developer rule: "${title}"`,
+      evidence: `Said on ${correction.at.slice(0, 10)}${correction.strength === "repeat" ? " — and they said they had already told the agent" : ""}.`,
+      type: "convention",
+      rule: correction.rule,
+      paths: [],
+      commands: [
+        `hivelore memory add --type convention --scope team --title ${shellQuote(title)} --rule ${shellQuote(correction.rule)} ` +
+        `--verified-by ${shellQuote(`developer correction ${correction.at.slice(0, 10)}`)}`,
+        "hivelore rules arm   # when the rule names a command or code, arm it",
+      ],
+    });
+  }
+
+  const order: Record<CaptureProposalKind, number> = { "user-correction": 0, "incident-link": 1, "sensor-scope-gap": 2, "fix-lesson": 3, "repeated-failure": 4 };
   return out.sort((a, b) => order[a.kind] - order[b.kind]).slice(0, limit);
 }
 

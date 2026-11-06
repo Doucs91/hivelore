@@ -229,6 +229,17 @@ npm install -g @hivelore/cli
 npm install -g @hivelore/embeddings
 ```
 
+**Claude Code plugin** — hooks + agent skill in one step, in every repository you open:
+
+```
+/plugin marketplace add Doucs91/hivelore
+/plugin install hivelore@hivelore
+```
+
+In a repository without `.ai/` the plugin stays silent, except to offer — once — to turn a correction
+you just gave the agent into an enforced rule. Where `hivelore init` already installed the hooks, the
+plugin's copy steps aside.
+
 ---
 
 <a id="the-60-second-proof"></a>
@@ -461,8 +472,34 @@ npx @hivelore/cli rules audit
 #   CLAUDE.md:55  NEVER run `npm publish` from an agent.   signals: code token, command
 ```
 
-Each checkable rule is one `sensors propose` away from being refused by the gate instead of hoped for.
-`--fail-under <pct>` turns it into a CI check.
+`--fail-under <pct>` turns it into a CI check. And `rules arm` turns the checkable prohibitions into
+checks, validated against the repository before anything is written:
+
+```bash
+hivelore rules arm            # plan: what each rule becomes, and what it would match today
+hivelore rules arm --apply    # write them (team memories, staged)
+#   [command/block] NEVER run `npm publish` from an agent.   → the agent's Bash call is denied before it runs
+#   [command/block] Do not use `git push --tags`              → denied; a commit message that mentions it passes
+#   [checklist]     Never edit `db/migrations/V1__init.sql`   → a change needs an acknowledgement at commit time
+#   [regex/warn]    Never call `LocalDate.now()` without a zone → flagged when a diff adds it
+```
+
+Only prohibitions are armed, and only what the prohibition clause names: "`git push` the tag. Do not use
+`git push --tags`" blocks the second command, never the first.
+
+## The agent asks, the repository answers
+
+- **"Why is this code like this?"** — `hivelore why src/slots.ts:42` (also an MCP tool): the rules
+  anchored to the file, the sensors and checklists that guard it (and whether this line is what a
+  sensor looks for), warnings from the repo's own docs, the commit that last changed the line, and the
+  past fixes in the file.
+- **"Why is CI red?"** — `hivelore ci why`: the failing steps and tests from the failed log, jobs that
+  never ran (billing, runners, timeouts) named as such, and the memories that saw the same failure before.
+- **"The developer just corrected me."** — a lasting rule stated while correcting the agent ("we never
+  mock the database in integration tests") reaches the agent as an offer to record it, and
+  `memory propose` lists it at the end of the task. Nothing is recorded without a yes.
+- **"This sensor is wrong here."** — `hivelore sensors false-positive <id> --path <file>` records it
+  (it counts against the gate's precision) and proposes the narrowest exclude.
 
 ## Is it preventing mistakes, or performing ceremony?
 
@@ -663,6 +700,7 @@ Default profile — the tools agents actually use:
 | `mem_tried` | Record a failed approach so future agents do not repeat it (optionally arming a sensor in the same call) |
 | `propose_sensor` | ⭐ Turn a captured lesson into a **validated** guardrail: a regex/AST pattern, a command oracle, or a **checklist** — a required verification whenever a change touches given paths |
 | `pre_commit_check` | Diff against known gotchas, decisions, and stale anchors |
+| `why` | ⭐ Why is this code like this? `file` or `file:line` → anchored rules, sensors and checklists guarding it (and whether the line matches one), doc warnings, the commit that last changed the line, past fixes |
 | `report_friction` | Record friction with Hivelore itself, locally. Never sends anything — a human reviews with `hivelore report` and decides what becomes an issue |
 
 Maintenance profile (`HIVELORE_TOOL_PROFILE=maintenance`) adds, among others:
@@ -680,7 +718,7 @@ Maintenance profile (`HIVELORE_TOOL_PROFILE=maintenance`) adds, among others:
 
 MCP profiles keep the product focused:
 
-- `HIVELORE_TOOL_PROFILE=enforcement` (default): the eight tools above. Fewer tools, fewer wrong choices.
+- `HIVELORE_TOOL_PROFILE=enforcement` (default): the nine tools above. Fewer tools, fewer wrong choices.
 - `HIVELORE_TOOL_PROFILE=maintenance`: corpus review, lifecycle, distillation, search, code-map/code-search, and project-context maintenance.
 - `HAIVE_TOOL_PROFILE=experimental` / `full`: legacy aliases for `maintenance` (the experimental
   diagnostics were removed in v0.32.0 — months of usage showed a single call across all of them).

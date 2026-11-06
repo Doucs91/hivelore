@@ -237,17 +237,17 @@ const HAIVE_PREAMBLE =
   "\n" +
   "## Working through Hivelore\n" +
   "\n" +
-  "1. **Before editing code** for a goal, call `get_briefing` with the task and the `files` you will edit.\n" +
-  "   Each memory comes with a one-line `rule`; `must_read` means it is anchored to one of those files.\n" +
-  "   Read the full body with `mem_get` only when the rule is not enough. Docs-only or typo changes can skip it.\n" +
-  "2. **When something you tried fails for a reason worth remembering**, call `mem_tried` once (what, why, instead).\n" +
-  "   Ordinary command misses (a grep with no match, a typo) need no memory. A decision you verified states how\n" +
-  "   (`verified_by`) and what that check could not see (`cannot_detect`). No session recaps: commits and the PR\n" +
-  "   say what was done; `finish` points to `hivelore memory propose` when the branch suggests a lesson.\n" +
-  "3. **Before reporting done**, run `hivelore enforce finish`. It judges only the files this task changed —\n" +
-  "   never commit, ignore or delete files that were already modified before the task started.\n" +
+  "Hooks deliver the rules for each file you edit, and the commit gate checks the diff — there is no ritual.\n" +
+  "Reach for Hivelore when it helps you:\n" +
   "\n" +
-  "Hooks handle session start and edit-time reminders automatically; there is no session id to pass.\n" +
+  "1. **Unfamiliar code**: `why <file>:<line>` (MCP or `hivelore why`) — the rules, sensors, doc warnings and past\n" +
+  "   fixes for that line. Starting a substantive task in an area you do not know: `get_briefing` with task + files.\n" +
+  "2. **A lesson worth keeping**: an approach that failed for a real reason → `mem_tried` (what, why, instead).\n" +
+  "   The developer states a lasting rule → offer once to record it (`mem_save`, one-line `rule`) and to arm it\n" +
+  "   (`propose_sensor`). A verified decision says how (`verified_by`) and what that could not see (`cannot_detect`).\n" +
+  "   No session recaps: commits and the PR say what was done.\n" +
+  "3. **CI is red**: `hivelore ci why`. **Before reporting done**: `hivelore enforce finish` — it judges only the\n" +
+  "   files this task changed; never commit, ignore or delete files that were modified before the task started.\n" +
   "\n" +
   "If MCP is unavailable, use `hivelore briefing --files <paths> --task <task>`, or read `.ai/project-context.md` and search `.ai/memories/`. Report the unavailable integration.\n" +
   "\n" +

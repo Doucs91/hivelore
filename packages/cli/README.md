@@ -234,6 +234,39 @@ npx @hivelore/cli rules audit
 hivelore rules audit --json
 ```
 
+### `hivelore rules arm`
+
+Turn the checkable prohibitions in CLAUDE.md / AGENTS.md / `.cursor/rules` into checks. Each plan is
+validated against the repository before anything is written:
+
+- a forbidden command (`npm publish`, `git push --tags`) → a **command guard**: Claude Code's PreToolUse
+  hook denies the agent's Bash call before it runs; a commit message that merely mentions it passes;
+- a protected path (`db/migrations/V1__init.sql`) → a **checklist**: a change needs an acknowledgement;
+- a forbidden code token (`LocalDate.now()`) → a **regex sensor** on added lines.
+
+Only what the prohibition clause names is armed; "always use X" rules are left as guidance.
+
+```bash
+hivelore rules arm                       # plan + validation
+hivelore rules arm --apply --only 1,2    # write and stage them
+```
+
+### `hivelore why <file[:line]>`
+
+Everything the repository knows about a piece of code: anchored rules (exact before area), sensors and
+checklists that guard it (and whether the line matches a sensor), doc warnings, the commit that last
+changed the line, and past fixes in the file. Also exposed as the MCP tool `why`.
+
+### `hivelore ci why`
+
+The failed run for HEAD (or the branch): failing steps, error lines and tests, jobs that never ran
+(billing, missing runner, timeout) named as such, and memories that saw the failure before. Needs `gh`.
+
+### `hivelore sensors false-positive <id> --path <file>`
+
+Records a wrong match (counted against gate precision) and proposes the narrowest `exclude`;
+`--apply` writes it — commit with `Hivelore-Sensor-Change: <id>`, since narrowing a rule is reviewed.
+
 ### `hivelore memory propose`
 
 Capture candidates derived from the branch — not from what the agent remembers to write down. Reads
@@ -245,7 +278,8 @@ each with the command that records it:
 - a regex sensor whose scope missed the bug class the branch just fixed elsewhere → widen it
   (`memory update <id> --sensor-paths …`);
 - a `fix:` commit that explains its cause → a gotcha with that sentence as its rule;
-- a retry loop on a build/test command → an attempt.
+- a retry loop on a build/test command → an attempt;
+- a lasting rule the developer stated while correcting the agent (UserPromptSubmit hook) → a convention.
 
 ```bash
 hivelore memory propose                 # list

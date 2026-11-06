@@ -1181,3 +1181,17 @@ export function findSensorBlindSpots(
     (a.severity === b.severity ? 0 : a.severity === "block" ? -1 : 1) || b.match_count - a.match_count,
   );
 }
+
+/**
+ * The narrowest `exclude` that silences a sensor where it fired wrongly. Test doubles and fixtures
+ * are the usual false-positive habitat, so a test file widens to its kind (all test files, or the
+ * fixtures directory); anything else is excluded file by file — a rule should not lose a whole
+ * directory because of one legitimate exception.
+ */
+export function suggestSensorExclude(file: string): string {
+  const f = file.replace(/\\/g, "/").replace(/^\.\//, "");
+  if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(f)) return "**/*.{test,spec}.*";
+  const dir = /(?:^|\/)(__tests__|__mocks__|__fixtures__|fixtures|test|tests|spec)\//.exec(f)?.[1];
+  if (dir) return `**/${dir}/**`;
+  return f;
+}

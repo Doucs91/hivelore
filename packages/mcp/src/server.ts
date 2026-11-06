@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -180,7 +181,7 @@ import {
   type ImportDocsArgs,
 } from "./prompts/import-docs.js";
 import { SessionTracker } from "./session-tracker.js";
-import { ensurePersonalMemoriesIgnored, hasRecentBriefingMarker, loadConfigSync, migrateLegacyCache, sessionIdFromEnv } from "@hivelore/core";
+import { collectWhyReport, ensurePersonalMemoriesIgnored, hasRecentBriefingMarker, loadConfigSync, migrateLegacyCache, sessionIdFromEnv } from "@hivelore/core";
 
 // Re-export tool implementations so `@hivelore/cli` (and integrators) can call
 // them programmatically without going through the MCP stdio transport.
@@ -319,6 +320,8 @@ export const ENFORCEMENT_PROFILE_TOOLS = [
   // Must live in the DEFAULT profile or it is never used: an agent only reports friction in the
   // session where it hit the friction, and it will not switch profiles to do so.
   "report_friction",
+  // The question an agent asks on its own before changing unfamiliar code — read-only, one call.
+  "why",
 ] as const;
 
 /** Tools moved out of the default surface in 0.66 — still registered under `maintenance`. */
@@ -394,6 +397,21 @@ const MUTATING_TOOLS = new Set([
   "propose_sensor",
 ]);
 
+/**
+ * Shown to the model once per session by MCP clients that support server instructions. It answers
+ * "when does this server help ME?" in situations, not in features — the reason an agent reaches for a
+ * tool without being told to.
+ */
+export const SERVER_INSTRUCTIONS = [
+  "Hivelore holds this repository's rules and lessons (.ai/) and enforces them at commit time.",
+  "Reach for it when: you are about to change code you do not know (why: file or file:line);",
+  "you start a substantive task in an unfamiliar area (get_briefing with task + files — edits are",
+  "otherwise covered by hooks); the developer corrects you with a lasting rule (mem_save with a",
+  "one-line rule, then propose_sensor if it names code or a command); an approach fails for a reason",
+  "worth remembering (mem_tried). Routine work needs none of it. If get_briefing returns",
+  "action_required, show each developer_message and wait for confirmation.",
+].join(" ");
+
 export function createHaiveServer(
   options: CreateContextOptions = {},
 ): { server: McpServer; context: HaiveContext; tracker: SessionTracker } {
@@ -420,7 +438,7 @@ export function createHaiveServer(
 
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
-    { capabilities: { tools: {}, prompts: {} } },
+    { capabilities: { tools: {}, prompts: {} }, instructions: SERVER_INSTRUCTIONS },
   );
 
   const allowedTools = getAllowedToolsForProfile(toolProfile);
@@ -627,6 +645,24 @@ export function createHaiveServer(
     ScaffoldTestInputSchema,
     async (input: ScaffoldTestInput) => {
       return jsonResult(await scaffoldTest(input, context));
+    },
+  );
+
+  registerTool(
+    "why",
+    [
+      "Why is this code like this? Everything the repository knows about a file or line, in one call:",
+      "the rules (gotchas, decisions, conventions) anchored to it, the sensors and checklists that guard it",
+      "(and whether THIS line is what a sensor looks for), warnings from the repo's own docs, the commit",
+      "that last changed the line, and past fixes in the file. Read-only.",
+      "",
+      "USE BEFORE changing code you do not know, or when a line looks odd and you are tempted to 'clean it up'.",
+      "",
+      "PARAMETERS: target — 'path/to/file.ts' or 'path/to/file.ts:42'",
+    ].join("\n"),
+    { target: z.string().min(1).describe("File, or file:line, relative to the project root") },
+    async (input: { target: string }) => {
+      return jsonResult(await collectWhyReport(context.paths.root, input.target));
     },
   );
 

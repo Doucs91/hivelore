@@ -45,5 +45,6 @@
     "releaseBranch": "main",
     "runCommandSensors": true,
     "evalRegressionGate": "block"
-  }
+  },
+  "cliVersion": "0.68.0"
 }

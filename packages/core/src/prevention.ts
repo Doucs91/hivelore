@@ -32,8 +32,8 @@ export interface PreventionEvent {
   /** Which gate path recorded it. */
   source: PreventionSource;
   /** Optional detail for receipts; absent on logs written before v0.35.0. */
-  kind?: "regex" | "ast" | "shell" | "test" | "checklist";
-  stage?: "pre-commit" | "pre-push" | "ci" | "manual";
+  kind?: "regex" | "ast" | "shell" | "test" | "checklist" | "command";
+  stage?: "pre-commit" | "pre-push" | "ci" | "manual" | "pre-tool-use";
   exit_code?: number;
 }
 
@@ -96,8 +96,8 @@ export interface PreventionReceiptRow {
   id: string;
   title: string;
   source: PreventionSource;
-  kind: "regex" | "ast" | "shell" | "test" | "checklist" | null;
-  stage: "pre-commit" | "pre-push" | "ci" | "manual" | null;
+  kind: "regex" | "ast" | "shell" | "test" | "checklist" | "command" | null;
+  stage: "pre-commit" | "pre-push" | "ci" | "manual" | "pre-tool-use" | null;
   exit_code: number | null;
   message: string | null;
   /** Incident provenance from the sensor frontmatter — the behaviour-harness link, when present. */

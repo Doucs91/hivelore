@@ -31,6 +31,7 @@ import {
   type RepeatedFailure,
 } from "@hivelore/core";
 import { loadMemoriesFromDir } from "../utils/fs.js";
+import { readRecordedCorrections } from "../utils/user-prompt.js";
 import { ui } from "../utils/ui.js";
 
 const exec = promisify(execFile);
@@ -119,13 +120,35 @@ export async function collectCaptureProposals(root: string, base?: string): Prom
     } catch { /* not a git repo / shallow clone: failures-only proposals */ }
   }
   const failures = await repeatedFailures(paths.cacheDir);
-  return { base: resolvedBase, proposals: proposeCaptures({ commits, diff, memories, failures }) };
+  const corrections = await readRecordedCorrections(paths.cacheDir);
+  return { base: resolvedBase, proposals: proposeCaptures({ commits, diff, memories, failures, corrections }) };
 }
 
 async function acceptProposal(root: string, proposal: CaptureProposal, stage: boolean): Promise<string | null> {
   const paths = resolveHaivePaths(root);
   const config = await loadConfig(paths);
   const loaded = existsSync(paths.memoriesDir) ? await loadMemoriesFromDir(paths.memoriesDir) : [];
+
+  if (proposal.kind === "user-correction" && proposal.rule) {
+    const title = proposal.rule.replace(/[.!]+$/, "").slice(0, 80);
+    const slug = title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50) || "developer-rule";
+    const frontmatter = buildFrontmatter({
+      type: "convention",
+      slug,
+      scope: "team",
+      tags: ["from-correction"],
+      status: config.defaultStatus === "validated" ? "validated" : "proposed",
+      rule: proposal.rule,
+      verifiedBy: `developer correction ${proposal.evidence.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? ""}`.trim(),
+    });
+    if (frontmatter.status === "validated") frontmatter.validated_by = "auto";
+    const file = memoryFilePath(paths, "team", frontmatter.id);
+    if (existsSync(file)) return null;
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, serializeMemory({ frontmatter, body: `# ${title}\n\n${proposal.rule}\n\n_Stated by the developer while correcting an agent._\n` }), "utf8");
+    if (stage) await git(root, ["add", "--", path.relative(root, file)]).catch(() => "");
+    return path.relative(root, file);
+  }
 
   if (proposal.kind === "fix-lesson" && proposal.rule) {
     const title = proposal.title.replace(/^Gotcha from [0-9a-f]+:\s*/, "");

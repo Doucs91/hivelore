@@ -1,0 +1,10 @@
+{
+  "name": "hivelore",
+  "version": "0.68.0",
+  "description": "Executable team guardrails for coding agents: forbidden commands are denied before they run, developer corrections become rules the commit gate enforces, and edits get the rules and doc warnings for the file being changed.",
+  "author": { "name": "Doucs91", "url": "https://github.com/Doucs91" },
+  "homepage": "https://github.com/Doucs91/hivelore",
+  "repository": "https://github.com/Doucs91/hivelore",
+  "license": "Apache-2.0",
+  "keywords": ["guardrails", "commit-gate", "agent-rules", "hooks", "claude-md", "agents-md", "sensors"]
+}

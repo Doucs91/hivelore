@@ -18,6 +18,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import { findProjectRoot, resolveHaivePaths } from "@hivelore/core";
+import { pluginHookShadowed } from "../utils/hook-source.js";
 
 const MAX_STDIN_BYTES = 256 * 1024; // 256 KB cap
 const TRUNCATE_FIELD = 800;
@@ -214,7 +215,7 @@ export function registerObserve(program: Command): void {
         const root = (() => {
           try { return findProjectRoot(opts.dir ?? payload.cwd); } catch { return null; }
         })();
-        if (!root) return;
+        if (!root || pluginHookShadowed(root)) return;
 
         const paths = resolveHaivePaths(root);
         if (!existsSync(paths.haiveDir)) return; // not a haive project

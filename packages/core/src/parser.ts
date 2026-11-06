@@ -1,6 +1,6 @@
 import matter from "gray-matter";
 import { z } from "zod";
-import { MemoryFrontmatterSchema } from "./schema.js";
+import { MemoryFrontmatterSchema, SENSOR_KINDS } from "./schema.js";
 import type { Activation, Memory, MemoryFrontmatter, Sensor } from "./types.js";
 
 const PRIVATE_BLOCK_RE = /<private>[\s\S]*?<\/private>/g;
@@ -28,9 +28,21 @@ function formatFrontmatterError(err: z.ZodError): string {
   return `invalid ${field}: ${issue.message}`;
 }
 
+const KNOWN_SENSOR_KINDS = new Set<string>(SENSOR_KINDS);
+
 export function parseMemory(raw: string): Memory {
   const parsed = matter(raw);
-  const result = MemoryFrontmatterSchema.safeParse(parsed.data);
+  const data = { ...(parsed.data as Record<string, unknown>) };
+  // Forward compatibility: a sensor kind from a newer Hivelore is set aside, not fatal.
+  const sensor = data["sensor"];
+  if (sensor && typeof sensor === "object" && !Array.isArray(sensor)) {
+    const kind = (sensor as Record<string, unknown>)["kind"];
+    if (typeof kind === "string" && !KNOWN_SENSOR_KINDS.has(kind)) {
+      data["unsupported_sensor"] = sensor;
+      delete data["sensor"];
+    }
+  }
+  const result = MemoryFrontmatterSchema.safeParse(data);
   if (!result.success) {
     throw new Error(formatFrontmatterError(result.error));
   }
@@ -126,6 +138,11 @@ function dropDefaults(frontmatter: Record<string, unknown>): Record<string, unkn
 
 export function serializeMemory(memory: Memory): string {
   const clean = dropDefaults(stripUndefined(memory.frontmatter) as Record<string, unknown>);
+  // Write a preserved newer-kind sensor back where it came from.
+  if (clean["unsupported_sensor"]) {
+    if (!clean["sensor"]) clean["sensor"] = clean["unsupported_sensor"];
+    delete clean["unsupported_sensor"];
+  }
   const body = canonicalMemoryBody(memory.frontmatter.id, memory.body);
   return matter.stringify(body, clean, YAML_DUMP_OPTIONS as unknown as matter.GrayMatterOption<string, never>);
 }

@@ -4,6 +4,59 @@ All notable changes to Hivelore are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loosely and the
 project follows semantic versioning once it ships its first stable release.
 
+## [0.68.0] — Tools an agent reaches for on its own
+
+The question behind this release: what would make an agent use Hivelore — and suggest it — without
+an instruction file telling it to? Answer from a session spent using it: value at the moment the agent
+needs it, zero ceremony, never a wrong block, and being where agents look.
+
+### Prose becomes controls
+- **Command guards** (`sensor.kind: "command"`): a regex over the shell command an agent is about to
+  run. Claude Code's PreToolUse hook denies a matching Bash call before it runs (block) or warns (warn).
+  Heredocs, commit/PR messages and echo arguments are stripped first, so mentioning a command never
+  blocks; `bash -c "npm publish"` is still caught. `sensors propose --kind command`, `propose_sensor`.
+- **`hivelore rules arm`** turns the checkable prohibitions found by `rules audit` into checks — command
+  guards, protected-path checklists, regex sensors — validated against the repository first (does the
+  pattern match its own example; how often does it already occur; does a commit message mentioning it
+  pass). Only the clause that carries the prohibition is armed: "`git push` the tag. Do not use
+  `git push --tags`" denies the second command, never the first (caught dogfooding on this repo).
+
+### The moments that matter
+- **Developer corrections** (new UserPromptSubmit hook, `hivelore enforce user-prompt`): a lasting rule
+  stated while correcting the agent ("we never…", "in this repo…", "je t'ai déjà dit…") reaches the agent
+  as an offer to record it, and `memory propose` lists it (kind `user-correction`). One-off instructions,
+  questions and politeness stay silent. Only the rule sentence is kept, locally, for 14 days.
+- **`hivelore why <file[:line]>`** (CLI and MCP tool `why`, in the default profile): anchored rules,
+  sensors and checklists guarding the file (and whether the line matches one), doc warnings, the commit
+  that last changed the line, past fixes in the file.
+- **`hivelore ci why`**: the failed run for HEAD or the branch — failing steps, error lines and tests from
+  the failed log, jobs that never ran (billing, runners, timeouts) named as such, memories that saw it before.
+- **`hivelore sensors false-positive <id> --path <file>`**: records the wrong match (it counts against gate
+  precision) and proposes the narrowest exclude; `--apply` writes it.
+
+### No ritual, no tax
+- The generated agent rules no longer mandate `get_briefing` before every edit: hooks deliver each file's
+  rules; the agent is pointed at the situations where Hivelore helps (unfamiliar code, a lasting rule,
+  a red CI). The MCP server now sends **server instructions** saying exactly that.
+- Doc warnings at edit time use only what the edit ADDS (a file written whole contributes nothing) and
+  require the doc to cite the key as code — `read-only` in prose no longer matches.
+
+### Where agents look
+- **Claude Code plugin** (`/plugin marketplace add Doucs91/hivelore`, `/plugin install hivelore@hivelore`):
+  hooks + an agent **skill** whose description names the situations, not the features. Silent in
+  repositories without `.ai/` except for a once-per-session offer after a correction; steps aside where
+  `hivelore init` already installed the hooks. `init` / `enforce install` also write the skill to
+  `.claude/skills/hivelore/SKILL.md`.
+- **`llms.txt`** at the repository root; `server.json` refreshed for the MCP registry.
+
+### Same gate everywhere
+- **`cliVersion`** in `.ai/hivelore.config.json` (written by `init` / `enforce install`, never lowered): an
+  older CLI hands the invocation to a project-local `@hivelore/cli` of that version when installed, and
+  otherwise warns once a day with the install command. `doctor` reports both directions.
+- **Forward-compatible sensors**: a sensor kind written by a newer Hivelore no longer makes an older CLI
+  reject the whole memory (the lesson vanished silently); it is preserved verbatim, written back on save,
+  and reported by `doctor`.
+
 ## [0.67.4] — Doc warnings: instructions, not narration
 
 Seen at the first edit with the published 0.67.3: two "doc warnings" about `CLAUDE.md` were narrative

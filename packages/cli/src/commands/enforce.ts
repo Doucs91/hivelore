@@ -53,6 +53,7 @@ import {
   runPresenceSensors,
   changedPathsFromDiff,
   saveConfig,
+  nextPin,
   selectCommandSensors,
   sensorTargetsFromDiff,
   sensorAppliesToPath,
@@ -81,6 +82,9 @@ import { collectScaffoldLoopGaps, describeScaffoldGap } from "../utils/post-inci
 
 import { runPreEdit } from "../utils/pre-edit.js";
 import { resetEditContextLedger } from "../utils/file-context.js";
+import { pluginHookShadowed } from "../utils/hook-source.js";
+import { writeProjectSkill } from "../utils/project-skill.js";
+import { handleUserPrompt } from "../utils/user-prompt.js";
 import { collectCaptureProposals } from "./memory-propose.js";
 import { dirtyStatusEntries, loadTaskSession, latestTaskSession, startTaskSession, sessionIdentity, sessionIdFromEnv, worktreeSnapshot, taskDirtyFiles, changedSince, gitText, TASK_BASELINE_EXCLUSION_MAX_AGE_MS, type CompletionMode } from "../utils/task-session.js";
 
@@ -255,6 +259,8 @@ export function registerEnforce(program: Command): void {
       const current = await loadConfig(paths);
       await saveConfig(paths, {
         ...current,
+        // The gates written here need at least this CLI: older ones would skip newer sensor kinds.
+        cliVersion: nextPin(current.cliVersion, __HAIVE_VERSION__),
         enforcement: {
           ...current.enforcement,
           mode: "strict",
@@ -282,6 +288,8 @@ export function registerEnforce(program: Command): void {
           } else {
             const result = await installClaudeHooksAtPath(settingsPath);
             ui.success(`${result.created ? "Created" : "Patched"} Claude Code hooks (${path.relative(root, result.settingsPath) || result.settingsPath})`);
+            const skill = await writeProjectSkill(root);
+            if (skill) ui.success(`Wrote the Hivelore agent skill (${path.relative(root, skill)})`);
           }
         } catch (err) {
           ui.warn(`Claude Code hooks not ${opts.removeClaude ? "removed" : "installed"}: ${err instanceof Error ? err.message : String(err)}`);
@@ -437,6 +445,7 @@ export function registerEnforce(program: Command): void {
       const payload = await readHookPayload();
       const root = resolveRoot(opts.dir, payload);
       if (!root) return;
+      if (pluginHookShadowed(root)) return;
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) return;
       await mkdir(paths.runtimeDir, { recursive: true });
@@ -510,6 +519,20 @@ export function registerEnforce(program: Command): void {
       }
       for (const warning of briefing.setup_warnings) {
         console.log(`\n[setup warning] ${warning}`);
+      }
+    });
+
+  enforce
+    .command("user-prompt")
+    .description("Claude Code UserPromptSubmit hook: when the developer states a lasting rule while correcting the agent, offer to make it an enforced rule.")
+    .option("-d, --dir <dir>", "project root")
+    .action(async (opts: EnforceOptions) => {
+      const payload = (await readHookPayload()) as HookPayload & { prompt?: string };
+      const root = resolveRoot(opts.dir, payload);
+      if (pluginHookShadowed(root)) return;
+      const context = await handleUserPrompt(payload, opts.dir).catch(() => null);
+      if (context) {
+        console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: context } }));
       }
     });
 

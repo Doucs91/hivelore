@@ -8,10 +8,12 @@ Memories live under `.ai/memories/` (personal/team/module).
 
 Installing or initializing Hivelore in this repository means **the team expects AI agents to drive work through Hivelore**, not bypass it.
 
-### MCP first (default — never optional unless the developer says so)
+### Using Hivelore
 The Hivelore MCP server is registered under the key **hivelore** (tools appear as `mcp__hivelore__*`; in Claude Code they may be deferred — load their schema once, then call them). If it is unavailable, report the misconfiguration and use `hivelore briefing --task … --files …` instead.
 
-- **Before** you edit project source files, configs (`package.json`, tooling), or workflows for the current goal, call `get_briefing` with a short **task** and the **files** (and **symbols**) you will touch. Each memory comes with a one-line `rule`; `must_read` means it is anchored to a file you passed; `blind_spot` names what its evidence could not see; `docs.caveats` are warnings from the repo's own docs. Read a full body with `mem_get` only when the rule is not enough. Docs-only or typo changes can skip the briefing.
+- Hooks deliver the rules and doc warnings for each file you edit, and deny forbidden commands; the commit gate checks the diff. There is no ritual call.
+- Call `get_briefing` (short **task** + the **files**/**symbols** you will touch) when you start a substantive task in an area you do not know yet. Each memory has a one-line `rule`; `must_read` = anchored to a file you passed; `blind_spot` = what its evidence could not see; `docs.caveats` = warnings from the repo's own docs.
+- Before changing code you do not understand: `why` (MCP) or `hivelore why <file>:<line>`. CI red: `hivelore ci why`.
 
 ### Capture lessons when they happen — never as a session recap
 Lessons are captured **at the moment they appear**, as typed memories, held to one bar: would a capable teammate get this wrong without it? Each row is a concrete situation mapped to a call **in the same response**:
@@ -43,7 +45,7 @@ Several agents **and** the human (Sady) work on this repo in parallel with manua
 **AFTER changing code (exit):**
 1. `git commit` your changes.
 2. **Bump the version ONLY if shippable code changed** (publishable packages: `@hivelore/core`, `cli`, `mcp`, `embeddings`). Docs-only / `.ai/`-only / config / CI commits → commit + push **without** bump or tag.
-3. If bumping: **patch by default** (`0.10.1 → 0.10.2`); minor/major only if justified (feature / breaking). Keep all 4 publishable packages in lockstep.
+3. If bumping: **patch by default** (`0.10.1 → 0.10.2`); minor/major only if justified (feature / breaking). Keep all 4 publishable packages in lockstep — and with them `plugins/hivelore/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, the `@hivelore/cli@X.Y.Z` pin in `plugins/hivelore/bin/hivelore-hook`, `server.json`, and `cliVersion` in `.ai/hivelore.config.json` (a test fails when the plugin drifts).
 4. If bumping: create the matching git tag `vX.Y.Z`.
 5. `git push` **code and the new tag** (`git push && git push origin vX.Y.Z`). Do **not** use `git push --tags` — it tries to push every local tag and fails if an old one (e.g. `v0.4.0`) already differs on the remote; push only the tag you just created.
 6. After push, verify the GitHub Actions runs for HEAD and wait until every workflow passes (`gh run list --commit $(git rev-parse HEAD)`, then `gh run watch <run-id> --exit-status` for pending runs).

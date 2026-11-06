@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import { findProjectRoot, migrateLegacyCache, resolveHaivePaths } from "@hivelore/core";
+import { enforcePinnedVersion } from "./utils/version-pin.js";
 import { registerBriefing } from "./commands/briefing.js";
 import { registerEmbeddings, registerIndexSemantic } from "./commands/embeddings.js";
 import { registerIndexCode } from "./commands/index-code.js";
@@ -42,6 +43,7 @@ import { registerDoctor } from "./commands/doctor.js";
 import { registerPrecommit } from "./commands/precommit.js";
 import { registerMemoryLint } from "./commands/memory-lint.js";
 import { registerMemoryPropose } from "./commands/memory-propose.js";
+import { registerWhy } from "./commands/why.js";
 import { registerResolveProject } from "./commands/resolve-project.js";
 import { registerEnforce } from "./commands/enforce.js";
 import { registerRelease } from "./commands/release.js";
@@ -131,6 +133,7 @@ const session = program.command("session").description(
 );
 registerSessionEnd(session);
 
+registerWhy(program);
 registerStats(program);
 registerBench(program);
 registerBenchmark(program);
@@ -152,6 +155,8 @@ const CORE_ROOT_COMMANDS = new Set([
   "run",
   "sensors",
   "rules",
+  "why",
+  "ci",
   "report",
   "sync",
   "mcp",
@@ -183,7 +188,10 @@ program.hook("preAction", (_root, action) => {
   try {
     const dir = (action.opts() as { dir?: string }).dir;
     const projectRoot = findProjectRoot(dir);
-    if (existsSync(path.join(projectRoot, ".ai"))) migrateLegacyCache(resolveHaivePaths(projectRoot));
+    if (existsSync(path.join(projectRoot, ".ai"))) {
+      migrateLegacyCache(resolveHaivePaths(projectRoot));
+      enforcePinnedVersion(projectRoot, __HAIVE_VERSION__);
+    }
   } catch {
     /* cache housekeeping never blocks a command */
   }

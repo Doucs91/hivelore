@@ -340,7 +340,7 @@ export function registerInit(program: Command): void {
       const resolvedConfig = resolveConfigPath(paths);
       const configExists = existsSync(resolvedConfig);
       if (!configExists) {
-        await saveConfig(paths, { ...(autopilot ? AUTOPILOT_DEFAULTS : { autopilot: false }), defaultStatus: "draft", autoApproveDelayHours: null, autoSessionRecap: false, sessionHandoff: true, enforcement: { ...(autopilot ? AUTOPILOT_DEFAULTS.enforcement : {}), completionMode: opts.completionMode ?? "local" } });
+        await saveConfig(paths, { ...(autopilot ? AUTOPILOT_DEFAULTS : { autopilot: false }), defaultStatus: "draft", autoApproveDelayHours: null, autoSessionRecap: false, sessionHandoff: true, cliVersion: __HAIVE_VERSION__, enforcement: { ...(autopilot ? AUTOPILOT_DEFAULTS.enforcement : {}), completionMode: opts.completionMode ?? "local" } });
         ui.success(
           `Created .ai/${CONFIG_FILE} (mode: ${autopilot ? "autopilot" : "standard"})`,
         );

@@ -31,6 +31,7 @@ import {
   type MemoryScope,
 } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
+import { pluginHookShadowed } from "../utils/hook-source.js";
 
 interface SessionEndOptions {
   goal?: string;
@@ -422,6 +423,7 @@ export function registerSessionEnd(session: Command): void {
     .action(async (opts: SessionEndOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
+      if (opts.auto && pluginHookShadowed(root)) return; // the settings hooks already run this
 
       if (!existsSync(paths.haiveDir)) {
         if (opts.auto || opts.quiet) return; // hook context — silently no-op

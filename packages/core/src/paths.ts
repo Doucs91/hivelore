@@ -12,6 +12,12 @@ export const HAIVE_DIR = ".ai";
  * subfolder. A stray one used to stop the upward search, so `enforce check` run from `frontend/`
  * answered "not initialized" in an initialised repo (field review 2026-09-30 §3.7).
  */
+/** True when `root/.ai` is a real Hivelore corpus, not a stray cache/runtime folder. */
+export function isHiveloreInitialized(root: string): boolean {
+  const aiDir = path.join(root, HAIVE_DIR);
+  return existsSync(aiDir) && isInitializedAiDir(aiDir);
+}
+
 function isInitializedAiDir(aiDir: string): boolean {
   return ["memories", "hivelore.config.json", "haive.config.json", PROJECT_CONTEXT_FILE].some((name) => existsSync(path.join(aiDir, name)));
 }

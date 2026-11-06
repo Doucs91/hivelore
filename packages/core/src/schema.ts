@@ -39,6 +39,9 @@ export const AnchorSchema = z.object({
  * Phase 1 implements `kind: "regex"` only. `shell`/`test` are reserved for a later phase
  * (they require I/O and must run from the CLI, not core).
  */
+/** Sensor kinds this version understands. A newer kind is preserved, not rejected — see `unsupported_sensor`. */
+export const SENSOR_KINDS = ["regex", "ast", "shell", "test", "checklist", "command"] as const;
+
 export const SensorSchema = z.object({
   /**
    * checklist = a REQUIRED VERIFICATION, not a pattern: when a change touches the sensor's paths the
@@ -47,7 +50,13 @@ export const SensorSchema = z.object({
    * shapes, not missing verifications) and passive memories (which the agent may never retrieve) —
    * the gap behind a known caveat that shipped to production twice (field report #9 §1, §9.1).
    */
-  kind: z.enum(["regex", "ast", "shell", "test", "checklist"]).default("regex"),
+  /**
+   * command = a FORBIDDEN AGENT COMMAND: `pattern` is matched against the shell command an agent is
+   * about to run (Claude Code PreToolUse on Bash). At `block` severity the command is denied before it
+   * runs, with `message` as the reason; at `warn` the agent is told and the command proceeds. This is
+   * what turns "NEVER run `npm publish`" from prose the agent may forget into a control.
+   */
+  kind: z.enum(SENSOR_KINDS).default("regex"),
   /**
    * kind=regex: regex source, matched against added diff lines / file content.
    * kind=ast: an ast-grep structural pattern (e.g. `stripe.paymentIntents.create($$$)`) — matched
@@ -233,6 +242,13 @@ export const MemoryFrontmatterSchema = z
      * Delivered next to the rule, so the next agent knows which check is still manual.
      */
     cannot_detect: z.string().min(1).max(300).optional(),
+    /**
+     * A sensor of a kind this CLI does not know yet (written by a newer Hivelore). Kept verbatim and
+     * written back as `sensor` on save, so an older CLI neither rejects the memory — the lesson would
+     * silently vanish from every briefing — nor erases the guardrail when it rewrites the file.
+     * Never authored by hand; `hivelore doctor` reports it.
+     */
+    unsupported_sensor: z.record(z.unknown()).optional(),
   })
   .refine(
     (data) => data.scope !== "module" || !!data.module,

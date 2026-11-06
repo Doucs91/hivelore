@@ -1,0 +1,26 @@
+{
+  "description": "Hivelore hooks. In a repository with .ai/ they enforce its rules; elsewhere they stay silent except to offer, once, to turn a developer's correction into an enforced rule. When `hivelore init` already installed the same hooks, the plugin copy steps aside.",
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/hivelore-hook\" enforce session-start" }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/hivelore-hook\" enforce user-prompt" }] }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/hivelore-hook\" enforce pre-tool-use" }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|Bash",
+        "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/hivelore-hook\" observe" }]
+      }
+    ],
+    "SessionEnd": [
+      { "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/hivelore-hook\" session end --quiet --auto" }] }
+    ]
+  }
+}
