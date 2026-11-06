@@ -49,7 +49,9 @@ Several agents **and** the human (Sady) work on this repo in parallel with manua
 6. After push, verify the GitHub Actions runs for HEAD and wait until every workflow passes (`gh run list --commit $(git rev-parse HEAD)`, then `gh run watch <run-id> --exit-status` for pending runs).
 7. If bumping: once CI is green, **create the GitHub Release for the tag** — `gh release create vX.Y.Z --verify-tag --latest --title "…" --notes-file <notes>`. A tag is not a Release: listing and scoring tools read Releases, and the repo went four months with 190 tags and none. Notes come from the `CHANGELOG.md` section for that version. Releases are **not** cumulative — never backfill old tags; only the current version gets one.
 
-**BOUNDARY: agents NEVER run `npm publish`. npm publication is done by the human (Sady).** Creating the GitHub Release is *not* publication and is inside the boundary — it announces a tag that is already public.
+8. If bumping: pushing the tag **publishes to npm** through the `release` workflow (environment `npm-publish`, restricted to `v*.*.*` tags, token held in its secrets). Check that the run succeeded; to re-publish an existing tag, `gh workflow run release --ref vX.Y.Z`. npm versions are not cumulative: publishing the newest tag is enough.
+
+**BOUNDARY: publication goes only through the `release` workflow.** Agents never run `npm publish` (or `pnpm publish`) locally, and never read, print, store or ask for an npm token — it lives only in the `npm-publish` environment secrets. Sady authorized this tag-driven path on 2026-11-06. Creating the GitHub Release announces a tag that is already public.
 
 **Before final response:** run `hivelore enforce finish`. If it blocks, fix the reported commit/version/tag/push/pipeline issue before saying the task is done.
 

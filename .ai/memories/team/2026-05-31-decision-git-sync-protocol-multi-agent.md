@@ -42,9 +42,9 @@ AFTER modifying code (exit):
 4. If bumping: create the matching git tag `vX.Y.Z`.
 5. Push code AND tags to GitHub (`git push && git push --tags`).
 
-BOUNDARY: the agent NEVER publishes to npm. npm publication is done by the human (Sady).
+BOUNDARY: agents never run `npm publish` locally and never handle an npm token. Since 2026-11-06 (Sady's decision), publication goes through the `release` workflow: pushing the `vX.Y.Z` tag publishes from the `npm-publish` environment, whose secret holds the token.
 
 ## Why
 Because multiple agents and the human push/pull the same branch concurrently, skipping `git pull` before a task causes merge conflicts (conflict markers were left in `.ai/project-context.md`) and version drift between local work and GitHub. The rule exists to force a clean, current base before editing and a consistent commit/tag/push afterwards.
 
-What to do instead of working blind: always `git pull` and clear conflict markers first; after shippable code changes, bump (patch by default, lockstep across the 4 publishable packages), tag `vX.Y.Z`, and `git push --tags`; never run `npm publish` — leave npm publication to the human (Sady).
+What to do instead of working blind: always `git pull` and clear conflict markers first; after shippable code changes, bump (patch by default, lockstep across the 4 publishable packages), tag `vX.Y.Z`, and push the branch then that tag only (`git push && git push origin vX.Y.Z` — never `--tags`); the tag push publishes via the `release` workflow — never run `npm publish` yourself.

@@ -2,14 +2,16 @@ name: release
 
 # Publish the four lockstep packages to npm when a version tag is pushed.
 #
-# This is the HUMAN-authorized publish path (it runs on Sady's tag + needs the npm-publish
-# environment's manual approval and the NPM_TOKEN secret) — it does not change the rule that
-# *agents* never run `npm publish`. It just closes the gap where a tagged release sat unpublished.
+# The ONLY publish path (authorized by Sady, 2026-11-06): a version tag push builds, verifies and
+# publishes. Nobody — agent or human — runs `npm publish` from a workstation, and no one handles the
+# token outside the `npm-publish` environment.
 #
 # One-time setup (repo owner):
-#   1. Settings → Secrets → Actions: add NPM_TOKEN (an npm automation token with publish rights).
-#   2. Settings → Environments: create `npm-publish` and add yourself as a required reviewer.
-# Then every `git push origin vX.Y.Z` opens a one-click approval that builds, tests, and publishes.
+#   1. Settings → Environments: create `npm-publish`; restrict it to tags `v*.*.*`; add required
+#      reviewers only if each publication should wait for a manual approval.
+#   2. Add the environment secret NPM_TOKEN: an npm granular token (read+write on @hivelore, bypass
+#      2FA, max 90 days — rotate it), or switch to npm trusted publishing (OIDC) and drop the token.
+# Re-publish an existing tag: `gh workflow run release --ref vX.Y.Z`.
 
 on:
   push:

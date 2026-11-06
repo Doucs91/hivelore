@@ -73,7 +73,7 @@ pnpm -r test
 # 1. Bump all package.json to same version
 # 2. pnpm -r build
 # 3. git commit + git tag vX.Y.Z
-# 4. npm publish --access public in each package dir
+# 4. git push && git push origin vX.Y.Z  → the release workflow publishes to npm
 ```
 
 ## Gotchas
