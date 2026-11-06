@@ -102,7 +102,7 @@ describe("adaptive briefing", () => {
     expect(b.project_context?.content ?? "").not.toMatch(/adaptive briefing/i);
   });
 
-  it("surfaces the measured prevention proof line in hints when recent catches exist", async () => {
+  it("never injects an unverifiable prevention count into hints, even with recent catches", async () => {
     await writeMemory(
       ctx.paths.teamDir!, "2024-01-01-gotcha-legacyfield",
       "# Avoid legacyField\n\nNever reintroduce legacyField; use currentField.",
@@ -114,7 +114,9 @@ describe("adaptive briefing", () => {
     await appendPreventionEvent(ctx.paths, { at: recent, id: "2024-01-01-gotcha-legacyfield", source: "anti-pattern" });
 
     const b = await getBriefing({ ...baseInput, task: "edit the service", files: ["src/svc.ts"] }, ctx);
-    expect((b.hints ?? []).some((h) => /prevented 2 repeated mistakes/i.test(h))).toBe(true);
+    // An unverifiable "prevented N mistakes" count is no longer injected into briefings (field
+    // reports #10 §7, #11 §8): the evidence lives in `hivelore report`, case by case.
+    expect((b.hints ?? []).some((h) => /prevented .* repeated mistake/i.test(h))).toBe(false);
   });
 
   it("does not show a proof line when there are no recent prevention events", async () => {

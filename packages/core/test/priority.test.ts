@@ -8,17 +8,18 @@ describe("classifyMemoryPriority (shared)", () => {
     expect(classifyMemoryPriority(prioritySignals({ type: "convention", requiresHumanApproval: true }))).toBe("must_read");
   });
 
-  it("must_read on an exact or strong attempt/skill hit", () => {
-    expect(classifyMemoryPriority(prioritySignals({ type: "attempt", exactTaskMatch: true }))).toBe("must_read");
-    expect(classifyMemoryPriority(prioritySignals({ type: "attempt", strongSemantic: true }))).toBe("must_read");
-    expect(classifyMemoryPriority(prioritySignals({ type: "skill", exactTaskMatch: true }))).toBe("must_read");
+  it("an exact or strong attempt/skill hit is useful — wording alone never claims must_read (field report #11 §4)", () => {
+    expect(classifyMemoryPriority(prioritySignals({ type: "attempt", exactTaskMatch: true }))).toBe("useful");
+    expect(classifyMemoryPriority(prioritySignals({ type: "attempt", strongSemantic: true }))).toBe("useful");
+    expect(classifyMemoryPriority(prioritySignals({ type: "skill", exactTaskMatch: true }))).toBe("useful");
+    expect(classifyMemoryPriority(prioritySignals({ type: "attempt", directAnchor: true }))).toBe("must_read");
   });
 
   it("down-ranks stack-pack and env-workaround memories to background on a soft match", () => {
     expect(classifyMemoryPriority(prioritySignals({ type: "gotcha", tags: ["stack-pack"], usefulSemantic: true }))).toBe("background");
     expect(classifyMemoryPriority(prioritySignals({ type: "attempt", tags: ["hotswap"], usefulSemantic: true }))).toBe("background");
     // but an EXACT hit on an env-workaround memory still ranks (the down-rank is for soft matches only)
-    expect(classifyMemoryPriority(prioritySignals({ type: "attempt", tags: ["hotswap"], exactTaskMatch: true }))).toBe("must_read");
+    expect(classifyMemoryPriority(prioritySignals({ type: "attempt", tags: ["hotswap"], exactTaskMatch: true }))).toBe("useful");
   });
 
   it("but a directly-anchored env-workaround still ranks must_read", () => {

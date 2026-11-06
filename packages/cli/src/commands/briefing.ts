@@ -1,4 +1,4 @@
-import { loadTaskSession, startTaskSession } from "../utils/task-session.js";
+import { loadTaskSession, startTaskSession, sessionIdFromEnv } from "../utils/task-session.js";
 import { existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -186,7 +186,7 @@ export function registerBriefing(program: Command): void {
         await writeBriefingMarker(paths, {
           task: opts.task ?? "CLI briefing",
           source: "haive-briefing-cli",
-          sessionId: process.env.HIVELORE_SESSION_ID ?? process.env.HAIVE_SESSION_ID ?? process.env.CLAUDE_SESSION_ID,
+          sessionId: sessionIdFromEnv(),
           files: markerFiles,
         }).catch(() => { /* marker is best-effort */ });
       }
@@ -441,7 +441,7 @@ export function registerBriefing(program: Command): void {
         const ids = top.map((item) => item.memory.frontmatter.id);
         await trackReads(paths, ids).catch(() => {});
         await writeBriefingMarker(paths, { source: "haive-briefing-cli", task: opts.task,
-          sessionId: process.env.HIVELORE_SESSION_ID ?? process.env.HAIVE_SESSION_ID ?? process.env.CLAUDE_SESSION_ID,
+          sessionId: sessionIdFromEnv(),
           memoryIds: [], files: filePaths }).catch(() => {});
         console.log(JSON.stringify({
           task: opts.task ?? null,
@@ -524,7 +524,7 @@ export function registerBriefing(program: Command): void {
         await writeBriefingMarker(paths, {
           task: opts.task ?? "CLI briefing",
           source: "haive-briefing-cli",
-          sessionId: process.env.HIVELORE_SESSION_ID ?? process.env.HAIVE_SESSION_ID ?? process.env.CLAUDE_SESSION_ID,
+          sessionId: sessionIdFromEnv(),
           memoryIds: markerIds,
           files: filePaths,
         }).catch(() => { /* marker is best-effort */ });
@@ -611,11 +611,16 @@ function classifyCliPriority(
 ): CliMemoryPriority {
   const fm = item.memory.frontmatter;
   const anchored = filePaths.length > 0 && memoryMatchesAnchorPaths(item.memory, filePaths);
+  // Same rule as the MCP briefing: only an anchor on the exact passed file is a strong anchor; an
+  // area (directory/glob) anchor is weak — useful unless corroborated (field report #11 §4).
+  const wanted = new Set(filePaths.map((file) => file.replace(/\\/g, "/").replace(/^\.\//, "")));
+  const exactFile = fm.anchor.paths.some((p) => wanted.has(p.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "")));
   return classifyMemoryPriority({
     type: fm.type,
     tags: fm.tags,
     requiresHumanApproval: Boolean(fm.requires_human_approval),
     directAnchor: anchored,
+    anchorSpecificity: anchored && !exactFile ? 0 : undefined,
     directSymbol: false, // symbol lookup is rendered separately in the CLI, not via anchor priority
     exactTaskMatch: exactTaskHit,
     strongSemantic: false,
@@ -654,15 +659,7 @@ function printCliBreadcrumbs(input: {
   for (const item of input.top.slice(0, 3)) {
     drillDown.push(`  - mem_get("${item.memory.frontmatter.id}")`);
   }
-  if (input.task && input.files.length > 0) {
-    drillDown.push(
-      `  - mem_relevant_to(task:"${cliOneLine(input.task)}", files:[${input.files.map((f) => `"${f}"`).join(", ")}], format:"actions")`,
-    );
-  }
-  if (input.task) drillDown.push(`  - code_search(query:"${cliOneLine(input.task)}", k:5)`);
-  for (const symbol of input.symbols.slice(0, 3)) {
-    drillDown.push(`  - code_map(symbol:"${cliOneLine(symbol)}")`);
-  }
+  // Only tools of the default MCP profile are suggested (0.66 surface reduction).
 
   if (startHere.length === 0 && drillDown.length === 0) return;
 

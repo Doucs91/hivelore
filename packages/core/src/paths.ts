@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export const HAIVE_DIR = ".ai";
@@ -66,4 +67,23 @@ export function memoryFilePath(
           ? paths.sharedDir
           : path.join(paths.moduleDir, module ?? "_unscoped");
   return path.join(base, `${id}.md`);
+}
+
+/**
+ * Personal memories are private by definition and must never be one `git add -A` away from a
+ * commit. They used to sit unignored in the working tree: one was committed by mistake and had to be
+ * purged from history, another stayed in `git status` forever (field report #8 §2). A `.gitignore`
+ * INSIDE the directory protects the repo even when the root `.gitignore` is not ours to edit, and
+ * every personal write calls this so repositories initialised by older versions are covered too.
+ */
+export async function ensurePersonalMemoriesIgnored(paths: HaivePaths): Promise<void> {
+  try {
+    await mkdir(paths.personalDir, { recursive: true });
+    const gi = path.join(paths.personalDir, ".gitignore");
+    if (!existsSync(gi)) {
+      await writeFile(gi, "# Personal Hivelore memories are machine-local and never committed.\n*\n!.gitignore\n", "utf8");
+    }
+  } catch {
+    /* best-effort: a read-only checkout must not fail a save */
+  }
 }

@@ -23,7 +23,7 @@ export async function checkMcpServer(root: string, cliEntry: string, timeout = 1
     const response = await client.listTools({}, { timeout });
     result.tools = response.tools.map((tool) => tool.name);
     result.server_version = client.getServerVersion()?.version;
-    result.server_reachable = result.tools.includes("get_briefing") && result.tools.includes("mem_relevant_to");
+    result.server_reachable = result.tools.includes("get_briefing") && result.tools.includes("mem_get");
     if (result.server_reachable) {
       const briefing = await client.callTool({ name: "get_briefing", arguments: {
         task: "Integration diagnostic", files: [], track: false, deterministic: true,

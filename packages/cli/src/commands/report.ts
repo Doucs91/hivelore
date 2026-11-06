@@ -1,7 +1,16 @@
-import { execFile } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { promisify } from "node:util";
 import { Command } from "commander";
+import { ui } from "../utils/ui.js";
 import {
+  buildHarnessReport,
+  renderHarnessReport,
+  loadMemoriesFromDir,
+  loadSensorLedger,
+  loadPreventionEvents,
+  loadKnowledgeOutcomes,
   findProjectRoot,
   formatFrictionIssue,
   groupFriction,
@@ -55,6 +64,41 @@ export function registerReport(program: Command): void {
         "  automatically. This command is the human gate: you read the journal, and you decide what\n" +
         "  becomes a GitHub issue. Reports are deduplicated, so the occurrence count is the ranking.",
     );
+
+  report
+    .command("harness")
+    .description(
+      "Is the harness preventing mistakes or performing ceremony? Per sensor: runs, catches, live waivers,\n" +
+      "  last hit. Per memory: shown vs reported applied/rejected. Plus archive candidates (never surfaced),\n" +
+      "  dangling anchors and expired decisions. Counts only — nothing inferred.",
+    )
+    .option("--days <n>", "window in days", "60")
+    .option("--json", "machine-readable output", false)
+    .option("-d, --dir <dir>", "project root")
+    .action(async (opts: { days: string; json?: boolean; dir?: string }) => {
+      const root = findProjectRoot(opts.dir);
+      const paths = resolveHaivePaths(root);
+      if (!existsSync(paths.memoriesDir)) {
+        ui.error(`No .ai/memories at ${root}. Run \`hivelore init\` first.`);
+        process.exitCode = 1;
+        return;
+      }
+      const windowDays = Math.max(1, Number.parseInt(opts.days, 10) || 60);
+      const [memories, ledger, catches, outcomes] = await Promise.all([
+        loadMemoriesFromDir(paths.memoriesDir),
+        loadSensorLedger(paths),
+        loadPreventionEvents(paths),
+        loadKnowledgeOutcomes(paths),
+      ]);
+      const harness = buildHarnessReport({
+        memories, ledger, catches, outcomes,
+        waivers: countLiveWaivers(root),
+        anchorExists: (anchor) => existsSync(path.join(root, anchor)),
+        windowDays,
+      });
+      if (opts.json) console.log(JSON.stringify(harness, null, 2));
+      else console.log(renderHarnessReport(harness));
+    });
 
   report
     .command("list")
@@ -165,4 +209,18 @@ export function registerReport(program: Command): void {
       await setFrictionStatus(paths, fingerprint, "dismissed", opts.url);
       console.log(`✓ Dismissed ${fingerprint} — ${group.summary}`);
     });
+}
+
+/** Live `hivelore:allow <id> — reason` waivers in the tracked tree, per memory id. */
+function countLiveWaivers(root: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  const out = spawnSync("git", ["grep", "-h", "-o", "-E", "(hivelore|haive):allow[[:space:]]+[A-Za-z0-9._-]+"], {
+    cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024,
+  });
+  if (out.status !== 0 || !out.stdout) return counts;
+  for (const line of out.stdout.split("\n")) {
+    const id = line.trim().split(/\s+/)[1];
+    if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
 }

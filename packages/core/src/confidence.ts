@@ -65,8 +65,13 @@ function baseConfidence(
   if (fm.evidence === "hypothesis") return "low";
   if (fm.status === "validated") {
     // Admission is not proof. Authority needs explicit human review AND a tested claim.
-    return fm.validated_by === "human" && fm.evidence === "tested" && fm.verified_at
-      ? "authoritative" : "trusted";
+    if (fm.validated_by === "human" && fm.evidence === "tested" && fm.verified_at) return "authoritative";
+    // A validation that never fails is not a validation: in autopilot, `validated_by: auto` means
+    // "has existed for three days", and 150 of 168 team memories in one repo carried `trusted` on
+    // that basis alone (field report #12 §1.2, §4.5). Unreviewed content is labelled `low` unless
+    // its claim was reproduced or tested; a human or agent review keeps `trusted`.
+    if (fm.validated_by === "auto" && fm.evidence !== "reproduced" && fm.evidence !== "tested") return "low";
+    return "trusted";
   }
   if (fm.status === "proposed") return "low";
   // draft

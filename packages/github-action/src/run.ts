@@ -10,6 +10,7 @@ import { execFileSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { getOctokit } from "@actions/github";
+import matter from "gray-matter";
 
 // ── Environment ───────────────────────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ const PERSIST_REVIEW_LEARNINGS = process.env["PERSIST_REVIEW_LEARNINGS"] !== "fa
 
 const COMMENT_MARKER = "<!-- haive-pr-memory-check -->";
 
-// ── Memory parser (self-contained, no @hivelore/core dep) ──────────────────────
+// ── Memory parser (bundled gray-matter, no @hivelore/core dep) ────────────────
 
 interface Memory {
   id: string;
@@ -45,78 +46,31 @@ interface Memory {
 }
 
 /**
- * Pull the sensor's severity/message straight out of the frontmatter text.
- *
- * The action deliberately ships its own minimal parser (no workspace dependency), and its nested
- * handling flattens sub-keys, so the sensor block is read from the raw text instead. Only the two
- * fields the PR comment shows are extracted — deliberately not a second implementation of the
- * sensor schema.
+ * Parse a memory file with the SAME YAML implementation the CLI writes it with (gray-matter /
+ * js-yaml, bundled into dist/). The action used to ship a hand-rolled line parser that read a folded
+ * scalar's `>-` indicator as an anchor path, so every PR touching a memory with a long anchor got
+ * "anchor paths missing in this checkout" for a file that existed (field report #10 §1). One writer,
+ * one reader: `test/frontmatter-roundtrip.test.ts` pins them together.
  */
-export function extractSensor(raw: string): { severity: string; message: string } | undefined {
-  const fm = raw.match(/^---\n([\s\S]*?)\n---/);
-  if (!fm) return undefined;
-  const block = fm[1]!.match(/^sensor:\n((?:[ \t]+.*\n?)+)/m);
-  if (!block) return undefined;
-  const severity = block[1]!.match(/^\s+severity:\s*(.+)$/m)?.[1]?.trim().replace(/^['"]|['"]$/g, "");
-  const message = block[1]!.match(/^\s+message:\s*(.+)$/m)?.[1]?.trim().replace(/^['"]|['"]$/g, "");
-  if (!severity && !message) return undefined;
-  return { severity: severity ?? "warn", message: message ?? "" };
+export function parseFrontmatter(raw: string): { fm: Record<string, unknown>; body: string } {
+  try {
+    const parsed = matter(raw);
+    const data = parsed.data && typeof parsed.data === "object" ? (parsed.data as Record<string, unknown>) : {};
+    return { fm: data, body: parsed.content.trim() };
+  } catch {
+    return { fm: {}, body: raw };
+  }
 }
 
-function parseFrontmatter(raw: string): { fm: Record<string, unknown>; body: string } {
-  const match = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  if (!match) return { fm: {}, body: raw };
-
-  const fmRaw = match[1]!;
-  const body = (match[2] ?? "").trim();
-  const fm: Record<string, unknown> = {};
-  const lines = fmRaw.split("\n");
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i]!;
-    const kv = line.match(/^(\w[\w_]*):\s*(.*)/);
-    if (!kv) { i++; continue; }
-
-    const key = kv[1]!;
-    const val = kv[2]!.trim();
-
-    if (val === "") {
-      i++;
-      const nested: string[] = [];
-      while (i < lines.length && lines[i]!.startsWith("  ")) {
-        const nl = lines[i]!.trimStart();
-        if (nl.startsWith("- ")) {
-          nested.push(nl.slice(2).trim().replace(/^['"]|['"]$/g, ""));
-        } else {
-          const nkv = nl.match(/^(\w[\w_]*):\s*(.*)/);
-          if (nkv) {
-            const subKey = nkv[1]!;
-            i++;
-            const subList: string[] = [];
-            while (i < lines.length && lines[i]!.startsWith("    ")) {
-              const sl = lines[i]!.trimStart();
-              if (sl.startsWith("- ")) subList.push(sl.slice(2).trim().replace(/^['"]|['"]$/g, ""));
-              i++;
-            }
-            if (subList.length) fm[subKey] = subList;
-            continue;
-          }
-        }
-        i++;
-      }
-      if (nested.length) fm[key] = nested;
-      continue;
-    }
-
-    if (val === "true") fm[key] = true;
-    else if (val === "false") fm[key] = false;
-    else if (val === "null" || val === "~") fm[key] = null;
-    else fm[key] = val.replace(/^['"]|['"]$/g, "");
-    i++;
-  }
-
-  return { fm, body };
+/** The sensor's severity/message — only the two fields the PR comment shows. */
+export function extractSensor(raw: string): { severity: string; message: string } | undefined {
+  const sensor = parseFrontmatter(raw).fm["sensor"];
+  if (!sensor || typeof sensor !== "object" || Array.isArray(sensor)) return undefined;
+  const record = sensor as Record<string, unknown>;
+  const severity = typeof record["severity"] === "string" ? record["severity"] : undefined;
+  const message = typeof record["message"] === "string" ? record["message"] : undefined;
+  if (!severity && !message) return undefined;
+  return { severity: severity ?? "warn", message: message ?? "" };
 }
 
 function extractAnchorPaths(fm: Record<string, unknown>): string[] {
@@ -170,6 +124,7 @@ function loadMemories(memoriesDir: string): Memory[] {
       const raw = fs.readFileSync(fp, "utf8");
       const { fm, body } = parseFrontmatter(raw);
       if (!fm["id"]) return null;
+      const sensor = extractSensor(raw);
       if (fm["type"] === "session_recap") return null;
       if (fm["status"] === "rejected" || fm["status"] === "deprecated") return null;
 
@@ -194,7 +149,7 @@ function loadMemories(memoriesDir: string): Memory[] {
         requiresHumanApproval: fm["requires_human_approval"] === true,
         body,
         filePath: fp,
-        ...(extractSensor(raw) ? { sensor: extractSensor(raw)! } : {}),
+        ...(sensor ? { sensor } : {}),
       };
     })
     .filter((m): m is Memory => m !== null);

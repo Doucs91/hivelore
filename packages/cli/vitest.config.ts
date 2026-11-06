@@ -30,6 +30,7 @@ export default defineConfig({
         singleFork: true,
       },
     },
+    setupFiles: ["./test/setup-env.ts"],
     testTimeout: 30000,
     hookTimeout: 30000,
   },

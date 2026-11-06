@@ -79,8 +79,23 @@ export function isTemplateProjectContext(raw: string): boolean {
   return false;
 }
 
+/**
+ * Top-level directories that hold no main code area even when they contain code files: docs sites,
+ * examples, static assets, vendored or generated trees. `docs` counted as a component with no module
+ * context and kept telling agents on a 160-memory repo "you are the first agent on this repo"
+ * (field reports #9 §2, #11).
+ */
+const NON_CODE_AREA_DIRS = new Set([
+  "docs", "doc", "documentation", "website", "site", "examples", "example", "samples", "sample",
+  "assets", "public", "static", "media", "images", "vendor", "third_party", "third-party",
+  "node_modules", "dist", "build", "out", "coverage", "target", ".github", ".vscode", ".idea",
+  ".storybook", ".ai", "benchmarks", "fixtures",
+]);
+
 export function isProductionCodeFile(file: string): boolean {
   const base = file.split("/").pop() ?? file;
+  const top = file.replace(/^\/+/, "").split("/")[0] ?? "";
+  if (NON_CODE_AREA_DIRS.has(top.toLowerCase())) return false;
   if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(base)) return false;
   if (/(^|\/)(test|tests|__tests__|__mocks__|e2e|fixtures)(\/|$)/.test(file)) return false;
   if (base.endsWith(".d.ts")) return false;

@@ -55,8 +55,22 @@ export function isWriteLikeTool(payload: HookPayload): boolean {
   if (["Edit", "Write", "MultiEdit", "NotebookEdit"].includes(tool)) return true;
   if (tool !== "Bash") return false;
   const command = String(payload.tool_input?.["command"] ?? "");
-  return /\b(rm|mv|cp|mkdir|touch|tee|sed|perl|python|node|npm|pnpm|yarn|git)\b/.test(command) ||
-    />{1,2}/.test(command);
+  return bashCommandMayWrite(command);
+}
+
+/**
+ * Could this shell command modify files? Conservative on writers, strict on readers: `git status`,
+ * `git diff`, `git log`, `ls`, `cat`, `grep` and `2>/dev/null` redirections are reads, and a reminder
+ * after a read is noise (field report #9 §3).
+ */
+export function bashCommandMayWrite(command: string): boolean {
+  const withoutNullRedirects = command.replace(/\d?>{1,2}\s*\/dev\/null/g, "").replace(/\d>&\d/g, "");
+  if (/(^|[^<>])>{1,2}(?!&)/.test(withoutNullRedirects)) return true;
+  if (/\b(rm|mv|cp|mkdir|touch|tee|perl|python3?|node|npm|pnpm|yarn|npx|patch|truncate|ln|chmod|install)\b/.test(withoutNullRedirects)) return true;
+  if (/\bsed\b[^|;&]*\s-i/.test(withoutNullRedirects)) return true;
+  const git = withoutNullRedirects.match(/\bgit\s+(?:-C\s+\S+\s+)?([a-z-]+)/g) ?? [];
+  const GIT_READS = new Set(["status", "diff", "log", "show", "branch", "rev-parse", "ls-files", "blame", "remote", "fetch", "describe", "shortlog", "grep", "config"]);
+  return git.some((match) => !GIT_READS.has(match.trim().split(/\s+/).pop()!));
 }
 
 export function extractToolPaths(payload: HookPayload, root: string): string[] {

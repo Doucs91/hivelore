@@ -46,13 +46,22 @@ export function classifyMemoryPriority(
     : [];
   const directAnchor = matchedAnchors.length > 0;
   // How discriminating was the anchor that matched? Unknown churn → 1 (rank exactly as before).
-  const specificity = churn
+  const churnSpecificity = churn
     ? anchorSpecificity(
         matchedAnchors,
         churnForAnchors(matchedAnchors, new Map(Object.entries(churn.files))),
         churn.total_commits,
       )
     : DEFAULT_SPECIFICITY;
+  // `must_read` is reserved for an anchor on the exact file the caller passed. A directory or glob
+  // anchor that merely CONTAINS a passed file says "this area", not "this file" — with 4–8 files
+  // passed, every memory anchored to `frontend/src` came back must_read and all 15 labels were
+  // identical (field report #11 §4). Area matches rank as weak anchors: useful unless corroborated.
+  const normalizedFiles = new Set(inputFiles.map((file) => file.replace(/\\/g, "/").replace(/^\.\//, "")));
+  const exactFileAnchor = matchedAnchors.some((p) =>
+    !isGlobPath(p) && normalizedFiles.has(p.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "")),
+  );
+  const specificity = directAnchor && !exactFileAnchor ? Math.min(churnSpecificity, 0) : churnSpecificity;
   const directSymbol = Boolean(
     fm && inputSymbols.length > 0 &&
     fm.anchor.symbols.some((sym) =>

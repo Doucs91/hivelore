@@ -1,4 +1,5 @@
 import { injectFileContext } from "../utils/file-context.js";
+import { isWriteLikeTool } from "../utils/pre-edit.js";
 import { loadTaskSession, saveTaskSession, worktreeSnapshot, changedSince, gitText } from "../utils/task-session.js";
 /**
  * `hivelore observe` — passive-capture endpoint for Claude Code's PostToolUse hook.
@@ -229,7 +230,11 @@ export function registerObserve(program: Command): void {
               const current = await worktreeSnapshot(root);
               files = changedSince(state.observed, current).filter(file => !file.startsWith(".ai/") && !["AGENTS.md", "CLAUDE.md", "GEMINI.md"].includes(file));
               await saveTaskSession(paths, { ...state, observed: current }, payload.session_id);
-              const context = await injectFileContext(paths, files, payload.session_id);
+              // A read-only command (`ls`, `cat`, `git status`) never triggers a reminder, even when
+              // the snapshot moved: the change was made by someone else — e.g. screenshots the
+              // developer dropped — and "relevant team policy for this edit" after an `ls` taught the
+              // agent to skim every reminder (field report #9 §3).
+              const context = isWriteLikeTool(payload) ? await injectFileContext(paths, files, payload.session_id) : null;
               if (context) console.log(JSON.stringify({ hookSpecificOutput: {
                 hookEventName: "PostToolUse", additionalContext: context,
               } }));

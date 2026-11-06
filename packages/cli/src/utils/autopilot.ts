@@ -22,6 +22,12 @@ export interface AutopilotRepair {
 export interface AutopilotRepairOptions {
   applyConfig?: boolean;
   applyCorpus?: boolean;
+  /**
+   * Rewrite memory FILES with lint fixes (guessed anchors). Only an explicit, human-invoked repair
+   * (`doctor --fix`) sets this: an automatic run that edits committed memories leaves the worktree
+   * dirty behind the agent's back (field reports #10 §2, #12 §6).
+   */
+  applyCorpusFileFixes?: boolean;
   applyContext?: boolean;
   applyCodeMap?: boolean;
   applyCodeSearch?: boolean;
@@ -67,13 +73,15 @@ export async function applyAutopilotRepairs(
   }
 
   if (options.applyCorpus ?? autoRepair.corpus ?? current.autopilot) {
-    const report = await lintMemoriesAsync(root, { fix: true, apply: true });
-    const applied = report.fixes.filter((fix) => fix.applied);
-    if (applied.length > 0) {
-      repairs.push({
-        code: "memory-lint-fix",
-        message: `Applied ${applied.length} safe memory lint fix${applied.length === 1 ? "" : "es"}.`,
-      });
+    if (options.applyCorpusFileFixes) {
+      const report = await lintMemoriesAsync(root, { fix: true, apply: true });
+      const applied = report.fixes.filter((fix) => fix.applied);
+      if (applied.length > 0) {
+        repairs.push({
+          code: "memory-lint-fix",
+          message: `Applied ${applied.length} safe memory lint fix${applied.length === 1 ? "" : "es"}.`,
+        });
+      }
     }
 
     const indexed = await refreshMemorySemanticIndex(paths);

@@ -15,9 +15,9 @@ inputs:
     description: "GitHub token with pull-requests:write permission. Use secrets.GITHUB_TOKEN."
     required: true
   haive-version:
-    description: "Version of @hivelore/cli to install (default: latest)."
+    description: "Deprecated and ignored: the action is self-contained (bundled dist/) and installs nothing. Kept so existing workflows do not fail on an unknown input."
     required: false
-    default: "latest"
+    default: ""
   comment-header:
     description: "Custom header for the PR comment."
     required: false
@@ -57,10 +57,6 @@ runs:
       uses: actions/setup-node@v4
       with:
         node-version: "20"
-
-    - name: Install Hivelore CLI
-      shell: bash
-      run: npm install -g @hivelore/cli@${{ inputs.haive-version }} --silent 2>/dev/null || true
 
     - name: Get changed files
       id: changed

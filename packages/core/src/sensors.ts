@@ -526,6 +526,53 @@ export function incidentSuffix(incident?: string): string {
   return ref ? `  ↩ guards incident: ${ref}` : "";
 }
 
+export interface ChecklistSpec {
+  memory_id: string;
+  /** The verification to perform. */
+  message: string;
+  severity: "warn" | "block";
+  /** Changed paths that triggered it. */
+  matched: string[];
+  incident?: string;
+}
+
+/** Trailer that acknowledges a block-severity checklist in a commit message. */
+export const CHECKLIST_TRAILER = "Hivelore-Checked";
+
+/**
+ * Select the checklist sensors a change triggers. A checklist with no scope never fires: a
+ * verification "on every change" is ceremony, not a guard. Pure.
+ */
+export function selectChecklists(memories: Memory[], changedPaths: string[]): ChecklistSpec[] {
+  const out: ChecklistSpec[] = [];
+  for (const memory of memories) {
+    const sensor = memory.frontmatter.sensor;
+    if (!sensor || sensor.kind !== "checklist") continue;
+    const anchorPaths = memory.frontmatter.anchor.paths;
+    if (sensor.paths.length === 0 && anchorPaths.length === 0) continue;
+    const matched = changedPaths.filter((p) => sensorAppliesToPath(sensor, anchorPaths, p));
+    if (matched.length === 0) continue;
+    out.push({
+      memory_id: memory.frontmatter.id,
+      message: sensor.message,
+      severity: sensor.severity,
+      matched,
+      ...(sensor.incident ? { incident: sensor.incident } : {}),
+    });
+  }
+  return out;
+}
+
+/** True when a commit message carries `Hivelore-Checked: <id>` (comma lists allowed). */
+export function checklistAcknowledged(commitMessage: string, memoryId: string): boolean {
+  const re = new RegExp(`^${CHECKLIST_TRAILER}:\\s*(.+)$`, "gim");
+  for (const match of commitMessage.matchAll(re)) {
+    const ids = match[1]!.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
+    if (ids.includes(memoryId)) return true;
+  }
+  return false;
+}
+
 /**
  * Select the shell/test sensors that apply to `changedPaths`. With no changed paths (or a sensor
  * scoped to everywhere) the sensor is selected unconditionally. Pure: the caller executes commands.

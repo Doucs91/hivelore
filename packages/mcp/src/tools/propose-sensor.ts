@@ -37,9 +37,12 @@ import { astEngineAvailable, astLangForPath, runAstSensorOnContent } from "../as
 export const ProposeSensorInputSchema = {
   memory_id: z.string().min(1).describe("Id of the gotcha/attempt memory this sensor protects."),
   kind: z
-    .enum(["regex", "ast", "shell", "test"])
+    .enum(["regex", "ast", "shell", "test", "checklist"])
     .default("regex")
     .describe(
+      "checklist = a REQUIRED VERIFICATION printed when a change touches `paths` (e.g. 'run the GPU " +
+      "browser check of the PDF viewer — headless CI cannot see this failure'); at block severity the " +
+      "commit message must carry `Hivelore-Checked: <memory_id>`. Needs only `message` + paths. " +
       "regex = pattern matched on added diff lines (default; comments are stripped before matching, " +
       "but string literals are NOT — so a regex can still target a bad literal in a string). ast = an " +
       "ast-grep STRUCTURAL pattern (e.g. 'stripe.paymentIntents.create($$$)') matched on the AST of " +
@@ -342,6 +345,17 @@ export async function proposeSensor(
         self_check: { silent_on_current: false, fires_on_bad: null, fired_on: [] },
       };
     }
+  } else if (kind === "checklist") {
+    if (!input.message?.trim() || input.message.trim().length < 12) {
+      return {
+        accepted: false,
+        memory_id: input.memory_id,
+        severity: input.severity,
+        reason: "invalid-checklist",
+        guidance: "kind=checklist requires a `message`: the verification to perform, stated as an action (e.g. 'Run the GPU browser check of the PDF viewer').",
+        self_check: { silent_on_current: false, fires_on_bad: null, fired_on: [] },
+      };
+    }
   } else if (!input.command?.trim()) {
     return {
       accepted: false,
@@ -357,6 +371,46 @@ export async function proposeSensor(
   const found = loaded.find(({ memory }) => memory.frontmatter.id === input.memory_id);
   if (!found) {
     throw new Error(`No memory found with id ${input.memory_id}`);
+  }
+
+  if (kind === "checklist") {
+    const scope = input.paths.length > 0 ? input.paths : found.memory.frontmatter.anchor.paths;
+    if (scope.length === 0) {
+      return {
+        accepted: false,
+        memory_id: input.memory_id,
+        severity: input.severity,
+        reason: "invalid-checklist",
+        guidance: "kind=checklist needs a scope: pass `paths` (files/globs whose change requires the verification) or anchor the memory first.",
+        self_check: { silent_on_current: false, fires_on_bad: null, fired_on: [] },
+      };
+    }
+    const checklist: Sensor = {
+      kind: "checklist",
+      paths: input.paths.length > 0 ? input.paths : [],
+      ...(input.exclude?.length ? { exclude: input.exclude } : {}),
+      message: input.message!.trim(),
+      ...(input.incident?.trim() ? { incident: input.incident.trim() } : {}),
+      severity: input.severity,
+      autogen: false,
+      last_fired: null,
+    };
+    await writeFile(found.filePath, serializeMemory({
+      frontmatter: { ...found.memory.frontmatter, sensor: checklist },
+      body: found.memory.body,
+    }), "utf8");
+    return {
+      accepted: true,
+      memory_id: input.memory_id,
+      severity: input.severity,
+      guidance:
+        `Checklist armed on ${scope.slice(0, 3).join(", ")}${scope.length > 3 ? ", …" : ""}. ` +
+        (input.severity === "block"
+          ? `A commit touching these paths is refused until its message carries \`Hivelore-Checked: ${input.memory_id}\` — the author's statement that the verification was done.`
+          : "Commits touching these paths print the verification as a one-line advisory."),
+      self_check: { silent_on_current: true, fires_on_bad: null, fired_on: [] },
+      file_path: found.filePath,
+    };
   }
 
   // Guard against SILENT sensor loss: a second proposal carrying a DIFFERENT guardrail onto a

@@ -375,9 +375,14 @@ export function runTierContract(): TierContractCheck[] {
       signals: prioritySignals({ type: "convention", directAnchor: true }),
     },
     {
-      name: "attempt + exact task match → must_read (negative knowledge first)",
-      expected: "must_read",
+      name: "attempt + exact task match → useful (wording alone never claims must_read)",
+      expected: "useful",
       signals: prioritySignals({ type: "attempt", exactTaskMatch: true }),
+    },
+    {
+      name: "attempt anchored to the edited file → must_read",
+      expected: "must_read",
+      signals: prioritySignals({ type: "attempt", directAnchor: true }),
     },
   ];
   return cases.map(({ name, expected, signals }) => {

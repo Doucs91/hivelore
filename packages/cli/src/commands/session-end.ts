@@ -23,6 +23,8 @@ import {
   renderCaughtForYou,
   resolveHaivePaths,
   serializeMemory,
+  signalFailures,
+  sanitizeFailureSummary,
   summarizeCaughtForYou,
   writeSessionHandoff,
   type MemoryFrontmatter,
@@ -114,18 +116,23 @@ async function buildAutoRecap(
   }
 
   // ── Discoveries: failures + notable observations ───────────────────────
-  const failures = obs.filter((o) => o.failure_hint);
+  // Only failures that clear the capture signal bar (a repeat, or a failing test/build/lint) are
+  // listed, sanitized, and as information — the old "⚠️ 9 failures — call mem_tried for each" listed
+  // `grep` exit codes and SIGPIPEs with local paths and pushed agents to write junk lessons
+  // (field report #12 §3.2).
+  const failures = signalFailures(obs.filter((o): o is Observation & { failure_hint: true } => Boolean(o.failure_hint)));
   const discoveriesParts: string[] = [];
   if (failures.length > 0) {
+    const distinct = [...new Set(failures.map((o) => sanitizeFailureSummary(o.summary).slice(0, 160)))];
     discoveriesParts.push(
-      `⚠️ ${failures.length} failure${failures.length === 1 ? "" : "s"} detected — call \`mem_tried\` for each unresolved one:`,
-      ...failures.slice(0, 8).map((o) => `- ${o.summary.slice(0, 180)}`),
+      `Repeated or build/test failures observed (record one with \`mem_tried\` only if it taught something):`,
+      ...distinct.slice(0, 5).map((summary) => `- ${summary}`),
     );
   }
 
   const goal = writeFiles.size > 0
     ? `Edited ${writeFiles.size} file${writeFiles.size === 1 ? "" : "s"} across ${obs.length} tool calls`
-    : `Session with ${obs.length} tool calls (${topTools}) — read-only or no writes captured`;
+    : `Session with ${obs.length} tool calls (${topTools})`;
 
   return {
     goal,
@@ -528,10 +535,9 @@ export function registerSessionEnd(session: Command): void {
             ...fm,
             verified_at: new Date().toISOString(),
             revision_count: revisionCount,
-            anchor: {
-              ...fm.anchor,
-              paths: filesTouched.length ? filesTouched : fm.anchor.paths,
-            },
+            // A recap is a log, not a policy: anchoring it to the files it mentions made it fire as
+            // "relevant team policy for this edit" on the developer's screenshots (field report #9 §3).
+            anchor: { ...fm.anchor, paths: [] },
           };
           // Archive the outgoing recap into a bounded per-session history instead of overwriting (§5.6).
           const combinedBody = buildRecapWithHistory(body, topicMatch.memory.body, fm.verified_at ?? fm.created_at);
@@ -554,7 +560,7 @@ export function registerSessionEnd(session: Command): void {
     scope,
     module: opts.module,
     tags: ["session", "recap"],
-    paths: filesTouched,
+    paths: [],
     topic,
     status: "validated",
   });
