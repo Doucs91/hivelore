@@ -252,3 +252,28 @@ describe("small field-review fixes (2026-09-30 §3.6, §3.7; 2026-09-28 §6.2)",
     expect(findProjectRoot(path.join(root, "frontend", "src"))).toBe(root);
   });
 });
+
+describe("sensor weakening is judged on values, not on YAML layout", () => {
+  const folded = [
+    "---", "id: 2026-07-05-convention-x", "scope: team", "type: convention", "status: validated",
+    "created_at: '2026-07-05T06:40:10.996Z'", "anchor:", "  paths: [package.json]", "  symbols: []",
+    "sensor:", "  kind: shell", "  command: >-", "    node -e \"process.exit(0)\"", "    && true",
+    "  message: >-", "    Keep the verify chain", "    intact.", "  severity: block", "  autogen: false", "  last_fired: null",
+    "---", "# X", "",
+  ].join("\n");
+  const unfolded = [
+    "---", "id: 2026-07-05-convention-x", "scope: team", "type: convention", "status: validated",
+    "anchor:", "  paths:", "    - package.json", "  symbols: []",
+    "sensor:", "  kind: shell", "  command: node -e \"process.exit(0)\" && true",
+    "  message: Keep the verify chain intact.", "  severity: block",
+    "created_at: '2026-07-05T06:40:10.996Z'", "---", "# X", "",
+  ].join("\n");
+
+  it("treats a canonical rewrite as the same sensor, and a real edit as a change", async () => {
+    const { sameParsedSensor } = await import("../src/index.js");
+    expect(sameParsedSensor(folded, unfolded)).toBe(true);
+    expect(sameParsedSensor(folded, unfolded.replace("&& true", "&& false"))).toBe(false);
+    expect(sameParsedSensor(folded, unfolded.replace("severity: block", "severity: warn"))).toBe(false);
+    expect(sameParsedSensor(folded, "not a memory")).toBe(false);
+  });
+});

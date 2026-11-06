@@ -1,6 +1,7 @@
 import type { Memory, Sensor } from "./types.js";
 import { BRIDGE_TARGET_PATH } from "./bridges.js";
 import { globToRegExp, isGlobPath } from "./relevance.js";
+import { parseMemory } from "./parser.js";
 
 /**
  * Is a regex sensor pattern brittle — over-fit to incident-specific literals that rot when code
@@ -785,6 +786,32 @@ const SENSOR_BLOCK_START_RE = /^\s*sensor:\s*$/;
  * Deterministic, pure, diff-text only. Additions (new sensors) never flag; removing `absent`
  * TIGHTENS a sensor and never flags.
  */
+/**
+ * Do two versions of a memory file carry the same sensor, VALUE for value? The weakening detector
+ * reads diff lines, so a canonical rewrite (`command: >-` folded over three lines → one line, keys
+ * reordered) looked like "sensor command changed" and blocked the gate on a no-op (`doctor --fix`).
+ * Callers confirm each line-level weakening against the parsed sensors; anything unparsable stays
+ * flagged (fail-closed).
+ */
+export function sameParsedSensor(beforeRaw: string, afterRaw: string): boolean {
+  try {
+    const before = parseMemory(beforeRaw).frontmatter.sensor;
+    const after = parseMemory(afterRaw).frontmatter.sensor;
+    if (!before || !after) return false;
+    // Key order is representation, not meaning: compare a key-sorted rendering at every depth.
+    const stable = (value: unknown): unknown =>
+      Array.isArray(value) ? value.map(stable)
+        : value && typeof value === "object"
+          ? Object.fromEntries(Object.keys(value as Record<string, unknown>).sort().map((k) => [k, stable((value as Record<string, unknown>)[k])]))
+          : value;
+    // Runtime bookkeeping is not part of what the sensor checks.
+    const comparable = (sensor: Sensor): string => JSON.stringify(stable({ ...sensor, last_fired: null, promoted_at: null }));
+    return comparable(before) === comparable(after);
+  } catch {
+    return false;
+  }
+}
+
 export function detectSensorWeakening(diff: string): SensorWeakening[] {
   const weakenings: SensorWeakening[] = [];
   for (const file of diffFileChanges(diff)) {

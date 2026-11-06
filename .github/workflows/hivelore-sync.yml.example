@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: '20'
       - name: install hivelore
-        run: npm install -g @hivelore/cli@0.67.0 --no-fund --no-audit
+        run: npm install -g @hivelore/cli@0.67.1 --no-fund --no-audit
       - name: inspect memory health (read only)
         shell: bash
         run: |

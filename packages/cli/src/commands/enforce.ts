@@ -13,6 +13,7 @@ import {
   assessBootstrapState,
   addedLineNumbersFromDiff,
   detectSensorWeakening,
+  sameParsedSensor,
   isSensorScannablePath,
   findProjectRoot,
   loadCodeMap,
@@ -1854,7 +1855,16 @@ async function runPrecommitPolicy(
   // that such a change never lands unmentioned (the gate lives in `.ai/`, editable by the same
   // agent it constrains). Review-only — legitimate demotions exist.
   const weakeningApprovals = await resolveSensorWeakeningApprovals(paths.root, stage);
-  const detectedWeakenings = detectSensorWeakening(snapshot.diff);
+  // Line-level detection, then confirmed on the parsed sensors: a canonical rewrite (folded YAML
+  // unfolded, keys reordered) is not a weakening, and must not block a `doctor --fix` commit.
+  const detectedWeakenings: ReturnType<typeof detectSensorWeakening> = [];
+  for (const weakening of detectSensorWeakening(snapshot.diff)) {
+    if (weakening.change !== "memory-deleted") {
+      const { before, after } = await snapshotFileVersions(paths.root, snapshot, weakening.file, stage);
+      if (before !== null && after !== null && sameParsedSensor(before, after)) continue;
+    }
+    detectedWeakenings.push(weakening);
+  }
   const weakenings = detectedWeakenings.filter((weakening) => !weakeningApprovals.has(weakening.memory_id));
   const approvedWeakenings = detectedWeakenings.filter((weakening) => weakeningApprovals.has(weakening.memory_id));
   const weakeningFindings: EnforcementFinding[] = weakenings.length > 0
@@ -2036,10 +2046,18 @@ async function resolveSensorWeakeningApprovals(
 ): Promise<Set<string>> {
   const approved = parseSensorWeakeningApprovals(process.env["HIVELORE_SENSOR_WEAKENING_APPROVALS"]);
   if (stage !== "ci") return approved;
-  try {
-    const { stdout } = await execFileAsync("git", ["log", "-1", "--pretty=%B"], { cwd: root });
-    for (const id of parseSensorWeakeningApprovals(stdout)) approved.add(id);
-  } catch { /* the unapproved finding remains fail-closed */ }
+  // Every commit of the change carries its own approval. On a pull request the checkout is GitHub's
+  // merge commit, whose message never holds the author's `Hivelore-Sensor-Change` trailers — reading
+  // only `git log -1` made an approved change fail CI.
+  const ranges: string[][] = [["-1"]];
+  const ciRange = await resolveCiDiffRange(root).catch(() => null);
+  if (ciRange) ranges.push(["-n", "200", ciRange.replace("...", "..")]);
+  for (const args of ranges) {
+    try {
+      const { stdout } = await execFileAsync("git", ["log", ...args, "--pretty=%B"], { cwd: root });
+      for (const id of parseSensorWeakeningApprovals(stdout)) approved.add(id);
+    } catch { /* the unapproved finding remains fail-closed */ }
+  }
   return approved;
 }
 
@@ -2047,6 +2065,25 @@ async function resolveSensorWeakeningApprovals(
  * Staged (index) content of a project-relative path, falling back to the working tree — the
  * AST sensor layer parses whole files, and at pre-commit the staged blob is the truth.
  */
+/** Base and head versions of a file for the policy snapshot (a CI range, the index, or the worktree). */
+async function snapshotFileVersions(
+  root: string,
+  snapshot: PolicyDiffSnapshot,
+  rel: string,
+  stage: PolicyScanStage,
+): Promise<{ before: string | null; after: string | null }> {
+  const show = (ref: string): Promise<string | null> => runCommand("git", ["show", `${ref}:${rel}`], root).catch(() => null);
+  const range = /^(.+?)(\.\.\.?)(.+)$/.exec(snapshot.source);
+  if (range) {
+    const [, from, dots, to] = range;
+    const base = dots === "..."
+      ? (await runCommand("git", ["merge-base", from!, to!], root).catch(() => "")).trim() || from!
+      : from!;
+    return { before: await show(base), after: await show(to!) };
+  }
+  return { before: await show("HEAD"), after: await stagedFileContent(root, rel, stage) };
+}
+
 async function stagedFileContent(root: string, rel: string, stage: PolicyScanStage): Promise<string | null> {
   try {
     if (stage === "pre-commit") return await runCommand("git", ["show", `:${rel}`], root);

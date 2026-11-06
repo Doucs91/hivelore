@@ -4,6 +4,17 @@ All notable changes to Hivelore are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loosely and the
 project follows semantic versioning once it ships its first stable release.
 
+## [0.67.1] — The weakening gate judges values, not YAML layout
+
+- **A canonical rewrite is not a weakening.** The sensor-weakening gate read diff lines, so unfolding
+  `command: >-` onto one line (what `doctor --fix` does) looked like "sensor command changed" and
+  blocked the commit and CI. Each line-level finding is now confirmed against the parsed sensors of
+  the base and head versions; only a real change of what the sensor checks remains (fail-closed when
+  a version cannot be parsed).
+- **CI reads approvals from every commit of the change.** On a pull request the checkout is GitHub's
+  merge commit, so `Hivelore-Sensor-Change` trailers written by the author were never seen and an
+  approved change failed CI. Approvals are now collected over the CI diff range.
+
 ## [0.67.0] — The repo's own knowledge speaks up: docs caveats, falsifiable evidence, capture from signals
 
 0.66 made the write path safe and the output quiet. This release closes the gap field report #9 called
