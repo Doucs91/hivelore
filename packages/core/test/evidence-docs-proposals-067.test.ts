@@ -318,3 +318,23 @@ describe("incident links need an exact file anchor", () => {
     }).filter((p) => p.kind === "incident-link")).toEqual([]);
   });
 });
+
+describe("narration is not a warning (dogfooding on French field reports)", () => {
+  it("counts never/jamais only when they open an instruction", () => {
+    expect(hasCaveatLanguage("Deux capteurs vivaient dans le corpus sans jamais figurer dans CLAUDE.md.")).toBe(false);
+    expect(hasCaveatLanguage("Hivelore est utilisé comme un carnet, pas comme une source.")).toBe(false);
+    expect(hasCaveatLanguage("These rules were never read by any agent.")).toBe(false);
+    expect(hasCaveatLanguage("Ne jamais modifier une migration déjà livrée.")).toBe(true);
+    expect(hasCaveatLanguage("- Never reload nginx during a release.")).toBe(true);
+    expect(hasCaveatLanguage("The rollout is done. Do not enable it on Fridays.")).toBe(true);
+    expect(hasCaveatLanguage("Activer cette directive casserait le lecteur PDF.")).toBe(true);
+  });
+});
+
+describe("normative 'must' is a constraint", () => {
+  it("keeps RFC-2119 style requirements, not must-haves", () => {
+    expect(hasCaveatLanguage("Diff scanning must use scannableSensorTargets so it never self-fires on .ai/.")).toBe(true);
+    expect(hasCaveatLanguage("A must-have for every release.")).toBe(false);
+    expect(hasCaveatLanguage("Le hook ne doit jamais bloquer une lecture.")).toBe(true);
+  });
+});

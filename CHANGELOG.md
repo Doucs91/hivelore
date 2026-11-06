@@ -4,6 +4,16 @@ All notable changes to Hivelore are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loosely and the
 project follows semantic versioning once it ships its first stable release.
 
+## [0.67.4] — Doc warnings: instructions, not narration
+
+Seen at the first edit with the published 0.67.3: two "doc warnings" about `CLAUDE.md` were narrative
+sentences from field reports ("sans jamais figurer dans CLAUDE.md", "pas comme une source").
+- `never` / `jamais` / `ne pas` now count only when they OPEN a sentence or list item ("Never reload
+  during a release", "Ne jamais modifier…"); mid-sentence they narrate. Normative `must` (RFC 2119
+  style, not "must-have"), "ne doit jamais", "il ne faut pas", "would break", "fails when"… still
+  count. On this repository, editing `CLAUDE.md` now shows no false warning, and the CONTRIBUTING.md
+  constraint on `sensors.ts` ("diff scanning must use `scannableSensorTargets`") still surfaces.
+
 ## [0.67.3] — Incident links need an exact file anchor
 
 - A memory anchored to a whole directory or glob (e.g. "core is a pure layer" on `packages/core/src`)

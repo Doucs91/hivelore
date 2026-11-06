@@ -108,12 +108,23 @@ const GENERIC_STEMS = new Set([
 // Phrasings that WARN, not words that describe: "failure", "risk" or "regression" appear in every
 // spec that merely talks about them, so they only count inside a warning construction.
 const CAVEAT_LANGUAGE =
-  /\b(?:warning|caution|caveat|careful|beware|(?:will|would|could|may|can) (?:break|fail|corrupt|lose)|breaks|broke|breakage|never|do not|don'?t|must not|mustn'?t|only works|does(?: not|n'?t) work|fails? (?:when|on|if|with|silently|in production)|gotcha|pitfalls?|known (?:issue|limitation|bug)s?|danger(?:ous)?|risky|incompatible|side[- ]effects?|ne (?:pas|jamais)|jamais|casse(?:r|ra|rait)?|attention|interdit|obligatoire|échoue(?:ra|rait)?)\b/i;
+  /\b(?:warning|caution|caveat|careful|beware|(?:will|would|could|may|can) (?:break|fail|corrupt|lose)|breaks|breakage|must(?!-have)|mustn'?t|should not|ne doit (?:pas|jamais)|doit toujours|only works|does(?: not|n'?t) work|fails? (?:when|on|if|with|silently|in production)|gotcha|pitfalls?|known (?:issue|limitation|bug)s?|danger(?:ous)?|risky|incompatible|side[- ]effects?|il ne faut (?:pas|jamais)|à ne (?:pas|jamais)|interdit|cassera(?:it)?|casserait|échouera(?:it)?)\b|\battention\s*:/i;
+// "never" / "jamais" / "ne pas" are instructions only when they OPEN a sentence or list item
+// ("Never reload during a release", "Ne jamais modifier…"); mid-sentence they narrate ("were never
+// read", "sans jamais figurer") — dogfooding on this repo's French field reports showed the noise.
+const IMPERATIVE_START = /^(?:never|do not|don'?t|avoid|ne (?:jamais|pas)|n'(?:utilisez|modifiez|ajoutez|supprimez)|évite[rz]?)\b/i;
+
+function sentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?;:])\s+|\s+[-*•]\s+/)
+    .map((s) => s.replace(/^[\s>*_`#|-]+|^\d+[.)]\s*/g, "").replace(/^\*\*|^_+/, "").trim())
+    .filter(Boolean);
+}
 const ADMONITION = /^\s*(?:>\s*)?(?:\[!(?:warning|caution|important|danger)\]|:::\s*(?:warning|danger|caution|important)|⚠️?|🚨|\*\*(?:warning|caution|important|attention)\b)/i;
 
 /** True when a paragraph reads as a warning, not a description. */
 export function hasCaveatLanguage(text: string): boolean {
-  return CAVEAT_LANGUAGE.test(text) || ADMONITION.test(text);
+  return CAVEAT_LANGUAGE.test(text) || ADMONITION.test(text) || sentences(text).some((s) => IMPERATIVE_START.test(s));
 }
 
 interface Term {
