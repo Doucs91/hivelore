@@ -77,6 +77,24 @@ export const MemSaveInputSchema = {
       "Pointer to the source-of-truth doc section (e.g. 'docs/runbook.md#rotate-password'). Prefer a short " +
       "rule + source over copying a document into the body: a copy drifts, a pointer does not.",
     ),
+  verified_by: z
+    .string()
+    .min(1)
+    .max(300)
+    .optional()
+    .describe(
+      "What verified the claim, concretely (e.g. 'e2e suite, headless Chromium' or 'reproduced on staging 2026-11-02'). " +
+      "Pair with cannot_detect: a verification you cannot falsify is not evidence.",
+    ),
+  cannot_detect: z
+    .string()
+    .min(1)
+    .max(300)
+    .optional()
+    .describe(
+      "What that verification could NOT observe (e.g. 'GPU-only render path; failures inside web workers'). " +
+      "Delivered next to the rule so the next agent knows which check is still manual. 'nothing known' is a valid answer.",
+    ),
   lifecycle: z
     .enum(["applied", "planned", "abandoned"])
     .optional()
@@ -289,6 +307,8 @@ export async function memSave(
         ...(input.supersedes !== undefined ? { supersedes: input.supersedes } : {}),
         ...(input.rule !== undefined ? { rule: input.rule.trim() } : {}),
         ...(input.source !== undefined ? { source: input.source.trim() } : {}),
+        ...(input.verified_by !== undefined ? { verified_by: input.verified_by.trim() } : {}),
+        ...(input.cannot_detect !== undefined ? { cannot_detect: input.cannot_detect.trim() } : {}),
         anchor: {
           commit: input.commit ?? fm.anchor.commit,
           paths: input.paths.length ? input.paths : fm.anchor.paths,
@@ -349,6 +369,8 @@ export async function memSave(
     supersedes: input.supersedes,
     rule: input.rule,
     source: input.source,
+    verifiedBy: input.verified_by,
+    cannotDetect: input.cannot_detect,
   });
   // Created already-validated by config (defaultStatus), not by explicit review → mark "auto".
   if (frontmatter.status === "validated") frontmatter.validated_by = "auto";
@@ -393,7 +415,7 @@ export async function memSave(
       ? `Anchor path(s) not found in project: ${invalidPaths.join(", ")}. They will be marked stale by \`hivelore sync\`.`
       : null,
     criticalAnchorWarning(frontmatter.type, frontmatter.status, frontmatter.anchor.paths, frontmatter.anchor.symbols),
-    shapeWarning(frontmatter.type, input.body, input.rule),
+    shapeWarning(frontmatter.type, input.body, input.rule, input.evidence, input.verified_by, input.cannot_detect),
     warning ?? null,
     simWarnNew ?? null,
   ].filter(Boolean).join(" — ") || undefined;
@@ -416,8 +438,19 @@ export async function memSave(
  * 2.9 KB (largest 12.5 KB) and a briefing showed ~10% of them, cut before the instruction (field
  * report #11 §5). Nudge toward the shape that survives: a rule line, a short body, a doc pointer.
  */
-export function shapeWarning(type: string, body: string, rule: string | undefined): string | null {
+export function shapeWarning(
+  type: string,
+  body: string,
+  rule: string | undefined,
+  evidence?: string,
+  verifiedBy?: string,
+  cannotDetect?: string,
+): string | null {
   const notes: string[] = [];
+  // A claimed proof with no named witness is how "trusted" ended up next to weak evidence (field report #9 §1).
+  if (["decision", "gotcha", "convention"].includes(type) && evidence && evidence !== "hypothesis" && (!verifiedBy || !cannotDetect)) {
+    notes.push("Evidence claimed without its limits: add `verified_by` (what checked it) and `cannot_detect` (what that check could not see).");
+  }
   if (body.length > 3000) {
     notes.push(`Long body (${(body.length / 1024).toFixed(1)} KB): briefings deliver the \`rule\` line and a short excerpt — move the detail to a doc and point to it with \`source\`.`);
   }

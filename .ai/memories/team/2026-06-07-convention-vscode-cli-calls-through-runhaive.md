@@ -16,25 +16,14 @@ sensor:
     - packages/vscode/src/extension.ts
     - packages/vscode/src/briefingPanel.ts
     - packages/vscode/src/observabilityProvider.ts
-  message: >-
-    Raw child_process in the extension — call runHaive() (harnessHealth.ts)
-    instead; only runHaive may shell out.
+  message: Raw child_process in the extension — call runHaive() (harnessHealth.ts) instead; only runHaive may shell out.
   severity: block
-  autogen: false
-  last_fired: null
 tags:
   - vscode
   - convention
   - cli
 created_at: '2026-06-07T23:04:51.836Z'
-expires_when: null
 verified_at: '2026-07-02T22:21:21.994Z'
-stale_reason: null
-related_ids: []
-last_read_at: null
-revision_count: 0
-requires_human_approval: false
-validated_by: null
 ---
 ## VS Code extension: all hAIve CLI calls go through `runHaive()`, never raw child_process
 

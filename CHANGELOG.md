@@ -4,6 +4,61 @@ All notable changes to Hivelore are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loosely and the
 project follows semantic versioning once it ships its first stable release.
 
+## [0.67.0] — The repo's own knowledge speaks up: docs caveats, falsifiable evidence, capture from signals
+
+0.66 made the write path safe and the output quiet. This release closes the gap field report #9 called
+the most expensive moment of a session — "the repo knew, and the tool did not tell" — and replaces
+capture that depends on the agent's initiative with candidates derived from what the branch did.
+
+### Docs-aware caveats
+- **The repo's tracked docs are read, never copied.** When a briefing or an edit names a file, a
+  symbol, or a config key the edit itself touches, Hivelore surfaces the doc paragraphs that WARN about
+  it ("enforcing `worker-src` would break the PDF viewer") with their location; plain mentions become
+  pointers (`also_in`). In `get_briefing` (`docs.caveats`), in the CLI briefing, and in the edit-time
+  reminder — once per paragraph per session. Tracked files only (`docs/**`, READMEs, ADRs, root prose;
+  never CHANGELOG or generated bridges), bounded reads, `docCaveats: false` to opt out (#9 §1, #11 §9).
+
+### Falsifiable evidence
+- **`verified_by` and `cannot_detect`** on memories (`mem_save`, `mem_update`, `memory add/update
+  --verified-by --cannot-detect`): what verified a claim, and what that verification could not see.
+  The blind spot is delivered next to the rule (`blind_spot` in the briefing).
+- **Labels follow the proof:** `authoritative` now needs both fields on top of human review and a
+  tested claim; an auto-validated memory is `trusted` only when it names what reproduced it.
+  `mem_save` asks for the limits when evidence is claimed without them (#9 §9.3).
+
+### Capture from signals, not from initiative
+- **`hivelore memory propose`** reads the branch and lists 0–5 candidates with the exact command that
+  records each: a regression fix touching code a decision justified (record what its evidence missed,
+  arm a checklist), a regex sensor whose scope missed the bug class the branch just fixed (widen it), a
+  `fix:` commit that explains its cause (a gotcha), a retry loop (an attempt). `--accept <n>` records
+  the complete ones and stages the file into the same PR. `finish` adds one quiet line when candidates
+  exist, nothing otherwise (#8 §6, #9 §7 and §9.4, #11).
+- `memory update --sensor-paths` widens or narrows an attached sensor's scope; `memory update` also
+  gains `--rule` and `--source`.
+
+### Session recaps are a local handoff, never shared corpus
+- `mem_session_end` saves team/module requests as personal (gitignored) and never anchors a recap to
+  files; when the repo sets `autoSessionRecap: false` it writes the local `NEXT.md` handoff instead of
+  a memory. `post_task` no longer ends with a mandatory recap: it points to `memory propose`. `init`
+  gitignores `NEXT.md`; the generated agent rules say "no session recaps — commits and the PR say what
+  was done" (#9 §4, #12 §3.2, §5).
+
+### Caches leave the repository
+- Embedding indexes, the code map, the observation journal and local telemetry now live in
+  `~/.cache/hivelore/<repo>-<hash>/` (XDG / `%LOCALAPPDATA%` aware), per checkout — not in a 181 MB
+  `.ai/.cache` inside the tree. The old directory is moved on first use; `doctor --fix` cleans
+  leftovers. Opt back in with `HIVELORE_CACHE_DIR=.ai/.cache` or `"cacheDir": ".ai/.cache"` in the
+  config (#11 §8).
+- `hivelore report harness` also flags `source:` pointers to docs that no longer exist.
+
+### Smaller fixes from the earlier field reviews
+- The project root is found the way `git` finds it: a stray `.ai/` (only `.cache`/`.runtime`) in a
+  subfolder no longer makes `enforce check` from `frontend/` answer "not initialized".
+- Memory ids carry the author's local calendar date (a memory saved at 23:00 in Montréal is no longer
+  named after tomorrow), and slugs transliterate accents ("décision" → `decision`, not `d-cision`).
+- The `agent setup` MCP diagnostic forwards `HIVELORE_*` settings to the server it starts, so both
+  read the same cache.
+
 ## [0.66.0] — Field reports #8–#12: a boring write path, quiet output, and checklists
 
 Five field reports from agents working daily on a production repository (issues #8–#12) agreed on

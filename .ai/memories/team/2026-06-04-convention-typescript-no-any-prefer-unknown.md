@@ -10,24 +10,13 @@ sensor:
   kind: regex
   pattern: ':\s*any\b'
   paths: []
-  message: >-
-    Explicit `any` disables type-checking — use `unknown` + narrowing or a
-    precise type.
+  message: Explicit `any` disables type-checking — use `unknown` + narrowing or a precise type.
   severity: warn
-  autogen: false
-  last_fired: null
 tags:
   - typescript
   - types
   - stack-pack
 created_at: '2026-06-04T03:30:24.257Z'
-expires_when: null
-verified_at: null
-stale_reason: null
-related_ids: []
-last_read_at: null
-revision_count: 0
-requires_human_approval: false
 ---
 # Convention Typescript No Any Prefer Unknown
 

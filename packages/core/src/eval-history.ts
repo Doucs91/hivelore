@@ -26,7 +26,7 @@ export interface EvalHistoryEntry {
 }
 
 export function evalHistoryPath(paths: HaivePaths): string {
-  return path.join(paths.haiveDir, ".cache", "eval-history.jsonl");
+  return path.join(paths.cacheDir, "eval-history.jsonl");
 }
 
 /** Append one eval run to the history. Best-effort, creates the dir on demand. */

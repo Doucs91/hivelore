@@ -105,7 +105,7 @@ const TEST_FILE_RE = /\.(test|spec)\.[a-z]+$/i;
  * should not ship one.
  */
 export function codeMapPath(paths: HaivePaths): string {
-  return path.join(paths.haiveDir, ".cache", CODE_MAP_FILE);
+  return path.join(paths.cacheDir, CODE_MAP_FILE);
 }
 
 /** Where the code-map used to live, so an existing repo keeps working before it is migrated. */

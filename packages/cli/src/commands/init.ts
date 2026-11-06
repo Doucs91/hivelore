@@ -315,7 +315,7 @@ export function registerInit(program: Command): void {
       await mkdir(paths.modulesContextDir, { recursive: true });
       await ensureAiRuntimeLayout(paths.runtimeDir);
       await ensurePersonalMemoriesIgnored(paths);
-      await ensureAiCacheLayout(path.join(paths.haiveDir, ".cache"));
+      await ensureAiCacheLayout(paths.cacheDir, root);
 
       // ── project-context.md ───────────────────────────────────────────────
       if (!existsSync(paths.projectContext)) {
@@ -544,6 +544,9 @@ export function registerInit(program: Command): void {
         // and is never team truth (eval baselines exclude local usage counters). Committing it made the
         // working tree perpetually dirty and forced a stash before every release.
         ".ai/.usage/",
+        // The session handoff (sessionHandoff: true) is local and overwritten each session — a
+        // recap is never shared corpus, and an untracked root file would dirty every `git status`.
+        "NEXT.md",
       ]);
 
       ui.success(`Hivelore initialized at ${root}${autopilot ? " (autopilot mode)" : ""}`);
@@ -947,8 +950,12 @@ async function ensureAiRuntimeLayout(runtimeDir: string): Promise<void> {
   }
 }
 
-async function ensureAiCacheLayout(cacheDir: string): Promise<void> {
+async function ensureAiCacheLayout(cacheDir: string, root: string): Promise<void> {
   await mkdir(cacheDir, { recursive: true });
+  // The cache lives outside the repo by default (~/.cache/hivelore/<repo>); a .gitignore is only
+  // needed when HIVELORE_CACHE_DIR keeps it inside the checkout.
+  const rel = path.relative(root, cacheDir);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) return;
   const gi = path.join(cacheDir, ".gitignore");
   if (!existsSync(gi)) {
     await writeFile(gi, "*\n!.gitignore\n", "utf8");

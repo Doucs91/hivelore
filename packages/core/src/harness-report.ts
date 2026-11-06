@@ -159,11 +159,24 @@ export function buildHarnessReport(input: HarnessReportInput): HarnessReport {
     .sort((a, b) => b.age_days - a.age_days);
 
   // ── Dangling anchors ──
+  // A `source:` pointer (docs/runbook.md#section) is an anchor too: when the doc moves, the memory
+  // points at nothing and the rule loses its source of truth.
+  const sourcePath = (source: string | undefined): string | null => {
+    if (!source || /^[a-z]+:\/\//i.test(source)) return null;
+    const file = source.split("#")[0]!.trim();
+    return file && !isGlob(file) ? file : null;
+  };
   const dangling = live
-    .map(({ memory }) => ({
-      id: memory.frontmatter.id,
-      missing: memory.frontmatter.anchor.paths.filter((p) => !isGlob(p) && !input.anchorExists(p)),
-    }))
+    .map(({ memory }) => {
+      const source = sourcePath(memory.frontmatter.source);
+      return {
+        id: memory.frontmatter.id,
+        missing: [
+          ...memory.frontmatter.anchor.paths.filter((p) => !isGlob(p) && !input.anchorExists(p)),
+          ...(source && !input.anchorExists(source) ? [memory.frontmatter.source!] : []),
+        ],
+      };
+    })
     .filter((row) => row.missing.length > 0);
 
   // ── Expired decisions ──

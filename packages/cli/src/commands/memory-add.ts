@@ -37,6 +37,8 @@ interface AddOptions {
   supersedes?: string;
   rule?: string;
   source?: string;
+  verifiedBy?: string;
+  cannotDetect?: string;
   body?: string;
   bodyFile?: string;
   topic?: string;
@@ -93,6 +95,8 @@ export function registerMemoryAdd(memory: Command): void {
     .option("--supersedes <csv>", "memory IDs explicitly replaced by this knowledge")
     .option("--rule <text>", "the memory in ONE actionable line ('When X, do Y, because Z') — what briefings and edit-time reminders deliver")
     .option("--source <ref>", "pointer to the source-of-truth doc section, e.g. docs/runbook.md#rotate-password")
+    .option("--verified-by <text>", "what verified the claim, concretely (e.g. 'e2e suite, headless Chromium')")
+    .option("--cannot-detect <text>", "what that verification could NOT observe (e.g. 'GPU-only render path') — delivered next to the rule")
     .option("--body-file <path>", "read memory body from a Markdown file — for long content")
     .option("--no-auto-tag", "disable automatic tag suggestions inferred from anchor paths")
     .option("--topic <key>", "stable key for upsert: if a memory with this topic+scope already exists, update it in-place (revision_count++)")
@@ -111,6 +115,8 @@ export function registerMemoryAdd(memory: Command): void {
         ...(opts.supersedes !== undefined ? { supersedes: parseCsv(opts.supersedes) } : {}),
         ...(opts.rule?.trim() ? { rule: opts.rule.trim() } : {}),
         ...(opts.source?.trim() ? { source: opts.source.trim() } : {}),
+        ...(opts.verifiedBy?.trim() ? { verified_by: shape.verified_by.parse(opts.verifiedBy.trim()) } : {}),
+        ...(opts.cannotDetect?.trim() ? { cannot_detect: shape.cannot_detect.parse(opts.cannotDetect.trim()) } : {}),
       };
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
@@ -239,6 +245,8 @@ export function registerMemoryAdd(memory: Command): void {
         status: config.defaultStatus === "validated" ? "validated" : undefined,
         activation,
         lifecycle: opts.lifecycle as MemoryFrontmatter["lifecycle"] | undefined,
+        verifiedBy: evidenceFields.verified_by,
+        cannotDetect: evidenceFields.cannot_detect,
       });
       // Created already-validated by config (defaultStatus), not by explicit review → mark "auto".
       if (frontmatter.status === "validated") frontmatter.validated_by = "auto";

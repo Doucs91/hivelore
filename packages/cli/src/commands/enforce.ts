@@ -47,6 +47,7 @@ import {
   resolveBriefingBudget,
   incidentSuffix,
   resolveHaivePaths,
+  legacyCacheDir,
   runSensors,
   runPresenceSensors,
   changedPathsFromDiff,
@@ -79,6 +80,7 @@ import { collectScaffoldLoopGaps, describeScaffoldGap } from "../utils/post-inci
 
 import { runPreEdit } from "../utils/pre-edit.js";
 import { resetEditContextLedger } from "../utils/file-context.js";
+import { collectCaptureProposals } from "./memory-propose.js";
 import { dirtyStatusEntries, loadTaskSession, latestTaskSession, startTaskSession, sessionIdentity, sessionIdFromEnv, worktreeSnapshot, taskDirtyFiles, changedSince, gitText, TASK_BASELINE_EXCLUSION_MAX_AGE_MS, type CompletionMode } from "../utils/task-session.js";
 
 declare const __HAIVE_VERSION__: string;
@@ -333,7 +335,9 @@ export function registerEnforce(program: Command): void {
     .action(async (opts: EnforceOptions & { dryRun?: boolean }) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
-      const cacheDir = path.join(paths.haiveDir, ".cache");
+      // Only an IN-REPO cache can leak into commits: the pre-0.67 `.ai/.cache`, or an explicit
+      // HIVELORE_CACHE_DIR inside the checkout. The default user-level cache is not ours to wipe here.
+      const cacheDir = legacyCacheDir(root);
       if (existsSync(cacheDir)) {
         if (opts.dryRun) ui.info(`would clean ${path.relative(root, cacheDir)} (preserving .gitignore)`);
         else {
@@ -591,6 +595,7 @@ async function buildFinishReport(dir: string | undefined, opts: FinishOptions = 
 
   findings.push(...await checkFailureCapture(paths, config));
   findings.push(...await checkPostIncidentScaffolds(paths));
+  findings.push(...await checkCaptureCandidates(root));
   // First-agent bootstrap is a PROJECT, not a precondition for finishing one bugfix. Blocking here
   // made `finish` unpassable for entire sessions, and its only fix ("invoke the bootstrap_repo MCP
   // prompt") is unreachable whenever the MCP layer is down — which is exactly when the gate fires.
@@ -1035,6 +1040,28 @@ async function taggedVersionsBetween(root: string, after: string, before: string
  * lesson was recorded after it. Off by config opt-out — the signal has false positives (a `grep`
  * that finds nothing exits non-zero), so the default is advisory, not blocking.
  */
+/**
+ * Capture from signals, not from the agent's initiative (field reports #8 §6, #9 §7): one quiet line
+ * when the branch itself suggests a memory — a regression fix touching code a decision justified, a
+ * sensor whose scope missed the bug class just fixed, a fix commit that explains its cause. Nothing
+ * at all when there is nothing to propose; never blocks.
+ */
+async function checkCaptureCandidates(root: string): Promise<EnforcementFinding[]> {
+  try {
+    const { proposals } = await collectCaptureProposals(root);
+    if (proposals.length === 0) return [];
+    const kinds = [...new Set(proposals.map((p) => p.kind))].join(", ");
+    return [{
+      severity: "info",
+      code: "capture-candidates",
+      message: `${proposals.length} capture candidate(s) derived from this branch (${kinds}).`,
+      fix: "Review with `hivelore memory propose`; record only what a teammate could not guess (`--accept <n>` stages it into this PR).",
+    }];
+  } catch {
+    return [];
+  }
+}
+
 async function checkFailureCapture(
   paths: ReturnType<typeof resolveHaivePaths>,
   config: HaiveConfig,
@@ -1044,7 +1071,7 @@ async function checkFailureCapture(
   const gate = config.enforcement?.failureCaptureGate ?? "off";
   if (gate === "off") return [];
 
-  const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
+  const obsFile = path.join(paths.cacheDir, "observations.jsonl");
   if (!existsSync(obsFile)) return [];
 
   const failures: { ts: string; tool: string; summary: string }[] = [];
@@ -1185,7 +1212,7 @@ export async function runWithEnforcement(
       // observation, same stream the Claude Code PostToolUse hook feeds — session-end --auto
       // distills it into a proposed draft. Best-effort, never affects the exit code.
       if ((code ?? 0) !== 0) {
-        const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
+        const obsFile = path.join(paths.cacheDir, "observations.jsonl");
         void mkdir(path.dirname(obsFile), { recursive: true })
           .then(() => writeFile(obsFile, "", { flag: "a" }))
           .then(() => writeFile(

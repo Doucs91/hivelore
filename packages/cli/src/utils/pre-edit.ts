@@ -1,6 +1,6 @@
 import path from "node:path";
 import { existsSync } from "node:fs";
-import { findProjectRoot, resolveHaivePaths, loadConfig } from "@hivelore/core";
+import { distinctiveEditTokens, findProjectRoot, resolveHaivePaths, loadConfig } from "@hivelore/core";
 import { injectFileContext } from "./file-context.js";
 export interface HookPayload { cwd?: string; session_id?: string; tool_name?: string; tool_input?: Record<string, unknown>; }
 function resolveRoot(dir: string | undefined, payload: HookPayload): string | null {
@@ -18,7 +18,7 @@ export async function runPreEdit(payload: HookPayload, dir?: string): Promise<nu
   const gate = config.enforcement?.preEditGate ?? "advise";
 
   const targetFiles = extractToolPaths(payload, root);
-  const contextText = await injectFileContext(paths, targetFiles, payload.session_id);
+  const contextText = await injectFileContext(paths, targetFiles, payload.session_id, { editKeys: editKeys(payload) });
   if (!contextText) return 0;
 
   if (gate === "block") {
@@ -38,6 +38,22 @@ export async function runPreEdit(payload: HookPayload, dir?: string): Promise<nu
   emitPreToolUseContext(contextText);
   return 0;
 }
+/** The text an edit introduces or replaces — the config keys a doc may warn about. */
+export function editKeys(payload: HookPayload): string[] {
+  const input = payload.tool_input ?? {};
+  const parts: string[] = [];
+  for (const key of ["new_string", "old_string", "content", "command"]) {
+    const value = input[key];
+    if (typeof value === "string") parts.push(value.slice(0, 4000));
+  }
+  if (Array.isArray(input["edits"])) {
+    for (const edit of input["edits"] as Array<Record<string, unknown>>) {
+      for (const key of ["new_string", "old_string"]) if (typeof edit?.[key] === "string") parts.push((edit[key] as string).slice(0, 2000));
+    }
+  }
+  return parts.length ? distinctiveEditTokens(parts.join("\n")) : [];
+}
+
 /** Emit a Claude Code PreToolUse hook result that injects context for the model WITHOUT blocking. */
 function emitPreToolUseContext(text: string): void {
   console.log(

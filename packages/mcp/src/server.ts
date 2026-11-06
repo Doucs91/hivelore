@@ -180,7 +180,7 @@ import {
   type ImportDocsArgs,
 } from "./prompts/import-docs.js";
 import { SessionTracker } from "./session-tracker.js";
-import { ensurePersonalMemoriesIgnored, hasRecentBriefingMarker, loadConfigSync, sessionIdFromEnv } from "@hivelore/core";
+import { ensurePersonalMemoriesIgnored, hasRecentBriefingMarker, loadConfigSync, migrateLegacyCache, sessionIdFromEnv } from "@hivelore/core";
 
 // Re-export tool implementations so `@hivelore/cli` (and integrators) can call
 // them programmatically without going through the MCP stdio transport.
@@ -400,7 +400,10 @@ export function createHaiveServer(
   const context = createContext(options);
   context.sessionId = options.env?.HIVELORE_SESSION_ID ?? sessionIdFromEnv() ?? randomUUID();
   const config = loadConfigSync(context.paths);
-  if (existsSync(context.paths.haiveDir)) void ensurePersonalMemoriesIgnored(context.paths);
+  if (existsSync(context.paths.haiveDir)) {
+    void ensurePersonalMemoriesIgnored(context.paths);
+    migrateLegacyCache(context.paths);
+  }
   const toolProfile =
     (options.env?.HIVELORE_TOOL_PROFILE as ToolProfile | undefined) ??
     (options.env?.HAIVE_TOOL_PROFILE as ToolProfile | undefined) ?? // legacy env name
@@ -703,25 +706,22 @@ export function createHaiveServer(
   registerTool(
     "mem_session_end",
     [
-      "Save an end-of-session recap so the NEXT session starts with fresh context.",
+      "Leave a LOCAL handoff for unfinished work, so the next session can resume.",
       "",
-      "CALL THIS before closing any significant working session. In autopilot mode,",
-      "the MCP server saves a minimal recap automatically on exit — but calling this",
-      "manually produces a richer, more useful recap.",
-      "",
-      "HOW IT WORKS: uses topic-upsert — one recap per scope is kept and updated",
-      "in-place (revision_count increments). get_briefing surfaces the latest recap",
-      "at the very top of the next session's briefing, before project context.",
+      "USE ONLY when work is left unfinished. What was done belongs in commit messages and the PR",
+      "description; durable lessons belong in mem_save / mem_tried. A recap is never shared corpus:",
+      "team/module scope is saved as personal (gitignored), and when the repo sets",
+      "autoSessionRecap=false the handoff is written to the local NEXT.md instead of a memory.",
+      "get_briefing surfaces the latest handoff as `last_session`.",
       "",
       "PARAMETERS:",
       "  goal         — what you were trying to accomplish (1–2 sentences)",
-      "  accomplished — what was actually done (bullet list recommended)",
-      "  discoveries  — bugs, surprises, missing knowledge found during this session",
-      "  files_touched — key files read or modified (used as anchor for staleness)",
-      "  next_steps   — what should happen in the next session or for a teammate",
-      "  scope        — personal (default) | team",
+      "  accomplished — what was actually done (short)",
+      "  discoveries  — open threads the next session must know about",
+      "  files_touched — key files read or modified (listed in the body, never anchors)",
+      "  next_steps   — what should happen next",
       "",
-      "RETURNS: { id, scope, action: 'created'|'updated', revision_count }",
+      "RETURNS: { id, scope, action: 'created'|'updated'|'handoff', revision_count, notice? }",
     ].join("\n"),
     MemSessionEndInputSchema,
     async (input: MemSessionEndInput) => {
@@ -1353,10 +1353,9 @@ export function createHaiveServer(
     server.prompt(
       "post_task",
       [
-        "⭐ Post-task reflection — run at the end of every session to capture what you learned:",
-        "failed approaches (mem_tried), new conventions/decisions/gotchas (mem_save),",
-        "failed approaches (mem_tried), and an end-of-session recap (mem_session_end).",
-        "In autopilot mode a minimal recap saves automatically; calling this produces a richer one.",
+        "Post-task reflection: capture only what a teammate could not guess — failed approaches",
+        "(mem_tried), conventions/decisions/gotchas with their evidence (mem_save) — review the",
+        "branch-derived candidates from `hivelore memory propose`, then run `hivelore enforce finish`.",
       ].join(" "),
       PostTaskArgsSchema,
       (args: PostTaskArgs) => postTaskPrompt(args, context),

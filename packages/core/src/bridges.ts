@@ -241,7 +241,9 @@ const HAIVE_PREAMBLE =
   "   Each memory comes with a one-line `rule`; `must_read` means it is anchored to one of those files.\n" +
   "   Read the full body with `mem_get` only when the rule is not enough. Docs-only or typo changes can skip it.\n" +
   "2. **When something you tried fails for a reason worth remembering**, call `mem_tried` once (what, why, instead).\n" +
-  "   Ordinary command misses (a grep with no match, a typo) need no memory.\n" +
+  "   Ordinary command misses (a grep with no match, a typo) need no memory. A decision you verified states how\n" +
+  "   (`verified_by`) and what that check could not see (`cannot_detect`). No session recaps: commits and the PR\n" +
+  "   say what was done; `finish` points to `hivelore memory propose` when the branch suggests a lesson.\n" +
   "3. **Before reporting done**, run `hivelore enforce finish`. It judges only the files this task changed —\n" +
   "   never commit, ignore or delete files that were already modified before the task started.\n" +
   "\n" +

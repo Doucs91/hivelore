@@ -221,6 +221,18 @@ export const MemoryFrontmatterSchema = z
      * (field report #11 §9).
      */
     source: z.string().min(1).optional(),
+    /**
+     * WHAT verified the claim, concretely: "e2e suite (headless Chromium) + 7 days of CSP reports".
+     * `evidence` says how strong the proof is; this says what the proof was, so a reader can judge it.
+     */
+    verified_by: z.string().min(1).max(300).optional(),
+    /**
+     * What that verification could NOT have observed: "GPU-only render path; refusals inside web
+     * workers". Field report #9 §1: a decision labelled `trusted` on "no reports for 7 days, e2e
+     * green" hid a failure that only occurs on a path headless CI never runs — and shipped twice.
+     * Delivered next to the rule, so the next agent knows which check is still manual.
+     */
+    cannot_detect: z.string().min(1).max(300).optional(),
   })
   .refine(
     (data) => data.scope !== "module" || !!data.module,

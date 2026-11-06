@@ -251,7 +251,7 @@ export function registerObserve(program: Command): void {
           ...(failureHint ? { failure_hint: true as const } : {}),
         };
 
-        const cacheDir = path.join(paths.haiveDir, ".cache");
+        const cacheDir = paths.cacheDir;
         await mkdir(cacheDir, { recursive: true });
         await appendFile(
           path.join(cacheDir, "observations.jsonl"),

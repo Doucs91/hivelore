@@ -40,7 +40,7 @@ export interface PreventionEvent {
 export type PreventionEventDetail = Pick<PreventionEvent, "kind" | "stage" | "exit_code">;
 
 export function preventionLogPath(paths: HaivePaths): string {
-  return path.join(paths.haiveDir, ".cache", "prevention-log.jsonl");
+  return path.join(paths.cacheDir, "prevention-log.jsonl");
 }
 
 /** Append one catch to the log. Best-effort, creates the dir on demand. */

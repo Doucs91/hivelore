@@ -35,6 +35,19 @@ export interface AgentBriefingMemory {
   source?: string;
   lifecycle?: BriefingMemory["lifecycle"];
   unreviewed?: true;
+  /** What verified the claim. */
+  verified_by?: string;
+  /** What that verification could not observe — check it yourself before relying on the rule. */
+  blind_spot?: string;
+}
+
+export interface AgentDocCaveat {
+  /** `docs/security.md:7` — open it for the full section. */
+  at: string;
+  heading?: string;
+  text: string;
+  /** The file, symbol or key the doc warns about. */
+  about: string;
 }
 
 export interface AgentBriefing {
@@ -47,6 +60,8 @@ export interface AgentBriefing {
   project_context?: string;
   module_contexts?: Array<{ name: string; content: string }>;
   symbol_locations?: BriefingOutput["symbol_locations"];
+  /** Warnings from the repo's own docs about the files/symbols you passed; the doc is the source of truth. */
+  docs?: { caveats?: AgentDocCaveat[]; also_in?: string[] };
   notices?: string[];
   hints?: string[];
   /** Tokens of THIS payload, envelope included. */
@@ -88,8 +103,18 @@ export function projectBriefingForAgent(briefing: BriefingOutput, root: string):
       ...(m.source ? { source: m.source } : {}),
       ...(m.lifecycle && m.lifecycle !== "applied" ? { lifecycle: m.lifecycle } : {}),
       ...(m.unverified || m.status === "proposed" ? { unreviewed: true as const } : {}),
+      ...(m.verified_by ? { verified_by: m.verified_by } : {}),
+      ...(m.cannot_detect ? { blind_spot: m.cannot_detect } : {}),
     };
   });
+
+  const docCaveats = (briefing.doc_caveats ?? []).map((c) => ({
+    at: `${c.doc}:${c.line}`,
+    ...(c.heading ? { heading: c.heading } : {}),
+    text: c.text,
+    about: c.target,
+  }));
+  const alsoIn = (briefing.doc_mentions ?? []).map((m) => `${m.doc}:${m.line}`);
 
   const notices = [
     ...(briefing.maintenance_notices ?? []).map((n) => n.summary),
@@ -113,6 +138,9 @@ export function projectBriefingForAgent(briefing: BriefingOutput, root: string):
       ? { module_contexts: briefing.module_contexts.filter((m) => m.content.trim()).map(({ name, content }) => ({ name, content })) }
       : {}),
     ...(briefing.symbol_locations?.length ? { symbol_locations: briefing.symbol_locations } : {}),
+    ...(docCaveats.length || alsoIn.length
+      ? { docs: { ...(docCaveats.length ? { caveats: docCaveats } : {}), ...(alsoIn.length ? { also_in: alsoIn } : {}) } }
+      : {}),
     ...(notices.length ? { notices } : {}),
     ...(briefing.hints?.length ? { hints: briefing.hints } : {}),
     estimated_tokens: 0,
@@ -149,8 +177,18 @@ export function fitBriefingToBudget(briefing: BriefingOutput, root: string, maxT
   if (size() <= maxTokens) return finish();
   if (briefing.hints?.length) { briefing.hints = undefined; record("hints"); }
   if (size() <= maxTokens) return finish();
+  if (briefing.doc_mentions?.length) { briefing.doc_mentions = undefined; record("doc pointers"); }
+  if (size() <= maxTokens) return finish();
 
   for (const tier of ["background", "useful", "must_read"] as const) {
+    // Doc warnings outrank background/useful bodies, but not the bodies of must_read memories.
+    if (tier === "must_read" && briefing.doc_caveats && briefing.doc_caveats.length > 1) {
+      while (briefing.doc_caveats.length > 1 && size() > maxTokens) {
+        briefing.doc_caveats.pop();
+        record("doc caveats");
+      }
+      if (size() <= maxTokens) return finish();
+    }
     // Drop bodies from the lowest-ranked end of the tier first.
     for (const m of [...briefing.memories].reverse()) {
       if (m.priority !== tier || m.body_omitted) continue;

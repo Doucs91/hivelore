@@ -48,7 +48,7 @@ export interface PendingDistill {
 
 /** Path to the pending distill marker file. */
 export function pendingDistillPath(ctx: HaiveContext): string {
-  return path.join(ctx.paths.haiveDir, ".cache", "pending-distill.json");
+  return path.join(ctx.paths.cacheDir, "pending-distill.json");
 }
 
 export class SessionTracker {
@@ -203,7 +203,7 @@ export class SessionTracker {
             ...(recapId ? { recap_id: recapId } : {}),
           };
 
-          const cacheDir = path.join(this.ctx.paths.haiveDir, ".cache");
+          const cacheDir = this.ctx.paths.cacheDir;
           await mkdir(cacheDir, { recursive: true });
           await writeFile(
             pendingDistillPath(this.ctx),

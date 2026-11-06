@@ -438,7 +438,7 @@ not a missing feature.
 | **Feedback** | `hivelore sensors check` | Scan the diff against documented lessons |
 | **Gate** | `hivelore enforce finish` | Exit gate before you call the task done |
 | **Sync** | `hivelore sync` | Re-check stale anchors, refresh bridge files |
-| **Close** | `hivelore session end` | Save a recap for the next session |
+| **Close** | `hivelore memory propose` | Review lesson candidates derived from the branch; unfinished work leaves a local `NEXT.md` |
 
 **One vocabulary across CLI and MCP.** The memory verbs mirror the MCP tool names, so an agent learns
 them once: `hivelore memory save/search/get/delete` ↔ `mem_save`/`mem_search`/`mem_get`/`mem_delete`
@@ -471,6 +471,38 @@ live `hivelore:allow` waivers and last hit (and the ones never evaluated); the m
 and whether anyone reported applying them; validated memories never surfaced in 60 days (archive
 candidates); anchors that no longer exist; decisions past their `expires_when` date. Nothing is
 inferred — no "time saved", no unverifiable totals.
+
+## The repo already knew — now it says so at the edit
+
+The costliest miss in one field report was a sentence sitting in `docs/`: "enforcing policy X would
+break component Y". X shipped a week later, the decision memory surfaced as `trusted`, the doc did not,
+and the failure lived in production for a week. Hivelore now reads your **tracked docs** (never copies
+them): when a briefing or an edit names a file, a symbol, or a config key the edit itself touches, the
+paragraphs that **warn** about it come back with their location —
+
+```
+Hivelore — before editing config/security/csp.ts:
+• docs/security.md:41 (Content Security Policy) — Enforcing `worker-src 'self'` would break the PDF
+  viewer: pdf.js starts its worker from a blob URL, and headless CI never sees the refusal.
+  (doc warning about worker-src · the doc is the source of truth)
+```
+
+Memories carry **falsifiable evidence** to match: `verified_by` (what checked the claim) and
+`cannot_detect` (what that check could not see). The blind spot travels with the rule, and
+`authoritative` requires both — "no reports for 7 days" next to a `trusted` label is how the miss
+above happened.
+
+## Capture from what the branch did, not from what the agent remembers
+
+`hivelore memory propose` reads the commits and the diff of the current branch and lists 0–5
+candidates, each with the command that records it: a regression fix touching code a decision
+justified (record what its evidence missed, arm a checklist), a sensor whose scope missed the bug class
+you just fixed elsewhere (widen it), a `fix:` commit that explains its cause (a gotcha), a retry loop
+(an attempt). `--accept <n>` records the complete ones and stages them into the same PR. `enforce
+finish` mentions it in one line when there is something to propose — and says nothing otherwise.
+
+There are no session recaps in the corpus: commits and the PR say what was done, `NEXT.md` (local,
+gitignored) carries open threads for unfinished work.
 
 ## Try it on your repo (5 minutes, reversible)
 
@@ -565,17 +597,20 @@ your-project/
 │   │   ├── personal/               # Private — gitignored
 │   │   ├── team/                   # Shared — committed to git
 │   │   └── module/<name>/          # Module-scoped memories
-│   ├── code-map.json               # Symbol index — deterministic, safe to commit
-│   ├── .runtime/                   # Local session state — gitignored
-│   └── .cache/                     # Indexes, churn, telemetry — gitignored
+│   └── .runtime/                   # Local session state — gitignored
 ├── CLAUDE.md                       # Auto-generated bridge (Claude Code)
 ├── AGENTS.md / GEMINI.md / …       # …and 10 more native bridges (see below)
+├── NEXT.md                         # Local handoff for unfinished work — gitignored
 └── .github/
     ├── copilot-instructions.md     # Auto-generated bridge for Copilot
     └── workflows/
         ├── hivelore-sync.yml       # Anchor verification on merge
         └── hivelore-enforcement.yml # Required policy gate
 ```
+
+Caches (embedding indexes, the code map, the observation journal, local telemetry) live outside the
+checkout, in `~/.cache/hivelore/<repo>-<hash>/` — one per worktree. Set `HIVELORE_CACHE_DIR` or
+`"cacheDir"` in `.ai/hivelore.config.json` (e.g. `.ai/.cache`) to keep them elsewhere.
 
 ### Native bridges — meet every agent where it is
 
@@ -641,7 +676,7 @@ Maintenance profile (`HIVELORE_TOOL_PROFILE=maintenance`) adds, among others:
 | `code_map` | Look up symbols without manual grep when code-map is indexed |
 | `code_search` | Semantic search over exported symbols (needs `@hivelore/embeddings` + `hivelore index code-search`) |
 | `scaffold_test` | Generate a pending post-incident test from a lesson + the `sensors propose --kind test` line to arm it (monorepo-aware) |
-| `mem_session_end` | Save end-of-session recap for the next agent (the SessionEnd hook already does this) |
+| `mem_session_end` | Local handoff for unfinished work (`NEXT.md` or a personal recap) — never shared corpus |
 
 MCP profiles keep the product focused:
 
@@ -656,7 +691,7 @@ MCP profiles keep the product focused:
 
 | Prompt | Description |
 |---|---|
-| `post_task` | ⭐ Post-task checklist — capture learnings before closing every session |
+| `post_task` | ⭐ Post-task checklist — capture only what a teammate could not guess, review `hivelore memory propose`, run `enforce finish` |
 | `bootstrap_repo` | ⭐ First-agent bootstrap — fills the whole knowledge layer the bootstrap gate requires (project-context, module contexts, anchored memories, a validated sensor per main area). Tailors a concrete checklist from the current corpus state and drives `bootstrap_project_save` → `mem_save` → `propose_sensor` until ready |
 | `bootstrap_project` | Analyze the codebase and write `.ai/project-context.md` |
 

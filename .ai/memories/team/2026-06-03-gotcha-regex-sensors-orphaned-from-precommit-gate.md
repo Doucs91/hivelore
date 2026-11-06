@@ -16,12 +16,9 @@ sensor:
     - packages/cli/src/commands/enforce.ts
     - packages/cli/src/commands/sensors.ts
     - packages/mcp/src/tools/precommit-check.ts
-  message: >-
-    Deterministic regex sensors do NOT run in the pre-commit gate — they are
-    orphaned
+  message: Deterministic regex sensors do NOT run in the pre-commit gate — they are orphaned
   severity: warn
   autogen: true
-  last_fired: null
 tags:
   - sensors
   - enforcement
@@ -29,14 +26,7 @@ tags:
   - quality
   - gap
 created_at: '2026-06-03T23:51:26.770Z'
-expires_when: null
 verified_at: '2026-07-02T22:21:21.986Z'
-stale_reason: null
-related_ids: []
-last_read_at: null
-revision_count: 0
-requires_human_approval: false
-validated_by: null
 ---
 ## Deterministic regex sensors do NOT run in the pre-commit gate — they are orphaned
 

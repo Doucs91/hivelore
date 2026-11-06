@@ -35,6 +35,8 @@ export * from "./briefing-body.js";
 export * from "./rule-line.js";
 export * from "./harness-report.js";
 export * from "./rules-audit.js";
+export * from "./doc-caveats.js";
+export * from "./capture-proposals.js";
 export * from "./resolve-project.js";
 export * from "./topic-suggest.js";
 export * from "./lexical-rank.js";

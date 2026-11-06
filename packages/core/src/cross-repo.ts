@@ -131,7 +131,7 @@ async function pullFromSource(
   await mkdir(destDir, { recursive: true });
 
   // Cache dir for import tracking
-  const cacheDir = path.join(paths.haiveDir, ".cache", "cross-repo", source.name);
+  const cacheDir = path.join(paths.cacheDir, "cross-repo", source.name);
   await mkdir(cacheDir, { recursive: true });
   const importMap = await loadImportMap(cacheDir);
   const mapDirty = false;
@@ -213,7 +213,7 @@ async function cloneOrFetchGitSource(
   paths: HaivePaths,
   report: CrossRepoReport,
 ): Promise<string | null> {
-  const cacheDir = path.join(paths.haiveDir, ".cache", "cross-repo", source.name);
+  const cacheDir = path.join(paths.cacheDir, "cross-repo", source.name);
   await mkdir(cacheDir, { recursive: true });
 
   if (existsSync(path.join(cacheDir, ".git"))) {

@@ -1,5 +1,5 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 export interface McpCheckResult {
   server_reachable: boolean;
@@ -14,8 +14,14 @@ export interface McpCheckResult {
 export async function checkMcpServer(root: string, cliEntry: string, timeout = 10_000): Promise<McpCheckResult> {
   const client = new Client({ name: "hivelore-diagnostic", version: "1.0.0" });
   const result: McpCheckResult = { server_reachable: false, session_connection: "unverified", tools: [] };
+  // The SDK forwards only a short env allow-list; Hivelore's own settings (HIVELORE_CACHE_DIR, session
+  // ids, tool profile) and XDG_CACHE_HOME must reach the server, or it reads a different cache.
+  const env: Record<string, string> = { ...getDefaultEnvironment() };
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined && (/^(?:HIVELORE|HAIVE)_/.test(key) || key === "XDG_CACHE_HOME" || key === "LOCALAPPDATA")) env[key] = value;
+  }
   const transport = new StdioClientTransport({ command: process.execPath,
-    args: [cliEntry, "mcp", "--stdio", "--dir", root], stderr: "pipe", cwd: root });
+    args: [cliEntry, "mcp", "--stdio", "--dir", root], stderr: "pipe", cwd: root, env });
   // Drain without printing logs or environment values into diagnostic output.
   transport.stderr?.on("data", () => {});
   try {

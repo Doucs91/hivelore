@@ -15,26 +15,13 @@ sensor:
     - packages/cli/vitest.config.ts
     - packages/mcp/vitest.config.ts
     - packages/core/vitest.config.ts
-  message: >-
-    singleFork:false makes vitest 2.1.9 resolve worker paths through a URL,
-    which breaks on a space in the checkout path (".../New idea" → New%20idea)
-    and collects ZERO tests. Keep singleFork:true; speed up feedback by moving
-    pure logic into core unit tests instead.
+  message: 'singleFork:false makes vitest 2.1.9 resolve worker paths through a URL, which breaks on a space in the checkout path (".../New idea" → New%20idea) and collects ZERO tests. Keep singleFork:true; speed up feedback by moving pure logic into core unit tests instead.'
   severity: block
-  autogen: false
-  last_fired: null
 tags:
   - testing
   - vitest
   - tooling
 created_at: '2026-08-21T03:00:32.956Z'
-expires_when: null
-verified_at: null
-stale_reason: null
-related_ids: []
-last_read_at: null
-revision_count: 0
-requires_human_approval: false
 validated_by: human
 ---
 # Enabling parallel vitest forks (poolOptions.forks.singleFork: false) in packages/cli to speed up the ~104s integration suite
