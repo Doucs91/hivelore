@@ -112,7 +112,7 @@ export function registerRules(program: Command): void {
           scope: "team",
           tags: ["from-rules"],
           status: "validated",
-          rule: plan.rule.text.slice(0, 400),
+          rule: plan.statement.slice(0, 400),
           source: `${plan.rule.file}:${plan.rule.line}`,
           sensor: sensorFor(plan, severity),
           ...(plan.kind === "checklist" ? { paths: plan.paths } : {}),
@@ -121,7 +121,7 @@ export function registerRules(program: Command): void {
         const file = memoryFilePath(paths, "team", frontmatter.id);
         if (existsSync(file)) continue;
         await mkdir(path.dirname(file), { recursive: true });
-        const body = `# ${plan.rule.text.replace(/\*\*/g, "").slice(0, 100)}\n\n${plan.rule.text}\n\nArmed from \`${plan.rule.file}:${plan.rule.line}\` by \`hivelore rules arm\` (${plan.reason}).\n`;
+        const body = `# ${plan.statement.slice(0, 100)}\n\n${plan.statement}\n\nFrom \`${plan.rule.file}:${plan.rule.line}\`: ${plan.rule.text.replace(/\*\*/g, "")}\n\nArmed by \`hivelore rules arm\` (${plan.reason}).\n`;
         await writeFile(file, serializeMemory({ frontmatter, body }), "utf8");
         const rel = path.relative(root, file);
         if (opts.stage !== false) {

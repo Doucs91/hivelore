@@ -4,6 +4,25 @@ All notable changes to Hivelore are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loosely and the
 project follows semantic versioning once it ships its first stable release.
 
+## [0.68.1] — Command guards that actually fire, arming that never over-reaches
+
+Found by arming this repository's own rules with the published 0.68.0:
+- **Command guards now see every shell call.** The CLI entry's fast path skipped the PreToolUse hook for
+  any Bash command that named no file, so `npm publish` never reached the guard. Non-read-only shell
+  calls now go through (~150 ms); `ls`, `cat`, `git status` stay instant. An end-to-end test runs the
+  real entry point.
+- **A ban must be a ban.** "Before changing code you **do not** understand…" was read as a prohibition:
+  `do not` / `must not` / `avoid` now count only when they open the clause; `never` / `forbidden` anywhere.
+- **Enforcement must be specific.** `rules audit` called the npm-publish boundary "enforced" because the
+  word `release` appeared in an unrelated sensor's message; only specific tokens (commands, calls,
+  compound names) now prove enforcement.
+- **Guards tolerate options** before the subcommand (`pnpm --filter @x/core publish`), the same rule
+  mirrored into several instruction files becomes one check, and an armed memory states the prohibition
+  itself (`Do not use \`git push --tags\``) rather than the whole surrounding rule.
+- This repository now enforces its own boundaries: `npm publish` / `pnpm publish` / `publish:all` and
+  `git push --tags` are denied before an agent runs them. `.cursorrules` no longer says the opposite of
+  CLAUDE.md about `git push --tags` and npm publication.
+
 ## [0.68.0] — Tools an agent reaches for on its own
 
 The question behind this release: what would make an agent use Hivelore — and suggest it — without

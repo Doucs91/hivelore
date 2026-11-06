@@ -226,3 +226,35 @@ describe("ci why reads the reason a gate printed before failing", () => {
     expect(onlyExitCodes(full.jobs[0]!)).toBe(false);
   });
 });
+
+describe("dogfooding round 2: prohibitions must be prohibitions, enforcement must be specific", () => {
+  it("does not read 'code you do not understand' as a ban, and arms an unenforced npm publish boundary", () => {
+    const audit = auditInstructionRules([{
+      path: "CLAUDE.md",
+      content: [
+        "- Before changing code you do not understand: `why` (MCP) or `hivelore why <file>:<line>`.",
+        "**BOUNDARY: agents NEVER run `npm publish` (or `pnpm publish`) locally — publication goes through the `release` workflow.**",
+      ].join("\n"),
+    }], [{ id: "x-release-chain", message: "Root verify is the release chain", pattern: "publish:all", severity: "block" }]);
+    const boundary = audit.rules.find((r) => r.text.includes("BOUNDARY"))!;
+    expect(boundary.class).toBe("checkable");
+    const { plans } = planRuleArming(audit.rules);
+    expect(plans).toHaveLength(1);
+    expect(plans[0]!.kind).toBe("command");
+    const re = new RegExp(plans[0]!.pattern!);
+    expect(re.test("npm publish --access public")).toBe(true);
+    expect(re.test("pnpm publish")).toBe(true);
+  });
+});
+
+describe("command patterns tolerate options before the subcommand", () => {
+  it("catches pnpm --filter … publish, not neighbours", () => {
+    const re = new RegExp(commandPattern("pnpm publish"));
+    expect(re.test("pnpm --filter @hivelore/core publish --access public")).toBe(true);
+    expect(re.test("pnpm -r publish")).toBe(true);
+    expect(re.test("pnpm publish")).toBe(true);
+    expect(re.test("pnpm run publish:all")).toBe(false);
+    expect(new RegExp(commandPattern("git push --tags")).test("git push --tags")).toBe(true);
+    expect(new RegExp(commandPattern("git push --tags")).test("git push origin v1")).toBe(false);
+  });
+});

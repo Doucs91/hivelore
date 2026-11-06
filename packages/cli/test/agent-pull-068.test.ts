@@ -47,6 +47,19 @@ describe("command guards in the PreToolUse hook", () => {
   });
 });
 
+describe("command guards through the real CLI entry point", () => {
+  it("denies a Bash command that names no file (the entry fast path used to skip it)", async () => {
+    const root = await repoWithGuard();
+    const cli = path.resolve(__dirname, "../dist/index.js");
+    const run = (command: string): string => execFileSync(process.execPath, [cli, "enforce", "pre-tool-use"], {
+      input: JSON.stringify({ cwd: root, session_id: "e2e", tool_name: "Bash", tool_input: { command } }), encoding: "utf8",
+    });
+    expect(run("npm publish")).toContain('"permissionDecision":"deny"');
+    expect(run("ls -la")).toBe("");
+    await rm(root, { recursive: true, force: true });
+  });
+});
+
 describe("developer corrections (UserPromptSubmit)", () => {
   let root: string;
   beforeEach(async () => { root = await mkdtemp(path.join(tmpdir(), "hivelore-prompt-")); });
@@ -89,7 +102,7 @@ describe("rules arm validation", () => {
     await writeFile(path.join(root, "src", "a.ts"), "const d = LocalDate.now();\n");
     execFileSync("git", ["add", "-A"], { cwd: root });
     const rule = { file: "CLAUDE.md", line: 3, text: "Never call `LocalDate.now()`.", class: "checkable" as const };
-    const plan: ArmPlan = { rule, kind: "regex", pattern: "\\bLocalDate\\.now\\(\\)", bad_example: "LocalDate.now()", severity: "warn", message: "m", slug: "s", reason: "r" };
+    const plan: ArmPlan = { rule, kind: "regex", pattern: "\\bLocalDate\\.now\\(\\)", bad_example: "LocalDate.now()", severity: "warn", message: "m", slug: "s", reason: "r", statement: "Never call `LocalDate.now()`." };
     expect(validateArmPlan(plan, root)).toMatchObject({ ok: true, existing: 1 });
     expect(validateArmPlan({ ...plan, pattern: "nope" }, root).ok).toBe(false);
     const guard: ArmPlan = { ...plan, kind: "command", pattern: "git", bad_example: "git push --tags" };

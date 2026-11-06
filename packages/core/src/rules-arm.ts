@@ -28,6 +28,8 @@ export interface ArmPlan {
   paths?: string[];
   /** Text the sensor MUST fire on (validation). */
   bad_example: string;
+  /** The prohibition itself, in the rule's own words — the memory's `rule` line. */
+  statement: string;
   severity: "warn" | "block";
   message: string;
   slug: string;
@@ -40,7 +42,6 @@ export interface ArmSkip {
   reason: string;
 }
 
-const PROHIBITION = /\b(?:never|do not|don'?t|avoid|must not|mustn'?t|should not|forbidden|prohibited|no longer|ne (?:jamais|pas)|jamais|interdit|évite[rz]?|pas de)\b/i;
 const COMMAND_START = /^(?:npm|pnpm|yarn|npx|bun|git|docker|kubectl|terraform|helm|pip3?|poetry|cargo|go|mvn|gradle|make|rm|curl|wget|sudo|chmod|psql|mysql|aws|gcloud|az|gh|vercel|firebase|heroku|fly)\s+\S/;
 const BARE_COMMAND = /\b((?:npm|pnpm|yarn|npx|git|docker|kubectl|terraform|helm|cargo|gh)\s+(?:-{1,2}[\w-]+\s+)*[a-z][\w:-]*(?:\s+-{1,2}[\w-]+)*)/g;
 const PATH_LIKE = /^(?:\.{0,2}\/)?[\w@.-]+(?:\/[\w@.*-]+)+$|^[\w-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|java|kt|rb|rs|sql|ya?ml|json|toml|sh|env|lock|conf|tf|md)$/;
@@ -51,7 +52,16 @@ export function prohibitionClauses(text: string): string[] {
   return text
     .split(/(?<=[.;!?])\s+|\s+[—–]\s+|\s+-{1,2}\s+|:\s+(?=[A-Z])/)
     .map((c) => c.trim())
-    .filter((c) => c && PROHIBITION.test(c));
+    .filter((c) => c && isProhibition(c));
+}
+
+/** "never"/"forbidden" anywhere; "do not"/"must not"/"avoid" only when they OPEN the clause ("code you do not understand" is not a ban). */
+const ANYWHERE = /\b(?:never|forbidden|prohibited|jamais|interdit)\b/i;
+const OPENING = /^(?:[*_`]+)?(?:[\w-]+:\s*(?:[*_`]+)?)?(?:(?:agents?|you|we|the agent|developers?|ai agents?)\s+)?(?:must not|mustn'?t|should not|do not|don'?t|avoid|no longer|ne (?:jamais|pas)|évite[rz]?|pas de)\b/i;
+
+export function isProhibition(clause: string): boolean {
+  const c = clause.replace(/^\s*(?:[-*+]|\d+[.)])\s+/, "").trim();
+  return ANYWHERE.test(c) || OPENING.test(c);
 }
 
 function backticked(text: string): string[] {
@@ -85,16 +95,18 @@ export function planRuleArming(rules: AuditedRule[]): { plans: ArmPlan[]; skippe
   for (const rule of rules) {
     if (rule.class !== "checkable") continue;
     const text = rule.text;
-    if (!PROHIBITION.test(text)) {
+    if (prohibitionClauses(text).length === 0) {
       skipped.push({ rule, reason: "not a prohibition — \"always do X\" cannot be checked by matching X (use a checklist or keep it as guidance)" });
       continue;
     }
-    const message = `${text.length > 200 ? `${text.slice(0, 199)}…` : text} (${rule.file}:${rule.line})`;
-    const slug = slugFrom(text);
     // Only what the PROHIBITION clause names is forbidden: "`git push` code and the tag. Do not use
     // `git push --tags`" instructs the first command and forbids the second — arming both would block
-    // every push. Compound commands (`a && b`) are examples, never a single thing to deny.
+    // every push. Compound commands (`a && b`) are examples, never a single thing to deny. The clause is
+    // also what the agent is told when the check fires, and what names the memory.
     const forbidden = prohibitionClauses(text).join(" ");
+    const said = forbidden.replace(/\*\*/g, "").trim() || text;
+    const message = `${said.length > 200 ? `${said.slice(0, 199)}…` : said} (${rule.file}:${rule.line})`;
+    const slug = slugFrom(said);
     const ticks = backticked(forbidden).filter((t) => !/&&|\|\||;|\|/.test(t));
 
     // 1. Commands the agent must not run.
@@ -105,7 +117,7 @@ export function planRuleArming(rules: AuditedRule[]): { plans: ArmPlan[]; skippe
     if (commands.length > 0) {
       const pattern = commands.map(commandPattern).filter(Boolean).map((p) => `(?:${p})`).join("|");
       plans.push({
-        rule, kind: "command", pattern, bad_example: commands[0]!, severity: "block", message, slug,
+        rule, kind: "command", pattern, bad_example: commands[0]!, severity: "block", message, slug, statement: said,
         reason: `names a command (${commands.join(", ")}) — denied before the agent runs it`,
       });
       continue;
@@ -115,7 +127,7 @@ export function planRuleArming(rules: AuditedRule[]): { plans: ArmPlan[]; skippe
     const paths = ticks.filter((t) => PATH_LIKE.test(t) && !t.includes("*") || /\*/.test(t) && t.includes("/"));
     if (paths.length > 0 && EDIT_VERB.test(forbidden)) {
       plans.push({
-        rule, kind: "checklist", paths, bad_example: paths[0]!, severity: "warn", message, slug,
+        rule, kind: "checklist", paths, bad_example: paths[0]!, severity: "warn", message, slug, statement: said,
         reason: `protects ${paths.join(", ")} — a change must be acknowledged at commit time`,
       });
       continue;
@@ -127,7 +139,7 @@ export function planRuleArming(rules: AuditedRule[]): { plans: ArmPlan[]; skippe
     if (specific.length > 0) {
       plans.push({
         rule, kind: "regex", pattern: specific.map(codePattern).map((p) => specific.length > 1 ? `(?:${p})` : p).join("|"),
-        bad_example: specific[0]!, severity: "warn", message, slug,
+        bad_example: specific[0]!, severity: "warn", message, slug, statement: said,
         reason: `names code (${specific.join(", ")}) — flagged when a diff adds it`,
       });
       continue;
@@ -139,5 +151,13 @@ export function planRuleArming(rules: AuditedRule[]): { plans: ArmPlan[]; skippe
         : "no command, protected path or code token to match — keep it as guidance or add a checklist",
     });
   }
-  return { plans, skipped };
+  // The same rule mirrored into several instruction files is one check, not several.
+  const unique: ArmPlan[] = [];
+  for (const plan of plans) {
+    const key = `${plan.kind}\u0000${plan.pattern ?? (plan.paths ?? []).join(",")}`;
+    const first = unique.find((p) => `${p.kind}\u0000${p.pattern ?? (p.paths ?? []).join(",")}` === key);
+    if (first) skipped.push({ rule: plan.rule, reason: `same check as ${first.rule.file}:${first.rule.line}` });
+    else unique.push(plan);
+  }
+  return { plans: unique, skipped };
 }

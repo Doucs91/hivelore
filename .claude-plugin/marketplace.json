@@ -8,7 +8,7 @@
     {
       "name": "hivelore",
       "source": "./plugins/hivelore",
-      "version": "0.68.0",
+      "version": "0.68.1",
       "description": "Forbidden commands denied before they run, developer corrections turned into enforced rules, and the rules and doc warnings for each file an agent edits.",
       "homepage": "https://github.com/Doucs91/hivelore",
       "license": "Apache-2.0",

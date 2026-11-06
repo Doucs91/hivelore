@@ -68,5 +68,7 @@ export function commandPattern(command: string): string {
   const tokens = command.trim().split(/\s+/).filter(Boolean)
     .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   if (tokens.length === 0) return "";
-  return `(?<![\\w-])${tokens.join("\\s+")}(?![\\w-])`;
+  // Options may sit between the program and its subcommand: `pnpm --filter @x/core publish`.
+  const options = String.raw`(?:\s+-{1,2}[\w-]+(?:[= ][^\s-]\S*)?)*`;
+  return `(?<![\\w-])${tokens[0]}${tokens.slice(1).map((t) => `${t.startsWith("-") ? "" : options}\\s+${t}`).join("")}(?![\\w-])`;
 }
