@@ -308,3 +308,13 @@ describe("incident links stay precise (dogfooding on the 0.67 branch)", () => {
     expect(revert.map((p) => p.kind)).toEqual(["incident-link"]);
   });
 });
+
+describe("incident links need an exact file anchor", () => {
+  it("ignores memories anchored to the whole directory", () => {
+    const broad = memory("architecture", "core-pure", { anchor: { paths: ["packages/core/src"], symbols: [] } });
+    expect(proposeCaptures({
+      commits: [{ sha: "f5", subject: "fix: proposals", body: "A regression in the proposer.", files: ["packages/core/src/capture-proposals.ts"] }],
+      diff: [], memories: [broad],
+    }).filter((p) => p.kind === "incident-link")).toEqual([]);
+  });
+});

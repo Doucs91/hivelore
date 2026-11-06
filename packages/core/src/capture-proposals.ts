@@ -175,7 +175,9 @@ export function proposeCaptures(input: CaptureProposalInput): CaptureProposal[] 
       .filter(({ frontmatter: fm }) => !amended.has(fm.id) && ANCHORING_TYPES.has(fm.type))
       .map((memory) => ({
         memory,
-        hit: files.find((f) => memory.frontmatter.anchor.paths.some((a) => !isGlobPath(a) && anchorMatches(a, f))),
+        // Exact file anchors only: a memory anchored to a whole directory or glob did not justify
+        // this particular file (directory anchors are already weak in briefings).
+        hit: files.find((f) => memory.frontmatter.anchor.paths.some((a) => a.replace(/^\.\//, "").replace(/\/+$/, "") === f)),
       }))
       .filter(({ memory, hit }) => hit || named.has(memory.frontmatter.id))
       // Named first, then decisions (they "justify" code), then the rest.

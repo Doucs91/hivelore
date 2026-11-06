@@ -4,6 +4,13 @@ All notable changes to Hivelore are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) loosely and the
 project follows semantic versioning once it ships its first stable release.
 
+## [0.67.3] — Incident links need an exact file anchor
+
+- A memory anchored to a whole directory or glob (e.g. "core is a pure layer" on `packages/core/src`)
+  did not justify one particular file: incident links now require an exact file anchor, consistent
+  with briefings, where directory anchors are already weak. Found by running `memory propose` on the
+  0.67 branch itself.
+
 ## [0.67.2] — Capture proposals stay precise
 
 Dogfooding `memory propose` on its own branch produced five false "incident links": the feature commit
