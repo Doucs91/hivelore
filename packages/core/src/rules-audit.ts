@@ -106,7 +106,9 @@ function matchSensor(text: string, sensors: AuditSensor[]): AuditSensor | undefi
   let best: { sensor: AuditSensor; score: number } | undefined;
   for (const sensor of sensors) {
     const haystack = `${sensor.message} ${sensor.pattern ?? ""}`.toLowerCase();
-    if (ticks.some((t) => t.length >= 4 && haystack.includes(t))) return sensor;
+    // A backticked word proves enforcement only when it is specific: `npm publish`, `LocalDate.now()`,
+    // `worker-src` — not `release`, which an unrelated sensor's message may well contain.
+    if (ticks.some((t) => t.length >= 4 && /[^A-Za-z]|[a-z][A-Z]/.test(t) && haystack.includes(t))) return sensor;
     const sensorTokens = tokens(sensor.message);
     if (sensorTokens.size === 0 || ruleTokens.size === 0) continue;
     let shared = 0;

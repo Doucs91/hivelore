@@ -10,6 +10,10 @@ export const MemUpdateInputSchema = {
   supersedes: MemoryFrontmatterSchema.innerType().shape.supersedes,
   rule: z.string().min(1).max(400).optional().describe("New one-line actionable rule ('When X, do Y, because Z')"),
   source: z.string().min(1).optional().describe("New pointer to the source-of-truth doc section"),
+  verified_by: z.string().min(1).max(300).optional().describe("What verified the claim, concretely"),
+  cannot_detect: z.string().min(1).max(300).optional().describe(
+    "What that verification could NOT observe — set it when a regression slipped past the evidence this memory cites",
+  ),
   id: z.string().min(1).describe("Id of the memory to update"),
   body: z.string().optional().describe("New Markdown body — replaces the existing body"),
   tags: z
@@ -67,12 +71,14 @@ export async function memUpdate(
     ...(input.supersedes !== undefined ? { supersedes: input.supersedes } : {}),
     ...(input.rule !== undefined ? { rule: input.rule.trim() } : {}),
     ...(input.source !== undefined ? { source: input.source.trim() } : {}),
+    ...(input.verified_by !== undefined ? { verified_by: input.verified_by.trim() } : {}),
+    ...(input.cannot_detect !== undefined ? { cannot_detect: input.cannot_detect.trim() } : {}),
     ...(input.tags !== undefined ? { tags: input.tags } : {}),
     ...(input.domain !== undefined ? { domain: input.domain } : {}),
     ...(input.author !== undefined ? { author: input.author } : {}),
   };
 
-  for (const key of ["evidence", "checks", "supersedes", "rule", "source"] as const) {
+  for (const key of ["evidence", "checks", "supersedes", "rule", "source", "verified_by", "cannot_detect"] as const) {
     if (input[key] !== undefined) updated_fields.push(key);
   }
   if (input.tags !== undefined) updated_fields.push("tags");

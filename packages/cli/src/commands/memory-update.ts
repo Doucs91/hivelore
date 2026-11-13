@@ -22,6 +22,11 @@ interface UpdateOptions {
   evidence?: string;
   checks?: string;
   supersedes?: string;
+  rule?: string;
+  source?: string;
+  verifiedBy?: string;
+  cannotDetect?: string;
+  sensorPaths?: string;
   body?: string;
   bodyFile?: string;
   tags?: string;
@@ -44,6 +49,11 @@ export function registerMemoryUpdate(memory: Command): void {
     .option("--evidence <level>", "hypothesis | observed | reproduced | tested")
     .option("--checks <json>", "declarative current-file checks: [{path, contains?, excludes?}]")
     .option("--supersedes <csv>", "memory IDs explicitly replaced by this knowledge")
+    .option("--rule <text>", "new one-line actionable rule ('When X, do Y, because Z')")
+    .option("--source <ref>", "new pointer to the source-of-truth doc section, e.g. docs/runbook.md#rotate")
+    .option("--verified-by <text>", "what verified the claim, concretely (e.g. 'e2e suite, headless Chromium')")
+    .option("--cannot-detect <text>", "what that verification could NOT observe — set it when a regression slipped past this memory's evidence")
+    .option("--sensor-paths <csv>", "replace the attached sensor's scope (paths/globs) — e.g. widen it to a directory where the bug class reappeared")
     .option("--body-file <path>", "read new body from a Markdown file — for long content")
     .option("--tags <csv>", "new tags, comma-separated — fully replaces existing tags")
     .option("--paths <csv>", "new anchor paths, comma-separated")
@@ -61,6 +71,10 @@ export function registerMemoryUpdate(memory: Command): void {
         ...(opts.evidence !== undefined ? { evidence: shape.evidence.parse(opts.evidence) } : {}),
         ...(opts.checks !== undefined ? { checks: shape.checks.parse(JSON.parse(opts.checks)) } : {}),
         ...(opts.supersedes !== undefined ? { supersedes: parseCsv(opts.supersedes) } : {}),
+        ...(opts.rule !== undefined ? { rule: shape.rule.parse(opts.rule.trim()) } : {}),
+        ...(opts.source !== undefined ? { source: shape.source.parse(opts.source.trim()) } : {}),
+        ...(opts.verifiedBy !== undefined ? { verified_by: shape.verified_by.parse(opts.verifiedBy.trim()) } : {}),
+        ...(opts.cannotDetect !== undefined ? { cannot_detect: shape.cannot_detect.parse(opts.cannotDetect.trim()) } : {}),
       };
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
@@ -123,9 +137,21 @@ export function registerMemoryUpdate(memory: Command): void {
         updated.push("anchor.commit");
       }
 
+      let sensor = frontmatter.sensor;
+      if (opts.sensorPaths !== undefined) {
+        if (!sensor) {
+          ui.error(`${id} has no sensor — attach one with \`hivelore sensors propose ${id}\` first.`);
+          process.exitCode = 1;
+          return;
+        }
+        sensor = { ...sensor, paths: parseCsv(opts.sensorPaths) };
+        updated.push("sensor.paths");
+      }
+
       const newFrontmatter = {
         ...frontmatter,
         ...evidenceFields,
+        ...(sensor ? { sensor } : {}),
         anchor: newAnchor,
         ...(opts.type !== undefined ? { type: opts.type } : {}),
         ...(opts.tags !== undefined ? { tags: parseCsv(opts.tags) } : {}),

@@ -1,0 +1,25 @@
+# Hivelore
+
+> Executable team guardrails for coding agents. A repository's rules and lessons live in `.ai/` and are
+> enforced deterministically: sensors refuse a commit that reintroduces a known mistake, command guards
+> deny a forbidden agent command before it runs, checklists require a stated verification. Local files,
+> no account, no LLM in the loop. CLI `@hivelore/cli`, MCP server bundled (`hivelore mcp --stdio`).
+
+## When an agent should use it
+
+- The developer corrects you with a lasting rule → record it (`hivelore memory add --type convention --rule "…"`) and arm it (`hivelore rules arm`).
+- CLAUDE.md / AGENTS.md lists rules ("NEVER…") → `npx @hivelore/cli rules audit` shows which nothing enforces (read-only, no install); `hivelore rules arm --apply` turns them into checks.
+- Before changing unfamiliar code → `hivelore why <file>:<line>`: rules, sensors, doc warnings, past fixes.
+- CI is red → `hivelore ci why`: failing steps and tests, infrastructure causes, memories that saw it before.
+- Finishing a task → `hivelore enforce finish`; `hivelore memory propose` lists lessons derived from the branch.
+
+## Install
+
+- Claude Code plugin: `/plugin marketplace add Doucs91/hivelore` then `/plugin install hivelore@hivelore`
+- Any agent: `npx @hivelore/cli init` (reversible; writes `.ai/`, hooks and bridge files)
+
+## Docs
+
+- [README](https://github.com/Doucs91/hivelore#readme): what it enforces, the 60-second proof, CLI reference
+- [CLI reference](https://github.com/Doucs91/hivelore/blob/main/packages/cli/README.md)
+- [CHANGELOG](https://github.com/Doucs91/hivelore/blob/main/CHANGELOG.md)

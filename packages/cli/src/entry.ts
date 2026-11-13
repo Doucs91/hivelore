@@ -25,11 +25,13 @@ if (hook && !args.some(arg => arg === "--help" || arg === "-h")) {
       /ENOENT|EACCES|command not found|No such file|^Error/m.test(typeof response === "string" ? response : "");
     if (readOnly && !failed) process.exit(0);
     if (args[0] === "enforce" && args[1] === "pre-tool-use") {
-      // Read/search tools and shell calls without explicit file targets cannot inject edit context.
+      // Read/search tools cannot inject edit context. Every non-read-only shell call still goes through:
+      // command guards ("never run `npm publish`") must see it even when it names no file.
       const input = payload.tool_input ?? {};
       const hasPaths = [input.file_path, input.path, input.notebook_path].some(v => typeof v === "string" && v.trim()) ||
         [input.file_paths, input.files, input.edits].some(v => Array.isArray(v) && v.length);
-      if (!["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash"].includes(payload.tool_name) || !hasPaths) process.exit(0);
+      if (!["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash"].includes(payload.tool_name)) process.exit(0);
+      if (!hasPaths && payload.tool_name !== "Bash") process.exit(0);
       const dirIndex = args.findIndex(arg => arg === "--dir" || arg === "-d");
       const dir = dirIndex >= 0 ? args[dirIndex + 1] : args.find(arg => arg.startsWith("--dir="))?.slice(6);
       const { runPreEdit } = await import("./utils/pre-edit.js");

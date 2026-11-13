@@ -31,6 +31,7 @@ import {
   type MemoryScope,
 } from "@hivelore/core";
 import { ui } from "../utils/ui.js";
+import { pluginHookShadowed } from "../utils/hook-source.js";
 
 interface SessionEndOptions {
   goal?: string;
@@ -58,7 +59,7 @@ interface Observation {
 async function buildAutoRecap(
   paths: ReturnType<typeof resolveHaivePaths>,
 ): Promise<{ goal: string; accomplished: string; discoveries?: string; files: string[]; rawCount: number } | null> {
-  const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
+  const obsFile = path.join(paths.cacheDir, "observations.jsonl");
   if (!existsSync(obsFile)) return await buildGitAutoRecap(paths);
   const raw = await readFile(obsFile, "utf8").catch(() => "");
   if (!raw.trim()) return await buildGitAutoRecap(paths);
@@ -256,7 +257,7 @@ function runGit(cwd: string, args: string[]): Promise<string> {
 }
 
 async function readObservationList(paths: ReturnType<typeof resolveHaivePaths>): Promise<Observation[]> {
-  const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
+  const obsFile = path.join(paths.cacheDir, "observations.jsonl");
   if (!existsSync(obsFile)) return [];
   const raw = await readFile(obsFile, "utf8").catch(() => "");
   const out: Observation[] = [];
@@ -337,7 +338,7 @@ async function autoCaptureFailureLessons(
 }
 
 async function observationStart(paths: ReturnType<typeof resolveHaivePaths>): Promise<string | null> {
-  const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
+  const obsFile = path.join(paths.cacheDir, "observations.jsonl");
   if (!existsSync(obsFile)) return null;
   const raw = await readFile(obsFile, "utf8").catch(() => "");
   let first: string | null = null;
@@ -422,6 +423,7 @@ export function registerSessionEnd(session: Command): void {
     .action(async (opts: SessionEndOptions) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
+      if (opts.auto && pluginHookShadowed(root)) return; // the settings hooks already run this
 
       if (!existsSync(paths.haiveDir)) {
         if (opts.auto || opts.quiet) return; // hook context — silently no-op
@@ -463,7 +465,13 @@ export function registerSessionEnd(session: Command): void {
         return;
       }
 
-      const scope = opts.scope ?? "personal";
+      // A recap is a local handoff, never shared corpus (field reports #9 §4, #12 §3.2): the same rule
+      // as MCP mem_session_end, so neither door can put a rolling log back into the team corpus.
+      if (opts.scope && opts.scope !== "personal" && !opts.quiet) {
+        ui.warn(`Session recaps are machine-local: saving as personal instead of ${opts.scope}. Durable lessons go in \`memory save\` / \`memory tried\`.`);
+      }
+      const scope = "personal" as const;
+      opts.module = undefined;
       const body = buildRecapBody({
         goal,
         accomplished,
@@ -484,17 +492,17 @@ export function registerSessionEnd(session: Command): void {
 
       const cleanupObservations = async (): Promise<void> => {
         if (!opts.auto) return;
-        const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
+        const obsFile = path.join(paths.cacheDir, "observations.jsonl");
         if (existsSync(obsFile)) await rm(obsFile).catch(() => { /* non-fatal */ });
       };
 
-      // ── Auto mode honoring config ───────────────────────────────────
-      // When autoSessionRecap=false, an automatic (hook-driven) session end does NOT persist a
-      // recap memory into the corpus; it writes an ephemeral NEXT.md handoff instead (if enabled).
-      // A manual `hivelore session end --goal ...` is unaffected (explicit recaps are always honored).
+      // ── Repo policy: no recap memories ──────────────────────────────
+      // When autoSessionRecap=false, a session end — automatic or explicit — does NOT persist a recap
+      // memory; it writes the ephemeral NEXT.md handoff instead (automatic runs only when
+      // sessionHandoff is on; an explicit call always does, since its author asked for a handoff).
       const config = await loadConfig(paths);
-      if (opts.auto && config.autoSessionRecap === false) {
-        if (config.sessionHandoff) {
+      if (config.autoSessionRecap === false) {
+        if (config.sessionHandoff || !opts.auto) {
           const diffStat = await runGit(root, ["diff", "--stat", "HEAD"]).catch(() => "");
           const openThreads = (opts.discoveries ?? "")
             .split("\n")
@@ -502,6 +510,7 @@ export function registerSessionEnd(session: Command): void {
             .filter(Boolean);
           await writeSessionHandoff(root, {
             goal,
+            ...(opts.auto ? {} : { summary: accomplished }),
             openThreads,
             filesTouched,
             ...(opts.next?.trim() ? { nextSteps: opts.next.trim() } : {}),
@@ -511,8 +520,8 @@ export function registerSessionEnd(session: Command): void {
         await cleanupObservations();
         if (!opts.quiet) {
           ui.info(
-            config.sessionHandoff
-              ? "Auto recap disabled (autoSessionRecap=false) — wrote ephemeral NEXT.md handoff."
+            config.sessionHandoff || !opts.auto
+              ? "Recap memories are off (autoSessionRecap=false) — wrote the local NEXT.md handoff."
               : "Auto recap disabled (autoSessionRecap=false) — no recap memory written.",
           );
         }

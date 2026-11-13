@@ -1,4 +1,4 @@
-import type { ConfidenceLevel, ImpactTier } from "@hivelore/core";
+import type { ConfidenceLevel, DocCaveat, DocMention, ImpactTier } from "@hivelore/core";
 
 export type BriefingMemoryPriority = "must_read" | "useful" | "background";
 
@@ -41,6 +41,10 @@ export interface BriefingMemory {
   source?: string;
   /** Set by the budget fitter when the body was dropped to keep the whole payload in budget. */
   body_omitted?: boolean;
+  /** What verified the claim (falsifiable evidence, field report #9 §9.3). */
+  verified_by?: string;
+  /** What that verification could NOT observe — the check that is still manual. */
+  cannot_detect?: string;
 }
 
 export interface CodeMapSymbolHit {
@@ -136,6 +140,10 @@ export interface BriefingOutput {
    */
   breadcrumbs?: BriefingBreadcrumbs;
   symbol_locations?: CodeMapSymbolHit[];
+  /** Warnings from the repo's tracked docs that name a passed file or symbol (field report #9 §1). */
+  doc_caveats?: DocCaveat[];
+  /** Docs that mention a passed file without warning language — pointers only. */
+  doc_mentions?: DocMention[];
   /**
    * Memories that require explicit human confirmation before any code action.
    * IMPORTANT: for each item, show developer_message to the developer and

@@ -29,8 +29,8 @@ hAIve uses a single version across all packages (core, cli, mcp, embeddings). Wh
 2. Build: `pnpm -r build`
 3. Commit with message `feat: vX.Y.Z — summary`
 4. Tag: `git tag vX.Y.Z`
-5. Push: `git push && git push --tags`
-6. Publish: run `npm publish --access public` in each package directory
+5. Push: `git push && git push origin vX.Y.Z` (only the new tag)
+6. Publish: automatic — the tag push runs the `release` workflow, which verifies and publishes the four packages (`pnpm run publish:all`). Never publish by hand from a workstation.
 
 **Why**: users install cli + mcp as a pair; version skew between them causes subtle breakage (schema mismatch, missing tools).
 **Note**: cross-package deps use `workspace:*` inside the monorepo — npm resolves this to the actual version on publish.

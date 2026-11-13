@@ -13,26 +13,16 @@ sensor:
   flags: i
   paths:
     - engram/
-  message: >-
-    Do not commit Engram credentials or private keys in the nested reference
-    checkout.
+  message: Do not commit Engram credentials or private keys in the nested reference checkout.
   severity: block
-  autogen: false
-  last_fired: null
 tags:
   - engram
   - competitor
   - cross-repo
   - boundary
 created_at: '2026-07-05T16:09:04.109Z'
-expires_when: null
 verified_at: '2026-07-05T16:49:08.451Z'
-stale_reason: null
-related_ids: []
-last_read_at: null
 topic: 'competitor:engram-boundary'
-revision_count: 0
-requires_human_approval: false
 validated_by: auto
 ---
 ## Gotcha

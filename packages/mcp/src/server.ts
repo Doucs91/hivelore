@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -180,7 +181,7 @@ import {
   type ImportDocsArgs,
 } from "./prompts/import-docs.js";
 import { SessionTracker } from "./session-tracker.js";
-import { ensurePersonalMemoriesIgnored, hasRecentBriefingMarker, loadConfigSync, sessionIdFromEnv } from "@hivelore/core";
+import { collectWhyReport, ensurePersonalMemoriesIgnored, hasRecentBriefingMarker, loadConfigSync, migrateLegacyCache, sessionIdFromEnv } from "@hivelore/core";
 
 // Re-export tool implementations so `@hivelore/cli` (and integrators) can call
 // them programmatically without going through the MCP stdio transport.
@@ -319,6 +320,8 @@ export const ENFORCEMENT_PROFILE_TOOLS = [
   // Must live in the DEFAULT profile or it is never used: an agent only reports friction in the
   // session where it hit the friction, and it will not switch profiles to do so.
   "report_friction",
+  // The question an agent asks on its own before changing unfamiliar code — read-only, one call.
+  "why",
 ] as const;
 
 /** Tools moved out of the default surface in 0.66 — still registered under `maintenance`. */
@@ -394,13 +397,31 @@ const MUTATING_TOOLS = new Set([
   "propose_sensor",
 ]);
 
+/**
+ * Shown to the model once per session by MCP clients that support server instructions. It answers
+ * "when does this server help ME?" in situations, not in features — the reason an agent reaches for a
+ * tool without being told to.
+ */
+export const SERVER_INSTRUCTIONS = [
+  "Hivelore holds this repository's rules and lessons (.ai/) and enforces them at commit time.",
+  "Reach for it when: you are about to change code you do not know (why: file or file:line);",
+  "you start a substantive task in an unfamiliar area (get_briefing with task + files — edits are",
+  "otherwise covered by hooks); the developer corrects you with a lasting rule (mem_save with a",
+  "one-line rule, then propose_sensor if it names code or a command); an approach fails for a reason",
+  "worth remembering (mem_tried). Routine work needs none of it. If get_briefing returns",
+  "action_required, show each developer_message and wait for confirmation.",
+].join(" ");
+
 export function createHaiveServer(
   options: CreateContextOptions = {},
 ): { server: McpServer; context: HaiveContext; tracker: SessionTracker } {
   const context = createContext(options);
   context.sessionId = options.env?.HIVELORE_SESSION_ID ?? sessionIdFromEnv() ?? randomUUID();
   const config = loadConfigSync(context.paths);
-  if (existsSync(context.paths.haiveDir)) void ensurePersonalMemoriesIgnored(context.paths);
+  if (existsSync(context.paths.haiveDir)) {
+    void ensurePersonalMemoriesIgnored(context.paths);
+    migrateLegacyCache(context.paths);
+  }
   const toolProfile =
     (options.env?.HIVELORE_TOOL_PROFILE as ToolProfile | undefined) ??
     (options.env?.HAIVE_TOOL_PROFILE as ToolProfile | undefined) ?? // legacy env name
@@ -417,7 +438,7 @@ export function createHaiveServer(
 
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
-    { capabilities: { tools: {}, prompts: {} } },
+    { capabilities: { tools: {}, prompts: {} }, instructions: SERVER_INSTRUCTIONS },
   );
 
   const allowedTools = getAllowedToolsForProfile(toolProfile);
@@ -628,6 +649,24 @@ export function createHaiveServer(
   );
 
   registerTool(
+    "why",
+    [
+      "Why is this code like this? Everything the repository knows about a file or line, in one call:",
+      "the rules (gotchas, decisions, conventions) anchored to it, the sensors and checklists that guard it",
+      "(and whether THIS line is what a sensor looks for), warnings from the repo's own docs, the commit",
+      "that last changed the line, and past fixes in the file. Read-only.",
+      "",
+      "USE BEFORE changing code you do not know, or when a line looks odd and you are tempted to 'clean it up'.",
+      "",
+      "PARAMETERS: target — 'path/to/file.ts' or 'path/to/file.ts:42'",
+    ].join("\n"),
+    { target: z.string().min(1).describe("File, or file:line, relative to the project root") },
+    async (input: { target: string }) => {
+      return jsonResult(await collectWhyReport(context.paths.root, input.target));
+    },
+  );
+
+  registerTool(
     "report_friction",
     [
       "Tell Hivelore's maintainer that HIVELORE ITSELF got in your way — a bug in a Hivelore tool, a",
@@ -703,25 +742,22 @@ export function createHaiveServer(
   registerTool(
     "mem_session_end",
     [
-      "Save an end-of-session recap so the NEXT session starts with fresh context.",
+      "Leave a LOCAL handoff for unfinished work, so the next session can resume.",
       "",
-      "CALL THIS before closing any significant working session. In autopilot mode,",
-      "the MCP server saves a minimal recap automatically on exit — but calling this",
-      "manually produces a richer, more useful recap.",
-      "",
-      "HOW IT WORKS: uses topic-upsert — one recap per scope is kept and updated",
-      "in-place (revision_count increments). get_briefing surfaces the latest recap",
-      "at the very top of the next session's briefing, before project context.",
+      "USE ONLY when work is left unfinished. What was done belongs in commit messages and the PR",
+      "description; durable lessons belong in mem_save / mem_tried. A recap is never shared corpus:",
+      "team/module scope is saved as personal (gitignored), and when the repo sets",
+      "autoSessionRecap=false the handoff is written to the local NEXT.md instead of a memory.",
+      "get_briefing surfaces the latest handoff as `last_session`.",
       "",
       "PARAMETERS:",
       "  goal         — what you were trying to accomplish (1–2 sentences)",
-      "  accomplished — what was actually done (bullet list recommended)",
-      "  discoveries  — bugs, surprises, missing knowledge found during this session",
-      "  files_touched — key files read or modified (used as anchor for staleness)",
-      "  next_steps   — what should happen in the next session or for a teammate",
-      "  scope        — personal (default) | team",
+      "  accomplished — what was actually done (short)",
+      "  discoveries  — open threads the next session must know about",
+      "  files_touched — key files read or modified (listed in the body, never anchors)",
+      "  next_steps   — what should happen next",
       "",
-      "RETURNS: { id, scope, action: 'created'|'updated', revision_count }",
+      "RETURNS: { id, scope, action: 'created'|'updated'|'handoff', revision_count, notice? }",
     ].join("\n"),
     MemSessionEndInputSchema,
     async (input: MemSessionEndInput) => {
@@ -1353,10 +1389,9 @@ export function createHaiveServer(
     server.prompt(
       "post_task",
       [
-        "⭐ Post-task reflection — run at the end of every session to capture what you learned:",
-        "failed approaches (mem_tried), new conventions/decisions/gotchas (mem_save),",
-        "failed approaches (mem_tried), and an end-of-session recap (mem_session_end).",
-        "In autopilot mode a minimal recap saves automatically; calling this produces a richer one.",
+        "Post-task reflection: capture only what a teammate could not guess — failed approaches",
+        "(mem_tried), conventions/decisions/gotchas with their evidence (mem_save) — review the",
+        "branch-derived candidates from `hivelore memory propose`, then run `hivelore enforce finish`.",
       ].join(" "),
       PostTaskArgsSchema,
       (args: PostTaskArgs) => postTaskPrompt(args, context),

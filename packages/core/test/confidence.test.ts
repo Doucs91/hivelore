@@ -46,13 +46,13 @@ describe("deriveConfidence — time decay", () => {
   const FRESH = new Date("2026-05-02T00:00:00Z");
 
   it("a freshly created authoritative memory stays authoritative", () => {
-    const f = { ...fm("validated"), validated_by: "human" as const, evidence: "tested" as const, verified_at: "2026-05-01T00:00:00Z", created_at: "2026-05-01T00:00:00Z" };
+    const f = { ...fm("validated"), validated_by: "human" as const, evidence: "tested" as const, verified_at: "2026-05-01T00:00:00Z", created_at: "2026-05-01T00:00:00Z", verified_by: "contract test suite", cannot_detect: "nothing known" };
     expect(deriveConfidence(f, usage({ read_count: 50, last_read_at: "2026-05-01T00:00:00Z" }), undefined, FRESH))
       .toBe("authoritative");
   });
 
   it("authoritative not verified in 200 days drops to trusted (decayDays=180 default)", () => {
-    const f = { ...fm("validated"), validated_by: "human" as const, evidence: "tested" as const, verified_at: "2025-10-01T00:00:00Z", created_at: "2025-10-01T00:00:00Z" };
+    const f = { ...fm("validated"), validated_by: "human" as const, evidence: "tested" as const, verified_at: "2025-10-01T00:00:00Z", created_at: "2025-10-01T00:00:00Z", verified_by: "contract test suite", cannot_detect: "nothing known" };
     expect(
       deriveConfidence(f, usage({ read_count: 50, last_read_at: "2025-10-01T00:00:00Z" }), undefined, FRESH),
     ).toBe("trusted");

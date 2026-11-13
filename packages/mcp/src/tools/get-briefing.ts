@@ -47,6 +47,9 @@ import {
   type LoadedMemory,
   type UsageIndex,
   memoryRuleLine,
+  findDocCaveats,
+  loadDocFiles,
+  type DocCaveatsResult,
 } from "@hivelore/core";
 import { z } from "zod";
 import { fitBriefingToBudget, projectBriefingForAgent } from "./briefing-agent-view.js";
@@ -701,7 +704,14 @@ export async function getBriefing(
   const withRules = trimmedMemories.map((m) => {
     const loaded = byId.get(m.id)?.memory;
     const rule = loaded ? memoryRuleLine(loaded) : "";
-    return { ...m, rule: rule || compactSummary(m.body), ...(loaded?.frontmatter.source ? { source: loaded.frontmatter.source } : {}) };
+    const fm = loaded?.frontmatter;
+    return {
+      ...m,
+      rule: rule || compactSummary(m.body),
+      ...(fm?.source ? { source: fm.source } : {}),
+      ...(fm?.verified_by ? { verified_by: fm.verified_by } : {}),
+      ...(fm?.cannot_detect ? { cannot_detect: fm.cannot_detect } : {}),
+    };
   });
   const formattedMemories =
     input.format === "compact"
@@ -1000,6 +1010,15 @@ export async function getBriefing(
       source: "mcp", evidence: "observed",
     }).catch(() => {});
   }
+  // ── Docs-aware caveats: the repo's own docs warn about the files/symbols being touched ──
+  let docCaveats: DocCaveatsResult = { caveats: [], mentions: [] };
+  if ((input.files.length > 0 || input.symbols.length > 0) && adaptiveConfig.docCaveats !== false) {
+    try {
+      docCaveats = findDocCaveats(loadDocFiles(ctx.paths.root), { files: input.files, symbols: input.symbols });
+    } catch {
+      /* docs are a bonus — never fail a briefing on them */
+    }
+  }
   const output: BriefingOutput = {
     ...(input.task ? { task: input.task } : {}),
     server_version: serverVersion(),
@@ -1036,6 +1055,8 @@ export async function getBriefing(
     briefing_quality: briefingQuality,
     ...(breadcrumbs ? { breadcrumbs } : {}),
     ...(symbolLocations ? { symbol_locations: symbolLocations } : {}),
+    ...(docCaveats.caveats.length ? { doc_caveats: docCaveats.caveats } : {}),
+    ...(docCaveats.mentions.length ? { doc_mentions: docCaveats.mentions } : {}),
     action_required: actionRequired,
     ...(maintenanceNotices.length ? { maintenance_notices: maintenanceNotices } : {}),
     decay_warnings: decayWarnings,

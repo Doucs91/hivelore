@@ -13,7 +13,9 @@ import {
   loadTaskSession, saveTaskSession, sessionIdentity,
   buildFrontmatter,
   buildRecapWithHistory,
+  loadConfig,
   loadMemoriesFromDir,
+  writeSessionHandoff,
   memoryFilePath,
   serializeMemory,
 } from "@hivelore/core";
@@ -63,9 +65,16 @@ export interface MemSessionEndOutput {
   id: string;
   scope: string;
   file_path: string;
-  action: "created" | "updated";
+  /** "handoff" = written to the local NEXT.md, not to the memory corpus (autoSessionRecap=false). */
+  action: "created" | "updated" | "handoff";
   revision_count: number;
+  notice?: string;
 }
+
+const RECAP_IS_LOCAL =
+  "Session recaps are a local handoff, never shared corpus: a recap rewritten every session became a " +
+  "172-revision log that topped every briefing (field reports #9 §4, #12 §3.2). Durable lessons go in " +
+  "mem_save / mem_tried; what was done is in the commits and the PR description.";
 
 /** Stable topic key for upsert — one recap per scope/module. */
 function recapTopic(scope: string, module?: string): string {
@@ -104,6 +113,37 @@ export async function memSessionEnd(
   const sessionId = sessionIdentity(input.session_id ?? ctx.sessionId);
   const session = await loadTaskSession(ctx.paths, sessionId);
   if (session) await saveTaskSession(ctx.paths, { ...session, task: input.goal, accomplished: input.accomplished, next_steps: input.next_steps }, sessionId);
+  // The repo opted out of recap memories: an explicit call writes the ephemeral handoff instead,
+  // so the agent following an old instruction cannot reintroduce what the team removed.
+  const config = await loadConfig(ctx.paths).catch(() => null);
+  if (config?.autoSessionRecap === false) {
+    const openThreads = input.discoveries
+      .split("\n")
+      .map((line) => line.replace(/^\s*[-*]\s*/, "").trim())
+      .filter(Boolean)
+      .slice(0, 5);
+    const file = await writeSessionHandoff(ctx.paths.root, {
+      goal: input.goal,
+      summary: input.accomplished,
+      ...(openThreads.length ? { openThreads } : {}),
+      filesTouched: input.files_touched,
+      nextSteps: input.next_steps,
+    });
+    await clearPendingDistill(ctx);
+    return {
+      id: "handoff",
+      scope: "local",
+      file_path: file,
+      action: "handoff",
+      revision_count: 0,
+      notice: "This repo keeps no recap memories (autoSessionRecap=false): wrote the local NEXT.md handoff. " + RECAP_IS_LOCAL,
+    };
+  }
+  let scopeNotice: string | undefined;
+  if (input.scope !== "personal") {
+    scopeNotice = `Requested scope '${input.scope}' was saved as personal (machine-local, gitignored). ${RECAP_IS_LOCAL}`;
+    input = { ...input, scope: "personal", module: undefined };
+  }
   const body = buildBody(input);
   const topic = recapTopic(input.scope, input.module);
 
@@ -137,14 +177,14 @@ export async function memSessionEnd(
   if (topicMatch) {
     const fm = topicMatch.memory.frontmatter;
     const revisionCount = (fm.revision_count ?? 0) + 1;
+    // A recap is never anchored to files: anchors turned it into "team policy" injected on unrelated
+    // edits of the listed files (field report #9 §3). The file list stays in the body.
     const newFrontmatter = {
       ...fm,
+      // For a recap this is "last written" — briefings compute the recap's age from it.
       verified_at: new Date().toISOString(),
       revision_count: revisionCount,
-      anchor: {
-        ...fm.anchor,
-        paths: normalizedFiles.length ? normalizedFiles : fm.anchor.paths,
-      },
+      anchor: { ...fm.anchor, paths: [] },
     };
     // Archive the outgoing recap into a bounded per-session history instead of overwriting it (§5.6).
     const combinedBody = buildRecapWithHistory(body, topicMatch.memory.body, fm.verified_at ?? fm.created_at);
@@ -161,6 +201,7 @@ export async function memSessionEnd(
       file_path: topicMatch.filePath,
       action: "updated",
       revision_count: revisionCount,
+      ...(scopeNotice ? { notice: scopeNotice } : {}),
     };
   }
 
@@ -171,7 +212,6 @@ export async function memSessionEnd(
     scope: input.scope,
     module: input.module,
     tags: ["session", "recap"],
-    paths: normalizedFiles,
     topic,
     status: "validated",
   });
@@ -197,5 +237,6 @@ export async function memSessionEnd(
     file_path: file,
     action: "created",
     revision_count: 0,
+    ...(scopeNotice ? { notice: scopeNotice } : {}),
   };
 }

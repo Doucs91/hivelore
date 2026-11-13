@@ -14,27 +14,16 @@ sensor:
   paths:
     - packages/cli/package.json
     - packages/mcp/package.json
-  message: >-
-    Always install @hiveai/cli AND @hiveai/mcp together: `npm i -g
-    @hiveai/cli@latest @hiveai/mcp@latest`. Installing only the CLI leaves the
-    global MCP binary stale.
+  message: 'Always install @hiveai/cli AND @hiveai/mcp together: `npm i -g @hiveai/cli@latest @hiveai/mcp@latest`. Installing only the CLI leaves the global MCP binary stale.'
   severity: warn
-  autogen: false
-  last_fired: null
 tags:
   - release
   - npm
   - ux
   - v0.9.0
 created_at: '2026-05-04T01:05:36.619Z'
-expires_when: null
 verified_at: '2026-07-02T22:21:21.949Z'
 stale_reason: 'Superseded: @hivelore/cli now depends on and bundles the matching @hivelore/mcp runtime.'
-related_ids: []
-last_read_at: null
-revision_count: 0
-requires_human_approval: false
-validated_by: null
 ---
 # `npm install -g @hiveai/cli@latest` does NOT update global `@hiveai/mcp`
 

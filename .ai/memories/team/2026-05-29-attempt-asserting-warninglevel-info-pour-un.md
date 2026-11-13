@@ -13,24 +13,11 @@ sensor:
   pattern: '\.level\)\.toBe\([''"]info[''"]\)'
   paths:
     - packages/mcp/test/anti-patterns.test.ts
-  message: >-
-    Asserting warning.level === 'info' on an anchor-only match is wrong when the
-    diff contains tokens matching the anchor path segments — that produces
-    'review', not 'info'. Use `["info","review","blocking"].includes(level)` or
-    craft a diff with no lexical overlap with the anchor path.
+  message: 'Asserting warning.level === ''info'' on an anchor-only match is wrong when the diff contains tokens matching the anchor path segments — that produces ''review'', not ''info''. Use `["info","review","blocking"].includes(level)` or craft a diff with no lexical overlap with the anchor path.'
   severity: warn
-  autogen: false
-  last_fired: null
 tags: []
 created_at: '2026-05-29T03:32:47.975Z'
-expires_when: null
 verified_at: '2026-07-02T22:21:21.969Z'
-stale_reason: null
-related_ids: []
-last_read_at: null
-revision_count: 0
-requires_human_approval: false
-validated_by: null
 ---
 # asserting `warning.level === "info"` for an anchor-only match without literal diff overlap
 

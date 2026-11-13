@@ -61,7 +61,9 @@ Examples of things to look for:
 → If yes, call **\`mem_save\`** with \`type="convention"\` and \`scope="team"\`
 
 ### 3. Did you make an architectural decision?
-→ If yes, call **\`mem_save\`** with \`type="decision"\` and document the WHY (constraints, tradeoffs), not just the what
+→ If yes, call **\`mem_save\`** with \`type="decision"\` and document the WHY (constraints, tradeoffs), not just the what.
+  If you verified it, say how (\`verified_by\`) and what that verification could not see (\`cannot_detect\`):
+  "e2e green + 7 days without reports" cannot see a failure on a path headless CI never runs.
 
 ### 4. Did you hit a non-obvious bug or surprising behavior in a library or framework?
 → If yes, call **\`mem_save\`** with \`type="gotcha"\` and anchor it to the relevant file paths
@@ -89,18 +91,16 @@ next agent would otherwise get wrong.
 - Scan your exploration history for genuine code-level discoveries (failed approaches, real footguns),
   but hold each to the bar above before saving it.
 
-### 6. Close the session — always
-Call **\`mem_session_end\`** with:
-- \`goal\`: what you set out to do
-- \`accomplished\`: what was actually done (bullet list)
-- \`discoveries\`: anything surprising or broken found during this session (leave empty if none)
-- \`files_touched\`: the key files you read or modified
-- \`next_steps\`: what remains for the next session or a teammate
-- \`scope\`: "team" if this task affects the whole team, "personal" otherwise
+### 6. Review the capture candidates — then leave the record where it belongs
+Run **\`hivelore memory propose\`**. It reads this branch, not your memory of it, and lists 0–5 candidates:
+fix commits that explain a cause, regression fixes touching code a decision justified (record what its
+evidence missed with \`cannot_detect\`), sensors whose scope missed the bug class you just fixed.
+Record only the candidates that clear the bar above; skipping all of them is a normal outcome.
 
-This creates/updates a single rolling recap that **get_briefing automatically surfaces** at the start of every subsequent session — no token waste re-explaining what happened.
-
-Calling \`mem_session_end\` also **clears the pending-distill marker** (if any), confirming that this session's learnings have been properly captured rather than left as an auto-recap skeleton.
+- **What was done** belongs in the commit messages and the PR description — reviewed and versioned.
+  Do not write a session-recap memory to describe it.
+- **Unfinished work only:** call \`mem_session_end\` with \`goal\` and \`next_steps\`. It becomes a local
+  handoff (the gitignored NEXT.md, or a personal recap) — never shared team corpus.
 
 ### 7. Verify the git/release/pipeline exit protocol — always
 Run **\`hivelore enforce finish\`** before your final response.

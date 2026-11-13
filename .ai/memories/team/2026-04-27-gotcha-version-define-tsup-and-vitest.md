@@ -18,27 +18,15 @@ sensor:
     - packages/mcp/src/server.ts
     - packages/mcp/src/index.ts
     - packages/cli/src/index.ts
-  message: >-
-    Hardcoded version string in console output — use `v${SERVER_VERSION}`
-    (injected by tsup define) instead of a literal like 'v0.1.0'. Also ensure
-    vitest.config.ts has the same define so tests don't see `undefined`.
+  message: 'Hardcoded version string in console output — use `v${SERVER_VERSION}` (injected by tsup define) instead of a literal like ''v0.1.0''. Also ensure vitest.config.ts has the same define so tests don''t see `undefined`.'
   severity: warn
-  autogen: false
-  last_fired: null
 tags:
   - build
   - tsup
   - vitest
   - versioning
 created_at: '2026-04-27T17:20:23.358Z'
-expires_when: null
 verified_at: '2026-07-02T22:21:21.942Z'
-stale_reason: null
-related_ids: []
-last_read_at: null
-revision_count: 0
-requires_human_approval: false
-validated_by: null
 ---
 # Gotcha Version Define Tsup And Vitest
 

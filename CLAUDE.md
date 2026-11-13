@@ -8,32 +8,31 @@ Memories live under `.ai/memories/` (personal/team/module).
 
 Installing or initializing Hivelore in this repository means **the team expects AI agents to drive work through Hivelore**, not bypass it.
 
-### MCP first (default — never optional unless the developer says so)
-The Hivelore MCP server (registered under the key **haive** in this machine's client config — tools appear as `mcp__haive__*`) must be enabled in your client. Until it is unavailable (misconfiguration report to the developer), you **must** use it for substantive work:
+### Using Hivelore
+The Hivelore MCP server is registered under the key **hivelore** (tools appear as `mcp__hivelore__*`; in Claude Code they may be deferred — load their schema once, then call them). If it is unavailable, report the misconfiguration and use `hivelore briefing --task … --files …` instead.
 
-- **Before** you edit project source files, configs (`package.json`, tooling), or workflows for the current goal, invoke `get_briefing` with a short **task** string (and **files** / **symbols** when you know them). If project context was already refreshed in this session and you only need ranked memories, you may call `mem_relevant_to` instead—but **still** consult Hivelore before trusting ungrounded guesses.
-- **Before** declaring a coding task finished, invoke the MCP prompt `post_task` when the session produced learnings or substantive changes worth capturing.
+- Hooks deliver the rules and doc warnings for each file you edit, and deny forbidden commands; the commit gate checks the diff. There is no ritual call.
+- Call `get_briefing` (short **task** + the **files**/**symbols** you will touch) when you start a substantive task in an area you do not know yet. Each memory has a one-line `rule`; `must_read` = anchored to a file you passed; `blind_spot` = what its evidence could not see; `docs.caveats` = warnings from the repo's own docs.
+- Before changing code you do not understand: `why` (MCP) or `hivelore why <file>:<line>`. CI red: `hivelore ci why`.
 
-Do **not** treat these as nice-to-have: they are **default-required** for coding agents here.
-
-### Session rules
-- **Immediately** when an approach fails (wrong API, wrong pattern, wrong assumption), call `mem_tried` — do not wait until the end of the session.
-
-### Behavioral triggers — exact situations requiring immediate Hivelore action
-
-These are non-negotiable. Each row is a **concrete situation** mapped to a **specific tool call** that must happen **in the same response**, not at the end of the session.
+### Capture lessons when they happen — never as a session recap
+Lessons are captured **at the moment they appear**, as typed memories, held to one bar: would a capable teammate get this wrong without it? Each row is a concrete situation mapped to a call **in the same response**:
 
 | Situation | Required action | Tool |
 |-----------|----------------|------|
 | CLI option or API that does not exist | Document before fixing | `mem_tried` |
 | Test fails because of a wrong assumption | Document the assumption | `mem_tried` |
 | Approach took >15 min and had to be redone | Document what failed | `mem_tried` |
-| Choosing A over B for a non-obvious reason | Capture the rationale | `mem_save type=decision` |
+| Choosing A over B for a non-obvious reason | Capture the rationale, with `verified_by` / `cannot_detect` when you verified it | `mem_save type=decision` |
 | Discovering surprising library/framework behavior | Capture the trap | `mem_save type=gotcha` |
 | Inventing a pattern used more than once | Capture the convention | `mem_save type=convention` |
-| Completing a task >30 min or >5 files changed | Close with full recap | `mem_session_end` with `discoveries` filled |
+| A lesson can be checked mechanically | Arm it | `propose_sensor` (regex/ast, or `checklist` for a required verification) |
 
-**The `discoveries` field in `mem_session_end` is mandatory** — leave it empty only when nothing was surprising. If you cannot think of anything to put there, re-read the session mentally: every `mem_tried` call this session is a discovery candidate.
+Ordinary command misses (a grep with no match, a typo) need no memory. Give every memory a one-line `rule` ("When X, do Y, because Z").
+
+**No session recaps, no research write-ups in `.ai/`.** What was done belongs in the commit messages and the PR description; analyses go in the chat. Recap memories became noise that topped every briefing and biased later answers (field reports #9 §4, #12 §3.2). This repo sets `autoSessionRecap: false`: the session-end hook writes the local, gitignored `NEXT.md` handoff automatically, and `mem_session_end` is only for leaving open threads on **unfinished** work (it writes `NEXT.md`, never a memory).
+
+**Before finishing:** when `hivelore enforce finish` reports `capture-candidates`, run `hivelore memory propose` and record only the candidates that clear the bar (`--accept <n>` stages them into the same PR). Recording nothing is the normal outcome for routine work.
 
 ### Git sync protocol — multi-agent coordination (MANDATORY)
 Several agents **and** the human (Sady) work on this repo in parallel with manual pull/push. Without a shared protocol you get merge conflicts (e.g. conflict markers left in `.ai/`) and desynced versions. See decision `2026-05-31-decision-git-sync-protocol-multi-agent`.
@@ -46,13 +45,16 @@ Several agents **and** the human (Sady) work on this repo in parallel with manua
 **AFTER changing code (exit):**
 1. `git commit` your changes.
 2. **Bump the version ONLY if shippable code changed** (publishable packages: `@hivelore/core`, `cli`, `mcp`, `embeddings`). Docs-only / `.ai/`-only / config / CI commits → commit + push **without** bump or tag.
-3. If bumping: **patch by default** (`0.10.1 → 0.10.2`); minor/major only if justified (feature / breaking). Keep all 4 publishable packages in lockstep.
+3. If bumping: **patch by default** (`0.10.1 → 0.10.2`); minor/major only if justified (feature / breaking). Keep all 4 publishable packages in lockstep — and with them `plugins/hivelore/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, the `@hivelore/cli@X.Y.Z` pin in `plugins/hivelore/bin/hivelore-hook`, `server.json`, and `cliVersion` in `.ai/hivelore.config.json` (a test fails when the plugin drifts).
 4. If bumping: create the matching git tag `vX.Y.Z`.
 5. `git push` **code and the new tag** (`git push && git push origin vX.Y.Z`). Do **not** use `git push --tags` — it tries to push every local tag and fails if an old one (e.g. `v0.4.0`) already differs on the remote; push only the tag you just created.
 6. After push, verify the GitHub Actions runs for HEAD and wait until every workflow passes (`gh run list --commit $(git rev-parse HEAD)`, then `gh run watch <run-id> --exit-status` for pending runs).
 7. If bumping: once CI is green, **create the GitHub Release for the tag** — `gh release create vX.Y.Z --verify-tag --latest --title "…" --notes-file <notes>`. A tag is not a Release: listing and scoring tools read Releases, and the repo went four months with 190 tags and none. Notes come from the `CHANGELOG.md` section for that version. Releases are **not** cumulative — never backfill old tags; only the current version gets one.
 
-**BOUNDARY: agents NEVER run `npm publish`. npm publication is done by the human (Sady).** Creating the GitHub Release is *not* publication and is inside the boundary — it announces a tag that is already public.
+8. If bumping: pushing the tag **publishes to npm** through the `release` workflow (environment `npm-publish`, restricted to `v*.*.*` tags, token held in its secrets). Check that the run succeeded; to re-publish an existing tag, `gh workflow run release --ref vX.Y.Z`. npm versions are not cumulative: publishing the newest tag is enough.
+9. Once the version is visible on npm, **install it globally on this machine** (Sady's rule, 2026-11-06) — all four packages, lockstep: `npm install -g --prefer-online @hivelore/cli@X.Y.Z @hivelore/mcp@X.Y.Z @hivelore/core@X.Y.Z @hivelore/embeddings@X.Y.Z`, then check `hivelore --version`. The global CLI runs the git and agent hooks; `--prefer-online` bypasses the stale local metadata cache. Tell the developer to restart the agent/IDE client so the MCP server picks it up.
+
+**BOUNDARY: publication goes only through the `release` workflow.** Agents never run `npm publish` (or `pnpm publish`) locally, and never read, print, store or ask for an npm token — it lives only in the `npm-publish` environment secrets. Sady authorized this tag-driven path on 2026-11-06. Creating the GitHub Release announces a tag that is already public.
 
 **Before final response:** run `hivelore enforce finish`. If it blocks, fix the reported commit/version/tag/push/pipeline issue before saying the task is done.
 

@@ -14,28 +14,15 @@ sensor:
   paths:
     - packages/mcp/src/tools/get-briefing.ts
     - packages/core/src/config.ts
-  message: >-
-    Do not assign `minReads: DEFAULT_AUTO_PROMOTE_RULE.minReads` directly —
-    always load config first: `cfg.autoPromoteMinReads ??
-    DEFAULT_AUTO_PROMOTE_RULE.minReads`. The hardcoded default ignores the
-    user's `autoPromoteMinReads` config.
+  message: 'Do not assign `minReads: DEFAULT_AUTO_PROMOTE_RULE.minReads` directly — always load config first: `cfg.autoPromoteMinReads ?? DEFAULT_AUTO_PROMOTE_RULE.minReads`. The hardcoded default ignores the user''s `autoPromoteMinReads` config.'
   severity: warn
-  autogen: false
-  last_fired: null
 tags:
   - auto-promote
   - config
   - v0.9.0
   - bug
 created_at: '2026-05-04T01:06:01.101Z'
-expires_when: null
 verified_at: '2026-07-02T22:21:21.948Z'
-stale_reason: null
-related_ids: []
-last_read_at: null
-revision_count: 0
-requires_human_approval: false
-validated_by: null
 ---
 # Respect the configured promotion threshold
 

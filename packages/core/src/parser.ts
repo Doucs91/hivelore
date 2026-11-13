@@ -1,6 +1,6 @@
 import matter from "gray-matter";
 import { z } from "zod";
-import { MemoryFrontmatterSchema } from "./schema.js";
+import { MemoryFrontmatterSchema, SENSOR_KINDS } from "./schema.js";
 import type { Activation, Memory, MemoryFrontmatter, Sensor } from "./types.js";
 
 const PRIVATE_BLOCK_RE = /<private>[\s\S]*?<\/private>/g;
@@ -28,9 +28,21 @@ function formatFrontmatterError(err: z.ZodError): string {
   return `invalid ${field}: ${issue.message}`;
 }
 
+const KNOWN_SENSOR_KINDS = new Set<string>(SENSOR_KINDS);
+
 export function parseMemory(raw: string): Memory {
   const parsed = matter(raw);
-  const result = MemoryFrontmatterSchema.safeParse(parsed.data);
+  const data = { ...(parsed.data as Record<string, unknown>) };
+  // Forward compatibility: a sensor kind from a newer Hivelore is set aside, not fatal.
+  const sensor = data["sensor"];
+  if (sensor && typeof sensor === "object" && !Array.isArray(sensor)) {
+    const kind = (sensor as Record<string, unknown>)["kind"];
+    if (typeof kind === "string" && !KNOWN_SENSOR_KINDS.has(kind)) {
+      data["unsupported_sensor"] = sensor;
+      delete data["sensor"];
+    }
+  }
+  const result = MemoryFrontmatterSchema.safeParse(data);
   if (!result.success) {
     throw new Error(formatFrontmatterError(result.error));
   }
@@ -126,13 +138,31 @@ function dropDefaults(frontmatter: Record<string, unknown>): Record<string, unkn
 
 export function serializeMemory(memory: Memory): string {
   const clean = dropDefaults(stripUndefined(memory.frontmatter) as Record<string, unknown>);
+  // Write a preserved newer-kind sensor back where it came from.
+  if (clean["unsupported_sensor"]) {
+    if (!clean["sensor"]) clean["sensor"] = clean["unsupported_sensor"];
+    delete clean["unsupported_sensor"];
+  }
   const body = canonicalMemoryBody(memory.frontmatter.id, memory.body);
   return matter.stringify(body, clean, YAML_DUMP_OPTIONS as unknown as matter.GrayMatterOption<string, never>);
 }
 
+/**
+ * The author's calendar date. A memory saved at 23:00 in Montréal was named after tomorrow's UTC
+ * date, and the agent's `git add` with today's date failed (field review 2026-09-30 §3.6).
+ * `created_at` keeps the exact UTC instant.
+ */
+function localCalendarDate(date: Date): string {
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export function newMemoryId(type: string, slug: string, date = new Date()): string {
-  const isoDate = date.toISOString().slice(0, 10);
+  const isoDate = localCalendarDate(date);
+  // Transliterate instead of dropping accented letters: "décision prix" → "decision-prix", not "d-cision-prix".
   const safeSlug = slug
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
@@ -162,6 +192,8 @@ export function buildFrontmatter(input: {
   supersedes?: string[];
   rule?: string;
   source?: string;
+  verifiedBy?: string;
+  cannotDetect?: string;
 }): MemoryFrontmatter {
   const now = new Date();
   const id = newMemoryId(input.type, input.slug, now);
@@ -190,6 +222,8 @@ export function buildFrontmatter(input: {
     supersedes: input.supersedes,
     rule: input.rule?.trim() || undefined,
     source: input.source?.trim() || undefined,
+    verified_by: input.verifiedBy?.trim() || undefined,
+    cannot_detect: input.cannotDetect?.trim() || undefined,
     revision_count: 0,
     related_ids: input.relatedIds ?? [],
   });

@@ -13,6 +13,7 @@ import {
   assessBootstrapState,
   addedLineNumbersFromDiff,
   detectSensorWeakening,
+  sameParsedSensor,
   isSensorScannablePath,
   findProjectRoot,
   loadCodeMap,
@@ -47,10 +48,12 @@ import {
   resolveBriefingBudget,
   incidentSuffix,
   resolveHaivePaths,
+  legacyCacheDir,
   runSensors,
   runPresenceSensors,
   changedPathsFromDiff,
   saveConfig,
+  nextPin,
   selectCommandSensors,
   sensorTargetsFromDiff,
   sensorAppliesToPath,
@@ -79,6 +82,10 @@ import { collectScaffoldLoopGaps, describeScaffoldGap } from "../utils/post-inci
 
 import { runPreEdit } from "../utils/pre-edit.js";
 import { resetEditContextLedger } from "../utils/file-context.js";
+import { pluginHookShadowed } from "../utils/hook-source.js";
+import { writeProjectSkill } from "../utils/project-skill.js";
+import { handleUserPrompt } from "../utils/user-prompt.js";
+import { collectCaptureProposals } from "./memory-propose.js";
 import { dirtyStatusEntries, loadTaskSession, latestTaskSession, startTaskSession, sessionIdentity, sessionIdFromEnv, worktreeSnapshot, taskDirtyFiles, changedSince, gitText, TASK_BASELINE_EXCLUSION_MAX_AGE_MS, type CompletionMode } from "../utils/task-session.js";
 
 declare const __HAIVE_VERSION__: string;
@@ -252,6 +259,8 @@ export function registerEnforce(program: Command): void {
       const current = await loadConfig(paths);
       await saveConfig(paths, {
         ...current,
+        // The gates written here need at least this CLI: older ones would skip newer sensor kinds.
+        cliVersion: nextPin(current.cliVersion, __HAIVE_VERSION__),
         enforcement: {
           ...current.enforcement,
           mode: "strict",
@@ -279,6 +288,8 @@ export function registerEnforce(program: Command): void {
           } else {
             const result = await installClaudeHooksAtPath(settingsPath);
             ui.success(`${result.created ? "Created" : "Patched"} Claude Code hooks (${path.relative(root, result.settingsPath) || result.settingsPath})`);
+            const skill = await writeProjectSkill(root);
+            if (skill) ui.success(`Wrote the Hivelore agent skill (${path.relative(root, skill)})`);
           }
         } catch (err) {
           ui.warn(`Claude Code hooks not ${opts.removeClaude ? "removed" : "installed"}: ${err instanceof Error ? err.message : String(err)}`);
@@ -333,7 +344,9 @@ export function registerEnforce(program: Command): void {
     .action(async (opts: EnforceOptions & { dryRun?: boolean }) => {
       const root = findProjectRoot(opts.dir);
       const paths = resolveHaivePaths(root);
-      const cacheDir = path.join(paths.haiveDir, ".cache");
+      // Only an IN-REPO cache can leak into commits: the pre-0.67 `.ai/.cache`, or an explicit
+      // HIVELORE_CACHE_DIR inside the checkout. The default user-level cache is not ours to wipe here.
+      const cacheDir = legacyCacheDir(root);
       if (existsSync(cacheDir)) {
         if (opts.dryRun) ui.info(`would clean ${path.relative(root, cacheDir)} (preserving .gitignore)`);
         else {
@@ -432,6 +445,7 @@ export function registerEnforce(program: Command): void {
       const payload = await readHookPayload();
       const root = resolveRoot(opts.dir, payload);
       if (!root) return;
+      if (pluginHookShadowed(root)) return;
       const paths = resolveHaivePaths(root);
       if (!existsSync(paths.haiveDir)) return;
       await mkdir(paths.runtimeDir, { recursive: true });
@@ -505,6 +519,20 @@ export function registerEnforce(program: Command): void {
       }
       for (const warning of briefing.setup_warnings) {
         console.log(`\n[setup warning] ${warning}`);
+      }
+    });
+
+  enforce
+    .command("user-prompt")
+    .description("Claude Code UserPromptSubmit hook: when the developer states a lasting rule while correcting the agent, offer to make it an enforced rule.")
+    .option("-d, --dir <dir>", "project root")
+    .action(async (opts: EnforceOptions) => {
+      const payload = (await readHookPayload()) as HookPayload & { prompt?: string };
+      const root = resolveRoot(opts.dir, payload);
+      if (pluginHookShadowed(root)) return;
+      const context = await handleUserPrompt(payload, opts.dir).catch(() => null);
+      if (context) {
+        console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: context } }));
       }
     });
 
@@ -591,6 +619,7 @@ async function buildFinishReport(dir: string | undefined, opts: FinishOptions = 
 
   findings.push(...await checkFailureCapture(paths, config));
   findings.push(...await checkPostIncidentScaffolds(paths));
+  findings.push(...await checkCaptureCandidates(root));
   // First-agent bootstrap is a PROJECT, not a precondition for finishing one bugfix. Blocking here
   // made `finish` unpassable for entire sessions, and its only fix ("invoke the bootstrap_repo MCP
   // prompt") is unreachable whenever the MCP layer is down — which is exactly when the gate fires.
@@ -1035,6 +1064,28 @@ async function taggedVersionsBetween(root: string, after: string, before: string
  * lesson was recorded after it. Off by config opt-out — the signal has false positives (a `grep`
  * that finds nothing exits non-zero), so the default is advisory, not blocking.
  */
+/**
+ * Capture from signals, not from the agent's initiative (field reports #8 §6, #9 §7): one quiet line
+ * when the branch itself suggests a memory — a regression fix touching code a decision justified, a
+ * sensor whose scope missed the bug class just fixed, a fix commit that explains its cause. Nothing
+ * at all when there is nothing to propose; never blocks.
+ */
+async function checkCaptureCandidates(root: string): Promise<EnforcementFinding[]> {
+  try {
+    const { proposals } = await collectCaptureProposals(root);
+    if (proposals.length === 0) return [];
+    const kinds = [...new Set(proposals.map((p) => p.kind))].join(", ");
+    return [{
+      severity: "info",
+      code: "capture-candidates",
+      message: `${proposals.length} capture candidate(s) derived from this branch (${kinds}).`,
+      fix: "Review with `hivelore memory propose`; record only what a teammate could not guess (`--accept <n>` stages it into this PR).",
+    }];
+  } catch {
+    return [];
+  }
+}
+
 async function checkFailureCapture(
   paths: ReturnType<typeof resolveHaivePaths>,
   config: HaiveConfig,
@@ -1044,7 +1095,7 @@ async function checkFailureCapture(
   const gate = config.enforcement?.failureCaptureGate ?? "off";
   if (gate === "off") return [];
 
-  const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
+  const obsFile = path.join(paths.cacheDir, "observations.jsonl");
   if (!existsSync(obsFile)) return [];
 
   const failures: { ts: string; tool: string; summary: string }[] = [];
@@ -1185,7 +1236,7 @@ export async function runWithEnforcement(
       // observation, same stream the Claude Code PostToolUse hook feeds — session-end --auto
       // distills it into a proposed draft. Best-effort, never affects the exit code.
       if ((code ?? 0) !== 0) {
-        const obsFile = path.join(paths.haiveDir, ".cache", "observations.jsonl");
+        const obsFile = path.join(paths.cacheDir, "observations.jsonl");
         void mkdir(path.dirname(obsFile), { recursive: true })
           .then(() => writeFile(obsFile, "", { flag: "a" }))
           .then(() => writeFile(
@@ -1827,7 +1878,16 @@ async function runPrecommitPolicy(
   // that such a change never lands unmentioned (the gate lives in `.ai/`, editable by the same
   // agent it constrains). Review-only — legitimate demotions exist.
   const weakeningApprovals = await resolveSensorWeakeningApprovals(paths.root, stage);
-  const detectedWeakenings = detectSensorWeakening(snapshot.diff);
+  // Line-level detection, then confirmed on the parsed sensors: a canonical rewrite (folded YAML
+  // unfolded, keys reordered) is not a weakening, and must not block a `doctor --fix` commit.
+  const detectedWeakenings: ReturnType<typeof detectSensorWeakening> = [];
+  for (const weakening of detectSensorWeakening(snapshot.diff)) {
+    if (weakening.change !== "memory-deleted") {
+      const { before, after } = await snapshotFileVersions(paths.root, snapshot, weakening.file, stage);
+      if (before !== null && after !== null && sameParsedSensor(before, after)) continue;
+    }
+    detectedWeakenings.push(weakening);
+  }
   const weakenings = detectedWeakenings.filter((weakening) => !weakeningApprovals.has(weakening.memory_id));
   const approvedWeakenings = detectedWeakenings.filter((weakening) => weakeningApprovals.has(weakening.memory_id));
   const weakeningFindings: EnforcementFinding[] = weakenings.length > 0
@@ -2009,10 +2069,18 @@ async function resolveSensorWeakeningApprovals(
 ): Promise<Set<string>> {
   const approved = parseSensorWeakeningApprovals(process.env["HIVELORE_SENSOR_WEAKENING_APPROVALS"]);
   if (stage !== "ci") return approved;
-  try {
-    const { stdout } = await execFileAsync("git", ["log", "-1", "--pretty=%B"], { cwd: root });
-    for (const id of parseSensorWeakeningApprovals(stdout)) approved.add(id);
-  } catch { /* the unapproved finding remains fail-closed */ }
+  // Every commit of the change carries its own approval. On a pull request the checkout is GitHub's
+  // merge commit, whose message never holds the author's `Hivelore-Sensor-Change` trailers — reading
+  // only `git log -1` made an approved change fail CI.
+  const ranges: string[][] = [["-1"]];
+  const ciRange = await resolveCiDiffRange(root).catch(() => null);
+  if (ciRange) ranges.push(["-n", "200", ciRange.replace("...", "..")]);
+  for (const args of ranges) {
+    try {
+      const { stdout } = await execFileAsync("git", ["log", ...args, "--pretty=%B"], { cwd: root });
+      for (const id of parseSensorWeakeningApprovals(stdout)) approved.add(id);
+    } catch { /* the unapproved finding remains fail-closed */ }
+  }
   return approved;
 }
 
@@ -2020,6 +2088,25 @@ async function resolveSensorWeakeningApprovals(
  * Staged (index) content of a project-relative path, falling back to the working tree — the
  * AST sensor layer parses whole files, and at pre-commit the staged blob is the truth.
  */
+/** Base and head versions of a file for the policy snapshot (a CI range, the index, or the worktree). */
+async function snapshotFileVersions(
+  root: string,
+  snapshot: PolicyDiffSnapshot,
+  rel: string,
+  stage: PolicyScanStage,
+): Promise<{ before: string | null; after: string | null }> {
+  const show = (ref: string): Promise<string | null> => runCommand("git", ["show", `${ref}:${rel}`], root).catch(() => null);
+  const range = /^(.+?)(\.\.\.?)(.+)$/.exec(snapshot.source);
+  if (range) {
+    const [, from, dots, to] = range;
+    const base = dots === "..."
+      ? (await runCommand("git", ["merge-base", from!, to!], root).catch(() => "")).trim() || from!
+      : from!;
+    return { before: await show(base), after: await show(to!) };
+  }
+  return { before: await show("HEAD"), after: await stagedFileContent(root, rel, stage) };
+}
+
 async function stagedFileContent(root: string, rel: string, stage: PolicyScanStage): Promise<string | null> {
   try {
     if (stage === "pre-commit") return await runCommand("git", ["show", `:${rel}`], root);

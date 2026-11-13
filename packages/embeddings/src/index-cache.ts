@@ -22,7 +22,7 @@ export interface EmbeddingIndex {
 }
 
 export function cacheDir(paths: HaivePaths): string {
-  return path.join(paths.haiveDir, ".cache", "embeddings");
+  return path.join(paths.cacheDir, "embeddings");
 }
 
 export function indexPath(paths: HaivePaths): string {

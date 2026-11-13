@@ -1,6 +1,6 @@
-import { readMcpRuntimeInstances } from "@hivelore/core";
+import { readMcpRuntimeInstances, legacyCacheDir, migrateLegacyCache, loadConfigSync, pinVerdict } from "@hivelore/core";
 import { existsSync, statSync } from "node:fs";
-import { readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { execFileSync, execSync } from "node:child_process";
 import { Command } from "commander";
@@ -1679,7 +1679,64 @@ export async function collectWritePathHazards(root: string, memoriesDir: string,
     });
   }
 
-  // 4. CI that installs unpinned code, or pushes `[skip ci]` commits to integration branches.
+  // 4. A pre-0.67 cache still inside the checkout (181 MB for a 460 KB corpus in field report #11 §8).
+  const legacy = legacyCacheDir(root);
+  const paths = resolveHaivePaths(root);
+  if (existsSync(legacy) && path.resolve(paths.cacheDir) !== path.resolve(legacy)) {
+    const leftovers = (await readdir(legacy).catch(() => [] as string[])).filter((name) => name !== ".gitignore");
+    if (leftovers.length > 0) {
+      if (fix) {
+        migrateLegacyCache(paths);
+        await rm(legacy, { recursive: true, force: true }).catch(() => {});
+      }
+      findings.push({
+        severity: fix ? "info" : "warn",
+        code: "legacy-cache-in-repo",
+        message: fix
+          ? `Moved the in-repo cache to ${paths.cacheDir} and removed .ai/.cache.`
+          : `.ai/.cache still holds ${leftovers.length} cache item(s) inside the checkout; caches now live in ${paths.cacheDir} (outside backups, Docker contexts and IDE indexing).`,
+        ...(fix ? {} : { fix: "hivelore doctor --fix   (moves what is still useful, removes the rest; indexes rebuild on demand)" }),
+        section: "Corpus health",
+      });
+    }
+  }
+
+  // 4b. Sensors written by a newer Hivelore: preserved, but this CLI cannot enforce them.
+  if (existsSync(memoriesDir)) {
+    const newer = (await loadMemoriesFromDir(memoriesDir)).filter((l) => l.memory.frontmatter.unsupported_sensor);
+    if (newer.length > 0) {
+      const kinds = [...new Set(newer.map((l) => String(l.memory.frontmatter.unsupported_sensor?.["kind"])))].join(", ");
+      findings.push({
+        severity: "warn",
+        code: "sensor-kind-unsupported",
+        message: `${newer.length} sensor(s) use a kind this CLI (${__HAIVE_VERSION__}) does not know (${kinds}) — kept intact, but not enforced on this machine.`,
+        fix: "npm install -g @hivelore/cli@latest   (or the version pinned in .ai/hivelore.config.json)",
+        section: "Protection",
+      });
+    }
+  }
+
+  // 5. The repository's pinned CLI version vs the one running here.
+  const pinned = loadConfigSync(paths).cliVersion;
+  const verdict = pinVerdict(__HAIVE_VERSION__, pinned);
+  if (verdict === "older") {
+    findings.push({
+      severity: "warn",
+      code: "cli-older-than-pin",
+      message: `This repository pins @hivelore/cli ${pinned}; ${__HAIVE_VERSION__} runs here and does not enforce newer rule kinds (e.g. command guards).`,
+      fix: `npm install -g @hivelore/cli@${pinned}   (or add it as a devDependency: hooks then use the project's copy)`,
+      section: "Protection",
+    });
+  } else if (verdict === "newer") {
+    findings.push({
+      severity: "info",
+      code: "cli-newer-than-pin",
+      message: `${__HAIVE_VERSION__} runs here; the repository pins ${pinned}. Raising the pin (\`cliVersion\` in .ai/hivelore.config.json) asks every teammate to update.`,
+      section: "Protection",
+    });
+  }
+
+  // 6. CI that installs unpinned code, or pushes `[skip ci]` commits to integration branches.
   const workflowsDir = path.join(root, ".github", "workflows");
   for (const file of await readdir(workflowsDir).catch(() => [] as string[])) {
     if (!/\.ya?ml$/.test(file)) continue;

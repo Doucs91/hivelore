@@ -37,7 +37,7 @@ export interface ChurnSample {
 }
 
 function churnCachePath(paths: HaivePaths): string {
-  return path.join(paths.haiveDir, ".cache", "anchor-churn.json");
+  return path.join(paths.cacheDir, "anchor-churn.json");
 }
 
 async function gitHead(root: string): Promise<string | null> {

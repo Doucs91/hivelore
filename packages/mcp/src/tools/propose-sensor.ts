@@ -29,6 +29,7 @@ import {
   serializeMemory,
   type Sensor,
   type SensorTarget,
+  commandTextForGuards,
 } from "@hivelore/core";
 import { z } from "zod";
 import type { HaiveContext } from "../context.js";
@@ -37,9 +38,13 @@ import { astEngineAvailable, astLangForPath, runAstSensorOnContent } from "../as
 export const ProposeSensorInputSchema = {
   memory_id: z.string().min(1).describe("Id of the gotcha/attempt memory this sensor protects."),
   kind: z
-    .enum(["regex", "ast", "shell", "test", "checklist"])
+    .enum(["regex", "ast", "shell", "test", "checklist", "command"])
     .default("regex")
     .describe(
+      "command = a FORBIDDEN AGENT COMMAND: `pattern` is a regex over the shell command an agent is about to " +
+      "run; at block severity the Claude Code PreToolUse hook denies it before it runs (e.g. pattern " +
+      "'(?<![\\w-])npm\\s+publish(?![\\w-])' for 'never run npm publish'). Needs `pattern`, `message` and a " +
+      "`bad_example` command it must match. " +
       "checklist = a REQUIRED VERIFICATION printed when a change touches `paths` (e.g. 'run the GPU " +
       "browser check of the PDF viewer — headless CI cannot see this failure'); at block severity the " +
       "commit message must carry `Hivelore-Checked: <memory_id>`. Needs only `message` + paths. " +
@@ -345,6 +350,30 @@ export async function proposeSensor(
         self_check: { silent_on_current: false, fires_on_bad: null, fired_on: [] },
       };
     }
+  } else if (kind === "command") {
+    let re: RegExp | null = null;
+    try { re = input.pattern?.trim() ? new RegExp(input.pattern, (input.flags ?? "").replace(/[gy]/g, "")) : null; } catch { re = null; }
+    const bad = input.bad_example?.trim();
+    if (!re || !bad || !re.test(commandTextForGuards(bad)) || !input.message?.trim()) {
+      return {
+        accepted: false,
+        memory_id: input.memory_id,
+        severity: input.severity,
+        reason: "invalid-command-guard",
+        guidance: "kind=command requires a valid regex `pattern`, a `message`, and a `bad_example` command the pattern matches (e.g. 'npm publish --access public').",
+        self_check: { silent_on_current: false, fires_on_bad: re && bad ? re.test(commandTextForGuards(bad)) : null, fired_on: [] },
+      };
+    }
+    if (re.test(commandTextForGuards(`git commit -m "${bad}"`))) {
+      return {
+        accepted: false,
+        memory_id: input.memory_id,
+        severity: input.severity,
+        reason: "invalid-command-guard",
+        guidance: "The pattern also matches a commit message that merely mentions the command — anchor it on the command tokens.",
+        self_check: { silent_on_current: false, fires_on_bad: true, fired_on: [] },
+      };
+    }
   } else if (kind === "checklist") {
     if (!input.message?.trim() || input.message.trim().length < 12) {
       return {
@@ -371,6 +400,34 @@ export async function proposeSensor(
   const found = loaded.find(({ memory }) => memory.frontmatter.id === input.memory_id);
   if (!found) {
     throw new Error(`No memory found with id ${input.memory_id}`);
+  }
+
+  if (kind === "command") {
+    const guard: Sensor = {
+      kind: "command",
+      pattern: input.pattern!,
+      ...(input.flags ? { flags: input.flags } : {}),
+      paths: [],
+      message: input.message!.trim(),
+      ...(input.incident?.trim() ? { incident: input.incident.trim() } : {}),
+      severity: input.severity,
+      autogen: false,
+      last_fired: null,
+    };
+    await writeFile(found.filePath, serializeMemory({
+      frontmatter: { ...found.memory.frontmatter, sensor: guard },
+      body: found.memory.body,
+    }), "utf8");
+    return {
+      accepted: true,
+      memory_id: input.memory_id,
+      severity: input.severity,
+      guidance: input.severity === "block"
+        ? `Command guard armed: an agent's \`${input.bad_example!.trim()}\` is denied before it runs (Claude Code PreToolUse). Quoted mentions (commit messages, echo) pass.`
+        : `Command guard armed (warn): the agent is told before \`${input.bad_example!.trim()}\` runs.`,
+      self_check: { silent_on_current: true, fires_on_bad: true, fired_on: [] },
+      file_path: found.filePath,
+    };
   }
 
   if (kind === "checklist") {

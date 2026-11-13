@@ -22,7 +22,7 @@ import type { HaivePaths } from "./paths.js";
 export const GATE_REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function reminderMarkerPath(paths: HaivePaths): string {
-  return path.join(paths.haiveDir, ".cache", "gate-reminders.json");
+  return path.join(paths.cacheDir, "gate-reminders.json");
 }
 
 async function readMarkers(paths: HaivePaths): Promise<Record<string, string>> {
